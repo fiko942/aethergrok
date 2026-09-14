@@ -9285,7 +9285,7 @@
 
   function firstLiveTranscriptChild() {
     for (const child of messagesEl.children) {
-      if (child.id === "welcome" || child.id === "history-head") continue;
+      if (child.id === "welcome" || child.id === "history-head" || child.id === "transcript-loading-bar") continue;
       if (isPendingClearNode(child)) continue;
       return child;
     }
@@ -9531,44 +9531,51 @@
     const perms = partitionHistoryCards(state.historyPrefixPermissions, startUserCount, endUserCount);
     state.planHistoryQueue = plans.inChunk;
     state.permissionHistoryQueue = perms.inChunk;
-    for (const m of chunk) handleHostMessage(m);
-    flushPlanHistory();
-    flushPermissionHistory();
-    if (!state.historyPrefix.length) {
-      state.planHistoryQueue = plans.rest;
-      state.permissionHistoryQueue = perms.rest;
+    let nodes = [];
+    try {
+      for (const m of chunk) handleHostMessage(m);
       flushPlanHistory();
       flushPermissionHistory();
+      if (!state.historyPrefix.length) {
+        state.planHistoryQueue = plans.rest;
+        state.permissionHistoryQueue = perms.rest;
+        flushPlanHistory();
+        flushPermissionHistory();
+      }
+      if (historyPark) {
+        nodes = [...historyPark.children];
+      }
+    } finally {
+      historyPark = null;
+      state.historyPrefixPlans = state.historyPrefix.length ? plans.rest : [];
+      state.historyPrefixPermissions = state.historyPrefix.length ? perms.rest : [];
+      state.userMsgCount = saved.userMsgCount;
+      state.interjectionCount = saved.interjectionCount;
+      state.historyEventCount = saved.historyEventCount;
+      state.planHistoryQueue = saved.planHistoryQueue;
+      state.permissionHistoryQueue = saved.permissionHistoryQueue;
+      state.busy = saved.busy;
+      state.busyLocked = saved.busyLocked;
+      state.grokkingEl = saved.grokkingEl;
+      state.thinkingIndicatorEl = saved.thinkingIndicatorEl;
+      state.activeAgentEl = saved.activeAgentEl;
+      state.activeAgentRaw = saved.activeAgentRaw;
+      state.activeUserEl = saved.activeUserEl;
+      state.activeUserRaw = saved.activeUserRaw;
+      state.activeThoughtEl = saved.activeThoughtEl;
+      state.activeThoughtHdrEl = saved.activeThoughtHdrEl;
+      state.thoughtBuffer = saved.thoughtBuffer;
+      state.activeToolGroupEl = saved.activeToolGroupEl;
+      state.turnAgentActionsEl = saved.turnAgentActionsEl;
+      state.turnEditsByToolCallId.clear();
+      for (const [id, entry] of saved.turnEdits) state.turnEditsByToolCallId.set(id, entry);
+      state.turnDiffSummaryEl = saved.turnDiffSummaryEl;
+      state.turnRating = saved.turnRating;
+      state.suppressReplayTurn = saved.suppressReplayTurn;
+      state.skipUserBubble = saved.skipUserBubble;
+      state.replaying = saved.replaying;
+      state.historyHydrating = false;
     }
-    const nodes = [...historyPark.children];
-    historyPark = null;
-    state.historyPrefixPlans = state.historyPrefix.length ? plans.rest : [];
-    state.historyPrefixPermissions = state.historyPrefix.length ? perms.rest : [];
-    state.userMsgCount = saved.userMsgCount;
-    state.interjectionCount = saved.interjectionCount;
-    state.historyEventCount = saved.historyEventCount;
-    state.planHistoryQueue = saved.planHistoryQueue;
-    state.permissionHistoryQueue = saved.permissionHistoryQueue;
-    state.busy = saved.busy;
-    state.busyLocked = saved.busyLocked;
-    state.grokkingEl = saved.grokkingEl;
-    state.thinkingIndicatorEl = saved.thinkingIndicatorEl;
-    state.activeAgentEl = saved.activeAgentEl;
-    state.activeAgentRaw = saved.activeAgentRaw;
-    state.activeUserEl = saved.activeUserEl;
-    state.activeUserRaw = saved.activeUserRaw;
-    state.activeThoughtEl = saved.activeThoughtEl;
-    state.activeThoughtHdrEl = saved.activeThoughtHdrEl;
-    state.thoughtBuffer = saved.thoughtBuffer;
-    state.activeToolGroupEl = saved.activeToolGroupEl;
-    state.turnAgentActionsEl = saved.turnAgentActionsEl;
-    state.turnEditsByToolCallId.clear();
-    for (const [id, entry] of saved.turnEdits) state.turnEditsByToolCallId.set(id, entry);
-    state.turnDiffSummaryEl = saved.turnDiffSummaryEl;
-    state.turnRating = saved.turnRating;
-    state.suppressReplayTurn = saved.suppressReplayTurn;
-    state.skipUserBubble = saved.skipUserBubble;
-    state.replaying = saved.replaying;
     prependHistoryNodes(nodes);
     refreshUserRewindButtons();
     syncHistoryHead();

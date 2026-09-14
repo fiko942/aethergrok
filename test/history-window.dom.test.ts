@@ -145,6 +145,54 @@ describe("history window on open (#102)", () => {
     expect(sent).toHaveLength(1);
     expect(String(sent[0].content)).toContain("export-early-token");
   });
+
+  it("flushes DOM on session switch and resets window to latest turns on return", () => {
+    const { window, doc } = bootWebview();
+    setHistoryWindow(window, 5);
+    setHistoryPrepend(window, 5);
+
+    // 1. Session A: replay 15 turns -> only last 5 in DOM
+    dispatch(window, { type: "clearMessages" });
+    replayTurns(window, 15, (i) => ({ user: `sessionA-u${i}`, agent: `sessionA-a${i}` }));
+    expect(userBodies(doc)).toEqual([
+      "sessionA-u10", "sessionA-u11", "sessionA-u12", "sessionA-u13", "sessionA-u14",
+    ]);
+    expect(api(window).__grokHistory.prefixRemaining()).toBe(10);
+
+    // Expand earlier turns in Session A
+    api(window).__grokHistory.expandAll();
+    expect(userBodies(doc)).toHaveLength(15);
+    expect(userBodies(doc)[0]).toBe("sessionA-u0");
+    expect(api(window).__grokHistory.prefixRemaining()).toBe(0);
+
+    // 2. Switch to Session B: clearMessages + replay 12 turns
+    dispatch(window, { type: "clearMessages" });
+    replayTurns(window, 12, (i) => ({ user: `sessionB-u${i}`, agent: `sessionB-a${i}` }));
+    // Assert Session A's DOM nodes are flushed
+    expect(doc.body.textContent).not.toContain("sessionA-u");
+    expect(userBodies(doc)).toEqual([
+      "sessionB-u7", "sessionB-u8", "sessionB-u9", "sessionB-u10", "sessionB-u11",
+    ]);
+    expect(api(window).__grokHistory.prefixRemaining()).toBe(7);
+
+    // 3. Switch back to Session B -> Session A
+    dispatch(window, { type: "clearMessages" });
+    replayTurns(window, 15, (i) => ({ user: `sessionA-u${i}`, agent: `sessionA-a${i}` }));
+    // Assert Session B's DOM nodes are flushed, and Session A starts cleanly with only last 5 turns in DOM
+    expect(doc.body.textContent).not.toContain("sessionB-u");
+    expect(userBodies(doc)).toEqual([
+      "sessionA-u10", "sessionA-u11", "sessionA-u12", "sessionA-u13", "sessionA-u14",
+    ]);
+    expect(api(window).__grokHistory.prefixRemaining()).toBe(10);
+
+    // 4. Scroll up / expandMore loads next chunk of 5 turns
+    expect(api(window).__grokHistory.expandMore()).toBe(true);
+    expect(userBodies(doc)).toEqual([
+      "sessionA-u5", "sessionA-u6", "sessionA-u7", "sessionA-u8", "sessionA-u9",
+      "sessionA-u10", "sessionA-u11", "sessionA-u12", "sessionA-u13", "sessionA-u14",
+    ]);
+    expect(api(window).__grokHistory.prefixRemaining()).toBe(5);
+  });
 });
 
 function cardTranscript(doc: Document): string[] {
