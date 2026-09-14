@@ -9265,9 +9265,9 @@
   // (#102). 80 is several screens even on a phone, 8× the remote snapshot of 10,
   // and small conversations fall through unchanged. Tests may shrink it via
   // `window.__grokHistoryWindow`.
-  const HISTORY_WINDOW_USER_TURNS = 20;
-  const HISTORY_PREPEND_USER_TURNS = 40;
-  const HISTORY_PREPEND_PX = 900;
+  const HISTORY_WINDOW_USER_TURNS = 10;
+  const HISTORY_PREPEND_USER_TURNS = 10;
+  const HISTORY_PREPEND_PX = 1000;
   let historyPark = null;
   let prependLock = 0;
 
@@ -9275,6 +9275,12 @@
     const override = window.__grokHistoryWindow;
     if (typeof override === "number" && override > 0 && Number.isFinite(override)) return Math.floor(override);
     return HISTORY_WINDOW_USER_TURNS;
+  }
+
+  function historyPrependTurns() {
+    const override = window.__grokHistoryPrepend;
+    if (typeof override === "number" && override > 0 && Number.isFinite(override)) return Math.floor(override);
+    return HISTORY_PREPEND_USER_TURNS;
   }
 
   function firstLiveTranscriptChild() {
@@ -9455,7 +9461,7 @@
     if (!state.historyPrefix.length) return false;
     state.historyHydrating = true;
     syncHistoryHead();
-    const turns = all ? state.historyPrefixUserCount : HISTORY_PREPEND_USER_TURNS;
+    const turns = all ? state.historyPrefixUserCount : historyPrependTurns();
     const split = splitHistoryWindow(state.historyPrefix, Math.max(1, turns));
     const chunk = split.suffix.length ? split.suffix : split.prefix;
     const remain = split.suffix.length ? split.prefix : [];
@@ -9576,7 +9582,6 @@
   function maybeLoadEarlierHistory() {
     if (state.replaying || state.historyHydrating) return;
     if (!state.historyPrefix.length) return;
-    if (state.stickToBottom) return;
     if (messagesEl.scrollTop > HISTORY_PREPEND_PX) return;
     loadEarlierHistory(false);
   }

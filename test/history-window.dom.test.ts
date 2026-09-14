@@ -7,6 +7,10 @@ function setHistoryWindow(window: Window, n: number) {
   (window as unknown as { __grokHistoryWindow: number }).__grokHistoryWindow = n;
 }
 
+function setHistoryPrepend(window: Window, n: number) {
+  (window as unknown as { __grokHistoryPrepend: number }).__grokHistoryPrepend = n;
+}
+
 function api(window: Window) {
   return (window as unknown as {
     __grokHistory: {
@@ -85,6 +89,7 @@ describe("history window on open (#102)", () => {
   it("prepends older chunks from the top without unloading later ones", () => {
     const { window, doc } = bootWebview();
     setHistoryWindow(window, 5);
+    setHistoryPrepend(window, 40);
     replayTurns(window, 50, (i) => ({ user: `u${i}`, agent: `a${i}` }));
     expect(userBodies(doc)).toEqual(["u45", "u46", "u47", "u48", "u49"]);
     expect(api(window).__grokHistory.prefixRemaining()).toBe(45);
@@ -195,6 +200,7 @@ describe("history window plan/permission cards (#102 prepend)", () => {
     // still-unrendered turns must not drain into the first prepended chunk.
     const { window, doc } = bootWebview();
     setHistoryWindow(window, 80);
+    setHistoryPrepend(window, 40);
     dispatch(window, {
       type: "planHistoryQueue",
       plans: [
