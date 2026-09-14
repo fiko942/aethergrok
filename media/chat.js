@@ -9265,9 +9265,9 @@
   // (#102). 80 is several screens even on a phone, 8× the remote snapshot of 10,
   // and small conversations fall through unchanged. Tests may shrink it via
   // `window.__grokHistoryWindow`.
-  const HISTORY_WINDOW_USER_TURNS = 80;
+  const HISTORY_WINDOW_USER_TURNS = 20;
   const HISTORY_PREPEND_USER_TURNS = 40;
-  const HISTORY_PREPEND_PX = 720;
+  const HISTORY_PREPEND_PX = 900;
   let historyPark = null;
   let prependLock = 0;
 
@@ -9286,17 +9286,50 @@
     return null;
   }
 
+  let historyHeadObserver = null;
+  function setupHistoryHeadObserver(head) {
+    if (!head || typeof IntersectionObserver === "undefined") return;
+    if (historyHeadObserver) historyHeadObserver.disconnect();
+    try {
+      historyHeadObserver = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            maybeLoadEarlierHistory();
+          }
+        }
+      }, { root: messagesEl, rootMargin: "400px 0px 0px 0px" });
+      historyHeadObserver.observe(head);
+    } catch {
+      /* fallback to scroll listener */
+    }
+  }
+
   function syncHistoryHead() {
     let head = $("history-head");
     const more = !!(state.historyPrefix && state.historyPrefix.length);
     if (!more) {
       if (head) head.remove();
+      if (historyHeadObserver) {
+        historyHeadObserver.disconnect();
+        historyHeadObserver = null;
+      }
       return null;
     }
     if (!head) {
       head = document.createElement("div");
       head.id = "history-head";
-      head.setAttribute("aria-hidden", "true");
+      head.setAttribute("role", "button");
+      head.setAttribute("tabindex", "0");
+      head.onclick = (e) => {
+        e.stopPropagation();
+        loadEarlierHistory(false);
+      };
+      head.onkeydown = (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          loadEarlierHistory(false);
+        }
+      };
       const welcome = $("welcome");
       if (welcome && welcome.parentElement === messagesEl) {
         messagesEl.insertBefore(head, welcome.nextSibling);
@@ -9305,6 +9338,13 @@
       }
     }
     head.hidden = false;
+    const remaining = state.historyPrefixUserCount || state.historyPrefix.length;
+    if (state.historyHydrating) {
+      head.innerHTML = `<span class="history-head-spinner"></span><span>Loading earlier messages…</span>`;
+    } else {
+      head.innerHTML = `<span class="history-head-arrow">↑</span><span>Load earlier messages (${remaining} remaining)</span>`;
+    }
+    setupHistoryHeadObserver(head);
     return head;
   }
 
@@ -9317,6 +9357,10 @@
     state.historyPrefixPermissions = [];
     state.historyHydrating = false;
     historyPark = null;
+    if (historyHeadObserver) {
+      historyHeadObserver.disconnect();
+      historyHeadObserver = null;
+    }
     const head = $("history-head");
     if (head) head.remove();
   }
@@ -9409,6 +9453,8 @@
   function loadEarlierHistory(all) {
     if (state.replaying || state.historyHydrating) return false;
     if (!state.historyPrefix.length) return false;
+    state.historyHydrating = true;
+    syncHistoryHead();
     const turns = all ? state.historyPrefixUserCount : HISTORY_PREPEND_USER_TURNS;
     const split = splitHistoryWindow(state.historyPrefix, Math.max(1, turns));
     const chunk = split.suffix.length ? split.suffix : split.prefix;
