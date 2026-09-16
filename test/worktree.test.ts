@@ -307,6 +307,27 @@ describe("sanitizeWorktreeLabel", () => {
   });
 });
 
+describe("gitRootForPath caching", () => {
+  it("caches resolved git root and avoids redundant existsSync calls", () => {
+    let existsCalls = 0;
+    const fakeFs = {
+      existsSync: (p: string) => {
+        existsCalls++;
+        return p === "/repos/cached-app/.git" || p.includes("cached-app\\.git") || p.includes("cached-app/.git");
+      },
+    };
+    const first = gitRootForPath("/repos/cached-app/src/components", fakeFs);
+    expect(first).toBeDefined();
+    const callsAfterFirst = existsCalls;
+    expect(callsAfterFirst).toBeGreaterThan(0);
+
+    // Second call for the same path should hit cache and not increment existsCalls
+    const second = gitRootForPath("/repos/cached-app/src/components", fakeFs);
+    expect(second).toBe(first);
+    expect(existsCalls).toBe(callsAfterFirst);
+  });
+});
+
 describe("isGitRepo", () => {
   it("walks up for a .git entry", () => {
     const path = require("node:path") as typeof import("node:path");

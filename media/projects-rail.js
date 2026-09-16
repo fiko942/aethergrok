@@ -1852,8 +1852,10 @@
       case "session":
       case "sessionName": {
         if (msg.sessionId && acceptActiveId(msg.sessionId)) {
-          state.activeSessionId = msg.sessionId;
-          render();
+          if (state.activeSessionId !== msg.sessionId) {
+            state.activeSessionId = msg.sessionId;
+            render();
+          }
         }
         break;
       }

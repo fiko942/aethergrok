@@ -1091,27 +1091,21 @@ export function statSessionActivity(
   fs: FsLike,
   sessionDir: string,
 ): { mtimeMs: number; hasTranscript: boolean } | undefined {
-  let eventsMtime: number | undefined;
   try {
-    eventsMtime = fs.statSync(path.join(sessionDir, SESSION_EVENTS)).mtimeMs;
+    const updatesMtime = fs.statSync(path.join(sessionDir, SESSION_UPDATES)).mtimeMs;
+    return { mtimeMs: updatesMtime, hasTranscript: true };
+  } catch {
+    /* no updates.jsonl */
+  }
+  try {
+    const eventsMtime = fs.statSync(path.join(sessionDir, SESSION_EVENTS)).mtimeMs;
+    return { mtimeMs: eventsMtime, hasTranscript: true };
   } catch {
     /* no events.jsonl */
   }
-  if (eventsMtime !== undefined) {
-    try {
-      return {
-        mtimeMs: fs.statSync(path.join(sessionDir, SESSION_UPDATES)).mtimeMs,
-        hasTranscript: true,
-      };
-    } catch {
-      return { mtimeMs: eventsMtime, hasTranscript: true };
-    }
-  }
   try {
-    return {
-      mtimeMs: fs.statSync(path.join(sessionDir, SESSION_SUMMARY)).mtimeMs,
-      hasTranscript: false,
-    };
+    const summaryMtime = fs.statSync(path.join(sessionDir, SESSION_SUMMARY)).mtimeMs;
+    return { mtimeMs: summaryMtime, hasTranscript: false };
   } catch {
     return undefined;
   }

@@ -825,6 +825,8 @@ export class GrokSidebar {
   private repoCatalogCache: { at: number; entries: RepoListEntry[] } | null = null;
   /** In-memory cache for session indexes per repo cwd. */
   private sessionIndexCache: Map<string, { at: number; entries: SessionIndexEntry[] }> = new Map();
+  /** Short-lived cache for authorized session cwds to avoid repeated directory scans. */
+  private trustedCwdsCache: { at: number; epoch: number; cwds: string[] } | null = null;
   /** Tracks the latest requested local session ID to quickly cancel and bypass stale in-flight loads. */
   private latestLocalOpenTargetId: string | null = null;
   private readonly remoteMentionIndexes = new Map<string, {
@@ -6049,15 +6051,18 @@ Only continue if you trust this code.`,
 
   private invalidateRepoCatalog(): void {
     this.repoCatalogCache = null;
+    this.trustedCwdsCache = null;
   }
 
   private invalidateSessionIndex(cwd?: string): void {
-    if (!this.sessionIndexCache) return;
-    if (cwd) {
-      this.sessionIndexCache.delete(normalizeRepoPath(cwd));
-    } else {
-      this.sessionIndexCache.clear();
+    if (this.sessionIndexCache) {
+      if (cwd) {
+        this.sessionIndexCache.delete(normalizeRepoPath(cwd));
+      } else {
+        this.sessionIndexCache.clear();
+      }
     }
+    this.trustedCwdsCache = null;
   }
 
   private cachedIndexSessions(cwd: string, grokHome: string, log: (m: string) => void): SessionIndexEntry[] {
@@ -6067,7 +6072,7 @@ Only continue if you trust this code.`,
       this.sessionIndexCache = new Map();
     }
     const hit = this.sessionIndexCache.get(key);
-    if (hit && now - hit.at < 3500) {
+    if (hit && now - hit.at < 5000) {
       return hit.entries;
     }
     const entries = indexSessions({ fs: defaultFs, grokHome, cwd, log });
@@ -6252,14 +6257,19 @@ Only continue if you trust this code.`,
    */
   private isAuthorizedCwd(cwd: string | undefined): boolean {
     if (!cwd) return false;
-    const overrides = this.state.get<SessionMetaOverrides>(SESSION_META_KEY, {});
-    return cwdIsAuthorized(cwd, this.localTrustedSessionCwds(overrides), pathsEqual);
+    return cwdIsAuthorized(cwd, this.authorizedSessionCwds(), pathsEqual);
   }
 
   /** Snapshot of currently authorized session cwds (same set as isAuthorizedCwd). */
   private authorizedSessionCwds(): string[] {
+    const now = Date.now();
+    if (this.trustedCwdsCache && this.trustedCwdsCache.epoch === this.authEpoch && now - this.trustedCwdsCache.at < 3000) {
+      return this.trustedCwdsCache.cwds;
+    }
     const overrides = this.state.get<SessionMetaOverrides>(SESSION_META_KEY, {});
-    return this.localTrustedSessionCwds(overrides);
+    const cwds = this.localTrustedSessionCwds(overrides);
+    this.trustedCwdsCache = { at: now, epoch: this.authEpoch, cwds };
+    return cwds;
   }
 
   /** Retire choices superseded by transcript activity, including worktrees.
@@ -7969,7 +7979,7 @@ ${many ? `${working.length} conversations are` : "A conversation is"} still work
       }
       const wanted = new Set(ids.filter((id) => !adapterIds.has(id)));
       if (!wanted.size) continue;
-      const index = indexSessions({ fs: defaultFs, grokHome, cwd, log });
+      const index = this.cachedIndexSessions(cwd, grokHome, log);
       const present = index.filter((e) => wanted.has(e.id));
       if (!present.length) continue;
       const mtimeById = new Map(present.map((e) => [e.id, e.mtimeMs]));
@@ -13732,7 +13742,7 @@ ${many ? `${working.length} conversations are` : "A conversation is"} still work
     ))];
     const grokHome = resolveGrokHome(process.env);
     const found = candidates.find((cwd) =>
-      indexSessions({ fs: defaultFs, grokHome, cwd })
+      this.cachedIndexSessions(cwd, grokHome, (m) => this.host.appendLine(m)) // indexSessions(
         .some((entry) => entry.id === id)
     );
     return found ? { cwd: found } : { reason: "gone", repoCwd: selectedCwd };
@@ -14275,7 +14285,7 @@ ${many ? `${working.length} conversations are` : "A conversation is"} still work
     // Count via the cheap stat-only index — no need to parse every summary just to confirm.
     const repoEntries = mergeSessionIndexes(repoCwds.map((sessionCwd) => ({
       cwd: sessionCwd,
-      entries: indexSessions({ fs: defaultFs, grokHome, cwd: sessionCwd }),
+      entries: this.cachedIndexSessions(sessionCwd, grokHome, (m) => this.host.appendLine(m)),
     })));
     const adapterEntries = adapterEntriesEligibleForClear(
       [
@@ -18199,7 +18209,7 @@ ${many ? `${working.length} conversations are` : "A conversation is"} still work
       proven = new Set<string>();
       this.provenNonEmpty.set(repoKey, proven);
     }
-    const index = indexSessions({ fs: defaultFs, grokHome, cwd, log });
+    const index = this.cachedIndexSessions(cwd, grokHome, log);
     const removed: string[] = [];
     const now = Date.now();
     // Newest-N as before, PLUS every summary-only shell even when it has aged

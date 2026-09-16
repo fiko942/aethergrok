@@ -153,6 +153,13 @@ export function isGitRepo(
   return gitRootForPath(cwd, fs) !== undefined;
 }
 
+const gitRootCache = new Map<string, { root?: string; at: number }>();
+const GIT_ROOT_CACHE_TTL_MS = 15_000;
+
+export function clearGitRootCache(): void {
+  gitRootCache.clear();
+}
+
 /** Resolve the nearest checkout root for `cwd`. The nearest `.git` marker is
  * authoritative so an independent nested checkout does not inherit its
  * ancestor repository's worktrees. */
@@ -160,15 +167,27 @@ export function gitRootForPath(
   cwd: string,
   fs: { existsSync(p: string): boolean },
 ): string | undefined {
-  let dir = path.resolve(cwd);
+  if (!cwd) return undefined;
+  const resolved = path.resolve(cwd);
+  const now = Date.now();
+  const hit = gitRootCache.get(resolved);
+  if (hit && now - hit.at < GIT_ROOT_CACHE_TTL_MS) {
+    return hit.root;
+  }
+  let dir = resolved;
+  let found: string | undefined;
   for (let i = 0; i < 64; i++) {
     const git = path.join(dir, ".git");
-    if (fs.existsSync(git)) return dir;
+    if (fs.existsSync(git)) {
+      found = dir;
+      break;
+    }
     const parent = path.dirname(dir);
     if (parent === dir) break;
     dir = parent;
   }
-  return undefined;
+  gitRootCache.set(resolved, { root: found, at: now });
+  return found;
 }
 
 /** Parse one raw list/show row (snake_case from the CLI) into a WorktreeRecord. */
