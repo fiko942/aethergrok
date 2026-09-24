@@ -1,5 +1,5 @@
 export type ThemeMode = 'dark-studio' | 'dark-high-contrast' | 'light-antd';
-export type DefaultModel = 'grok-4.6' | 'grok-code' | 'custom' | string;
+export type DefaultModel = '9router' | '9router-general-purpose' | '9router-explore' | '9router-plan' | 'custom' | string;
 export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high' | 'max';
 export type PermissionMode = 'default' | 'acceptEdits' | 'auto' | 'plan' | 'bypassPermissions';
 

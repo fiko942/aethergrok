@@ -513,41 +513,81 @@
               <div class="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  class="p-4 rounded-xl border text-left transition {editDefaultModel === 'grok-4.6'
+                  class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router'
                     ? 'border-ant-primary bg-ant-primary/10 shadow-sm'
                     : 'border-ant-border bg-ant-bg hover:border-ant-primary/50'}"
-                  onclick={() => editDefaultModel = 'grok-4.6'}
+                  onclick={() => editDefaultModel = '9router'}
                 >
                   <div class="flex items-center justify-between mb-1">
                     <span class="text-xs font-bold text-white flex items-center gap-1.5">
-                      <Sparkles size={14} class="text-ant-primary" /> Grok 4.6
+                      <Sparkles size={14} class="text-ant-primary" /> 9router (Default)
                     </span>
-                    {#if editDefaultModel === 'grok-4.6'}
+                    {#if editDefaultModel === '9router'}
                       <CheckCircle2 size={15} class="text-ant-primary" />
                     {/if}
                   </div>
                   <p class="text-[11px] text-ant-text-secondary leading-relaxed">
-                    Flagship reasoning engine with deep multi-step analysis, complex logic, and comprehensive system architecture understanding.
+                    Primary multi-provider gateway supporting ultra-fast streaming, reasoning synthesis, and vision multimodal inputs.
                   </p>
                 </button>
 
                 <button
                   type="button"
-                  class="p-4 rounded-xl border text-left transition {editDefaultModel === 'grok-code'
+                  class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router-general-purpose'
                     ? 'border-ant-primary bg-ant-primary/10 shadow-sm'
                     : 'border-ant-border bg-ant-bg hover:border-ant-primary/50'}"
-                  onclick={() => editDefaultModel = 'grok-code'}
+                  onclick={() => editDefaultModel = '9router-general-purpose'}
                 >
                   <div class="flex items-center justify-between mb-1">
                     <span class="text-xs font-bold text-white flex items-center gap-1.5">
-                      <Brain size={14} class="text-ant-primary" /> Grok Code
+                      <Brain size={14} class="text-ant-primary" /> 9router General Purpose
                     </span>
-                    {#if editDefaultModel === 'grok-code'}
+                    {#if editDefaultModel === '9router-general-purpose'}
                       <CheckCircle2 size={15} class="text-ant-primary" />
                     {/if}
                   </div>
                   <p class="text-[11px] text-ant-text-secondary leading-relaxed">
-                    High-throughput code synthesis engine optimized for refactoring, test-driven development, and git diff generation.
+                    Balanced configuration for broad tasks, planning, refactoring, and general desktop workflows.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router-explore'
+                    ? 'border-ant-primary bg-ant-primary/10 shadow-sm'
+                    : 'border-ant-border bg-ant-bg hover:border-ant-primary/50'}"
+                  onclick={() => editDefaultModel = '9router-explore'}
+                >
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                      <Sparkles size={14} class="text-ant-primary" /> 9router Explore
+                    </span>
+                    {#if editDefaultModel === '9router-explore'}
+                      <CheckCircle2 size={15} class="text-ant-primary" />
+                    {/if}
+                  </div>
+                  <p class="text-[11px] text-ant-text-secondary leading-relaxed">
+                    Fast exploratory model for rapid codebase search, syntax checks, and file discovery.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router-plan'
+                    ? 'border-ant-primary bg-ant-primary/10 shadow-sm'
+                    : 'border-ant-border bg-ant-bg hover:border-ant-primary/50'}"
+                  onclick={() => editDefaultModel = '9router-plan'}
+                >
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                      <Brain size={14} class="text-ant-primary" /> 9router Plan
+                    </span>
+                    {#if editDefaultModel === '9router-plan'}
+                      <CheckCircle2 size={15} class="text-ant-primary" />
+                    {/if}
+                  </div>
+                  <p class="text-[11px] text-ant-text-secondary leading-relaxed">
+                    Architectural planning model dedicated to breaking down complex engineering requirements.
                   </p>
                 </button>
               </div>

@@ -37,11 +37,18 @@
   let fileInputEl = $state<HTMLInputElement | null>(null);
 
   // Composer configuration state
-  let selectedModel = $state<'grok-4.6' | 'grok-code'>('grok-4.6');
+  let selectedModel = $state<string>(settingsStore.defaultModel || '9router');
   let reasoningEffort = $state<'low' | 'medium' | 'high'>('medium');
   let attachedImages = $state<VisionImage[]>([]);
   let isTakingSnapshot = $state(false);
   let snapshotError = $state<string | null>(null);
+
+  // Sync composer selectedModel when settings defaultModel changes
+  $effect(() => {
+    if (settingsStore.defaultModel) {
+      selectedModel = settingsStore.defaultModel;
+    }
+  });
 
   // Auto-grow textarea up to 200px max height
   function adjustTextareaHeight() {
@@ -305,11 +312,16 @@
             </button>
           {/if}
 
-          <!-- Model Selector Pill -->
+          <!-- Model Selector Pill (cycles available CLI models) -->
           <button
             type="button"
             class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono text-ant-text-secondary bg-ant-bg-secondary border border-ant-border hover:border-ant-primary/40 transition"
-            onclick={() => selectedModel = selectedModel === 'grok-4.6' ? 'grok-code' : 'grok-4.6'}
+            onclick={() => {
+              const models = ['9router', '9router-general-purpose', '9router-explore', '9router-plan'];
+              const currIdx = models.indexOf(selectedModel);
+              const nextIdx = (currIdx + 1) % models.length;
+              selectedModel = models[nextIdx];
+            }}
             title="Toggle active model engine"
           >
             <Cpu size={12} class="mr-1 text-ant-primary" />
