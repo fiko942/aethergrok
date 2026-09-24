@@ -160,11 +160,11 @@
 
 {#if visible && filteredSkills.length > 0}
   <div
-    class="absolute bottom-full left-0 mb-3 w-96 max-w-[95vw] bg-[#ffffff] dark:bg-[#181b26] border border-ant-border rounded-xl shadow-2xl z-[100] flex flex-col animate-in fade-in zoom-in-95 duration-100 text-ant-text ring-1 ring-black/10 dark:ring-white/10"
+    class="absolute bottom-full left-0 mb-3 w-96 max-w-[95vw] bg-ant-bg border border-ant-border rounded-xl shadow-2xl z-[100] flex flex-col animate-in fade-in zoom-in-95 duration-100 text-ant-text"
     style="box-shadow: 0 20px 40px -4px rgba(0, 0, 0, 0.45), 0 8px 16px -4px rgba(0, 0, 0, 0.25);"
   >
     <!-- Autocomplete Header -->
-    <div class="px-3.5 py-2.5 border-b border-ant-border bg-[#fafafa] dark:bg-[#181b26] rounded-t-xl flex items-center justify-between">
+    <div class="px-3.5 py-2.5 border-b border-ant-border bg-ant-bg-secondary rounded-t-xl flex items-center justify-between">
       <div class="flex items-center gap-1.5 text-[11px] font-semibold text-ant-text">
         <Sparkles size={12} class="text-ant-primary" />
         <span>Matching Skills ({filteredSkills.length})</span>
@@ -180,7 +180,7 @@
     <!-- Autocomplete Items List -->
     <div
       bind:this={listContainerRef}
-      class="max-h-64 overflow-y-auto p-1.5 space-y-1 scrollbar-thin bg-[#ffffff] dark:bg-[#0f1117]"
+      class="max-h-64 overflow-y-auto p-1.5 space-y-1 scrollbar-thin bg-ant-bg"
     >
       {#each filteredSkills as skill, idx (skill.id)}
         {@const isSelected = idx === selectedIndex}
@@ -235,7 +235,7 @@
     </div>
 
     <!-- Quick Footer -->
-    <div class="px-3 py-2 bg-[#fafafa] dark:bg-[#181b26] border-t border-ant-border rounded-b-xl flex items-center justify-between text-[10px] text-ant-text-muted">
+    <div class="px-3 py-2 bg-ant-bg-secondary border-t border-ant-border rounded-b-xl flex items-center justify-between text-[10px] text-ant-text-muted">
       <span>Type skill name or press <strong class="text-ant-text">Esc</strong> to dismiss</span>
       <span class="font-mono text-ant-primary">/{query.replace(/^\//, '')}</span>
     </div>
