@@ -9,6 +9,8 @@
   import PermissionModal from '$lib/components/chat/PermissionModal.svelte';
   import SkillCatalog from '$lib/components/skills/SkillCatalog.svelte';
   import SettingsModal from '$lib/components/layout/SettingsModal.svelte';
+  import ScreenFlash from '$lib/components/snapshot/ScreenFlash.svelte';
+  import { playCameraShutterSound } from '$lib/utils/audio';
   import { settingsStore } from '$lib/stores/settings.svelte';
   import type { SkillItem } from './app.d';
   import {
@@ -26,7 +28,8 @@
     SlidersHorizontal,
     Code2,
     Shield,
-    Settings
+    Settings,
+    Volume2
   } from 'lucide-svelte';
 
   let autoHideWindow = $state(true);
@@ -35,7 +38,12 @@
   let pingResult = $state<string>('');
   let skillsCatalogVisible = $state(false);
   let settingsModalVisible = $state(false);
-  let composerRef = $state<{ appendText: (str: string) => void } | null>(null);
+  let flashActive = $state(false);
+  let composerRef = $state<{
+    appendText: (str: string) => void;
+    attachImage: (img: VisionImage) => void;
+    focusInput: () => void;
+  } | null>(null);
 
   // Sync settingsStore default values
   $effect(() => {
@@ -60,6 +68,79 @@
   function handleSelectSkill(skill: SkillItem) {
     if (composerRef) {
       composerRef.appendText(`/${skill.name}`);
+    }
+  }
+
+  // Trigger snapshot feedback (Camera Shutter Audio + Screen White Flash)
+  function triggerSnapshotEffects() {
+    if (settingsStore.snapshotSoundEnabled) {
+      playCameraShutterSound(0.5);
+    }
+    if (settingsStore.snapshotFlashEnabled) {
+      flashActive = true;
+      setTimeout(() => {
+        flashActive = false;
+      }, 260);
+    }
+  }
+
+  // Global Snapshot Action (Invoked via button or Cmd/Ctrl+Shift+S)
+  async function performGlobalSnapshot() {
+    const delay = settingsStore.snapshotDelayMs || 50;
+
+    let snapshotResult: { dataUrl: string; filePath?: string; width?: number; height?: number } | null = null;
+
+    if (window.go?.main?.App?.CaptureScreenExcludingSelf) {
+      try {
+        const res = await window.go.main.App.CaptureScreenExcludingSelf(delay);
+        if (res && res.dataUrl) {
+          snapshotResult = res;
+        }
+      } catch (err) {
+        console.error('Failed to capture native screen:', err);
+      }
+    }
+
+    // Fallback simulation for web browser preview mode
+    if (!snapshotResult) {
+      const mockCanvas = document.createElement('canvas');
+      mockCanvas.width = 1920;
+      mockCanvas.height = 1080;
+      const ctx = mockCanvas.getContext('2d');
+      if (ctx) {
+        const grad = ctx.createLinearGradient(0, 0, 1920, 1080);
+        grad.addColorStop(0, '#0F1117');
+        grad.addColorStop(1, '#181B26');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 1920, 1080);
+        ctx.fillStyle = '#00F0FF';
+        ctx.font = 'bold 36px monospace';
+        ctx.fillText('AetherGrok Screen Capture (Preview Mode)', 80, 140);
+        ctx.fillStyle = '#8C93A4';
+        ctx.font = '20px sans-serif';
+        ctx.fillText(`Timestamp: ${new Date().toISOString()}`, 80, 200);
+      }
+      snapshotResult = {
+        dataUrl: mockCanvas.toDataURL('image/png'),
+        filePath: '/tmp/aethergrok_snapshot_preview.png',
+        width: 1920,
+        height: 1080
+      };
+    }
+
+    // Fire sound & visual flash animation
+    triggerSnapshotEffects();
+
+    // Attach image to composer vision context
+    if (snapshotResult && settingsStore.snapshotAutoAttach && composerRef) {
+      composerRef.attachImage({
+        id: 'snap_' + Date.now(),
+        dataUrl: snapshotResult.dataUrl,
+        filePath: snapshotResult.filePath || `Screen Snapshot (${new Date().toLocaleTimeString()}).png`,
+        sizeBytes: Math.round(snapshotResult.dataUrl.length * 0.75),
+        timestamp: Date.now()
+      });
+      composerRef.focusInput();
     }
   }
 
@@ -261,6 +342,39 @@
     }, 600);
   }
 
+  // Global Keyboard Shortcuts Handler
+  function handleGlobalKeyDown(e: KeyboardEvent) {
+    const isMetaOrCtrl = e.metaKey || e.ctrlKey;
+
+    // Cmd/Ctrl + Shift + S: Instantaneous Smart Screen Snapshot
+    if (isMetaOrCtrl && e.shiftKey && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      performGlobalSnapshot();
+      return;
+    }
+
+    // Cmd/Ctrl + K: Open Skills Catalog
+    if (isMetaOrCtrl && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      skillsCatalogVisible = !skillsCatalogVisible;
+      return;
+    }
+
+    // Cmd/Ctrl + ,: Open Settings Modal
+    if (isMetaOrCtrl && e.key === ',') {
+      e.preventDefault();
+      settingsModalVisible = !settingsModalVisible;
+      return;
+    }
+
+    // Cmd/Ctrl + T: Create new session
+    if (isMetaOrCtrl && !e.shiftKey && e.key.toLowerCase() === 't') {
+      e.preventDefault();
+      sessionStore.createSession();
+      return;
+    }
+  }
+
   // Wails Event Listeners
   let unsubDelta: (() => void) | undefined;
   let unsubTool: (() => void) | undefined;
@@ -270,6 +384,7 @@
 
   onMount(() => {
     testBridge();
+    window.addEventListener('keydown', handleGlobalKeyDown);
 
     // Hook Wails native runtime events if available
     if (window.runtime?.EventsOn) {
@@ -355,7 +470,7 @@
       });
       sessionStore.addMessage(sessionStore.activeSession.id, {
         role: 'assistant',
-        content: 'System diagnostic completed. All components **Svelte 5 Runes**, **Ant Design Dark Tokens**, **Diff Viewer**, and **Composer** are initialized and operational.',
+        content: 'System diagnostic completed. All components **Svelte 5 Runes**, **Ant Design Dark Tokens**, **Diff Viewer**, and **Smart Snapshot** are initialized and operational.',
         tokens: { input: 154, output: 86, total: 240 },
         toolCalls: [
           {
@@ -392,6 +507,7 @@
   });
 
   onDestroy(() => {
+    window.removeEventListener('keydown', handleGlobalKeyDown);
     unsubDelta?.();
     unsubTool?.();
     unsubPerm?.();
@@ -417,6 +533,9 @@
     </div>
 
     <div class="flex items-center space-x-3">
+      <Button size="small" type="primary" onclick={performGlobalSnapshot}>
+        <Camera size={13} class="mr-1" /> Snapshot
+      </Button>
       <Button size="small" type="default" onclick={() => skillsCatalogVisible = true}>
         <Sparkles size={13} class="mr-1 text-ant-primary" /> Skills Hub
       </Button>
@@ -466,7 +585,14 @@
               <Switch bind:checked={autoHideWindow} size="small" />
             </div>
 
-            <div class="text-xs space-y-1">
+            <div class="flex items-center justify-between text-xs pt-1 border-t border-ant-border/40">
+              <span class="text-ant-text-secondary flex items-center">
+                <Volume2 size={13} class="mr-1.5 text-ant-text-muted" /> Shutter Audio
+              </span>
+              <Switch bind:checked={settingsStore.snapshotSoundEnabled} size="small" />
+            </div>
+
+            <div class="text-xs space-y-1 pt-1 border-t border-ant-border/40">
               <div class="text-ant-text-secondary flex items-center justify-between">
                 <span class="flex items-center"><SlidersHorizontal size={13} class="mr-1.5 text-ant-text-muted" /> Reasoning Effort</span>
                 <span class="text-ant-primary font-semibold uppercase text-[10px]">{reasoningEffort}</span>
@@ -484,39 +610,43 @@
             </div>
           </div>
         </div>
+
+        <div>
+          <div class="text-[11px] font-semibold tracking-wider text-ant-text-muted uppercase px-2 mb-2">
+            Active Security Mode
+          </div>
+          <div class="p-2.5 bg-ant-bg rounded-lg border border-ant-border-secondary flex items-center space-x-2">
+            <Shield size={16} class="text-ant-success flex-shrink-0" />
+            <div class="min-w-0 flex-1">
+              <div class="text-xs font-semibold text-white capitalize">{settingsStore.permissionMode}</div>
+              <div class="text-[10px] text-ant-text-muted truncate">Guarded Tool Confirmations</div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="p-2.5 bg-ant-bg rounded-md border border-ant-border-secondary text-[11px] text-ant-text-muted space-y-1">
-        <div class="flex items-center justify-between">
-          <span>Memory Idle Budget:</span>
-          <span class="text-ant-success font-semibold">&lt; 60 MB</span>
+      <div class="p-2.5 bg-ant-bg rounded-lg border border-ant-border flex items-center justify-between text-xs">
+        <div class="flex items-center space-x-2">
+          <Code2 size={14} class="text-ant-primary" />
+          <span class="text-ant-text-secondary text-[11px]">Diff Previewer</span>
         </div>
-        <div class="flex items-center justify-between">
-          <span>Sliding Batch Interval:</span>
-          <span class="text-ant-primary font-semibold">16 ms</span>
-        </div>
-        {#if pingResult}
-          <div class="pt-1 border-t border-ant-border-secondary/40 text-[10px] text-ant-text-secondary truncate" title={pingResult}>
-            {pingResult}
-          </div>
-        {/if}
+        <Badge status="success" />
       </div>
     </aside>
 
-    <!-- Main Content Workspace -->
-    <main class="flex-1 flex flex-col bg-ant-bg overflow-hidden relative">
-      <!-- Multi-session Tab Bar -->
+    <!-- Center Workspace: Tabs & Chat Engine -->
+    <main class="flex-1 flex flex-col min-w-0 bg-ant-bg overflow-hidden relative">
+      <!-- Session Tabs Bar (Drag & Drop + Badges) -->
       <SessionTabs />
 
-      <!-- Conversation Viewport with 10-turn windowing -->
-      <div class="flex-1 flex flex-col min-h-0 relative">
+      <!-- Chat Feed Viewport (10-Turn Windowing) -->
+      <div class="flex-1 overflow-hidden relative">
         <MessageList />
       </div>
 
-      <!-- Rich Composer Component with Snapshot Trigger & Vision Bar -->
+      <!-- Rich Prompt Composer with Snapshot & Model Selectors -->
       <Composer
         bind:this={composerRef}
-        disabled={false}
         {isWorking}
         onSend={handleSendMessage}
         onCancel={handleCancelSession}
@@ -524,6 +654,9 @@
       />
     </main>
   </div>
+
+  <!-- Screen White Flash Visual Animation -->
+  <ScreenFlash active={flashActive} />
 
   <!-- Skills & MCP Discovery Catalog Modal -->
   <SkillCatalog

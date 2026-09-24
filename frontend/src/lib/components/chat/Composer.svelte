@@ -3,6 +3,8 @@
   import type { VisionImage } from '$lib/stores/session.svelte';
   import SnapshotBar from '$lib/components/snapshot/SnapshotBar.svelte';
   import Button from '$lib/antd/Button.svelte';
+  import { playCameraShutterSound } from '$lib/utils/audio';
+  import { settingsStore } from '$lib/stores/settings.svelte';
   import {
     Camera,
     Send,
@@ -50,7 +52,6 @@
   }
 
   $effect(() => {
-    // Reactively adjust when text changes
     if (text !== undefined) {
       tick().then(adjustTextareaHeight);
     }
@@ -68,6 +69,16 @@
     });
   }
 
+  export function attachImage(img: VisionImage) {
+    attachedImages = [...attachedImages, img];
+  }
+
+  export function focusInput() {
+    tick().then(() => {
+      textareaEl?.focus();
+    });
+  }
+
   // Snapshot trigger button calls Go bridge CaptureScreenExcludingSelf
   async function handleTakeSnapshot() {
     if (isTakingSnapshot) return;
@@ -75,9 +86,10 @@
     snapshotError = null;
 
     try {
+      const delay = settingsStore.snapshotDelayMs || 50;
+
       if (window.go?.main?.App?.CaptureScreenExcludingSelf) {
-        // Platform auto compositor delay is handled in Go, pass 0 or 50
-        const result = await window.go.main.App.CaptureScreenExcludingSelf(50);
+        const result = await window.go.main.App.CaptureScreenExcludingSelf(delay);
         if (result && (result.dataUrl || result.base64)) {
           const newImg: VisionImage = {
             id: 'snap_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36),
@@ -89,6 +101,10 @@
             timestamp: result.timestamp || Date.now()
           };
           attachedImages = [...attachedImages, newImg];
+
+          if (settingsStore.snapshotSoundEnabled) {
+            playCameraShutterSound(0.5);
+          }
         }
       } else {
         // Fallback demo snapshot in browser preview
@@ -118,6 +134,10 @@
             timestamp: Date.now()
           }
         ];
+
+        if (settingsStore.snapshotSoundEnabled) {
+          playCameraShutterSound(0.5);
+        }
       }
     } catch (err) {
       snapshotError = String(err);
@@ -232,36 +252,27 @@
 
       <!-- Composer Bottom Control Bar -->
       <div class="flex items-center justify-between px-3 py-2 border-t border-ant-border-secondary/60 bg-ant-bg/70 text-xs select-none">
-        <!-- Left Controls: Snapshot, Attachments, Model Selector, Effort Chips -->
-        <div class="flex items-center gap-2 flex-wrap">
-          <!-- Non-intrusive Snapshot Trigger Button -->
+        <div class="flex items-center space-x-1.5">
+          <!-- Non-Intrusive Snapshot Trigger -->
           <button
             type="button"
+            class="inline-flex items-center px-2 py-1 rounded-md text-[11px] font-medium transition {isTakingSnapshot
+              ? 'bg-ant-primary/20 text-ant-primary cursor-wait'
+              : 'bg-ant-bg-secondary hover:bg-ant-primary/10 hover:text-ant-primary text-ant-text-secondary border border-ant-border'}"
             onclick={handleTakeSnapshot}
-            disabled={isTakingSnapshot}
-            class="flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-ant-bg-tertiary hover:bg-ant-primary/20 text-ant-text hover:text-ant-primary border border-ant-border-secondary transition shadow-sm active:scale-95 disabled:opacity-50"
-            title="Capture screen snapshot excluding this window (Calls Go bridge CaptureScreenExcludingSelf)"
+            disabled={isTakingSnapshot || disabled}
+            title="Capture Active Screen excluding AetherGrok window (Cmd/Ctrl+Shift+S)"
           >
             {#if isTakingSnapshot}
-              <Loader2 size={13} class="animate-spin text-ant-primary" />
+              <Loader2 size={13} class="animate-spin mr-1" />
               <span>Capturing...</span>
             {:else}
-              <Camera size={13} class="text-ant-primary" />
+              <Camera size={13} class="mr-1 text-ant-primary" />
               <span>Snapshot</span>
             {/if}
           </button>
 
-          <!-- Attachment Upload Button -->
-          <button
-            type="button"
-            onclick={() => fileInputEl?.click()}
-            class="flex items-center space-x-1 px-2 py-1 rounded-md text-[11px] text-ant-text-muted hover:text-ant-text hover:bg-ant-bg-tertiary border border-transparent hover:border-ant-border-secondary transition"
-            title="Attach vision image files"
-          >
-            <Paperclip size={13} />
-            <span class="hidden sm:inline">Attach</span>
-          </button>
-
+          <!-- File / Image Picker -->
           <input
             bind:this={fileInputEl}
             type="file"
@@ -270,78 +281,76 @@
             class="hidden"
             onchange={handleFileSelect}
           />
+          <button
+            type="button"
+            class="p-1 rounded-md text-ant-text-muted hover:text-ant-text hover:bg-ant-bg-secondary transition border border-transparent"
+            onclick={() => fileInputEl?.click()}
+            title="Attach vision reference image"
+          >
+            <Paperclip size={14} />
+          </button>
 
+          <div class="h-3 w-px bg-ant-border mx-1"></div>
+
+          <!-- Skills Catalog Quick Trigger -->
           {#if onOpenSkillsCatalog}
-            <!-- Skills Discovery Catalog Modal Trigger -->
             <button
               type="button"
+              class="inline-flex items-center px-1.5 py-1 rounded text-[11px] text-ant-text-muted hover:text-ant-primary transition"
               onclick={onOpenSkillsCatalog}
-              class="flex items-center space-x-1 px-2 py-1 rounded-md text-[11px] text-ant-text-muted hover:text-ant-primary hover:bg-ant-primary/10 border border-transparent hover:border-ant-primary/30 transition"
-              title="Open Skills & MCP Discovery Catalog"
+              title="Browse and insert skills (Cmd/Ctrl + K)"
             >
-              <Sparkles size={13} class="text-ant-primary" />
-              <span class="hidden sm:inline font-medium">Skills</span>
+              <Sparkles size={13} class="mr-1" />
+              <span>Skills Hub</span>
             </button>
           {/if}
 
-          <!-- Divider -->
-          <div class="w-px h-4 bg-ant-border-secondary hidden sm:block"></div>
-
-          <!-- Model Selector Chip (grok-4.6, grok-code) -->
-          <div class="flex items-center bg-ant-bg-tertiary border border-ant-border-secondary rounded-md p-0.5">
-            <button
-              type="button"
-              onclick={() => selectedModel = 'grok-4.6'}
-              class="px-2 py-0.5 rounded text-[11px] font-medium transition {selectedModel === 'grok-4.6' ? 'bg-ant-primary text-white shadow-sm' : 'text-ant-text-muted hover:text-ant-text'}"
-            >
-              grok-4.6
-            </button>
-            <button
-              type="button"
-              onclick={() => selectedModel = 'grok-code'}
-              class="px-2 py-0.5 rounded text-[11px] font-medium transition {selectedModel === 'grok-code' ? 'bg-ant-primary text-white shadow-sm' : 'text-ant-text-muted hover:text-ant-text'}"
-            >
-              grok-code
-            </button>
-          </div>
-
-          <!-- Reasoning Effort Indicator Chip -->
+          <!-- Model Selector Pill -->
           <button
             type="button"
-            onclick={cycleEffort}
-            class="flex items-center space-x-1.5 px-2 py-1 rounded-md text-[11px] bg-ant-bg-tertiary hover:bg-ant-bg-secondary border border-ant-border-secondary text-ant-text-secondary transition"
-            title="Toggle reasoning effort: Low, Medium, High"
+            class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono text-ant-text-secondary bg-ant-bg-secondary border border-ant-border hover:border-ant-primary/40 transition"
+            onclick={() => selectedModel = selectedModel === 'grok-4.6' ? 'grok-code' : 'grok-4.6'}
+            title="Toggle active model engine"
           >
-            <SlidersHorizontal size={11} class="text-ant-text-muted" />
-            <span class="text-ant-text-muted text-[10px]">Effort:</span>
-            <span class="font-semibold uppercase text-[10px] {reasoningEffort === 'high' ? 'text-ant-warning' : reasoningEffort === 'medium' ? 'text-ant-primary' : 'text-ant-text'}">
-              {reasoningEffort}
-            </span>
+            <Cpu size={12} class="mr-1 text-ant-primary" />
+            <span>{selectedModel}</span>
+          </button>
+
+          <!-- Reasoning Effort Indicator -->
+          <button
+            type="button"
+            class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider text-ant-text-muted hover:text-ant-text transition"
+            onclick={cycleEffort}
+            title="Click to cycle reasoning effort stop"
+          >
+            <SlidersHorizontal size={11} class="mr-1" />
+            <span class="text-ant-primary">{reasoningEffort}</span>
           </button>
         </div>
 
-        <!-- Right Controls: Submit or Cancel Button -->
-        <div class="flex items-center space-x-2 flex-shrink-0">
+        <!-- Submit / Cancel Action -->
+        <div class="flex items-center space-x-2">
           {#if isWorking}
-            <Button
-              type="default"
-              size="small"
-              danger
+            <button
+              type="button"
+              class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium bg-ant-error text-white hover:bg-ant-error-hover transition shadow-sm"
               onclick={onCancel}
-              class="flex items-center"
+              title="Stop turn execution"
             >
-              <Square size={12} class="mr-1 fill-current" /> Stop
-            </Button>
+              <Square size={12} class="mr-1.5 fill-current" />
+              <span>Cancel</span>
+            </button>
           {:else}
-            <Button
-              type="primary"
-              size="small"
-              disabled={disabled || (!text.trim() && attachedImages.length === 0)}
+            <button
+              type="button"
+              class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-ant-primary text-white hover:bg-ant-primary-hover disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
+              disabled={(!text.trim() && attachedImages.length === 0) || disabled}
               onclick={handleSubmit}
-              class="flex items-center shadow-md shadow-ant-primary/20"
+              title="Send to Grok (Enter)"
             >
-              <Send size={12} class="mr-1.5" /> Send
-            </Button>
+              <Send size={12} class="mr-1.5" />
+              <span>Send</span>
+            </button>
           {/if}
         </div>
       </div>

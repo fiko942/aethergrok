@@ -10,6 +10,9 @@ export interface AppSettings {
   permissionMode: PermissionMode;
   grokBinaryPath: string;
   snapshotDelayMs: number;
+  snapshotSoundEnabled: boolean;
+  snapshotFlashEnabled: boolean;
+  snapshotAutoAttach: boolean;
   activeWindowTurnCount: number;
 }
 
@@ -22,6 +25,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   permissionMode: 'default',
   grokBinaryPath: '/Users/fiko942/.local/bin/grok',
   snapshotDelayMs: 50,
+  snapshotSoundEnabled: true,
+  snapshotFlashEnabled: true,
+  snapshotAutoAttach: true,
   activeWindowTurnCount: 10
 };
 
@@ -32,6 +38,9 @@ export class SettingsStore {
   permissionMode = $state<PermissionMode>(DEFAULT_SETTINGS.permissionMode);
   grokBinaryPath = $state<string>(DEFAULT_SETTINGS.grokBinaryPath);
   snapshotDelayMs = $state<number>(DEFAULT_SETTINGS.snapshotDelayMs);
+  snapshotSoundEnabled = $state<boolean>(DEFAULT_SETTINGS.snapshotSoundEnabled);
+  snapshotFlashEnabled = $state<boolean>(DEFAULT_SETTINGS.snapshotFlashEnabled);
+  snapshotAutoAttach = $state<boolean>(DEFAULT_SETTINGS.snapshotAutoAttach);
   activeWindowTurnCount = $state<number>(DEFAULT_SETTINGS.activeWindowTurnCount);
 
   constructor() {
@@ -63,6 +72,15 @@ export class SettingsStore {
       if (typeof parsed.snapshotDelayMs === 'number' && Number.isFinite(parsed.snapshotDelayMs)) {
         this.snapshotDelayMs = parsed.snapshotDelayMs;
       }
+      if (typeof parsed.snapshotSoundEnabled === 'boolean') {
+        this.snapshotSoundEnabled = parsed.snapshotSoundEnabled;
+      }
+      if (typeof parsed.snapshotFlashEnabled === 'boolean') {
+        this.snapshotFlashEnabled = parsed.snapshotFlashEnabled;
+      }
+      if (typeof parsed.snapshotAutoAttach === 'boolean') {
+        this.snapshotAutoAttach = parsed.snapshotAutoAttach;
+      }
       if (typeof parsed.activeWindowTurnCount === 'number' && Number.isFinite(parsed.activeWindowTurnCount)) {
         this.activeWindowTurnCount = parsed.activeWindowTurnCount;
       }
@@ -81,6 +99,9 @@ export class SettingsStore {
         permissionMode: this.permissionMode,
         grokBinaryPath: this.grokBinaryPath,
         snapshotDelayMs: this.snapshotDelayMs,
+        snapshotSoundEnabled: this.snapshotSoundEnabled,
+        snapshotFlashEnabled: this.snapshotFlashEnabled,
+        snapshotAutoAttach: this.snapshotAutoAttach,
         activeWindowTurnCount: this.activeWindowTurnCount
       };
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -96,6 +117,9 @@ export class SettingsStore {
     if (partial.permissionMode !== undefined) this.permissionMode = partial.permissionMode;
     if (partial.grokBinaryPath !== undefined) this.grokBinaryPath = partial.grokBinaryPath;
     if (partial.snapshotDelayMs !== undefined) this.snapshotDelayMs = partial.snapshotDelayMs;
+    if (partial.snapshotSoundEnabled !== undefined) this.snapshotSoundEnabled = partial.snapshotSoundEnabled;
+    if (partial.snapshotFlashEnabled !== undefined) this.snapshotFlashEnabled = partial.snapshotFlashEnabled;
+    if (partial.snapshotAutoAttach !== undefined) this.snapshotAutoAttach = partial.snapshotAutoAttach;
     if (partial.activeWindowTurnCount !== undefined) this.activeWindowTurnCount = partial.activeWindowTurnCount;
     this.saveToStorage();
   }
@@ -107,6 +131,9 @@ export class SettingsStore {
     this.permissionMode = DEFAULT_SETTINGS.permissionMode;
     this.grokBinaryPath = DEFAULT_SETTINGS.grokBinaryPath;
     this.snapshotDelayMs = DEFAULT_SETTINGS.snapshotDelayMs;
+    this.snapshotSoundEnabled = DEFAULT_SETTINGS.snapshotSoundEnabled;
+    this.snapshotFlashEnabled = DEFAULT_SETTINGS.snapshotFlashEnabled;
+    this.snapshotAutoAttach = DEFAULT_SETTINGS.snapshotAutoAttach;
     this.activeWindowTurnCount = DEFAULT_SETTINGS.activeWindowTurnCount;
     this.saveToStorage();
   }
