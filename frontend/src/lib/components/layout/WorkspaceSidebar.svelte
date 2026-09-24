@@ -172,7 +172,7 @@
             <FolderOpen size={14} />
           </div>
           <div class="text-left min-w-0">
-            <div class="truncate text-white font-semibold">{sessionStore.activeWorkspace?.name || 'Pilih Workspace'}</div>
+            <div class="truncate text-ant-text font-semibold">{sessionStore.activeWorkspace?.name || 'Pilih Workspace'}</div>
             <div class="text-[10px] text-ant-text-muted truncate max-w-[150px]">{sessionStore.activeWorkspace?.path || 'Belum ada folder'}</div>
           </div>
         </div>
@@ -232,7 +232,7 @@
     <div class="flex items-center space-x-1">
       <button
         onclick={() => sessionStore.toggleSelectionMode()}
-        class="text-[11px] font-medium px-2 py-0.5 rounded transition {sessionStore.isSelectionMode ? 'bg-ant-primary text-white' : 'text-ant-text-secondary hover:text-white hover:bg-ant-bg-tertiary'}"
+        class="text-[11px] font-medium px-2 py-0.5 rounded transition {sessionStore.isSelectionMode ? 'bg-ant-primary text-white' : 'text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary'}"
         title="Aktifkan mode multi-select untuk tandai dan hapus/ekspor massal"
       >
         {sessionStore.isSelectionMode ? 'Batal' : 'Tandai'}
@@ -269,8 +269,8 @@
         }}
         onkeydown={(e) => e.key === 'Enter' && sessionStore.switchSession(session.id)}
         class="group relative flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium cursor-pointer transition border {isActive
-          ? 'bg-ant-primary/15 text-ant-primary border-ant-primary/40 shadow-sm'
-          : 'bg-ant-bg/40 text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'}"
+          ? 'bg-ant-primary/10 text-ant-primary border-ant-primary/30 shadow-sm'
+          : 'bg-ant-bg-secondary/60 text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'}"
       >
         <!-- Left: Status or Checkbox & Title -->
         <div class="flex items-center space-x-2 min-w-0 flex-1">
@@ -305,11 +305,10 @@
                 if (e.key === 'Enter') handleSaveRename(session);
                 if (e.key === 'Escape') editingSessionId = null;
               }}
-              class="bg-ant-bg px-1.5 py-0.5 rounded border border-ant-primary text-xs text-white outline-none w-full"
-              autoFocus
+              class="bg-ant-bg px-1.5 py-0.5 rounded border border-ant-primary text-xs text-ant-text outline-none w-full"
             />
           {:else}
-            <span class="truncate {isActive ? 'font-semibold text-white' : ''}">
+            <span class="truncate {isActive ? 'font-bold text-ant-primary' : 'text-ant-text-secondary group-hover:text-ant-text'}">
               {session.title}
             </span>
           {/if}
@@ -348,7 +347,7 @@
 
                 <button
                   onclick={(e) => handleCopySessionId(session, e)}
-                  class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-bg-tertiary text-ant-text hover:text-white transition text-left"
+                  class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-bg-tertiary text-ant-text hover:text-ant-primary transition text-left"
                 >
                   <Copy size={13} class="text-ant-text-muted" />
                   <span>Salin Session ID</span>
@@ -356,7 +355,7 @@
 
                 <button
                   onclick={(e) => handleCopySessionName(session, e)}
-                  class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-bg-tertiary text-ant-text hover:text-white transition text-left"
+                  class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-bg-tertiary text-ant-text hover:text-ant-primary transition text-left"
                 >
                   <Tag size={13} class="text-ant-text-muted" />
                   <span>Salin Nama Session</span>
@@ -364,7 +363,7 @@
 
                 <button
                   onclick={(e) => handleStartRename(session, e)}
-                  class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-bg-tertiary text-ant-text hover:text-white transition text-left"
+                  class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-bg-tertiary text-ant-text hover:text-ant-primary transition text-left"
                 >
                   <Edit2 size={13} class="text-ant-text-muted" />
                   <span>Ubah Nama</span>
@@ -372,7 +371,7 @@
 
                 <button
                   onclick={(e) => handleForkSession(session, e)}
-                  class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-bg-tertiary text-ant-text hover:text-white transition text-left"
+                  class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-bg-tertiary text-ant-text hover:text-ant-primary transition text-left"
                 >
                   <GitFork size={13} class="text-ant-text-muted" />
                   <span>Duplikat / Fork</span>
