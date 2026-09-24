@@ -265,7 +265,7 @@
           {/if}
           <button
             type="button"
-            class="p-1.5 rounded-lg text-ant-text-secondary hover:text-white hover:bg-ant-bg-tertiary transition"
+            class="p-1.5 rounded-lg text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary transition"
             onclick={onClose}
             aria-label="Close settings"
           >
@@ -283,8 +283,8 @@
             <button
               type="button"
               class="w-full flex items-center space-x-2.5 px-3 py-2 rounded-lg text-xs font-medium text-left transition {activeTab === tab.id
-                ? 'bg-ant-primary/15 text-ant-primary border border-ant-primary/30'
-                : 'text-ant-text-secondary hover:text-white hover:bg-ant-bg-tertiary/50 border border-transparent'}"
+                ? 'bg-ant-primary/15 text-ant-primary border border-ant-primary/30 font-semibold'
+                : 'text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border border-transparent'}"
               onclick={() => activeTab = tab.id}
             >
               <IconComponent size={15} class="flex-shrink-0 {activeTab === tab.id ? 'text-ant-primary' : 'text-ant-text-secondary'}" />
@@ -307,7 +307,7 @@
           {#if activeTab === 'general'}
             <div class="space-y-6 animate-in fade-in duration-100">
               <div>
-                <h3 class="text-sm font-semibold text-white">General & Smart Screen Snapshot</h3>
+                <h3 class="text-sm font-semibold text-ant-text">General & Smart Screen Snapshot</h3>
                 <p class="text-xs text-ant-text-secondary mt-0.5">
                   Configure CLI runner location, native snapshot behavior on macOS & Windows, and DOM memory bounds.
                 </p>
@@ -318,7 +318,7 @@
                 <div class="space-y-3">
                   <div class="flex items-center justify-between">
                     <div>
-                      <div class="text-xs font-semibold text-white">Grok CLI Executable Path</div>
+                      <div class="text-xs font-semibold text-ant-text">Grok CLI Executable Path</div>
                       <div class="text-[11px] text-ant-text-secondary">
                         Path to the native <code class="text-ant-primary font-mono bg-ant-bg px-1 py-0.5 rounded">grok</code> binary.
                       </div>
@@ -335,7 +335,7 @@
                     type="text"
                     bind:value={editGrokBinaryPath}
                     placeholder="/Users/fiko942/.local/bin/grok"
-                    class="w-full px-3 py-2 text-xs font-mono bg-ant-bg border border-ant-border rounded-lg text-white focus:outline-none focus:border-ant-primary focus:ring-1 focus:ring-ant-primary transition"
+                    class="w-full px-3 py-2 text-xs font-mono bg-ant-bg border border-ant-border rounded-lg text-ant-text focus:outline-none focus:border-ant-primary focus:ring-1 focus:ring-ant-primary transition"
                   />
                 </div>
               </Card>
@@ -346,7 +346,7 @@
                   <div class="flex items-center justify-between border-b border-ant-border/50 pb-2">
                     <div class="flex items-center gap-2">
                       <Camera size={16} class="text-ant-primary" />
-                      <div class="text-xs font-semibold text-white">Non-Intrusive Smart Snapshot (macOS & Windows)</div>
+                      <div class="text-xs font-semibold text-ant-text">Non-Intrusive Smart Snapshot (macOS & Windows)</div>
                     </div>
                     <Badge status="success">Active Native Grab</Badge>
                   </div>
@@ -355,7 +355,7 @@
                   <div class="space-y-2 pt-2 border-t border-ant-border/40">
                     <div class="flex items-center justify-between">
                       <div class="space-y-0.5">
-                        <div class="text-xs font-medium text-white flex items-center gap-1.5">
+                        <div class="text-xs font-medium text-ant-text flex items-center gap-1.5">
                           <Keyboard size={13} class="text-ant-primary" />
                           Global Screen Snapshot Shortcut
                         </div>
@@ -373,11 +373,11 @@
                         type="text"
                         bind:value={editSnapshotShortcut}
                         placeholder="e.g. CmdOrCtrl+Shift+S"
-                        class="flex-1 px-3 py-1.5 text-xs font-mono bg-ant-bg border border-ant-border rounded-lg text-white focus:outline-none focus:border-ant-primary"
+                        class="flex-1 px-3 py-1.5 text-xs font-mono bg-ant-bg border border-ant-border rounded-lg text-ant-text focus:outline-none focus:border-ant-primary"
                       />
                       <button
                         type="button"
-                        class="px-2.5 py-1.5 text-xs rounded-lg border border-ant-border hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-white transition"
+                        class="px-2.5 py-1.5 text-xs rounded-lg border border-ant-border hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-text transition"
                         onclick={() => editSnapshotShortcut = 'CmdOrCtrl+Shift+S'}
                       >
                         Reset Default
@@ -388,7 +388,7 @@
                   <!-- Audio Shutter Sound Toggle -->
                   <div class="flex items-center justify-between pt-1">
                     <div class="space-y-0.5">
-                      <div class="text-xs font-medium text-white flex items-center gap-1.5">
+                      <div class="text-xs font-medium text-ant-text flex items-center gap-1.5">
                         <Volume2 size={13} class="text-ant-primary" />
                         Camera Shutter Audio ("Cekrek" Sound)
                       </div>
@@ -405,7 +405,7 @@
                   <!-- Screen Flash FX Toggle -->
                   <div class="flex items-center justify-between pt-2 border-t border-ant-border/40">
                     <div class="space-y-0.5">
-                      <div class="text-xs font-medium text-white flex items-center gap-1.5">
+                      <div class="text-xs font-medium text-ant-text flex items-center gap-1.5">
                         <Zap size={13} class="text-ant-warning" />
                         Screen White Flash Animation
                       </div>
@@ -422,7 +422,7 @@
                   <!-- Auto-Attach to Composer Toggle -->
                   <div class="flex items-center justify-between pt-2 border-t border-ant-border/40">
                     <div class="space-y-0.5">
-                      <div class="text-xs font-medium text-white flex items-center gap-1.5">
+                      <div class="text-xs font-medium text-ant-text flex items-center gap-1.5">
                         <ImageIcon size={13} class="text-ant-success" />
                         Auto-Attach to Prompt Composer
                       </div>
@@ -440,7 +440,7 @@
                   <div class="space-y-2 pt-2 border-t border-ant-border/40">
                     <div class="flex items-center justify-between">
                       <div>
-                        <div class="text-xs font-medium text-white">OS Compositor Flush Delay</div>
+                        <div class="text-xs font-medium text-ant-text">OS Compositor Flush Delay</div>
                         <div class="text-[11px] text-ant-text-secondary">
                           Delay between window hide and screen capture to prevent window ghost frames.
                         </div>
@@ -472,7 +472,7 @@
                 <div class="space-y-3">
                   <div class="flex items-center justify-between">
                     <div>
-                      <div class="text-xs font-semibold text-white">DOM Active Turn Windowing (RAM Guard)</div>
+                      <div class="text-xs font-semibold text-ant-text">DOM Active Turn Windowing (RAM Guard)</div>
                       <div class="text-[11px] text-ant-text-secondary">
                         Limits active DOM messages to preserve low memory usage (&lt;60MB RAM).
                       </div>
@@ -503,7 +503,7 @@
           {#if activeTab === 'models'}
             <div class="space-y-6 animate-in fade-in duration-100">
               <div>
-                <h3 class="text-sm font-semibold text-white">Inference Models & Reasoning Depth</h3>
+                <h3 class="text-sm font-semibold text-ant-text">Inference Models & Reasoning Depth</h3>
                 <p class="text-xs text-ant-text-secondary mt-0.5">
                   Select default model engine and reasoning effort stops for complex tasks.
                 </p>
@@ -519,7 +519,7 @@
                   onclick={() => editDefaultModel = '9router'}
                 >
                   <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                    <span class="text-xs font-bold text-ant-text flex items-center gap-1.5">
                       <Sparkles size={14} class="text-ant-primary" /> 9router (Default)
                     </span>
                     {#if editDefaultModel === '9router'}
@@ -539,7 +539,7 @@
                   onclick={() => editDefaultModel = '9router-general-purpose'}
                 >
                   <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                    <span class="text-xs font-bold text-ant-text flex items-center gap-1.5">
                       <Brain size={14} class="text-ant-primary" /> 9router General Purpose
                     </span>
                     {#if editDefaultModel === '9router-general-purpose'}
@@ -559,7 +559,7 @@
                   onclick={() => editDefaultModel = '9router-explore'}
                 >
                   <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                    <span class="text-xs font-bold text-ant-text flex items-center gap-1.5">
                       <Sparkles size={14} class="text-ant-primary" /> 9router Explore
                     </span>
                     {#if editDefaultModel === '9router-explore'}
@@ -579,7 +579,7 @@
                   onclick={() => editDefaultModel = '9router-plan'}
                 >
                   <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                    <span class="text-xs font-bold text-ant-text flex items-center gap-1.5">
                       <Brain size={14} class="text-ant-primary" /> 9router Plan
                     </span>
                     {#if editDefaultModel === '9router-plan'}
@@ -596,7 +596,7 @@
               <Card>
                 <div class="space-y-3">
                   <div>
-                    <div class="text-xs font-semibold text-white">Default Reasoning Effort</div>
+                    <div class="text-xs font-semibold text-ant-text">Default Reasoning Effort</div>
                     <div class="text-[11px] text-ant-text-secondary">
                       Controls internal thinking token budget before emitting tool and assistant actions.
                     </div>
@@ -608,7 +608,7 @@
                         type="button"
                         class="px-3 py-2 rounded-lg text-xs font-medium border capitalize transition {editDefaultReasoningEffort === effort
                           ? 'bg-ant-primary text-white border-ant-primary shadow-sm'
-                          : 'bg-ant-bg text-ant-text-secondary border-ant-border hover:text-white hover:bg-ant-bg-tertiary'}"
+                          : 'bg-ant-bg text-ant-text-secondary border-ant-border hover:text-ant-text hover:bg-ant-bg-tertiary'}"
                         onclick={() => editDefaultReasoningEffort = effort as ReasoningEffort}
                       >
                         {effort}
@@ -624,7 +624,7 @@
           {#if activeTab === 'permissions'}
             <div class="space-y-6 animate-in fade-in duration-100">
               <div>
-                <h3 class="text-sm font-semibold text-white">Security & Execution Boundaries</h3>
+                <h3 class="text-sm font-semibold text-ant-text">Security & Execution Boundaries</h3>
                 <p class="text-xs text-ant-text-secondary mt-0.5">
                   Control how AetherGrok asks for confirmation before executing bash commands or modifying project files.
                 </p>
@@ -642,7 +642,7 @@
                   >
                     <div class="flex items-center justify-between mb-2">
                       <div class="flex items-center space-x-2">
-                        <span class="text-xs font-bold text-white">{mode.title}</span>
+                        <span class="text-xs font-bold text-ant-text">{mode.title}</span>
                         <Badge
                           status={mode.badge === 'safe' ? 'success' : mode.badge === 'balanced' ? 'processing' : mode.badge === 'autonomous' ? 'warning' : 'error'}
                         >
@@ -804,7 +804,7 @@
           {#if activeTab === 'shortcuts'}
             <div class="space-y-6 animate-in fade-in duration-100">
               <div>
-                <h3 class="text-sm font-semibold text-white">Keyboard Shortcuts Reference</h3>
+                <h3 class="text-sm font-semibold text-ant-text">Keyboard Shortcuts Reference</h3>
                 <p class="text-xs text-ant-text-secondary mt-0.5">
                   Accelerate your workflow with dedicated keystroke accelerators.
                 </p>
@@ -814,8 +814,8 @@
                 <table class="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr class="border-b border-ant-border bg-ant-bg-tertiary/40">
-                      <th class="px-4 py-2.5 font-semibold text-white">Key Combination</th>
-                      <th class="px-4 py-2.5 font-semibold text-white">Action Trigger</th>
+                      <th class="px-4 py-2.5 font-semibold text-ant-text">Key Combination</th>
+                      <th class="px-4 py-2.5 font-semibold text-ant-text">Action Trigger</th>
                       <th class="px-4 py-2.5 font-semibold text-ant-text-secondary">Scope</th>
                     </tr>
                   </thead>
@@ -823,7 +823,7 @@
                     {#each keyboardShortcuts as shortcut}
                       <tr class="hover:bg-ant-bg-secondary/40 transition">
                         <td class="px-4 py-2.5 font-mono text-ant-primary font-medium">{shortcut.key}</td>
-                        <td class="px-4 py-2.5 text-white">{shortcut.action}</td>
+                        <td class="px-4 py-2.5 text-ant-text">{shortcut.action}</td>
                         <td class="px-4 py-2.5 text-ant-text-secondary">
                           <span class="px-2 py-0.5 text-[10px] font-medium bg-ant-bg-tertiary rounded border border-ant-border">
                             {shortcut.scope}
@@ -844,7 +844,7 @@
       <div class="px-6 py-3 border-t border-ant-border flex items-center justify-between bg-ant-bg-secondary flex-shrink-0">
         <button
           type="button"
-          class="text-xs text-ant-text-secondary hover:text-white flex items-center gap-1.5 transition"
+          class="text-xs text-ant-text-secondary hover:text-ant-text flex items-center gap-1.5 transition"
           onclick={handleResetDefaults}
         >
           <RotateCcw size={13} /> Reset to Defaults
