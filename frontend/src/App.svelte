@@ -4,6 +4,9 @@
   import Card from '$lib/antd/Card.svelte';
   import Badge from '$lib/antd/Badge.svelte';
   import Switch from '$lib/antd/Switch.svelte';
+  import SessionTabs from '$lib/components/layout/SessionTabs.svelte';
+  import MessageList from '$lib/components/chat/MessageList.svelte';
+  import { sessionStore } from '$lib/stores/session.svelte';
   import {
     Bot,
     Sparkles,
@@ -13,7 +16,9 @@
     Zap,
     Shield,
     SlidersHorizontal,
-    Camera
+    Camera,
+    Plus,
+    Send
   } from 'lucide-svelte';
 
   let appStatus = $state('Ready');
@@ -21,6 +26,7 @@
   let reasoningEffort = $state<'low' | 'medium' | 'high'>('medium');
   let selectedModel = $state('grok-2-latest');
   let pingResult = $state<string>('');
+  let promptText = $state<string>('');
 
   async function testBridge() {
     if (window.go?.main?.App?.Greet) {
@@ -34,8 +40,69 @@
     }
   }
 
+  function handleSendPrompt() {
+    if (!promptText.trim() || !sessionStore.activeSessionId) return;
+
+    // Add user turn
+    const userMsg = sessionStore.addMessage(sessionStore.activeSessionId, {
+      role: 'user',
+      content: promptText.trim(),
+      tokens: { input: promptText.length / 4, output: 0, total: promptText.length / 4 }
+    });
+
+    const activeId = sessionStore.activeSessionId;
+    sessionStore.setSessionStatus(activeId, 'working');
+    promptText = '';
+
+    // Mock an assistant response for verification
+    setTimeout(() => {
+      sessionStore.addMessage(activeId, {
+        role: 'assistant',
+        content: `I received your command: "${userMsg.content}". Executing task via Grok engine...`,
+        tokens: { input: 120, output: 65, total: 185 },
+        toolCalls: [
+          {
+            id: 'tc_' + Math.random().toString(36).substring(2, 7),
+            tool: 'bash',
+            params: { command: 'echo "AetherGrok Ready"' },
+            result: 'AetherGrok Ready',
+            status: 'completed',
+            startTime: Date.now() - 45,
+            endTime: Date.now()
+          }
+        ]
+      });
+      sessionStore.setSessionStatus(activeId, 'finished');
+    }, 400);
+  }
+
   onMount(() => {
     testBridge();
+
+    // Populate initial demo turns if session is fresh
+    if (sessionStore.activeSession && sessionStore.activeSession.messages.length === 0) {
+      sessionStore.addMessage(sessionStore.activeSession.id, {
+        role: 'user',
+        content: 'Check system readiness and status of AetherGrok GUI engine.'
+      });
+      sessionStore.addMessage(sessionStore.activeSession.id, {
+        role: 'assistant',
+        content: 'System diagnostic completed. All components **Svelte 5 Runes**, **Ant Design Dark Tokens**, and **10-Turn Windowing** are initialized and operational.',
+        tokens: { input: 154, output: 86, total: 240 },
+        toolCalls: [
+          {
+            id: 'tc_init_01',
+            tool: 'system_info',
+            params: { check: 'memory_and_compositor' },
+            result: '{"idle_ram_mb": 48.2, "compositor_delay_ms": 50, "status": "nominal"}',
+            status: 'completed',
+            startTime: Date.now() - 32,
+            endTime: Date.now()
+          }
+        ]
+      });
+      sessionStore.setSessionStatus(sessionStore.activeSession.id, 'idle');
+    }
   });
 </script>
 
@@ -132,97 +199,28 @@
     </aside>
 
     <!-- Main Content Workspace -->
-    <main class="flex-1 flex flex-col bg-ant-bg overflow-y-auto p-6 space-y-6">
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 class="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            AetherGrok Agentic AI Studio
-            <Badge status="success" text="Online" />
-          </h1>
-          <p class="text-xs text-ant-text-secondary mt-0.5">
-            Native Wails v2 + Svelte 5 High-Performance AI Orchestration Engine
-          </p>
-        </div>
-        <div class="flex space-x-2">
-          <Button type="primary" size="middle">
-            <Sparkles size={14} class="mr-1.5" /> Launch Turn
+    <main class="flex-1 flex flex-col bg-ant-bg overflow-hidden">
+      <!-- Multi-session Tab Bar -->
+      <SessionTabs />
+
+      <!-- Conversation Viewport & Message List with 10-turn windowing -->
+      <div class="flex-1 flex flex-col min-h-0 relative">
+        <MessageList />
+
+        <!-- Quick Interactive Composer Prompt for Testing / Verification -->
+        <div class="p-3 bg-ant-bg-secondary border-t border-ant-border flex items-center gap-2">
+          <input
+            type="text"
+            bind:value={promptText}
+            placeholder="Type prompt to launch agent turn..."
+            onkeydown={(e) => e.key === 'Enter' && handleSendPrompt()}
+            class="flex-1 bg-ant-bg border border-ant-border focus:border-ant-primary rounded-md px-3 py-1.5 text-xs text-white placeholder:text-ant-text-muted outline-none transition"
+          />
+          <Button type="primary" size="small" onclick={handleSendPrompt}>
+            <Send size={13} class="mr-1" /> Send
           </Button>
         </div>
       </div>
-
-      <!-- Overview Cards -->
-      <div class="grid grid-cols-3 gap-4">
-        <Card title="Process Engine" hoverable>
-          {#snippet extra()}
-            <Cpu size={14} class="text-ant-primary" />
-          {/snippet}
-          <div class="space-y-2 text-xs">
-            <div class="flex justify-between">
-              <span class="text-ant-text-secondary">Stream Parser:</span>
-              <span class="font-mono text-ant-primary">NDJSON 16ms Batching</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-ant-text-secondary">IPC Latency:</span>
-              <span class="font-mono text-ant-success">&lt; 1ms (Wails IPC)</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-ant-text-secondary">Process Supervisor:</span>
-              <span class="font-mono text-white">Process Group PGID</span>
-            </div>
-          </div>
-        </Card>
-
-        <Card title="Smart Screen Engine" hoverable>
-          {#snippet extra()}
-            <Camera size={14} class="text-ant-warning" />
-          {/snippet}
-          <div class="space-y-2 text-xs">
-            <div class="flex justify-between">
-              <span class="text-ant-text-secondary">macOS Pipeline:</span>
-              <span class="font-mono text-white">CoreGraphics Direct</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-ant-text-secondary">Windows Pipeline:</span>
-              <span class="font-mono text-white">GDI BitBlt Direct</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-ant-text-secondary">Window Auto-Hiding:</span>
-              <span class="font-mono text-ant-success">{autoHideWindow ? 'Active (0-Artifact)' : 'Disabled'}</span>
-            </div>
-          </div>
-        </Card>
-
-        <Card title="Security & Isolation" hoverable>
-          {#snippet extra()}
-            <Shield size={14} class="text-ant-success" />
-          {/snippet}
-          <div class="space-y-2 text-xs">
-            <div class="flex justify-between">
-              <span class="text-ant-text-secondary">Tool Approvals:</span>
-              <span class="font-mono text-ant-warning">User-Gated Modal</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-ant-text-secondary">Local Persistence:</span>
-              <span class="font-mono text-white">SQLite (~/.grok)</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-ant-text-secondary">Context Sliding:</span>
-              <span class="font-mono text-ant-primary">10-Turn Windowing</span>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      <!-- Bridge Status Console -->
-      <Card title="Go / Wails Bridge Status" bodyClass="p-3">
-        {#snippet extra()}
-          <Badge status="processing" text={appStatus} />
-        {/snippet}
-        <div class="bg-ant-bg rounded p-3 border border-ant-border-secondary font-mono text-xs text-ant-text-secondary flex items-center justify-between">
-          <span>{pingResult || 'Initializing Wails IPC bridge connection...'}</span>
-          <Button size="small" type="dashed" onclick={testBridge}>Refresh</Button>
-        </div>
-      </Card>
     </main>
   </div>
 </div>
