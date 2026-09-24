@@ -87,6 +87,8 @@ type RawNDJSONEvent struct {
 	Role        string                 `json:"role,omitempty"`
 	Content     string                 `json:"content,omitempty"`
 	Delta       string                 `json:"delta,omitempty"`
+	Data        string                 `json:"data,omitempty"`
+	Message     string                 `json:"message,omitempty"`
 	ToolID      string                 `json:"tool_id,omitempty"`
 	ToolName    string                 `json:"tool_name,omitempty"`
 	ToolInput   map[string]interface{} `json:"tool_input,omitempty"`

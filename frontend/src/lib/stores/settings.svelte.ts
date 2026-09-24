@@ -20,7 +20,7 @@ const STORAGE_KEY = 'aethergrok_settings_v1';
 
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'dark-studio',
-  defaultModel: 'grok-4.6',
+  defaultModel: '9router',
   defaultReasoningEffort: 'medium',
   permissionMode: 'default',
   grokBinaryPath: '/Users/fiko942/.local/bin/grok',

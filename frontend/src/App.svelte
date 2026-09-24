@@ -35,7 +35,7 @@
 
   let autoHideWindow = $state(true);
   let reasoningEffort = $state<'low' | 'medium' | 'high'>('medium');
-  let selectedModel = $state('grok-4.6');
+  let selectedModel = $state('9router');
   let pingResult = $state<string>('');
   let skillsCatalogVisible = $state(false);
   let settingsModalVisible = $state(false);
@@ -188,13 +188,15 @@
     // If Wails Go backend is available, run prompt stream
     if (window.go?.main?.App?.RunPromptStream) {
       try {
+        const workingDir = sessionStore.activeWorkspace?.path;
         await window.go.main.App.RunPromptStream({
           sessionId,
           prompt: payload.text,
           images: payload.images.map((img) => img.filePath),
           options: {
-            model: payload.model,
-            reasoningEffort: payload.reasoningEffort
+            model: payload.model || undefined,
+            reasoningEffort: payload.reasoningEffort,
+            workingDir: workingDir || undefined
           }
         });
       } catch (err) {

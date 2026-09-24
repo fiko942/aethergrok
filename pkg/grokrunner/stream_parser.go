@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"strings"
 	"sync"
@@ -110,10 +111,13 @@ func (p *StreamParser) Parse(ctx context.Context, r io.Reader) error {
 		}
 
 		switch raw.Type {
-		case "delta", "content", "token", "message":
+		case "delta", "content", "token", "message", "text":
 			content := raw.Delta
 			if content == "" {
 				content = raw.Content
+			}
+			if content == "" {
+				content = raw.Data
 			}
 			if content != "" {
 				mu.Lock()
@@ -162,7 +166,7 @@ func (p *StreamParser) Parse(ctx context.Context, r io.Reader) error {
 				})
 			}
 
-		case "complete", "turn_complete", "done":
+		case "complete", "turn_complete", "done", "end":
 			flushDelta()
 			if p.callbacks.OnComplete != nil {
 				status := raw.Status
@@ -181,7 +185,14 @@ func (p *StreamParser) Parse(ctx context.Context, r io.Reader) error {
 		case "error":
 			flushDelta()
 			if p.callbacks.OnError != nil {
-				p.callbacks.OnError(io.ErrUnexpectedEOF)
+				errMsg := raw.Message
+				if errMsg == "" {
+					errMsg = raw.Error
+				}
+				if errMsg == "" {
+					errMsg = "Grok execution error"
+				}
+				p.callbacks.OnError(fmt.Errorf("%s", errMsg))
 			}
 		}
 	}

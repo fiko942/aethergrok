@@ -26,8 +26,16 @@ export function RunPromptStream(arg1) {
   return window['go']['main']['App']['RunPromptStream'](arg1);
 }
 
+export function SaveMarkdownExport(arg1, arg2) {
+  return window['go']['main']['App']['SaveMarkdownExport'](arg1, arg2);
+}
+
 export function SearchSkills(arg1, arg2) {
   return window['go']['main']['App']['SearchSkills'](arg1, arg2);
+}
+
+export function SelectWorkspaceDirectory() {
+  return window['go']['main']['App']['SelectWorkspaceDirectory']();
 }
 
 export function SetGrokBinaryPath(arg1) {

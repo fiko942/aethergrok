@@ -16,6 +16,10 @@ export function RespondPermission(arg1:grokrunner.PermissionResponse):Promise<vo
 
 export function RunPromptStream(arg1:grokrunner.PromptRequest):Promise<void>;
 
+export function SaveMarkdownExport(arg1:string,arg2:string):Promise<string>;
+
 export function SearchSkills(arg1:string,arg2:string):Promise<Array<skills.Skill>>;
+
+export function SelectWorkspaceDirectory():Promise<string>;
 
 export function SetGrokBinaryPath(arg1:string):Promise<void>;
