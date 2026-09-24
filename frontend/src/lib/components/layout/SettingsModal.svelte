@@ -236,10 +236,10 @@
   >
     <!-- Modal Container -->
     <div
-      class="w-full max-w-4xl h-[680px] max-h-[90vh] flex flex-col bg-ant-bg-secondary border border-ant-border rounded-2xl shadow-2xl overflow-hidden"
+      class="w-full max-w-4xl h-[680px] max-h-[90vh] flex flex-col bg-ant-bg-secondary border border-ant-border-secondary rounded-2xl shadow-2xl overflow-hidden"
     >
       <!-- Header -->
-      <div class="px-6 py-4 border-b border-ant-border flex items-center justify-between bg-ant-bg-secondary flex-shrink-0">
+      <div class="px-6 py-4 border-b border-ant-border-secondary flex items-center justify-between bg-ant-bg-secondary flex-shrink-0">
         <div class="flex items-center space-x-3">
           <div class="w-8 h-8 rounded-lg bg-ant-primary/10 border border-ant-primary/30 flex items-center justify-center text-ant-primary shadow-sm">
             <Settings size={18} />
@@ -277,7 +277,7 @@
       <!-- Main Body: Sidebar + Content -->
       <div class="flex flex-1 min-h-0 overflow-hidden">
         <!-- Sidebar Navigation Tabs -->
-        <nav class="w-56 bg-ant-bg border-r border-ant-border flex flex-col p-2 space-y-1 flex-shrink-0" aria-label="Settings navigation">
+        <nav class="w-56 bg-ant-bg border-r border-ant-border-secondary flex flex-col p-2 space-y-1 flex-shrink-0" aria-label="Settings navigation">
           {#each tabs as tab}
             {@const IconComponent = tab.icon}
             <button
@@ -292,7 +292,7 @@
             </button>
           {/each}
 
-          <div class="mt-auto pt-4 border-t border-ant-border/50 px-2 pb-2">
+          <div class="mt-auto pt-4 border-t border-ant-border-secondary/60 px-2 pb-2">
             <div class="text-[11px] text-ant-text-secondary font-mono leading-tight">
               AetherGrok Studio
               <div class="text-[10px] opacity-60">Build 1.0.0 (Wails/Go)</div>
@@ -810,22 +810,22 @@
                 </p>
               </div>
 
-              <div class="border border-ant-border rounded-xl overflow-hidden bg-ant-bg">
+              <div class="border border-ant-border-secondary rounded-xl overflow-hidden bg-ant-bg">
                 <table class="w-full text-left border-collapse text-xs">
                   <thead>
-                    <tr class="border-b border-ant-border bg-ant-bg-tertiary/40">
+                    <tr class="border-b border-ant-border-secondary bg-ant-bg-tertiary/40">
                       <th class="px-4 py-2.5 font-semibold text-ant-text">Key Combination</th>
                       <th class="px-4 py-2.5 font-semibold text-ant-text">Action Trigger</th>
                       <th class="px-4 py-2.5 font-semibold text-ant-text-secondary">Scope</th>
                     </tr>
                   </thead>
-                  <tbody class="divide-y divide-ant-border/50">
+                  <tbody class="divide-y divide-ant-border-secondary/40">
                     {#each keyboardShortcuts as shortcut}
                       <tr class="hover:bg-ant-bg-secondary/40 transition">
                         <td class="px-4 py-2.5 font-mono text-ant-primary font-medium">{shortcut.key}</td>
                         <td class="px-4 py-2.5 text-ant-text">{shortcut.action}</td>
                         <td class="px-4 py-2.5 text-ant-text-secondary">
-                          <span class="px-2 py-0.5 text-[10px] font-medium bg-ant-bg-tertiary rounded border border-ant-border">
+                          <span class="px-2 py-0.5 text-[10px] font-medium bg-ant-bg-tertiary rounded border border-ant-border-secondary">
                             {shortcut.scope}
                           </span>
                         </td>
@@ -841,7 +841,7 @@
       </div>
 
       <!-- Footer Action Toolbar -->
-      <div class="px-6 py-3 border-t border-ant-border flex items-center justify-between bg-ant-bg-secondary flex-shrink-0">
+      <div class="px-6 py-3 border-t border-ant-border-secondary flex items-center justify-between bg-ant-bg-secondary flex-shrink-0">
         <button
           type="button"
           class="text-xs text-ant-text-secondary hover:text-ant-text flex items-center gap-1.5 transition"

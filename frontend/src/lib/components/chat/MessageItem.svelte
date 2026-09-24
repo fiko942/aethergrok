@@ -62,8 +62,8 @@
 
 <div
   class="group relative flex flex-col w-full px-4 py-3 rounded-lg transition-colors border {message.role === 'user'
-    ? 'bg-ant-bg-secondary/40 border-ant-border-secondary/60 hover:border-ant-border'
-    : 'bg-ant-bg border-transparent hover:border-ant-border-secondary'}"
+    ? 'bg-ant-bg-secondary/30 border-ant-border-secondary/40 hover:border-ant-border-secondary/80'
+    : 'bg-transparent border-transparent hover:border-ant-border-secondary/30'}"
 >
   <!-- Header: Role avatar, Turn ID, Timestamp, Token stats, Copy button -->
   <div class="flex items-center justify-between mb-2 select-none">

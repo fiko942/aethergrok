@@ -172,9 +172,9 @@
   }
 </script>
 
-<div class="rounded-md border border-ant-border-secondary/70 bg-ant-bg-secondary/40 overflow-hidden my-0.5 select-text font-mono text-xs">
+<div class="rounded-md border border-ant-border-secondary/40 bg-ant-bg-secondary/30 overflow-hidden my-0.5 select-text font-mono text-xs">
   <!-- Diff Card Header (Clean, Non-Redundant) -->
-  <div class="flex items-center justify-between px-2.5 py-1 bg-ant-bg-tertiary/50 border-b border-ant-border-secondary/60 select-none">
+  <div class="flex items-center justify-between px-2.5 py-1 bg-ant-bg-tertiary/40 border-b border-ant-border-secondary/40 select-none">
     <div class="flex items-center space-x-2 min-w-0">
       {#if showHeaderTitle}
         <span class="font-medium text-ant-text truncate max-w-xs">{displayNewPath}</span>

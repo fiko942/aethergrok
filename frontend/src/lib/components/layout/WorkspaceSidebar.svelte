@@ -234,9 +234,9 @@
   }
 </script>
 
-<aside class="flex flex-col w-64 h-full bg-ant-bg-secondary border-r border-ant-border select-none relative z-20">
+<aside class="flex flex-col w-64 h-full bg-ant-bg-secondary border-r border-ant-border-secondary select-none relative z-20">
   <!-- 1. Search Bar & Action Controls -->
-  <div class="p-2.5 border-b border-ant-border space-y-2">
+  <div class="p-2.5 border-b border-ant-border-secondary space-y-2">
     <!-- Search Bar -->
     <div class="relative flex items-center">
       <Search size={13} class="absolute left-2.5 text-ant-text-muted" />
@@ -244,7 +244,7 @@
         type="text"
         bind:value={searchQuery}
         placeholder="Filter project & session..."
-        class="w-full bg-ant-bg border border-ant-border rounded-md pl-8 pr-2.5 py-1 text-xs text-ant-text placeholder-ant-text-muted focus:border-ant-primary focus:outline-none transition-colors"
+        class="w-full bg-ant-bg border border-ant-border-secondary rounded-md pl-8 pr-2.5 py-1 text-xs text-ant-text placeholder-ant-text-muted focus:border-ant-primary focus:outline-none transition-colors"
       />
     </div>
 

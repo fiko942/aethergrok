@@ -205,7 +205,7 @@
   }
 </script>
 
-<div class="my-1 rounded-md border border-ant-border-secondary/60 bg-ant-bg-secondary/40 overflow-hidden text-xs transition-colors hover:border-ant-border">
+<div class="my-1 rounded-md border border-ant-border-secondary/40 bg-ant-bg-secondary/30 overflow-hidden text-xs transition-colors hover:border-ant-border-secondary/70">
   <!-- Minimalist Tool Header (Anti Gravity / VSCode Style) -->
   <div
     role="button"

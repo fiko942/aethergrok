@@ -334,7 +334,7 @@
   }
 </script>
 
-<div class="flex flex-col w-full bg-ant-bg-secondary border-t border-ant-border flex-shrink-0 relative z-30">
+<div class="flex flex-col w-full bg-ant-bg-secondary border-t border-ant-border-secondary flex-shrink-0 relative z-30">
   <!-- Vision Preview Chips Strip -->
   {#if attachedImages.length > 0}
     <SnapshotBar
@@ -368,7 +368,7 @@
       onClose={() => isSlashOpen = false}
     />
 
-    <div class="relative bg-ant-bg border border-ant-border focus-within:border-ant-primary rounded-xl transition-all shadow-inner">
+    <div class="relative bg-ant-bg border border-ant-border-secondary focus-within:border-ant-primary/80 rounded-xl transition-all shadow-inner">
       <textarea
         bind:this={textareaEl}
         bind:value={text}
@@ -380,14 +380,14 @@
       ></textarea>
 
       <!-- Composer Bottom Control Bar -->
-      <div class="flex items-center justify-between px-3 py-2 border-t border-ant-border-secondary/60 bg-ant-bg/70 text-xs select-none relative z-40">
+      <div class="flex items-center justify-between px-3 py-2 border-t border-ant-border-secondary/40 bg-ant-bg/70 text-xs select-none relative z-40">
         <div class="flex items-center space-x-1.5">
           <!-- Non-Intrusive Snapshot Trigger -->
           <button
             type="button"
             class="inline-flex items-center px-2 py-1 rounded-md text-[11px] font-medium transition {isTakingSnapshot
               ? 'bg-ant-primary/20 text-ant-primary cursor-wait'
-              : 'bg-ant-bg-secondary hover:bg-ant-primary/10 hover:text-ant-primary text-ant-text-secondary border border-ant-border'}"
+              : 'bg-ant-bg-secondary hover:bg-ant-primary/10 hover:text-ant-primary text-ant-text-secondary border border-ant-border-secondary'}"
             onclick={handleTakeSnapshot}
             disabled={isTakingSnapshot || disabled}
             title="Capture Active Screen excluding AetherGrok window (Cmd/Ctrl+Shift+S)"

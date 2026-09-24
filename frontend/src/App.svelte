@@ -560,7 +560,7 @@
 <div class="flex flex-col h-screen w-screen bg-ant-bg text-ant-text select-none overflow-hidden font-sans">
   <!-- Top Navigation Bar -->
   <header
-    class="flex items-center justify-between pl-20 pr-4 h-12 bg-ant-bg-secondary border-b border-ant-border flex-shrink-0"
+    class="flex items-center justify-between pl-20 pr-4 h-12 bg-ant-bg-secondary border-b border-ant-border-secondary flex-shrink-0"
     style="--wails-draggable:drag"
   >
     <div class="flex items-center space-x-3">
@@ -568,7 +568,7 @@
         <Sparkles size={16} />
       </div>
       <div class="flex items-center space-x-2">
-        <span class="font-bold text-sm tracking-tight text-white">AetherGrok</span>
+        <span class="font-bold text-sm tracking-tight text-ant-text">AetherGrok</span>
         <span class="px-1.5 py-0.5 text-[10px] font-semibold bg-ant-primary/20 text-ant-primary rounded border border-ant-primary/30">v1.0.0</span>
       </div>
     </div>
@@ -580,9 +580,9 @@
       <Button size="small" type="default" onclick={() => skillsCatalogVisible = true}>
         <Sparkles size={13} class="mr-1 text-ant-primary" /> Skills Hub
       </Button>
-      <div class="flex items-center space-x-2 text-xs text-ant-text-secondary bg-ant-bg px-2.5 py-1 rounded-md border border-ant-border">
+      <div class="flex items-center space-x-2 text-xs text-ant-text-secondary bg-ant-bg px-2.5 py-1 rounded-md border border-ant-border-secondary">
         <Badge status={isWorking ? 'processing' : 'success'} />
-        <span>Model: <strong class="text-white">{selectedModel}</strong></span>
+        <span>Model: <strong class="text-ant-text">{selectedModel}</strong></span>
       </div>
       <Button size="small" type="default" onclick={testBridge}>
         <Zap size={13} class="mr-1 text-ant-primary" /> Test Bridge
@@ -596,22 +596,22 @@
   <!-- Main Layout Grid -->
   <div class="flex flex-1 overflow-hidden">
     <!-- Left Sidebar: Workspace & Session Management -->
-    <aside class="w-72 bg-ant-bg-secondary border-r border-ant-border flex flex-col justify-between p-3 overflow-hidden">
+    <aside class="w-72 bg-ant-bg-secondary border-r border-ant-border-secondary flex flex-col justify-between p-3 overflow-hidden">
       <!-- Workspace Folders & Sessions List -->
       <div class="flex-1 overflow-hidden min-h-0">
         <WorkspaceSidebar />
       </div>
 
       <!-- Compact Engine Controls & Diff Status Footer -->
-      <div class="pt-3 mt-2 border-t border-ant-border-secondary space-y-2 flex-shrink-0">
-        <div class="p-2.5 bg-ant-bg rounded-lg border border-ant-border-secondary space-y-2 text-xs">
+      <div class="pt-3 mt-2 border-t border-ant-border-secondary/60 space-y-2 flex-shrink-0">
+        <div class="p-2.5 bg-ant-bg rounded-lg border border-ant-border-secondary/60 space-y-2 text-xs">
           <div class="flex items-center justify-between">
             <span class="text-ant-text-secondary flex items-center">
               <Camera size={13} class="mr-1.5 text-ant-text-muted" /> Auto-Hide
             </span>
             <Switch bind:checked={autoHideWindow} size="small" />
           </div>
-          <div class="flex items-center justify-between pt-1.5 border-t border-ant-border/40">
+          <div class="flex items-center justify-between pt-1.5 border-t border-ant-border-secondary/40">
             <span class="text-ant-text-secondary flex items-center">
               <Volume2 size={13} class="mr-1.5 text-ant-text-muted" /> Cekrek Sound
             </span>
@@ -619,7 +619,7 @@
           </div>
         </div>
 
-        <div class="p-2 bg-ant-bg rounded-lg border border-ant-border flex items-center justify-between text-xs">
+        <div class="p-2 bg-ant-bg rounded-lg border border-ant-border-secondary/60 flex items-center justify-between text-xs">
           <div class="flex items-center space-x-2">
             <Code2 size={13} class="text-ant-primary" />
             <span class="text-ant-text-secondary text-[11px]">Diff Previewer</span>

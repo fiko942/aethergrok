@@ -191,13 +191,13 @@
     role="presentation"
   >
     <div
-      class="w-full max-w-5xl max-h-[88vh] flex flex-col bg-ant-bg-secondary border border-ant-border rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 text-ant-text"
+      class="w-full max-w-5xl max-h-[88vh] flex flex-col bg-ant-bg-secondary border border-ant-border-secondary rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 text-ant-text"
       role="dialog"
       aria-modal="true"
       tabindex="-1"
     >
       <!-- Modal Header -->
-      <div class="px-6 py-4 border-b border-ant-border flex items-center justify-between bg-ant-bg-secondary flex-shrink-0">
+      <div class="px-6 py-4 border-b border-ant-border-secondary flex items-center justify-between bg-ant-bg-secondary flex-shrink-0">
         <div class="flex items-center space-x-3">
           <div class="w-8 h-8 rounded-lg bg-ant-primary/10 border border-ant-primary/30 flex items-center justify-center text-ant-primary">
             <Sparkles size={18} />
@@ -236,7 +236,7 @@
       </div>
 
       <!-- Controls: Search Input & Category Filter Tabs -->
-      <div class="px-6 py-3.5 border-b border-ant-border bg-ant-bg/80 flex flex-col sm:flex-row gap-3 items-center justify-between flex-shrink-0">
+      <div class="px-6 py-3.5 border-b border-ant-border-secondary bg-ant-bg/80 flex flex-col sm:flex-row gap-3 items-center justify-between flex-shrink-0">
         <!-- Search Field -->
         <div class="relative w-full sm:w-80">
           <Search size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-ant-text-muted" />
@@ -245,7 +245,7 @@
             bind:value={searchQuery}
             type="text"
             placeholder="Search skills, triggers, keywords..."
-            class="w-full pl-9 pr-8 py-1.5 text-xs bg-ant-bg border border-ant-border focus:border-ant-primary rounded-lg text-ant-text placeholder:text-ant-text-muted outline-none transition shadow-inner"
+            class="w-full pl-9 pr-8 py-1.5 text-xs bg-ant-bg border border-ant-border-secondary focus:border-ant-primary rounded-lg text-ant-text placeholder:text-ant-text-muted outline-none transition shadow-inner"
           />
           {#if searchQuery}
             <button
@@ -259,7 +259,7 @@
         </div>
 
         <!-- Category Tabs -->
-        <div class="flex items-center space-x-1 bg-ant-bg-secondary p-1 rounded-lg border border-ant-border overflow-x-auto max-w-full">
+        <div class="flex items-center space-x-1 bg-ant-bg-secondary p-1 rounded-lg border border-ant-border-secondary overflow-x-auto max-w-full">
           {#each categories as cat}
             <button
               type="button"
@@ -293,10 +293,10 @@
             {/if}
           </div>
         {:else}
-          <div class="border border-ant-border rounded-xl overflow-hidden bg-ant-bg shadow-sm">
+          <div class="border border-ant-border-secondary rounded-xl overflow-hidden bg-ant-bg shadow-sm">
             <table class="w-full text-left border-collapse text-xs">
               <thead>
-                <tr class="bg-ant-bg-secondary border-b border-ant-border text-[11px] font-semibold text-ant-text-secondary select-none">
+                <tr class="bg-ant-bg-secondary border-b border-ant-border-secondary text-[11px] font-semibold text-ant-text-secondary select-none">
                   <th class="py-2.5 px-4 w-[220px]">Skill / Command</th>
                   <th class="py-2.5 px-3 w-[110px]">Category</th>
                   <th class="py-2.5 px-3">Description & Triggers</th>
@@ -393,10 +393,10 @@
       </div>
 
       <!-- Footer Bar -->
-      <div class="px-6 py-2.5 border-t border-ant-border bg-ant-bg-secondary flex items-center justify-between text-xs text-ant-text-muted flex-shrink-0">
+      <div class="px-6 py-2.5 border-t border-ant-border-secondary bg-ant-bg-secondary flex items-center justify-between text-xs text-ant-text-muted flex-shrink-0">
         <span>Showing <strong class="text-ant-text">{filteredSkills.length}</strong> of {skills.length} skills</span>
         <div class="flex items-center space-x-2">
-          <span class="font-mono text-[10px] bg-ant-bg px-1.5 py-0.5 rounded border border-ant-border">Press Esc to exit</span>
+          <span class="font-mono text-[10px] bg-ant-bg px-1.5 py-0.5 rounded border border-ant-border-secondary">Press Esc to exit</span>
         </div>
       </div>
     </div>
