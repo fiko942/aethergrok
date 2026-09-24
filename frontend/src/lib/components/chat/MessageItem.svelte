@@ -63,7 +63,7 @@
     );
 
     // Bold **text**
-    escaped = escaped.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-white">$1</strong>');
+    escaped = escaped.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-ant-text">$1</strong>');
 
     // Italic *text*
     escaped = escaped.replace(/\*([^*]+)\*/g, '<em class="italic text-ant-text-secondary">$1</em>');
@@ -97,12 +97,12 @@
         <div class="flex items-center justify-center w-6 h-6 rounded-md bg-ant-primary/20 text-ant-primary border border-ant-primary/30">
           <User size={13} />
         </div>
-        <span class="text-xs font-semibold text-white">You</span>
+        <span class="text-xs font-semibold text-ant-text">You</span>
       {:else if message.role === 'assistant'}
         <div class="flex items-center justify-center w-6 h-6 rounded-md bg-ant-success/20 text-ant-success border border-ant-success/30">
           <Bot size={13} />
         </div>
-        <span class="text-xs font-semibold text-white">Grok</span>
+        <span class="text-xs font-semibold text-ant-text">Grok</span>
       {:else}
         <div class="flex items-center justify-center w-6 h-6 rounded-md bg-ant-warning/20 text-ant-warning border border-ant-warning/30">
           <Terminal size={13} />

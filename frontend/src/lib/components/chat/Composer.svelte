@@ -254,7 +254,7 @@
         onkeydown={handleKeyDown}
         placeholder={isWorking ? "Grok is executing... (type to queue or steer)" : "Ask Grok anything, command tools, or inspect code... (Enter to send, Shift+Enter for newline)"}
         rows={1}
-        class="w-full bg-transparent text-xs text-white placeholder:text-ant-text-muted px-3.5 pt-3 pb-2 outline-none resize-none min-h-[42px] max-h-[200px] leading-relaxed block scrollbar-thin"
+        class="w-full bg-transparent text-xs text-ant-text placeholder:text-ant-text-muted px-3.5 pt-3 pb-2 outline-none resize-none min-h-[42px] max-h-[200px] leading-relaxed block scrollbar-thin font-sans"
       ></textarea>
 
       <!-- Composer Bottom Control Bar -->
