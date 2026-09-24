@@ -42,6 +42,7 @@
 
   // Local draft state for edits
   let editGrokBinaryPath = $state(settingsStore.grokBinaryPath);
+  let editSnapshotShortcut = $state(settingsStore.snapshotShortcut);
   let editSnapshotDelayMs = $state(settingsStore.snapshotDelayMs);
   let editSnapshotSoundEnabled = $state(settingsStore.snapshotSoundEnabled);
   let editSnapshotFlashEnabled = $state(settingsStore.snapshotFlashEnabled);
@@ -53,11 +54,13 @@
   let editPermissionMode = $state<PermissionMode>(settingsStore.permissionMode);
   let editTheme = $state<ThemeMode>(settingsStore.theme);
 
+  let isRecordingShortcut = $state(false);
   let saveSuccessNotice = $state(false);
 
   $effect(() => {
     if (visible) {
       editGrokBinaryPath = settingsStore.grokBinaryPath;
+      editSnapshotShortcut = settingsStore.snapshotShortcut;
       editSnapshotDelayMs = settingsStore.snapshotDelayMs;
       editSnapshotSoundEnabled = settingsStore.snapshotSoundEnabled;
       editSnapshotFlashEnabled = settingsStore.snapshotFlashEnabled;
@@ -70,6 +73,7 @@
       editDefaultReasoningEffort = settingsStore.defaultReasoningEffort;
       editPermissionMode = settingsStore.permissionMode;
       editTheme = settingsStore.theme;
+      isRecordingShortcut = false;
       saveSuccessNotice = false;
     }
   });
@@ -170,11 +174,12 @@
 
   function handleSaveAll() {
     const finalModel = editDefaultModel === 'custom'
-      ? (editCustomModelName.trim() || 'grok-4.6')
+      ? (editCustomModelName.trim() || '9router')
       : editDefaultModel;
 
     settingsStore.updateSettings({
-      grokBinaryPath: editGrokBinaryPath.trim(),
+      grokBinaryPath: editGrokBinaryPath.trim() || '/Users/fiko942/.local/bin/grok',
+      snapshotShortcut: editSnapshotShortcut.trim() || 'CmdOrCtrl+Shift+S',
       snapshotDelayMs: Math.max(10, Math.min(2000, Number(editSnapshotDelayMs) || 50)),
       snapshotSoundEnabled: editSnapshotSoundEnabled,
       snapshotFlashEnabled: editSnapshotFlashEnabled,
@@ -196,6 +201,7 @@
   function handleResetDefaults() {
     settingsStore.resetToDefaults();
     editGrokBinaryPath = settingsStore.grokBinaryPath;
+    editSnapshotShortcut = settingsStore.snapshotShortcut;
     editSnapshotDelayMs = settingsStore.snapshotDelayMs;
     editSnapshotSoundEnabled = settingsStore.snapshotSoundEnabled;
     editSnapshotFlashEnabled = settingsStore.snapshotFlashEnabled;
@@ -343,6 +349,40 @@
                       <div class="text-xs font-semibold text-white">Non-Intrusive Smart Snapshot (macOS & Windows)</div>
                     </div>
                     <Badge status="success">Active Native Grab</Badge>
+                  </div>
+
+                  <!-- Snapshot Shortcut Key Binding -->
+                  <div class="space-y-2 pt-2 border-t border-ant-border/40">
+                    <div class="flex items-center justify-between">
+                      <div class="space-y-0.5">
+                        <div class="text-xs font-medium text-white flex items-center gap-1.5">
+                          <Keyboard size={13} class="text-ant-primary" />
+                          Global Screen Snapshot Shortcut
+                        </div>
+                        <div class="text-[11px] text-ant-text-secondary">
+                          Custom keybinding to trigger native screen capture instantly.
+                        </div>
+                      </div>
+                      <span class="text-xs font-mono font-bold text-ant-primary bg-ant-primary/10 px-2.5 py-1 rounded border border-ant-primary/30">
+                        {editSnapshotShortcut}
+                      </span>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                      <input
+                        type="text"
+                        bind:value={editSnapshotShortcut}
+                        placeholder="e.g. CmdOrCtrl+Shift+S"
+                        class="flex-1 px-3 py-1.5 text-xs font-mono bg-ant-bg border border-ant-border rounded-lg text-white focus:outline-none focus:border-ant-primary"
+                      />
+                      <button
+                        type="button"
+                        class="px-2.5 py-1.5 text-xs rounded-lg border border-ant-border hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-white transition"
+                        onclick={() => editSnapshotShortcut = 'CmdOrCtrl+Shift+S'}
+                      >
+                        Reset Default
+                      </button>
+                    </div>
                   </div>
 
                   <!-- Audio Shutter Sound Toggle -->

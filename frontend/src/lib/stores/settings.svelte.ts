@@ -9,6 +9,7 @@ export interface AppSettings {
   defaultReasoningEffort: ReasoningEffort;
   permissionMode: PermissionMode;
   grokBinaryPath: string;
+  snapshotShortcut: string;
   snapshotDelayMs: number;
   snapshotSoundEnabled: boolean;
   snapshotFlashEnabled: boolean;
@@ -24,6 +25,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   defaultReasoningEffort: 'medium',
   permissionMode: 'default',
   grokBinaryPath: '/Users/fiko942/.local/bin/grok',
+  snapshotShortcut: 'CmdOrCtrl+Shift+S',
   snapshotDelayMs: 50,
   snapshotSoundEnabled: true,
   snapshotFlashEnabled: true,
@@ -37,6 +39,7 @@ export class SettingsStore {
   defaultReasoningEffort = $state<ReasoningEffort>(DEFAULT_SETTINGS.defaultReasoningEffort);
   permissionMode = $state<PermissionMode>(DEFAULT_SETTINGS.permissionMode);
   grokBinaryPath = $state<string>(DEFAULT_SETTINGS.grokBinaryPath);
+  snapshotShortcut = $state<string>(DEFAULT_SETTINGS.snapshotShortcut);
   snapshotDelayMs = $state<number>(DEFAULT_SETTINGS.snapshotDelayMs);
   snapshotSoundEnabled = $state<boolean>(DEFAULT_SETTINGS.snapshotSoundEnabled);
   snapshotFlashEnabled = $state<boolean>(DEFAULT_SETTINGS.snapshotFlashEnabled);
@@ -69,6 +72,9 @@ export class SettingsStore {
       if (typeof parsed.grokBinaryPath === 'string') {
         this.grokBinaryPath = parsed.grokBinaryPath;
       }
+      if (typeof parsed.snapshotShortcut === 'string') {
+        this.snapshotShortcut = parsed.snapshotShortcut;
+      }
       if (typeof parsed.snapshotDelayMs === 'number' && Number.isFinite(parsed.snapshotDelayMs)) {
         this.snapshotDelayMs = parsed.snapshotDelayMs;
       }
@@ -98,6 +104,7 @@ export class SettingsStore {
         defaultReasoningEffort: this.defaultReasoningEffort,
         permissionMode: this.permissionMode,
         grokBinaryPath: this.grokBinaryPath,
+        snapshotShortcut: this.snapshotShortcut,
         snapshotDelayMs: this.snapshotDelayMs,
         snapshotSoundEnabled: this.snapshotSoundEnabled,
         snapshotFlashEnabled: this.snapshotFlashEnabled,
@@ -116,6 +123,7 @@ export class SettingsStore {
     if (partial.defaultReasoningEffort !== undefined) this.defaultReasoningEffort = partial.defaultReasoningEffort;
     if (partial.permissionMode !== undefined) this.permissionMode = partial.permissionMode;
     if (partial.grokBinaryPath !== undefined) this.grokBinaryPath = partial.grokBinaryPath;
+    if (partial.snapshotShortcut !== undefined) this.snapshotShortcut = partial.snapshotShortcut;
     if (partial.snapshotDelayMs !== undefined) this.snapshotDelayMs = partial.snapshotDelayMs;
     if (partial.snapshotSoundEnabled !== undefined) this.snapshotSoundEnabled = partial.snapshotSoundEnabled;
     if (partial.snapshotFlashEnabled !== undefined) this.snapshotFlashEnabled = partial.snapshotFlashEnabled;
@@ -130,6 +138,7 @@ export class SettingsStore {
     this.defaultReasoningEffort = DEFAULT_SETTINGS.defaultReasoningEffort;
     this.permissionMode = DEFAULT_SETTINGS.permissionMode;
     this.grokBinaryPath = DEFAULT_SETTINGS.grokBinaryPath;
+    this.snapshotShortcut = DEFAULT_SETTINGS.snapshotShortcut;
     this.snapshotDelayMs = DEFAULT_SETTINGS.snapshotDelayMs;
     this.snapshotSoundEnabled = DEFAULT_SETTINGS.snapshotSoundEnabled;
     this.snapshotFlashEnabled = DEFAULT_SETTINGS.snapshotFlashEnabled;

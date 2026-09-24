@@ -345,12 +345,34 @@
     }, 600);
   }
 
+  // Helper to test if a keydown matches configured shortcut string
+  function matchesShortcut(e: KeyboardEvent, shortcutStr: string): boolean {
+    if (!shortcutStr) return false;
+    const parts = shortcutStr.toLowerCase().split('+').map((s) => s.trim());
+    const hasCmdOrCtrl = parts.includes('cmdorctrl') || parts.includes('cmd') || parts.includes('ctrl') || parts.includes('meta');
+    const hasShift = parts.includes('shift');
+    const hasAlt = parts.includes('alt') || parts.includes('opt') || parts.includes('option');
+
+    const keyPart = parts.find((p) => !['cmdorctrl', 'cmd', 'ctrl', 'meta', 'shift', 'alt', 'opt', 'option'].includes(p));
+
+    const isMetaOrCtrl = e.metaKey || e.ctrlKey;
+    if (hasCmdOrCtrl && !isMetaOrCtrl) return false;
+    if (!hasCmdOrCtrl && isMetaOrCtrl) return false;
+    if (hasShift && !e.shiftKey) return false;
+    if (!hasShift && e.shiftKey) return false;
+    if (hasAlt && !e.altKey) return false;
+    if (!hasAlt && e.altKey) return false;
+
+    if (keyPart && e.key.toLowerCase() !== keyPart) return false;
+    return true;
+  }
+
   // Global Keyboard Shortcuts Handler
   function handleGlobalKeyDown(e: KeyboardEvent) {
     const isMetaOrCtrl = e.metaKey || e.ctrlKey;
 
-    // Cmd/Ctrl + Shift + S: Instantaneous Smart Screen Snapshot
-    if (isMetaOrCtrl && e.shiftKey && e.key.toLowerCase() === 's') {
+    // Smart Screen Snapshot (Customizable via settingsStore.snapshotShortcut)
+    if (matchesShortcut(e, settingsStore.snapshotShortcut) || (isMetaOrCtrl && e.shiftKey && e.key.toLowerCase() === 's')) {
       e.preventDefault();
       performGlobalSnapshot();
       return;
