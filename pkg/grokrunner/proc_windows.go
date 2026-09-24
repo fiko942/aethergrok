@@ -1,0 +1,28 @@
+//go:build windows
+
+package grokrunner
+
+import (
+	"os/exec"
+	"strconv"
+	"syscall"
+)
+
+// setSysProcGroup configures creation flags for Windows
+func setSysProcGroup(cmd *exec.Cmd) {
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
+	}
+}
+
+// killProcessGroup kills the process and its child processes on Windows using taskkill
+func killProcessGroup(cmd *exec.Cmd) error {
+	if cmd == nil || cmd.Process == nil {
+		return nil
+	}
+	killCmd := exec.Command("taskkill", "/T", "/F", "/PID", strconv.Itoa(cmd.Process.Pid))
+	if err := killCmd.Run(); err != nil {
+		return cmd.Process.Kill()
+	}
+	return nil
+}
