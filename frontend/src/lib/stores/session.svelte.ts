@@ -59,8 +59,10 @@ export interface ChatMessage {
 
 export interface Session {
   id: string;
+  grokSessionId?: string; // Real UUID discovered from Grok CLI execution
   workspaceId: string;
   title: string;
+  isCustomTitle?: boolean; // Set to true when renamed manually by user so auto-naming won't overwrite it
   status: SessionStatus;
   createdAt: number;
   updatedAt: number;
@@ -437,6 +439,27 @@ class SessionStore {
     const session = this.sessions.find((s) => s.id === id);
     if (session && title.trim()) {
       session.title = title.trim();
+      session.isCustomTitle = true; // Lock manual title
+      session.updatedAt = Date.now();
+    }
+  }
+
+  updateAutoTitle(id: string, newTitle: string, grokSessionId?: string): void {
+    const session = this.sessions.find((s) => s.id === id);
+    if (!session) return;
+    if (session.isCustomTitle) {
+      // Still update grokSessionId link if provided, but preserve custom title
+      if (grokSessionId) {
+        session.grokSessionId = grokSessionId;
+      }
+      return;
+    }
+    const clean = newTitle.trim();
+    if (clean) {
+      session.title = clean;
+      if (grokSessionId) {
+        session.grokSessionId = grokSessionId;
+      }
       session.updatedAt = Date.now();
     }
   }

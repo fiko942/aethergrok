@@ -185,6 +185,16 @@
     reasoningEffort = payload.reasoningEffort;
     sessionStore.setSessionStatus(sessionId, 'working');
 
+    // Auto-derive a provisional title from the first prompt if session has a default placeholder title
+    const currentSession = sessionStore.sessions.find((s) => s.id === sessionId);
+    if (currentSession && !currentSession.isCustomTitle && (currentSession.title.startsWith('Session ') || currentSession.title.startsWith('Percakapan ') || currentSession.title.startsWith('New '))) {
+      const firstLine = payload.text.split('\n')[0].trim();
+      if (firstLine) {
+        const previewTitle = firstLine.length > 38 ? firstLine.slice(0, 38) + '...' : firstLine;
+        sessionStore.updateAutoTitle(sessionId, previewTitle);
+      }
+    }
+
     // If Wails Go backend is available, run prompt stream
     if (window.go?.main?.App?.RunPromptStream) {
       try {
@@ -482,12 +492,30 @@
         }
       });
 
-      unsubComplete = window.runtime.EventsOn('grok:complete', (event: { sessionId: string; status: string }) => {
+      unsubComplete = window.runtime.EventsOn('grok:complete', async (event: { sessionId: string; status: string; grokSessionId?: string; title?: string }) => {
         if (event.sessionId) {
           sessionStore.setSessionStatus(event.sessionId, event.status === 'success' ? 'finished' : 'error');
           sessionStore.updateLastMessage(event.sessionId, (msg) => {
             msg.status = 'done';
           });
+
+          // Auto-update title if Grok emitted a summary title
+          if (event.title) {
+            sessionStore.updateAutoTitle(event.sessionId, event.title, event.grokSessionId);
+          }
+
+          // Rescan workspace on disk to sync official Grok titles & IDs from summary.json
+          const ws = sessionStore.activeWorkspace;
+          if (ws && window.go?.main?.App?.DiscoverGrokSessions) {
+            try {
+              const diskSessions = await window.go.main.App.DiscoverGrokSessions(ws.path);
+              if (diskSessions && diskSessions.length > 0) {
+                sessionStore.syncDiscoveredGrokSessions(ws.id, diskSessions);
+              }
+            } catch (err) {
+              console.error('Failed to auto-sync sessions after turn:', err);
+            }
+          }
         }
       });
 

@@ -74,11 +74,13 @@ type PermissionResponse struct {
 
 // TurnCompleteEvent signals that the turn has completed
 type TurnCompleteEvent struct {
-	SessionID    string `json:"sessionId"`
-	Status       string `json:"status"` // "success", "interrupted", "error"
-	Error        string `json:"error,omitempty"`
-	TotalTokens  int    `json:"totalTokens,omitempty"`
-	FinishReason string `json:"finishReason,omitempty"`
+	SessionID     string `json:"sessionId"`
+	GrokSessionID string `json:"grokSessionId,omitempty"`
+	Title         string `json:"title,omitempty"`
+	Status        string `json:"status"` // "success", "interrupted", "error"
+	Error         string `json:"error,omitempty"`
+	TotalTokens   int    `json:"totalTokens,omitempty"`
+	FinishReason  string `json:"finishReason,omitempty"`
 }
 
 // RawNDJSONEvent models incoming JSON messages from `grok --output-format streaming-json`
@@ -90,6 +92,8 @@ type RawNDJSONEvent struct {
 	Message     string                 `json:"message,omitempty"`
 	Text        string                 `json:"text,omitempty"`
 	Title       string                 `json:"title,omitempty"`
+	SessionID   string                 `json:"session_id,omitempty"`
+	Params      map[string]interface{} `json:"params,omitempty"`
 	Kind        string                 `json:"kind,omitempty"`
 	ToolID      string                 `json:"tool_id,omitempty"`
 	ToolCallID  string                 `json:"toolCallId,omitempty"`

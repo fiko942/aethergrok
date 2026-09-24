@@ -104,9 +104,10 @@ type StreamCallbacks struct {
 
 // StreamParser reads NDJSON lines from grok stdout and batches delta tokens with a 16ms ticker
 type StreamParser struct {
-	sessionID string
-	callbacks StreamCallbacks
-	flushChan chan struct{}
+	sessionID     string
+	grokSessionID string
+	callbacks     StreamCallbacks
+	flushChan     chan struct{}
 }
 
 // NewStreamParser creates a new stream parser for a session
@@ -181,6 +182,15 @@ func (p *StreamParser) Parse(ctx context.Context, r io.Reader) error {
 		var raw RawNDJSONEvent
 		if err := json.Unmarshal([]byte(line), &raw); err != nil {
 			continue
+		}
+
+		// Capture underlying real Grok Session ID if present in stream
+		if raw.SessionID != "" {
+			p.grokSessionID = raw.SessionID
+		} else if raw.Params != nil {
+			if sID, ok := raw.Params["sessionId"].(string); ok && sID != "" {
+				p.grokSessionID = sID
+			}
 		}
 
 		// Filter out internal metadata events like available_commands, thought
@@ -284,12 +294,15 @@ func (p *StreamParser) Parse(ctx context.Context, r io.Reader) error {
 				if status == "" {
 					status = "success"
 				}
+				title := raw.Title
 				p.callbacks.OnComplete(TurnCompleteEvent{
-					SessionID:    p.sessionID,
-					Status:       status,
-					Error:        raw.Error,
-					TotalTokens:  raw.Tokens,
-					FinishReason: raw.Status,
+					SessionID:     p.sessionID,
+					GrokSessionID: p.grokSessionID,
+					Title:         title,
+					Status:        status,
+					Error:         raw.Error,
+					TotalTokens:   raw.Tokens,
+					FinishReason:  raw.Status,
 				})
 			}
 
