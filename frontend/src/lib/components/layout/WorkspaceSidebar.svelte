@@ -244,7 +244,7 @@
         type="text"
         bind:value={searchQuery}
         placeholder="Filter project & session..."
-        class="w-full bg-ant-bg border border-ant-border rounded-md pl-8 pr-2.5 py-1 text-xs text-white placeholder-ant-text-muted focus:border-ant-primary focus:outline-none transition-colors"
+        class="w-full bg-ant-bg border border-ant-border rounded-md pl-8 pr-2.5 py-1 text-xs text-ant-text placeholder-ant-text-muted focus:border-ant-primary focus:outline-none transition-colors"
       />
     </div>
 
@@ -332,18 +332,18 @@
                         if (e.key === 'Escape') editingSessionId = null;
                       }}
                       onblur={() => handleSaveRename(session)}
-                      class="w-full bg-ant-bg border border-ant-primary rounded px-1.5 py-0.5 text-xs text-white focus:outline-none"
+                      class="w-full bg-ant-bg border border-ant-primary rounded px-1.5 py-0.5 text-xs text-ant-text focus:outline-none"
                     />
                   {:else}
-                    <span class="truncate text-[11px] {isActive ? 'font-semibold text-white' : ''}" title={session.title}>{session.title}</span>
+                    <span class="truncate text-[11px] {isActive ? 'font-semibold text-ant-primary' : 'text-ant-text'}" title={session.title}>{session.title}</span>
                   {/if}
                 </div>
 
                 <!-- Workspace Badge Tag -->
                 {#if ws}
                   <div class="flex items-center space-x-1 pl-4 pt-0.5">
-                    <Folder size={10} class="text-ant-primary/80 flex-shrink-0" />
-                    <span class="text-[9.5px] text-ant-text-muted truncate max-w-[140px]" title={ws.path}>{ws.name}</span>
+                    <Folder size={10} class="text-ant-primary flex-shrink-0" />
+                    <span class="text-[9.5px] text-ant-text-secondary font-medium truncate max-w-[140px]" title={ws.path}>{ws.name}</span>
                   </div>
                 {/if}
               </div>
@@ -356,7 +356,7 @@
                     e.stopPropagation();
                     activeDropdownId = activeDropdownId === session.id ? null : session.id;
                   }}
-                  class="session-more-btn p-0.5 text-ant-text-muted hover:text-white rounded hover:bg-ant-bg"
+                  class="session-more-btn p-0.5 text-ant-text-muted hover:text-ant-text rounded hover:bg-ant-bg"
                   title="Opsi Sesi"
                 >
                   <MoreVertical size={13} />
@@ -447,7 +447,7 @@
               {/if}
             </span>
             <Folder size={14} class="text-ant-primary flex-shrink-0" />
-            <span class="text-xs font-semibold text-white truncate max-w-[110px]" title={ws.path}>{ws.name}</span>
+            <span class="text-xs font-semibold text-ant-text truncate max-w-[110px]" title={ws.path}>{ws.name}</span>
             <span class="text-[10px] text-ant-text-muted font-mono">({totalCount})</span>
           </div>
 
@@ -529,10 +529,10 @@
                             if (e.key === 'Escape') editingSessionId = null;
                           }}
                           onblur={() => handleSaveRename(session)}
-                          class="w-full bg-ant-bg border border-ant-primary rounded px-1.5 py-0.5 text-xs text-white focus:outline-none"
+                          class="w-full bg-ant-bg border border-ant-primary rounded px-1.5 py-0.5 text-xs text-ant-text focus:outline-none"
                         />
                       {:else}
-                        <span class="truncate text-[11px] {isActive ? 'font-semibold text-white' : ''}" title={session.title}>{session.title}</span>
+                        <span class="truncate text-[11px] {isActive ? 'font-semibold text-ant-primary' : 'text-ant-text'}" title={session.title}>{session.title}</span>
                       {/if}
                     </div>
 
@@ -544,7 +544,7 @@
                           e.stopPropagation();
                           activeDropdownId = activeDropdownId === session.id ? null : session.id;
                         }}
-                        class="session-more-btn p-0.5 text-ant-text-muted hover:text-white rounded hover:bg-ant-bg"
+                        class="session-more-btn p-0.5 text-ant-text-muted hover:text-ant-text rounded hover:bg-ant-bg"
                         title="Opsi Sesi"
                       >
                         <MoreVertical size={13} />
