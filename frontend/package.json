@@ -13,11 +13,13 @@
     "@ant-design/colors": "^7.2.0",
     "diff2html": "^3.4.48",
     "katex": "^0.16.21",
-    "lucide-svelte": "^0.475.0"
+    "lucide-svelte": "^0.475.0",
+    "marked": "^18.0.14"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5.0.3",
     "@types/katex": "^0.16.7",
+    "@types/marked": "^5.0.2",
     "@types/node": "^22.13.5",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.5.3",

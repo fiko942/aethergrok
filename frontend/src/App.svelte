@@ -444,10 +444,11 @@
           }
 
           if (!found) {
-            // Append tool call to last message
-            sessionStore.updateLastMessage(event.sessionId, (msg) => {
-              if (!msg.toolCalls) msg.toolCalls = [];
-              msg.toolCalls.push({
+            // Ensure tool calls attach to an assistant message in the active turn
+            const lastMsg = session.messages[session.messages.length - 1];
+            if (lastMsg && lastMsg.role === 'assistant') {
+              if (!lastMsg.toolCalls) lastMsg.toolCalls = [];
+              lastMsg.toolCalls.push({
                 id: event.toolId,
                 tool: event.toolName,
                 params: event.input,
@@ -455,7 +456,22 @@
                 status: event.status === 'completed' ? 'completed' : event.status === 'failed' ? 'error' : 'running',
                 startTime: Date.now()
               });
-            });
+            } else {
+              // Create an assistant container message for tool calls
+              sessionStore.addMessage(event.sessionId, {
+                role: 'assistant',
+                content: '',
+                status: 'streaming',
+                toolCalls: [{
+                  id: event.toolId,
+                  tool: event.toolName,
+                  params: event.input,
+                  result: event.output,
+                  status: event.status === 'completed' ? 'completed' : event.status === 'failed' ? 'error' : 'running',
+                  startTime: Date.now()
+                }]
+              });
+            }
           }
         }
       });
@@ -544,7 +560,7 @@
 <div class="flex flex-col h-screen w-screen bg-ant-bg text-ant-text select-none overflow-hidden font-sans">
   <!-- Top Navigation Bar -->
   <header
-    class="flex items-center justify-between px-4 h-12 bg-ant-bg-secondary border-b border-ant-border flex-shrink-0"
+    class="flex items-center justify-between pl-20 pr-4 h-12 bg-ant-bg-secondary border-b border-ant-border flex-shrink-0"
     style="--wails-draggable:drag"
   >
     <div class="flex items-center space-x-3">

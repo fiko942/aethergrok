@@ -52,6 +52,7 @@ export interface ChatMessage {
   };
   toolCalls?: ToolCall[];
   images?: VisionImage[];
+  reasoningContent?: string;
   status?: 'streaming' | 'done' | 'error';
   isSteer?: boolean;
 }
@@ -67,6 +68,8 @@ export interface Session {
   // Windowing state per session
   visibleTurnCount: number; // Number of recent user turns currently in DOM window (default 10)
   pendingPermission?: PermissionRequest | null;
+  isPinned?: boolean;
+  pinnedAt?: number;
 }
 
 export interface WorkspaceFolder {
@@ -74,6 +77,7 @@ export interface WorkspaceFolder {
   name: string; // e.g. "affilia", "grok-desktop"
   path: string; // e.g. "/Users/fiko942/Desktop/affilia"
   createdAt: number;
+  isExpanded?: boolean;
 }
 
 export const STATUS_META: Record<SessionStatus, { label: string; dotClass: string; hex: string; icon: string }> = {
@@ -360,6 +364,72 @@ class SessionStore {
     if (this.activeSessionId === id) {
       this.activeSessionId = remainingInWs[0].id;
       remainingInWs[0].visibleTurnCount = DEFAULT_WINDOW_TURNS;
+    }
+  }
+
+  togglePinSession(id: string): void {
+    const session = this.sessions.find((s) => s.id === id);
+    if (session) {
+      session.isPinned = !session.isPinned;
+      session.pinnedAt = session.isPinned ? Date.now() : undefined;
+    }
+  }
+
+  toggleWorkspaceExpanded(wsId: string): void {
+    const ws = this.workspaces.find((w) => w.id === wsId);
+    if (ws) {
+      ws.isExpanded = ws.isExpanded === undefined ? false : !ws.isExpanded;
+    }
+  }
+
+  // Load external Grok sessions discovered from ~/.grok/sessions
+  syncDiscoveredGrokSessions(wsId: string, grokSessions: Array<{ id: string; title: string; createdAt: number; updatedAt: number }>): void {
+    if (!grokSessions || grokSessions.length === 0) return;
+
+    // Remove empty placeholder sessions if real grok sessions are found
+    const hasExistingPlaceholders = this.sessions.filter(
+      (s) => s.workspaceId === wsId && s.messages.length === 0 && (s.title.startsWith('New ') || s.title.startsWith('Session ') || s.title.startsWith('Task for '))
+    );
+
+    for (const gs of grokSessions) {
+      const existing = this.sessions.find((s) => s.id === gs.id);
+      if (existing) {
+        // Update generic or outdated title with real discovered title
+        if (gs.title && (!existing.title || existing.title.startsWith('Session ') || existing.title.startsWith('Percakapan '))) {
+          existing.title = gs.title;
+        }
+        if (gs.updatedAt) {
+          existing.updatedAt = gs.updatedAt;
+        }
+      } else {
+        this.sessions.push({
+          id: gs.id,
+          workspaceId: wsId,
+          title: gs.title || `Session ${this.sessions.filter((s) => s.workspaceId === wsId).length + 1}`,
+          status: 'idle',
+          createdAt: gs.createdAt || Date.now(),
+          updatedAt: gs.updatedAt || Date.now(),
+          messages: [],
+          visibleTurnCount: DEFAULT_WINDOW_TURNS,
+          pendingPermission: null
+        });
+      }
+    }
+
+    // If active session was a placeholder and we now have real sessions, clean placeholder and switch to newest real session
+    if (hasExistingPlaceholders.length > 0 && grokSessions.length > 0) {
+      const realFirst = this.sessions.find((s) => s.workspaceId === wsId && grokSessions.some((gs) => gs.id === s.id));
+      for (const ph of hasExistingPlaceholders) {
+        if (!grokSessions.some((gs) => gs.id === ph.id)) {
+          const idx = this.sessions.findIndex((s) => s.id === ph.id);
+          if (idx !== -1) {
+            this.sessions.splice(idx, 1);
+          }
+        }
+      }
+      if (realFirst && (!this.activeSessionId || hasExistingPlaceholders.some((ph) => ph.id === this.activeSessionId))) {
+        this.activeSessionId = realFirst.id;
+      }
     }
   }
 

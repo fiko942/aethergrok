@@ -10,6 +10,14 @@ export function CaptureScreenExcludingSelf(arg1) {
   return window['go']['main']['App']['CaptureScreenExcludingSelf'](arg1);
 }
 
+export function DeleteGrokSession(arg1, arg2) {
+  return window['go']['main']['App']['DeleteGrokSession'](arg1, arg2);
+}
+
+export function DiscoverGrokSessions(arg1) {
+  return window['go']['main']['App']['DiscoverGrokSessions'](arg1);
+}
+
 export function GetAvailableModels() {
   return window['go']['main']['App']['GetAvailableModels']();
 }

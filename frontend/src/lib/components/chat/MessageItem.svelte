@@ -1,15 +1,18 @@
 <script lang="ts">
   import type { ChatMessage } from '$lib/stores/session.svelte';
   import ToolCallCard from './ToolCallCard.svelte';
+  import { marked } from 'marked';
   import {
-    Bot,
     User,
+    Bot,
     Terminal,
+    ChevronDown,
+    ChevronRight,
+    Brain,
     Clock,
     Zap,
     Copy,
-    Check,
-    Image as ImageIcon
+    Check
   } from 'lucide-svelte';
 
   interface Props {
@@ -19,6 +22,8 @@
 
   let { message, turnNumber }: Props = $props();
 
+  let showReasoning = $state(false);
+  let showToolDetails = $state(true);
   let copied = $state(false);
 
   function formatTime(timestamp: number): string {
@@ -38,50 +43,21 @@
     }
   }
 
-  // Simple, robust inline markdown formatting parser (bold, italic, inline code, code blocks, lists)
-  function renderSimpleMarkdown(raw: string): string {
-    if (!raw) return '';
+  // Configure marked for GitHub Flavored Markdown (tables, lists, breaks, headings)
+  marked.setOptions({
+    gfm: true,
+    breaks: true
+  });
 
-    // Escape basic html
-    let escaped = raw
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-
-    // Code blocks ```lang\ncode\n```
-    escaped = escaped.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (_match, lang, code) => {
-      const languageBadge = lang
-        ? `<span class="absolute top-2 right-2 text-[10px] uppercase font-mono text-ant-text-muted bg-ant-bg-tertiary px-1.5 py-0.5 rounded border border-ant-border-secondary">${lang}</span>`
-        : '';
-      return `<div class="relative my-3 rounded-lg overflow-hidden border border-ant-border bg-ant-bg-secondary">${languageBadge}<pre class="p-3.5 text-xs font-mono overflow-x-auto text-ant-text leading-relaxed"><code>${code.trim()}</code></pre></div>`;
-    });
-
-    // Inline code `code`
-    escaped = escaped.replace(
-      /`([^`]+)`/g,
-      '<code class="px-1.5 py-0.5 mx-0.5 text-[11px] font-mono rounded bg-ant-bg-tertiary text-ant-primary border border-ant-border-secondary">$1</code>'
-    );
-
-    // Bold **text**
-    escaped = escaped.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-ant-text">$1</strong>');
-
-    // Italic *text*
-    escaped = escaped.replace(/\*([^*]+)\*/g, '<em class="italic text-ant-text-secondary">$1</em>');
-
-    // Blockquotes > text
-    escaped = escaped.replace(
-      /^>\s*(.+)$/gm,
-      '<blockquote class="border-l-2 border-ant-primary pl-3 py-0.5 my-1.5 text-ant-text-secondary italic">$1</blockquote>'
-    );
-
-    // Bullet points
-    escaped = escaped.replace(/^\s*[-*]\s+(.+)$/gm, '<li class="ml-4 list-disc text-ant-text my-0.5">$1</li>');
-
-    // Line breaks
-    escaped = escaped.replace(/\n\n/g, '<br/><br/>').replace(/\n/g, '<br/>');
-
-    return escaped;
-  }
+  // Render comprehensive Markdown formatted text
+  const renderedHtml = $derived.by(() => {
+    if (!message.content) return '';
+    try {
+      return marked.parse(message.content) as string;
+    } catch {
+      return message.content;
+    }
+  });
 </script>
 
 <div
@@ -90,7 +66,7 @@
     : 'bg-ant-bg border-transparent hover:border-ant-border-secondary'}"
 >
   <!-- Header: Role avatar, Turn ID, Timestamp, Token stats, Copy button -->
-  <div class="flex items-center justify-between mb-2">
+  <div class="flex items-center justify-between mb-2 select-none">
     <div class="flex items-center space-x-2">
       <!-- Role Icon -->
       {#if message.role === 'user'}
@@ -118,7 +94,7 @@
       {/if}
 
       <!-- Timestamp -->
-      <span class="flex items-center text-[11px] text-ant-text-muted ml-1">
+      <span class="flex items-center text-[11px] text-ant-text-muted ml-1 font-mono">
         <Clock size={11} class="mr-1" />
         {formatTime(message.timestamp)}
       </span>
@@ -155,52 +131,67 @@
     </div>
   </div>
 
-  <!-- Vision Images Preview (if present) -->
-  {#if message.images && message.images.length > 0}
-    <div class="flex items-center gap-2 mb-2 flex-wrap">
-      {#each message.images as img (img.id)}
-        <div class="relative rounded-md overflow-hidden border border-ant-border bg-ant-bg-secondary group/img max-w-[140px] max-h-[90px]">
-          {#if img.dataUrl}
-            <img src={img.dataUrl} alt={img.filePath} class="object-cover w-full h-full rounded" />
-          {:else}
-            <div class="p-2 text-[10px] text-ant-text-muted flex items-center gap-1">
-              <ImageIcon size={12} />
-              <span class="truncate">{img.filePath}</span>
-            </div>
-          {/if}
+  <!-- Reasoning / Thinking trace accordion (if available) -->
+  {#if message.reasoningContent}
+    <div class="mb-3 rounded-lg border border-ant-border-secondary/60 bg-ant-bg-secondary/30 overflow-hidden text-xs">
+      <button
+        type="button"
+        onclick={() => showReasoning = !showReasoning}
+        class="flex items-center justify-between w-full px-3 py-1.5 text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-secondary transition font-mono select-none"
+      >
+        <div class="flex items-center space-x-2">
+          <Brain size={13} class="text-ant-primary" />
+          <span class="font-medium text-[11px]">Thought Process</span>
+          <span class="text-[10px] text-ant-text-muted">({message.reasoningContent.length} chars)</span>
         </div>
-      {/each}
+        {#if showReasoning}
+          <ChevronDown size={13} />
+        {:else}
+          <ChevronRight size={13} />
+        {/if}
+      </button>
+
+      {#if showReasoning}
+        <div class="p-3 border-t border-ant-border-secondary/40 bg-ant-bg text-ant-text-secondary text-xs leading-relaxed font-mono whitespace-pre-wrap select-text max-h-60 overflow-y-auto scrollbar-thin">
+          {message.reasoningContent}
+        </div>
+      {/if}
     </div>
   {/if}
 
-  <!-- Message Body (Formatted Markdown) -->
+  <!-- Tool Calls Section (Always attached exclusively to assistant messages) -->
+  {#if message.role === 'assistant' && message.toolCalls && message.toolCalls.length > 0}
+    <div class="mb-2 space-y-1">
+      <div class="flex items-center justify-between text-[11px] text-ant-text-muted font-mono select-none px-1">
+        <span class="flex items-center space-x-1 font-semibold text-ant-text-secondary">
+          <Terminal size={11} class="text-ant-primary" />
+          <span>Executed {message.toolCalls.length} {message.toolCalls.length === 1 ? 'action' : 'actions'}</span>
+        </span>
+        <button
+          type="button"
+          onclick={() => showToolDetails = !showToolDetails}
+          class="hover:text-ant-text transition text-[10px]"
+        >
+          {showToolDetails ? 'Hide details' : 'Show details'}
+        </button>
+      </div>
+
+      {#if showToolDetails}
+        <div class="space-y-1">
+          {#each message.toolCalls as toolCall (toolCall.id)}
+            <ToolCallCard {toolCall} />
+          {/each}
+        </div>
+      {/if}
+    </div>
+  {/if}
+
+  <!-- Message Body: Rendered Markdown Content with Proper Styling -->
   {#if message.content}
-    <div class="text-xs leading-relaxed text-ant-text font-normal space-y-2 select-text">
-      {@html renderSimpleMarkdown(message.content)}
-    </div>
-  {/if}
-
-  <!-- Tool Invocations Section using ToolCallCard -->
-  {#if message.toolCalls && message.toolCalls.length > 0}
-    <div class="mt-3 space-y-2">
-      <div class="text-[11px] font-semibold text-ant-text-secondary flex items-center gap-1.5">
-        <Terminal size={12} class="text-ant-primary" />
-        <span>Tool Invocations ({message.toolCalls.length})</span>
-      </div>
-
-      <div class="space-y-2">
-        {#each message.toolCalls as tool (tool.id)}
-          <ToolCallCard toolCall={tool} />
-        {/each}
-      </div>
-    </div>
-  {/if}
-
-  <!-- Streaming pulse indicator -->
-  {#if message.status === 'streaming'}
-    <div class="flex items-center space-x-1.5 mt-2 text-ant-primary text-xs font-mono">
-      <span class="inline-block w-2 h-2 rounded-full bg-ant-primary animate-ping mr-1"></span>
-      <span>Grok is thinking & executing...</span>
+    <div
+      class="prose prose-invert max-w-none text-xs text-ant-text leading-relaxed select-text space-y-2 prose-headings:font-semibold prose-headings:text-white prose-h1:text-sm prose-h2:text-xs prose-h3:text-xs prose-p:my-1.5 prose-ul:my-1.5 prose-ul:list-disc prose-ul:pl-4 prose-ol:my-1.5 prose-ol:list-decimal prose-ol:pl-4 prose-li:my-0.5 prose-code:text-[11px] prose-code:font-mono prose-code:bg-ant-bg-tertiary prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-ant-primary prose-pre:my-2 prose-pre:bg-ant-bg-secondary prose-pre:border prose-pre:border-ant-border-secondary prose-pre:rounded-lg prose-pre:p-3 prose-blockquote:border-l-2 prose-blockquote:border-ant-primary prose-blockquote:pl-3 prose-blockquote:text-ant-text-secondary prose-hr:my-3 prose-hr:border-ant-border-secondary/60 prose-strong:text-white prose-table:my-2 prose-table:border-collapse prose-th:border prose-th:border-ant-border-secondary prose-th:p-1.5 prose-th:bg-ant-bg-secondary prose-td:border prose-td:border-ant-border-secondary prose-td:p-1.5"
+    >
+      {@html renderedHtml}
     </div>
   {/if}
 </div>

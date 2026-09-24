@@ -1,5 +1,29 @@
 export namespace grokrunner {
 	
+	export class GrokSessionMetadata {
+	    id: string;
+	    workspaceId: string;
+	    title: string;
+	    path: string;
+	    createdAt: number;
+	    updatedAt: number;
+	    status: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GrokSessionMetadata(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.workspaceId = source["workspaceId"];
+	        this.title = source["title"];
+	        this.path = source["path"];
+	        this.createdAt = source["createdAt"];
+	        this.updatedAt = source["updatedAt"];
+	        this.status = source["status"];
+	    }
+	}
 	export class ModelInfo {
 	    id: string;
 	    name: string;

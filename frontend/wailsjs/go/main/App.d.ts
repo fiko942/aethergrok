@@ -8,6 +8,10 @@ export function CancelSession(arg1:string):Promise<void>;
 
 export function CaptureScreenExcludingSelf(arg1:number):Promise<screen.SnapshotResult>;
 
+export function DeleteGrokSession(arg1:string,arg2:string):Promise<void>;
+
+export function DiscoverGrokSessions(arg1:string):Promise<Array<grokrunner.GrokSessionMetadata>>;
+
 export function GetAvailableModels():Promise<Array<grokrunner.ModelInfo>>;
 
 export function GetInstalledSkills():Promise<Array<skills.Skill>>;

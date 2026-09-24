@@ -13,14 +13,14 @@ const (
 
 // SessionOptions configures a Grok session run
 type SessionOptions struct {
-	Model            string   `json:"model,omitempty"`
-	ReasoningEffort  string   `json:"reasoningEffort,omitempty"` // low, medium, high
-	WorkingDir       string   `json:"workingDir,omitempty"`
-	SkillDirs        []string `json:"skillDirs,omitempty"`
-	Temperature      *float64 `json:"temperature,omitempty"`
-	DisableTools     bool     `json:"disableTools,omitempty"`
-	SystemPrompt     string   `json:"systemPrompt,omitempty"`
-	CustomFlags      []string `json:"customFlags,omitempty"`
+	Model           string   `json:"model,omitempty"`
+	ReasoningEffort string   `json:"reasoningEffort,omitempty"` // low, medium, high
+	WorkingDir      string   `json:"workingDir,omitempty"`
+	SkillDirs       []string `json:"skillDirs,omitempty"`
+	Temperature     *float64 `json:"temperature,omitempty"`
+	DisableTools    bool     `json:"disableTools,omitempty"`
+	SystemPrompt    string   `json:"systemPrompt,omitempty"`
+	CustomFlags     []string `json:"customFlags,omitempty"`
 }
 
 // PromptRequest is the request payload to start or continue a session
@@ -57,12 +57,12 @@ type PermissionOption struct {
 
 // PermissionRequestEvent represents a required user confirmation
 type PermissionRequestEvent struct {
-	SessionID   string             `json:"sessionId"`
-	RequestID   string             `json:"requestId"`
-	ToolName    string             `json:"toolName"`
-	Description string             `json:"description"`
+	SessionID   string                 `json:"sessionId"`
+	RequestID   string                 `json:"requestId"`
+	ToolName    string                 `json:"toolName"`
+	Description string                 `json:"description"`
 	Details     map[string]interface{} `json:"details,omitempty"`
-	Options     []PermissionOption `json:"options,omitempty"`
+	Options     []PermissionOption     `json:"options,omitempty"`
 }
 
 // PermissionResponse is the user's decision on a permission request
@@ -85,13 +85,20 @@ type TurnCompleteEvent struct {
 type RawNDJSONEvent struct {
 	Type        string                 `json:"type"`
 	Role        string                 `json:"role,omitempty"`
-	Content     string                 `json:"content,omitempty"`
 	Delta       string                 `json:"delta,omitempty"`
 	Data        string                 `json:"data,omitempty"`
 	Message     string                 `json:"message,omitempty"`
+	Text        string                 `json:"text,omitempty"`
+	Title       string                 `json:"title,omitempty"`
+	Kind        string                 `json:"kind,omitempty"`
 	ToolID      string                 `json:"tool_id,omitempty"`
-	ToolName    string                 `json:"tool_name,omitempty"`
+	ToolCallID  string                 `json:"toolCallId,omitempty"`
+	ToolName    string                 `json:"toolName,omitempty"`
+	ToolNameAlt string                 `json:"tool_name,omitempty"`
+	RawInput    map[string]interface{} `json:"rawInput,omitempty"`
 	ToolInput   map[string]interface{} `json:"tool_input,omitempty"`
+	RawOutput   interface{}            `json:"rawOutput,omitempty"`
+	Content     []interface{}          `json:"content,omitempty"`
 	ToolOutput  string                 `json:"tool_output,omitempty"`
 	ToolStatus  string                 `json:"tool_status,omitempty"`
 	RequestID   string                 `json:"request_id,omitempty"`
@@ -100,4 +107,5 @@ type RawNDJSONEvent struct {
 	Status      string                 `json:"status,omitempty"`
 	Error       string                 `json:"error,omitempty"`
 	Tokens      int                    `json:"tokens,omitempty"`
+	Usage       map[string]interface{} `json:"usage,omitempty"`
 }

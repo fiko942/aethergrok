@@ -197,6 +197,16 @@ func (a *App) SaveMarkdownExport(defaultFilename string, content string) (string
 	return filePath, nil
 }
 
+// DiscoverGrokSessions scans disk for sessions belonging to workspacePath
+func (a *App) DiscoverGrokSessions(workspacePath string) ([]grokrunner.GrokSessionMetadata, error) {
+	return grokrunner.DiscoverGrokSessions(workspacePath)
+}
+
+// DeleteGrokSession removes a session folder from ~/.grok/sessions/
+func (a *App) DeleteGrokSession(workspacePath, sessionID string) error {
+	return grokrunner.DeleteGrokSessionDirectory(workspacePath, sessionID)
+}
+
 // SearchSkills queries skills by text query and category
 func (a *App) SearchSkills(query string, category string) []skills.Skill {
 	if a.skillsReg == nil {

@@ -2,12 +2,67 @@
   import { onMount, tick } from 'svelte';
   import { sessionStore, type ChatMessage } from '$lib/stores/session.svelte';
   import MessageItem from './MessageItem.svelte';
-  import { ArrowUp, Loader2, Sparkles } from 'lucide-svelte';
+  import { ArrowUp, Loader2, Sparkles, Brain, Cpu, Compass } from 'lucide-svelte';
 
   let containerEl = $state<HTMLDivElement | null>(null);
   let topSentinelEl = $state<HTMLDivElement | null>(null);
   let isHydrating = $state(false);
   let autoScrollToBottom = $state(true);
+
+  // Live thinking timer state for in-transcript activity indicator
+  let elapsedSeconds = $state(0);
+  let thinkingTimer: ReturnType<typeof setInterval> | null = null;
+
+  const isWorking = $derived(sessionStore.activeSession?.status === 'working');
+
+  // Track live elapsed timer for the transcript thinking indicator
+  $effect(() => {
+    if (isWorking) {
+      elapsedSeconds = 0;
+      if (thinkingTimer) clearInterval(thinkingTimer);
+      thinkingTimer = setInterval(() => {
+        elapsedSeconds += 1;
+      }, 1000);
+    } else {
+      if (thinkingTimer) {
+        clearInterval(thinkingTimer);
+        thinkingTimer = null;
+      }
+      elapsedSeconds = 0;
+    }
+
+    return () => {
+      if (thinkingTimer) {
+        clearInterval(thinkingTimer);
+        thinkingTimer = null;
+      }
+    };
+  });
+
+  // Determine intelligent contextual thinking status text
+  const thinkingContextText = $derived.by(() => {
+    const session = sessionStore.activeSession;
+    if (!session || !isWorking) return 'Menganalisa dan berpikir...';
+
+    const lastMsg = session.messages[session.messages.length - 1];
+    if (lastMsg && lastMsg.toolCalls && lastMsg.toolCalls.length > 0) {
+      const activeTool = lastMsg.toolCalls.find(tc => tc.status === 'running');
+      if (activeTool) {
+        const name = (activeTool.tool || '').toLowerCase();
+        if (name.includes('read')) return 'Membaca berkas sumber...';
+        if (name.includes('search') || name.includes('grep')) return 'Menjelajahi kode & pola pencarian...';
+        if (name.includes('edit') || name.includes('replace')) return 'Menerapkan modifikasi berkas...';
+        if (name.includes('terminal') || name.includes('bash')) return 'Mengeksekusi perintah shell...';
+        return `Menjalankan alat: ${activeTool.tool}...`;
+      }
+      return 'Mengevaluasi hasil eksekusi alat & merumuskan respon...';
+    }
+
+    if (elapsedSeconds > 8) {
+      return 'Merumuskan solusi mendalam & menyusun respon...';
+    }
+    return 'Grok sedang berpikir & menganalisa permintaan...';
+  });
 
   // Derive turn numbers for all messages in the active session
   const turnMap = $derived.by(() => {
@@ -172,5 +227,35 @@
         turnNumber={turnMap.get(message.id)}
       />
     {/each}
+
+    <!-- Live In-Transcript Activity & Thinking Indicator -->
+    {#if isWorking}
+      <div class="my-2 p-3 rounded-lg border border-ant-primary/25 bg-ant-bg-secondary/60 backdrop-blur-sm shadow-sm animate-pulse flex items-center justify-between font-mono select-none">
+        <div class="flex items-center space-x-2.5 min-w-0">
+          <div class="w-6 h-6 rounded-md bg-ant-primary/15 border border-ant-primary/30 flex items-center justify-center text-ant-primary flex-shrink-0">
+            <Brain size={14} class="animate-pulse" />
+          </div>
+          <div class="flex flex-col min-w-0">
+            <span class="text-xs font-semibold text-white truncate flex items-center gap-1.5">
+              <span>{thinkingContextText}</span>
+              <span class="inline-flex space-x-0.5">
+                <span class="w-1 h-1 rounded-full bg-ant-primary animate-bounce"></span>
+                <span class="w-1 h-1 rounded-full bg-ant-primary animate-bounce [animation-delay:0.2s]"></span>
+                <span class="w-1 h-1 rounded-full bg-ant-primary animate-bounce [animation-delay:0.4s]"></span>
+              </span>
+            </span>
+            <span class="text-[10px] text-ant-text-muted mt-0.5">
+              Grok Agent sedang aktif mengeksekusi giliran (turn in progress)
+            </span>
+          </div>
+        </div>
+
+        <!-- Right Side: Live Timer Pill -->
+        <div class="flex items-center space-x-1.5 px-2 py-0.5 rounded bg-ant-primary/10 border border-ant-primary/20 text-ant-primary text-[11px] font-mono flex-shrink-0 ml-3">
+          <Loader2 size={11} class="animate-spin text-ant-primary" />
+          <span class="font-medium">{elapsedSeconds}s</span>
+        </div>
+      </div>
+    {/if}
   {/if}
 </div>

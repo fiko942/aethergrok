@@ -18,7 +18,9 @@
     Cpu,
     Loader2,
     ImagePlus,
-    Paperclip
+    Paperclip,
+    Clock,
+    Timer
   } from 'lucide-svelte';
 
   interface Props {
@@ -44,6 +46,43 @@
   // Slash Command Autocomplete State
   let isSlashOpen = $state(false);
   let slashQuery = $state('');
+
+  // Elapsed execution timer state (in seconds)
+  let elapsedSeconds = $state(0);
+  let timerInterval: ReturnType<typeof setInterval> | null = null;
+
+  // Track elapsed thinking/working timer
+  $effect(() => {
+    if (isWorking) {
+      elapsedSeconds = 0;
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        elapsedSeconds += 1;
+      }, 1000);
+    } else {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+      elapsedSeconds = 0;
+    }
+
+    return () => {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+    };
+  });
+
+  function formatElapsed(sec: number): string {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    if (m === 0) {
+      return `${s}s`;
+    }
+    return `${m}m ${s < 10 ? '0' : ''}${s}s`;
+  }
 
   // Composer configuration state
   let selectedModel = $state<string>(settingsStore.defaultModel || '9router');
@@ -416,9 +455,15 @@
           />
         </div>
 
-        <!-- Submit / Cancel Action -->
+        <!-- Submit / Cancel Action & Live Elapsed Timer -->
         <div class="flex items-center space-x-2">
           {#if isWorking}
+            <!-- Live Elapsed Execution Timer -->
+            <div class="flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-ant-primary/10 border border-ant-primary/25 text-ant-primary text-[11px] font-mono shadow-sm animate-pulse">
+              <Timer size={12} class="animate-spin text-ant-primary" />
+              <span class="font-medium">{formatElapsed(elapsedSeconds)}</span>
+            </div>
+
             <button
               type="button"
               class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium bg-ant-error text-white hover:bg-ant-error-hover transition shadow-sm"

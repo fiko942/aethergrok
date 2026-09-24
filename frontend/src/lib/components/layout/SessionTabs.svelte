@@ -77,7 +77,7 @@
 
 <div class="flex items-center w-full bg-ant-bg-secondary border-b border-ant-border px-2 h-10 select-none overflow-x-auto no-scrollbar gap-1.5">
   <div class="flex items-center space-x-1 flex-1 min-w-0 overflow-x-auto">
-    {#each sessionStore.sessions as session, index (session.id)}
+    {#each sessionStore.activeWorkspaceSessions as session, index (session.id)}
       {@const isActive = sessionStore.activeSessionId === session.id}
       {@const meta = STATUS_META[session.status]}
       {@const isDragging = draggedIndex === index}
@@ -94,7 +94,7 @@
         ondragend={handleDragEnd}
         onclick={() => sessionStore.switchSession(session.id)}
         onkeydown={(e) => e.key === 'Enter' && sessionStore.switchSession(session.id)}
-        class="group relative flex items-center h-8 px-3 rounded-md text-xs font-medium cursor-pointer transition-all duration-150 border max-w-[220px] min-w-[120px] flex-shrink-0 {isActive
+        class="group relative flex items-center h-8 pl-2.5 pr-2 rounded-md text-xs font-medium cursor-pointer transition-all duration-150 border max-w-[200px] min-w-[120px] flex-shrink-0 {isActive
           ? 'bg-ant-bg text-ant-primary border-ant-border border-b-ant-bg shadow-sm'
           : 'bg-ant-bg-tertiary/40 text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'} {isDragging ? 'opacity-40 scale-95' : ''} {isOver ? 'border-r-2 border-r-ant-primary' : ''}"
       >
@@ -126,7 +126,7 @@
           <span
             role="button"
             tabindex="0"
-            class="truncate flex-1 font-sans"
+            class="truncate flex-1 min-w-0 font-sans"
             ondblclick={(e) => startEditing(session, e)}
             onkeydown={(e) => e.key === 'F2' && startEditing(session, e as unknown as MouseEvent)}
             title={`${session.title} (Double click to rename)`}
@@ -135,8 +135,8 @@
           </span>
         {/if}
 
-        <!-- Hover Actions: Fork, Rename & Close -->
-        <div class="items-center space-x-1 ml-1.5 hidden group-hover:flex">
+        <!-- Hover Actions: Fork, Rename & Close with fixed space reservation -->
+        <div class="items-center space-x-1 ml-1 flex-shrink-0 hidden group-hover:flex">
           {#if editingId !== session.id}
             <button
               type="button"
@@ -150,7 +150,7 @@
               type="button"
               onclick={(e) => handleFork(session, e)}
               class="p-0.5 rounded text-ant-text-muted hover:text-ant-primary hover:bg-ant-bg-secondary transition"
-              title="Fork session"
+              title="Fork session ke tab baru (duplikasi riwayat percakapan)"
             >
               <GitFork size={11} />
             </button>
@@ -160,7 +160,7 @@
             type="button"
             onclick={(e) => handleClose(session, e)}
             class="p-0.5 rounded text-ant-text-muted hover:text-ant-error hover:bg-ant-bg-secondary transition"
-            title="Close session"
+            title="Tutup session tab"
           >
             <X size={12} />
           </button>
