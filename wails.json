@@ -1,0 +1,14 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "aethergrok",
+  "outputfilename": "aethergrok",
+  "frontend:install": "pnpm install",
+  "frontend:build": "pnpm build",
+  "frontend:dev:watcher": "pnpm dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "fiko942",
+    "email": "tobellord@gmail.com"
+  },
+  "version": "1.0.0"
+}
