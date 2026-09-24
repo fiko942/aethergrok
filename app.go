@@ -5,20 +5,23 @@ import (
 	"fmt"
 
 	"aethergrok/pkg/grokrunner"
+	"aethergrok/pkg/screen"
 
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App struct represents application runtime state
 type App struct {
-	ctx    context.Context
-	runner *grokrunner.Runner
+	ctx           context.Context
+	runner        *grokrunner.Runner
+	screenCapture *screen.Orchestrator
 }
 
 // NewApp creates a new App application struct
 func NewApp() *App {
 	return &App{
-		runner: grokrunner.NewRunner(),
+		runner:        grokrunner.NewRunner(),
+		screenCapture: screen.NewOrchestrator(),
 	}
 }
 
@@ -103,4 +106,29 @@ func (a *App) CancelSession(sessionID string) error {
 // SetGrokBinaryPath updates the binary path used to spawn Grok CLI
 func (a *App) SetGrokBinaryPath(path string) {
 	a.runner.SetBinaryPath(path)
+}
+
+type wailsWindowController struct {
+	ctx context.Context
+}
+
+func (w *wailsWindowController) Hide() {
+	if w.ctx != nil {
+		wailsRuntime.WindowHide(w.ctx)
+	}
+}
+
+func (w *wailsWindowController) Show() {
+	if w.ctx != nil {
+		wailsRuntime.WindowShow(w.ctx)
+	}
+}
+
+// CaptureScreenExcludingSelf coordinates non-intrusive snapshot capture with auto window hiding
+func (a *App) CaptureScreenExcludingSelf(delayMs int) (*screen.SnapshotResult, error) {
+	var winCtrl screen.WindowController
+	if a.ctx != nil {
+		winCtrl = &wailsWindowController{ctx: a.ctx}
+	}
+	return a.screenCapture.CaptureScreenExcludingWindow(context.Background(), winCtrl, delayMs)
 }
