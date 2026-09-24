@@ -1,7 +1,7 @@
 import { generate } from '@ant-design/colors';
 
 /**
- * Ant Design 10-level base color scales for Dark Theme
+ * Ant Design 10-level base color scales
  */
 export const baseColors = {
   blue: '#1677ff',
@@ -22,53 +22,95 @@ export const darkPalettes = {
   purple: generate(baseColors.purple, { theme: 'dark', backgroundColor: '#0f1117' })
 };
 
+export const themeDefinitions = {
+  'dark-studio': {
+    name: 'Dark Studio',
+    description: 'Refined deep slate palette with electric blue accents',
+    colors: {
+      primary: '#1677ff',
+      primaryHover: '#4096ff',
+      primaryActive: '#0958d9',
+      primaryBg: '#111a2c',
+      primaryBorder: '#15325b',
+      bgLayout: '#0a0c10',
+      bgContainer: '#0f1117',
+      bgElevated: '#181b26',
+      bgSpotlight: '#222634',
+      bgHover: '#1f2433',
+      border: '#2e3446',
+      borderSecondary: '#1f2430',
+      text: '#f3f4f6',
+      textSecondary: '#9ca3af',
+      textTertiary: '#6b7280',
+      textQuaternary: '#4b5563',
+      textDisabled: '#374151',
+      success: '#52c41a',
+      warning: '#faad14',
+      error: '#ff4d4f',
+      info: '#1677ff'
+    }
+  },
+  'dark-high-contrast': {
+    name: 'High Contrast Dark',
+    description: 'Pitch black background with stark borders and vivid colors',
+    colors: {
+      primary: '#388bfd',
+      primaryHover: '#58a6ff',
+      primaryActive: '#1f6feb',
+      primaryBg: '#0d1d30',
+      primaryBorder: '#388bfd',
+      bgLayout: '#000000',
+      bgContainer: '#050505',
+      bgElevated: '#0f0f10',
+      bgSpotlight: '#1c1c1f',
+      bgHover: '#1a1a1e',
+      border: '#3c3c43',
+      borderSecondary: '#2c2c30',
+      text: '#ffffff',
+      textSecondary: '#c0c0c8',
+      textTertiary: '#90909a',
+      textQuaternary: '#707078',
+      textDisabled: '#4e4e56',
+      success: '#3fb950',
+      warning: '#d29922',
+      error: '#f85149',
+      info: '#58a6ff'
+    }
+  },
+  'light-antd': {
+    name: 'Light Ant Design',
+    description: 'Clean official Ant Design light theme aesthetic',
+    colors: {
+      primary: '#1677ff',
+      primaryHover: '#4096ff',
+      primaryActive: '#0958d9',
+      primaryBg: '#e6f4ff',
+      primaryBorder: '#91caff',
+      bgLayout: '#f5f5f5',
+      bgContainer: '#ffffff',
+      bgElevated: '#fcfcfd',
+      bgSpotlight: '#e8edf3',
+      bgHover: '#f0f2f5',
+      border: '#d9d9d9',
+      borderSecondary: '#f0f0f0',
+      text: '#1f1f1f',
+      textSecondary: '#595959',
+      textTertiary: '#8c8c8c',
+      textQuaternary: '#bfbfbf',
+      textDisabled: '#d9d9d9',
+      success: '#52c41a',
+      warning: '#faad14',
+      error: '#ff4d4f',
+      info: '#1677ff'
+    }
+  }
+} as const;
+
 /**
  * Ant Design Semantic Dark Theme Design Tokens
  */
 export const antdTokens = {
-  color: {
-    primary: '#1677ff',
-    primaryHover: '#4096ff',
-    primaryActive: '#0958d9',
-    primaryBg: '#111a2c',
-    primaryBorder: '#15325b',
-
-    success: '#52c41a',
-    successHover: '#73d13d',
-    successActive: '#389e0d',
-    successBg: '#112117',
-    successBorder: '#1e4620',
-
-    warning: '#faad14',
-    warningHover: '#ffc53d',
-    warningActive: '#d48806',
-    warningBg: '#2b2111',
-    warningBorder: '#5b4515',
-
-    error: '#ff4d4f',
-    errorHover: '#ff7875',
-    errorActive: '#d9363e',
-    errorBg: '#2a1215',
-    errorBorder: '#58181c',
-
-    info: '#1677ff',
-    infoBg: '#111a2c',
-
-    bgLayout: '#0a0c10',
-    bgContainer: '#0f1117',
-    bgElevated: '#181b26',
-    bgSpotlight: '#222634',
-    bgHover: '#1f2433',
-
-    border: '#2e3446',
-    borderSecondary: '#1f2430',
-
-    text: '#f3f4f6',
-    textSecondary: '#9ca3af',
-    textTertiary: '#6b7280',
-    textQuaternary: '#4b5563',
-    textDisabled: '#374151'
-  },
+  color: themeDefinitions['dark-studio'].colors,
   fontSize: {
     xs: '11px',
     sm: '12px',

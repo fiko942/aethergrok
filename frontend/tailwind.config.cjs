@@ -6,22 +6,22 @@ module.exports = {
     extend: {
       colors: {
         ant: {
-          primary: '#1677ff',
-          'primary-hover': '#4096ff',
-          'primary-active': '#0958d9',
-          'primary-bg': '#111a2c',
-          bg: '#0f1117',
-          'bg-secondary': '#181b26',
-          'bg-tertiary': '#222634',
-          border: '#2e3446',
-          'border-secondary': '#1f2430',
-          text: '#f3f4f6',
-          'text-secondary': '#9ca3af',
-          'text-muted': '#6b7280',
-          success: '#52c41a',
-          warning: '#faad14',
-          error: '#ff4d4f',
-          info: '#1677ff'
+          primary: 'var(--ant-primary, #1677ff)',
+          'primary-hover': 'var(--ant-primary-hover, #4096ff)',
+          'primary-active': 'var(--ant-primary-active, #0958d9)',
+          'primary-bg': 'var(--ant-primary-bg, #111a2c)',
+          bg: 'var(--ant-bg, #0f1117)',
+          'bg-secondary': 'var(--ant-bg-secondary, #181b26)',
+          'bg-tertiary': 'var(--ant-bg-tertiary, #222634)',
+          border: 'var(--ant-border, #2e3446)',
+          'border-secondary': 'var(--ant-border-secondary, #1f2430)',
+          text: 'var(--ant-text, #f3f4f6)',
+          'text-secondary': 'var(--ant-text-secondary, #9ca3af)',
+          'text-muted': 'var(--ant-text-muted, #6b7280)',
+          success: 'var(--ant-success, #52c41a)',
+          warning: 'var(--ant-warning, #faad14)',
+          error: 'var(--ant-error, #ff4d4f)',
+          info: 'var(--ant-info, #1677ff)'
         }
       }
     }

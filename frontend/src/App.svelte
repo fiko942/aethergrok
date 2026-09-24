@@ -8,6 +8,8 @@
   import Composer from '$lib/components/chat/Composer.svelte';
   import PermissionModal from '$lib/components/chat/PermissionModal.svelte';
   import SkillCatalog from '$lib/components/skills/SkillCatalog.svelte';
+  import SettingsModal from '$lib/components/layout/SettingsModal.svelte';
+  import { settingsStore } from '$lib/stores/settings.svelte';
   import type { SkillItem } from './app.d';
   import {
     sessionStore,
@@ -23,7 +25,8 @@
     Camera,
     SlidersHorizontal,
     Code2,
-    Shield
+    Shield,
+    Settings
   } from 'lucide-svelte';
 
   let autoHideWindow = $state(true);
@@ -31,7 +34,25 @@
   let selectedModel = $state('grok-4.6');
   let pingResult = $state<string>('');
   let skillsCatalogVisible = $state(false);
+  let settingsModalVisible = $state(false);
   let composerRef = $state<{ appendText: (str: string) => void } | null>(null);
+
+  // Sync settingsStore default values
+  $effect(() => {
+    if (settingsStore.defaultModel) {
+      selectedModel = settingsStore.defaultModel;
+    }
+    if (['low', 'medium', 'high'].includes(settingsStore.defaultReasoningEffort)) {
+      reasoningEffort = settingsStore.defaultReasoningEffort as 'low' | 'medium' | 'high';
+    }
+  });
+
+  // Apply data-theme attribute on document root
+  $effect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', settingsStore.theme);
+    }
+  });
 
   const isWorking = $derived(sessionStore.activeSession?.status === 'working');
   const pendingPermission = $derived(sessionStore.activeSession?.pendingPermission || null);
@@ -406,6 +427,9 @@
       <Button size="small" type="default" onclick={testBridge}>
         <Zap size={13} class="mr-1 text-ant-primary" /> Test Bridge
       </Button>
+      <Button size="small" type="default" onclick={() => settingsModalVisible = true} class="!px-2">
+        <Settings size={14} class="text-ant-text-secondary hover:text-ant-primary transition-colors" />
+      </Button>
     </div>
   </header>
 
@@ -506,6 +530,12 @@
     visible={skillsCatalogVisible}
     onClose={() => skillsCatalogVisible = false}
     onSelectSkill={handleSelectSkill}
+  />
+
+  <!-- Ant Design Settings & Theme Preferences Modal -->
+  <SettingsModal
+    visible={settingsModalVisible}
+    onClose={() => settingsModalVisible = false}
   />
 
   <!-- Interactive Permission Modal -->
