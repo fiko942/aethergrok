@@ -329,7 +329,7 @@
       onClose={() => isSlashOpen = false}
     />
 
-    <div class="relative bg-ant-bg border border-ant-border focus-within:border-ant-primary rounded-xl transition-all shadow-inner overflow-hidden">
+    <div class="relative bg-ant-bg border border-ant-border focus-within:border-ant-primary rounded-xl transition-all shadow-inner">
       <textarea
         bind:this={textareaEl}
         bind:value={text}

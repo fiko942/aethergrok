@@ -124,11 +124,11 @@
   <!-- Dropdown Menu / Popover -->
   {#if isOpen}
     <div
-      class="absolute bottom-full left-0 mb-2 w-64 max-w-[90vw] bg-ant-bg-elevated border border-ant-border rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150"
-      style="box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);"
+      class="absolute bottom-full left-0 mb-3 w-64 max-w-[90vw] bg-ant-bg-secondary border border-ant-border rounded-xl shadow-2xl z-[100] flex flex-col animate-in fade-in zoom-in-95 duration-150"
+      style="box-shadow: 0 12px 36px 0 rgba(0, 0, 0, 0.45), 0 4px 12px 0 rgba(0, 0, 0, 0.25);"
     >
       <!-- Header -->
-      <div class="px-3 py-2 border-b border-ant-border bg-ant-bg-secondary/60 flex items-center justify-between">
+      <div class="px-3.5 py-2.5 border-b border-ant-border bg-ant-bg-secondary rounded-t-xl flex items-center justify-between">
         <div class="flex items-center gap-1.5 text-[11px] font-semibold text-ant-text">
           <SlidersHorizontal size={12} class="text-ant-primary" />
           <span>Reasoning Effort</span>
@@ -137,7 +137,7 @@
       </div>
 
       <!-- Options List -->
-      <div class="p-1.5 space-y-1">
+      <div class="p-1.5 space-y-1 bg-ant-bg">
         {#each options as opt}
           {@const isSelected = opt.id === value}
           {@const IconComponent = opt.icon}
@@ -177,7 +177,7 @@
       </div>
 
       <!-- Footer Quick Info -->
-      <div class="px-3 py-1.5 bg-ant-bg-secondary/80 border-t border-ant-border-secondary text-[10px] text-ant-text-muted">
+      <div class="px-3 py-2 bg-ant-bg-secondary border-t border-ant-border rounded-b-xl text-[10px] text-ant-text-muted">
         Controls budget for Grok agentic thought turns.
       </div>
     </div>
