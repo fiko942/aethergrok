@@ -245,10 +245,10 @@
             <Settings size={18} />
           </div>
           <div>
-            <h2 id="settings-modal-title" class="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+            <h2 id="settings-modal-title" class="text-sm font-bold text-ant-text tracking-tight flex items-center gap-2">
               Settings & Workspace Preferences
               <span class="px-2 py-0.5 text-[10px] font-semibold bg-ant-primary/15 text-ant-primary rounded-full border border-ant-primary/30">
-                Ant Design
+                AetherGrok Studio
               </span>
             </h2>
             <p class="text-xs text-ant-text-secondary mt-0.5">
@@ -633,97 +633,127 @@
           {#if activeTab === 'theme'}
             <div class="space-y-6 animate-in fade-in duration-100">
               <div>
-                <h3 class="text-sm font-semibold text-white">Theme & Color Customization</h3>
+                <h3 class="text-sm font-semibold text-ant-text">Theme & Color Customization</h3>
                 <p class="text-xs text-ant-text-secondary mt-0.5">
-                  Choose from calibrated Ant Design themes with high contrast legibility.
+                  Select a tailored desktop aesthetic optimized for deep contrast, minimal eye strain, and readability.
                 </p>
               </div>
 
-              <div class="grid grid-cols-3 gap-3">
+              <div class="grid grid-cols-3 gap-3.5">
                 <!-- Dark Studio -->
                 <button
                   type="button"
-                  class="p-4 rounded-xl border text-left transition flex flex-col space-y-3 {editTheme === 'dark-studio'
-                    ? 'border-ant-primary ring-2 ring-ant-primary/20 bg-ant-bg-tertiary'
-                    : 'border-ant-border bg-ant-bg hover:border-ant-primary/40'}"
+                  class="group p-4 rounded-xl border text-left transition-all duration-150 flex flex-col justify-between space-y-3.5 relative overflow-hidden {editTheme === 'dark-studio'
+                    ? 'border-ant-primary ring-2 ring-ant-primary/30 bg-ant-bg-tertiary/80 shadow-lg shadow-black/20'
+                    : 'border-ant-border bg-ant-bg hover:border-ant-primary/50 hover:bg-ant-bg-tertiary/40'}"
                   onclick={() => handleThemeChange('dark-studio')}
                 >
-                  <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold text-white">Dark Studio</span>
+                  <div class="flex items-center justify-between w-full">
+                    <div class="flex items-center space-x-2">
+                      <span class="w-2.5 h-2.5 rounded-full bg-[#1677FF]"></span>
+                      <span class="text-xs font-bold text-ant-text">Dark Studio</span>
+                    </div>
                     {#if editTheme === 'dark-studio'}
-                      <CheckCircle2 size={15} class="text-ant-primary" />
+                      <CheckCircle2 size={16} class="text-ant-primary" />
                     {/if}
                   </div>
 
-                  <!-- Theme Swatches -->
-                  <div class="h-16 rounded-lg bg-[#0F1117] border border-[#232738] p-2 flex flex-col justify-between">
-                    <div class="flex space-x-1.5">
-                      <div class="w-3 h-3 rounded-full bg-[#1677FF]"></div>
-                      <div class="w-3 h-3 rounded-full bg-[#00F0FF]"></div>
-                      <div class="w-3 h-3 rounded-full bg-[#52C41A]"></div>
+                  <!-- Theme Swatches & Mini Window Mockup -->
+                  <div class="h-20 rounded-lg bg-[#0F1117] border border-[#2E3446] p-2.5 flex flex-col justify-between shadow-inner w-full">
+                    <div class="flex items-center justify-between">
+                      <div class="flex space-x-1.5">
+                        <div class="w-2.5 h-2.5 rounded-full bg-[#FF5F56]"></div>
+                        <div class="w-2.5 h-2.5 rounded-full bg-[#FFBD2E]"></div>
+                        <div class="w-2.5 h-2.5 rounded-full bg-[#27C93F]"></div>
+                      </div>
+                      <span class="text-[9px] font-mono text-[#4096FF]">#0F1117</span>
                     </div>
-                    <div class="h-2 w-16 bg-[#181B26] rounded"></div>
+                    <div class="space-y-1.5">
+                      <div class="h-2 w-24 bg-[#181B26] rounded border border-[#2E3446]/50"></div>
+                      <div class="h-1.5 w-16 bg-[#1677FF]/40 rounded"></div>
+                    </div>
                   </div>
-                  <p class="text-[10px] text-ant-text-secondary">
-                    Classic deep slate canvas (#0F1117) with vibrant neon-cyan & AntD blue accents.
+
+                  <p class="text-[11px] text-ant-text-secondary leading-relaxed">
+                    Deep slate canvas with neon cyan & vibrant blue accents. Ideal for long coding sessions.
                   </p>
                 </button>
 
                 <!-- Dark High Contrast -->
                 <button
                   type="button"
-                  class="p-4 rounded-xl border text-left transition flex flex-col space-y-3 {editTheme === 'dark-high-contrast'
-                    ? 'border-ant-primary ring-2 ring-ant-primary/20 bg-ant-bg-tertiary'
-                    : 'border-ant-border bg-ant-bg hover:border-ant-primary/40'}"
+                  class="group p-4 rounded-xl border text-left transition-all duration-150 flex flex-col justify-between space-y-3.5 relative overflow-hidden {editTheme === 'dark-high-contrast'
+                    ? 'border-ant-primary ring-2 ring-ant-primary/30 bg-ant-bg-tertiary/80 shadow-lg shadow-black/20'
+                    : 'border-ant-border bg-ant-bg hover:border-ant-primary/50 hover:bg-ant-bg-tertiary/40'}"
                   onclick={() => handleThemeChange('dark-high-contrast')}
                 >
-                  <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold text-white">High Contrast</span>
+                  <div class="flex items-center justify-between w-full">
+                    <div class="flex items-center space-x-2">
+                      <span class="w-2.5 h-2.5 rounded-full bg-[#388BFD]"></span>
+                      <span class="text-xs font-bold text-ant-text">High Contrast OLED</span>
+                    </div>
                     {#if editTheme === 'dark-high-contrast'}
-                      <CheckCircle2 size={15} class="text-ant-primary" />
+                      <CheckCircle2 size={16} class="text-ant-primary" />
                     {/if}
                   </div>
 
-                  <!-- Theme Swatches -->
-                  <div class="h-16 rounded-lg bg-[#000000] border border-[#333333] p-2 flex flex-col justify-between">
-                    <div class="flex space-x-1.5">
-                      <div class="w-3 h-3 rounded-full bg-[#3B82F6]"></div>
-                      <div class="w-3 h-3 rounded-full bg-[#FFFFFF]"></div>
-                      <div class="w-3 h-3 rounded-full bg-[#22C55E]"></div>
+                  <!-- Theme Swatches & Mini Window Mockup -->
+                  <div class="h-20 rounded-lg bg-[#000000] border border-[#3C3C43] p-2.5 flex flex-col justify-between shadow-inner w-full">
+                    <div class="flex items-center justify-between">
+                      <div class="flex space-x-1.5">
+                        <div class="w-2.5 h-2.5 rounded-full bg-[#F85149]"></div>
+                        <div class="w-2.5 h-2.5 rounded-full bg-[#D29922]"></div>
+                        <div class="w-2.5 h-2.5 rounded-full bg-[#3FB950]"></div>
+                      </div>
+                      <span class="text-[9px] font-mono text-[#58A6FF]">#000000</span>
                     </div>
-                    <div class="h-2 w-16 bg-[#111111] rounded"></div>
+                    <div class="space-y-1.5">
+                      <div class="h-2 w-24 bg-[#1C1C1F] rounded border border-[#3C3C43]/60"></div>
+                      <div class="h-1.5 w-16 bg-[#388BFD]/50 rounded"></div>
+                    </div>
                   </div>
-                  <p class="text-[10px] text-ant-text-secondary">
-                    Pure black (#000000) OLED canvas for maximum contrast and readability.
+
+                  <p class="text-[11px] text-ant-text-secondary leading-relaxed">
+                    True black OLED background with stark high-contrast typography for maximum clarity.
                   </p>
                 </button>
 
-                <!-- Light AntD -->
+                <!-- Light Studio -->
                 <button
                   type="button"
-                  class="p-4 rounded-xl border text-left transition flex flex-col space-y-3 {editTheme === 'light-antd'
-                    ? 'border-ant-primary ring-2 ring-ant-primary/20 bg-ant-bg-tertiary'
-                    : 'border-ant-border bg-ant-bg hover:border-ant-primary/40'}"
+                  class="group p-4 rounded-xl border text-left transition-all duration-150 flex flex-col justify-between space-y-3.5 relative overflow-hidden {editTheme === 'light-antd'
+                    ? 'border-ant-primary ring-2 ring-ant-primary/30 bg-ant-bg-tertiary/80 shadow-lg shadow-black/20'
+                    : 'border-ant-border bg-ant-bg hover:border-ant-primary/50 hover:bg-ant-bg-tertiary/40'}"
                   onclick={() => handleThemeChange('light-antd')}
                 >
-                  <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold text-white">Light AntD</span>
+                  <div class="flex items-center justify-between w-full">
+                    <div class="flex items-center space-x-2">
+                      <span class="w-2.5 h-2.5 rounded-full bg-[#1677FF]"></span>
+                      <span class="text-xs font-bold text-ant-text">Clean Light</span>
+                    </div>
                     {#if editTheme === 'light-antd'}
-                      <CheckCircle2 size={15} class="text-ant-primary" />
+                      <CheckCircle2 size={16} class="text-ant-primary" />
                     {/if}
                   </div>
 
-                  <!-- Theme Swatches -->
-                  <div class="h-16 rounded-lg bg-[#F5F5F5] border border-[#D9D9D9] p-2 flex flex-col justify-between">
-                    <div class="flex space-x-1.5">
-                      <div class="w-3 h-3 rounded-full bg-[#1677FF]"></div>
-                      <div class="w-3 h-3 rounded-full bg-[#1890FF]"></div>
-                      <div class="w-3 h-3 rounded-full bg-[#52C41A]"></div>
+                  <!-- Theme Swatches & Mini Window Mockup -->
+                  <div class="h-20 rounded-lg bg-[#F5F5F5] border border-[#D9D9D9] p-2.5 flex flex-col justify-between shadow-inner w-full">
+                    <div class="flex items-center justify-between">
+                      <div class="flex space-x-1.5">
+                        <div class="w-2.5 h-2.5 rounded-full bg-[#FF4D4F]"></div>
+                        <div class="w-2.5 h-2.5 rounded-full bg-[#FAAD14]"></div>
+                        <div class="w-2.5 h-2.5 rounded-full bg-[#52C41A]"></div>
+                      </div>
+                      <span class="text-[9px] font-mono text-[#0958D9]">#FFFFFF</span>
                     </div>
-                    <div class="h-2 w-16 bg-[#FFFFFF] rounded"></div>
+                    <div class="space-y-1.5">
+                      <div class="h-2 w-24 bg-[#FFFFFF] rounded border border-[#D9D9D9]"></div>
+                      <div class="h-1.5 w-16 bg-[#1677FF]/30 rounded"></div>
+                    </div>
                   </div>
-                  <p class="text-[10px] text-ant-text-secondary">
-                    Clean official Ant Design light palette for daytime programming.
+
+                  <p class="text-[11px] text-ant-text-secondary leading-relaxed">
+                    Crisp paper-white theme designed for bright rooms and daytime productivity.
                   </p>
                 </button>
               </div>
