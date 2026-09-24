@@ -4,6 +4,7 @@
   import SnapshotBar from '$lib/components/snapshot/SnapshotBar.svelte';
   import Button from '$lib/antd/Button.svelte';
   import ModelSelectDropdown from '$lib/components/chat/ModelSelectDropdown.svelte';
+  import ReasoningEffortDropdown from '$lib/components/chat/ReasoningEffortDropdown.svelte';
   import { playCameraShutterSound } from '$lib/utils/audio';
   import { settingsStore } from '$lib/stores/settings.svelte';
   import {
@@ -323,16 +324,15 @@
             }}
           />
 
-          <!-- Reasoning Effort Indicator -->
-          <button
-            type="button"
-            class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider text-ant-text-muted hover:text-ant-text transition"
-            onclick={cycleEffort}
-            title="Click to cycle reasoning effort stop"
-          >
-            <SlidersHorizontal size={11} class="mr-1" />
-            <span class="text-ant-primary">{reasoningEffort}</span>
-          </button>
+          <!-- Reasoning Effort Dropdown (Low, Medium, High) -->
+          <ReasoningEffortDropdown
+            bind:value={reasoningEffort}
+            disabled={disabled || isWorking}
+            onChange={(effort) => {
+              settingsStore.defaultReasoningEffort = effort;
+              settingsStore.saveToStorage();
+            }}
+          />
         </div>
 
         <!-- Submit / Cancel Action -->
