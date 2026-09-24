@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { sessionStore, STATUS_META, type Session, type WorkspaceFolder } from '$lib/stores/session.svelte';
   import { formatSessionAsMarkdown, downloadOrSaveMarkdown } from '$lib/utils/markdownExport';
   import BatchActionBar from './BatchActionBar.svelte';
@@ -37,6 +37,39 @@
     }, 2200);
   }
 
+  // Handle global click-outside and Escape key for 3-dots action dropdown
+  function handleWindowPointerDown(e: PointerEvent) {
+    if (activeDropdownId) {
+      const target = e.target as HTMLElement | null;
+      if (target && !target.closest('.session-dropdown-menu') && !target.closest('.session-more-btn')) {
+        activeDropdownId = null;
+      }
+    }
+  }
+
+  function handleWindowKeyDown(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      activeDropdownId = null;
+      editingSessionId = null;
+    }
+  }
+
+  // Auto-sync sessions on mount for all known workspaces & register click-outside handlers
+  onMount(() => {
+    for (const ws of sessionStore.workspaces) {
+      syncGrokSessionsForWorkspace(ws.id, ws.path);
+    }
+    window.addEventListener('pointerdown', handleWindowPointerDown);
+    window.addEventListener('keydown', handleWindowKeyDown);
+  });
+
+  onDestroy(() => {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('pointerdown', handleWindowPointerDown);
+      window.removeEventListener('keydown', handleWindowKeyDown);
+    }
+  });
+
   // Scan and discover Grok sessions saved in ~/.grok/sessions
   async function syncGrokSessionsForWorkspace(wsId: string, wsPath: string) {
     if (window.go?.main?.App?.DiscoverGrokSessions) {
@@ -50,13 +83,6 @@
       }
     }
   }
-
-  // Auto-sync sessions on mount for all known workspaces
-  onMount(() => {
-    for (const ws of sessionStore.workspaces) {
-      syncGrokSessionsForWorkspace(ws.id, ws.path);
-    }
-  });
 
   // Add workspace folder using native OS folder picker or prompt
   async function handleOpenWorkspaceFolder() {
@@ -177,16 +203,34 @@
     });
   });
 
-  function getWorkspaceSessions(wsId: string): { pinned: Session[]; recent: Session[] } {
+  // Global Pinned Sessions across all workspaces
+  const globalPinnedSessions = $derived.by(() => {
     const q = searchQuery.toLowerCase().trim();
-    let wsSessions = sessionStore.sessions.filter(s => s.workspaceId === wsId);
+    let pinned = sessionStore.sessions.filter(s => s.isPinned);
+    if (q) {
+      pinned = pinned.filter(s => {
+        const ws = sessionStore.workspaces.find(w => w.id === s.workspaceId);
+        return s.title.toLowerCase().includes(q) || (ws && ws.name.toLowerCase().includes(q));
+      });
+    }
+    return pinned.sort((a, b) => (b.pinnedAt || 0) - (a.pinnedAt || 0));
+  });
+
+  function getWorkspaceSessions(wsId: string): { recent: Session[] } {
+    const q = searchQuery.toLowerCase().trim();
+    let wsSessions = sessionStore.sessions.filter(s => s.workspaceId === wsId && !s.isPinned);
     if (q) {
       wsSessions = wsSessions.filter(s => s.title.toLowerCase().includes(q));
     }
 
-    const pinned = wsSessions.filter(s => s.isPinned).sort((a, b) => (b.pinnedAt || 0) - (a.pinnedAt || 0));
-    const recent = wsSessions.filter(s => !s.isPinned).sort((a, b) => b.updatedAt - a.updatedAt);
-    return { pinned, recent };
+    const recent = wsSessions.sort((a, b) => b.updatedAt - a.updatedAt);
+    return { recent };
+  }
+
+  function getWorkspaceForSession(sessionId: string): WorkspaceFolder | undefined {
+    const sess = sessionStore.sessions.find(s => s.id === sessionId);
+    if (!sess) return undefined;
+    return sessionStore.workspaces.find(w => w.id === sess.workspaceId);
   }
 </script>
 
@@ -227,10 +271,163 @@
 
   <!-- 2. Hierarchical Multi-Workspace Tree Explorer -->
   <div class="flex-1 overflow-y-auto p-2 space-y-2.5 custom-scrollbar">
+    <!-- GLOBAL PINNED SESSIONS SECTION -->
+    {#if globalPinnedSessions.length > 0}
+      <div class="rounded-lg bg-amber-500/5 border border-amber-500/20 overflow-hidden pb-1">
+        <div class="flex items-center justify-between px-2.5 py-1.5 bg-amber-500/10 border-b border-amber-500/15">
+          <div class="flex items-center space-x-1.5">
+            <Pin size={12} class="text-amber-400 fill-current" />
+            <span class="text-[11px] font-semibold text-amber-300 uppercase tracking-wider">Disematkan (Pinned)</span>
+            <span class="text-[10px] text-amber-400/80 font-mono">({globalPinnedSessions.length})</span>
+          </div>
+        </div>
+
+        <div class="p-1 space-y-1">
+          {#each globalPinnedSessions as session (session.id)}
+            {@const isActive = sessionStore.activeSessionId === session.id}
+            {@const isChecked = sessionStore.selectedSessionIds.has(session.id)}
+            {@const isEditing = editingSessionId === session.id}
+            {@const ws = getWorkspaceForSession(session.id)}
+
+            <div
+              role="button"
+              tabindex="0"
+              onclick={() => {
+                if (sessionStore.isSelectionMode) {
+                  sessionStore.toggleSessionSelected(session.id);
+                } else {
+                  sessionStore.switchSession(session.id);
+                }
+              }}
+              onkeydown={(e) => e.key === 'Enter' && sessionStore.switchSession(session.id)}
+              class="group relative flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-medium cursor-pointer transition border {isActive
+                ? 'bg-ant-primary/15 text-ant-primary border-ant-primary/40 shadow-sm'
+                : 'bg-ant-bg-secondary/70 text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'}"
+            >
+              <!-- Left: Title & Folder Badge -->
+              <div class="flex flex-col min-w-0 flex-1 pr-1">
+                <div class="flex items-center space-x-1.5 min-w-0">
+                  {#if sessionStore.isSelectionMode}
+                    <button
+                      type="button"
+                      onclick={(e) => { e.stopPropagation(); sessionStore.toggleSessionSelected(session.id); }}
+                      class="flex-shrink-0 text-ant-primary"
+                    >
+                      {#if isChecked}
+                        <CheckSquare size={13} class="text-ant-primary" />
+                      {:else}
+                        <Square size={13} class="text-ant-text-muted" />
+                      {/if}
+                    </button>
+                  {:else}
+                    <Pin size={11} class="text-amber-400 fill-current flex-shrink-0" />
+                  {/if}
+
+                  {#if isEditing}
+                    <input
+                      type="text"
+                      bind:value={editTitleText}
+                      onkeydown={(e) => {
+                        if (e.key === 'Enter') handleSaveRename(session);
+                        if (e.key === 'Escape') editingSessionId = null;
+                      }}
+                      onblur={() => handleSaveRename(session)}
+                      class="w-full bg-ant-bg border border-ant-primary rounded px-1.5 py-0.5 text-xs text-white focus:outline-none"
+                    />
+                  {:else}
+                    <span class="truncate text-[11px] {isActive ? 'font-semibold text-white' : ''}" title={session.title}>{session.title}</span>
+                  {/if}
+                </div>
+
+                <!-- Workspace Badge Tag -->
+                {#if ws}
+                  <div class="flex items-center space-x-1 pl-4 pt-0.5">
+                    <Folder size={10} class="text-ant-primary/80 flex-shrink-0" />
+                    <span class="text-[9.5px] text-ant-text-muted truncate max-w-[140px]" title={ws.path}>{ws.name}</span>
+                  </div>
+                {/if}
+              </div>
+
+              <!-- Right Action Menu Trigger -->
+              <div class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                <button
+                  type="button"
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    activeDropdownId = activeDropdownId === session.id ? null : session.id;
+                  }}
+                  class="session-more-btn p-0.5 text-ant-text-muted hover:text-white rounded hover:bg-ant-bg"
+                  title="Opsi Sesi"
+                >
+                  <MoreVertical size={13} />
+                </button>
+              </div>
+
+              <!-- Dropdown Menu with click-outside protection -->
+              {#if activeDropdownId === session.id}
+                <div
+                  role="menu"
+                  tabindex="-1"
+                  onclick={(e) => e.stopPropagation()}
+                  onkeydown={(e) => { if (e.key === 'Escape') activeDropdownId = null; }}
+                  class="session-dropdown-menu absolute right-2 top-8 w-44 bg-ant-bg border border-ant-border rounded-lg shadow-2xl z-50 py-1 text-xs select-none"
+                >
+                  <button
+                    onclick={(e) => handleTogglePin(session, e)}
+                    class="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-ant-bg-tertiary text-amber-300 transition text-left"
+                  >
+                    <Pin size={12} />
+                    <span>Unpin Conversation</span>
+                  </button>
+                  <button
+                    onclick={(e) => handleStartRename(session, e)}
+                    class="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-ant-bg-tertiary text-ant-text transition text-left"
+                  >
+                    <Edit2 size={12} />
+                    <span>Ganti Nama (Rename)</span>
+                  </button>
+                  <button
+                    onclick={(e) => handleExportMarkdown(session, e)}
+                    class="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-ant-bg-tertiary text-ant-text transition text-left"
+                  >
+                    <FileText size={12} />
+                    <span>Export as .md</span>
+                  </button>
+                  <button
+                    onclick={(e) => handleCopySessionId(session, e)}
+                    class="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-ant-bg-tertiary text-ant-text transition text-left"
+                  >
+                    <Copy size={12} />
+                    <span>Salin Session ID</span>
+                  </button>
+                  <button
+                    onclick={(e) => handleCopySessionName(session, e)}
+                    class="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-ant-bg-tertiary text-ant-text transition text-left"
+                  >
+                    <Tag size={12} />
+                    <span>Salin Nama Sesi</span>
+                  </button>
+                  <div class="border-t border-ant-border my-1"></div>
+                  <button
+                    onclick={(e) => handleDeleteSession(session, e)}
+                    class="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-ant-error/10 text-ant-error transition text-left"
+                  >
+                    <Trash2 size={12} />
+                    <span>Hapus Sesi</span>
+                  </button>
+                </div>
+              {/if}
+            </div>
+          {/each}
+        </div>
+      </div>
+    {/if}
+
+    <!-- WORKSPACE TREES -->
     {#each filteredWorkspaces as ws (ws.id)}
       {@const isExpanded = ws.isExpanded !== false}
-      {@const { pinned, recent } = getWorkspaceSessions(ws.id)}
-      {@const totalCount = pinned.length + recent.length}
+      {@const { recent } = getWorkspaceSessions(ws.id)}
+      {@const totalCount = recent.length}
 
       <div class="rounded-lg bg-ant-bg/60 border border-ant-border-secondary/60 overflow-hidden">
         <!-- Workspace Folder Header -->
@@ -278,142 +475,6 @@
         <!-- Collapsible Sessions under this Workspace -->
         {#if isExpanded}
           <div class="p-1.5 space-y-1">
-            <!-- Pinned Sessions Group -->
-            {#if pinned.length > 0}
-              <div class="space-y-1 pb-1">
-                <div class="px-1.5 pt-0.5 text-[10px] font-semibold tracking-wider text-amber-400 uppercase flex items-center gap-1">
-                  <Pin size={10} class="fill-current" />
-                  <span>Pinned ({pinned.length})</span>
-                </div>
-                {#each pinned as session (session.id)}
-                  {@const isActive = sessionStore.activeSessionId === session.id}
-                  {@const isChecked = sessionStore.selectedSessionIds.has(session.id)}
-                  {@const meta = STATUS_META[session.status]}
-                  {@const isEditing = editingSessionId === session.id}
-
-                  <div
-                    role="button"
-                    tabindex="0"
-                    onclick={() => {
-                      if (sessionStore.isSelectionMode) {
-                        sessionStore.toggleSessionSelected(session.id);
-                      } else {
-                        sessionStore.switchSession(session.id);
-                      }
-                    }}
-                    onkeydown={(e) => e.key === 'Enter' && sessionStore.switchSession(session.id)}
-                    class="group relative flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-medium cursor-pointer transition border {isActive
-                      ? 'bg-ant-primary/15 text-ant-primary border-ant-primary/40 shadow-sm'
-                      : 'bg-ant-bg-secondary/70 text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'}"
-                  >
-                    <!-- Left: Checkbox/Dot & Title -->
-                    <div class="flex items-center space-x-1.5 min-w-0 flex-1">
-                      {#if sessionStore.isSelectionMode}
-                        <button
-                          type="button"
-                          onclick={(e) => { e.stopPropagation(); sessionStore.toggleSessionSelected(session.id); }}
-                          class="flex-shrink-0 text-ant-primary"
-                        >
-                          {#if isChecked}
-                            <CheckSquare size={13} class="text-ant-primary" />
-                          {:else}
-                            <Square size={13} class="text-ant-text-muted" />
-                          {/if}
-                        </button>
-                      {:else}
-                        <Pin size={11} class="text-amber-400 fill-current flex-shrink-0" />
-                      {/if}
-
-                      {#if isEditing}
-                        <input
-                          type="text"
-                          bind:value={editTitleText}
-                          onkeydown={(e) => {
-                            if (e.key === 'Enter') handleSaveRename(session);
-                            if (e.key === 'Escape') editingSessionId = null;
-                          }}
-                          onblur={() => handleSaveRename(session)}
-                          class="w-full bg-ant-bg border border-ant-primary rounded px-1.5 py-0.5 text-xs text-white focus:outline-none"
-                        />
-                      {:else}
-                        <span class="truncate text-[11px] {isActive ? 'font-semibold text-white' : ''}">{session.title}</span>
-                      {/if}
-                    </div>
-
-                    <!-- Right Action Menu Trigger -->
-                    <div class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        type="button"
-                        onclick={(e) => {
-                          e.stopPropagation();
-                          activeDropdownId = activeDropdownId === session.id ? null : session.id;
-                        }}
-                        class="p-0.5 text-ant-text-muted hover:text-white rounded hover:bg-ant-bg"
-                        title="Opsi Sesi"
-                      >
-                        <MoreVertical size={13} />
-                      </button>
-                    </div>
-
-                    <!-- Dropdown Menu -->
-                    {#if activeDropdownId === session.id}
-                      <div
-                        role="menu"
-                        tabindex="-1"
-                        onclick={(e) => e.stopPropagation()}
-                        onkeydown={(e) => { if (e.key === 'Escape') activeDropdownId = null; }}
-                        class="absolute right-2 top-8 w-44 bg-ant-bg border border-ant-border rounded-lg shadow-2xl z-50 py-1 text-xs select-none"
-                      >
-                        <button
-                          onclick={(e) => handleTogglePin(session, e)}
-                          class="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-ant-bg-tertiary text-amber-300 transition text-left"
-                        >
-                          <Pin size={12} />
-                          <span>Unpin Conversation</span>
-                        </button>
-                        <button
-                          onclick={(e) => handleStartRename(session, e)}
-                          class="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-ant-bg-tertiary text-ant-text transition text-left"
-                        >
-                          <Edit2 size={12} />
-                          <span>Ganti Nama (Rename)</span>
-                        </button>
-                        <button
-                          onclick={(e) => handleExportMarkdown(session, e)}
-                          class="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-ant-bg-tertiary text-ant-text transition text-left"
-                        >
-                          <FileText size={12} />
-                          <span>Export as .md</span>
-                        </button>
-                        <button
-                          onclick={(e) => handleCopySessionId(session, e)}
-                          class="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-ant-bg-tertiary text-ant-text transition text-left"
-                        >
-                          <Copy size={12} />
-                          <span>Salin Session ID</span>
-                        </button>
-                        <button
-                          onclick={(e) => handleCopySessionName(session, e)}
-                          class="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-ant-bg-tertiary text-ant-text transition text-left"
-                        >
-                          <Tag size={12} />
-                          <span>Salin Nama Sesi</span>
-                        </button>
-                        <div class="border-t border-ant-border my-1"></div>
-                        <button
-                          onclick={(e) => handleDeleteSession(session, e)}
-                          class="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-ant-error/10 text-ant-error transition text-left"
-                        >
-                          <Trash2 size={12} />
-                          <span>Hapus Sesi</span>
-                        </button>
-                      </div>
-                    {/if}
-                  </div>
-                {/each}
-              </div>
-            {/if}
-
             <!-- Recent Sessions List -->
             {#if recent.length > 0}
               <div class="space-y-1">
@@ -471,7 +532,7 @@
                           class="w-full bg-ant-bg border border-ant-primary rounded px-1.5 py-0.5 text-xs text-white focus:outline-none"
                         />
                       {:else}
-                        <span class="truncate text-[11px] {isActive ? 'font-semibold text-white' : ''}">{session.title}</span>
+                        <span class="truncate text-[11px] {isActive ? 'font-semibold text-white' : ''}" title={session.title}>{session.title}</span>
                       {/if}
                     </div>
 
@@ -483,7 +544,7 @@
                           e.stopPropagation();
                           activeDropdownId = activeDropdownId === session.id ? null : session.id;
                         }}
-                        class="p-0.5 text-ant-text-muted hover:text-white rounded hover:bg-ant-bg"
+                        class="session-more-btn p-0.5 text-ant-text-muted hover:text-white rounded hover:bg-ant-bg"
                         title="Opsi Sesi"
                       >
                         <MoreVertical size={13} />
@@ -497,7 +558,7 @@
                         tabindex="-1"
                         onclick={(e) => e.stopPropagation()}
                         onkeydown={(e) => { if (e.key === 'Escape') activeDropdownId = null; }}
-                        class="absolute right-2 top-8 w-44 bg-ant-bg border border-ant-border rounded-lg shadow-2xl z-50 py-1 text-xs select-none"
+                        class="session-dropdown-menu absolute right-2 top-8 w-44 bg-ant-bg border border-ant-border rounded-lg shadow-2xl z-50 py-1 text-xs select-none"
                       >
                         <button
                           onclick={(e) => handleTogglePin(session, e)}
@@ -547,7 +608,7 @@
                   </div>
                 {/each}
               </div>
-            {:else if pinned.length === 0}
+            {:else}
               <div class="px-3 py-2 text-[11px] text-ant-text-muted italic text-center">
                 Belum ada sesi di folder ini
               </div>
