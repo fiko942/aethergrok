@@ -356,10 +356,10 @@
                     e.stopPropagation();
                     activeDropdownId = activeDropdownId === session.id ? null : session.id;
                   }}
-                  class="session-more-btn p-0.5 text-ant-text-muted hover:text-ant-text rounded hover:bg-ant-bg"
+                  class="session-more-btn p-1 text-ant-text-secondary hover:text-ant-text rounded hover:bg-ant-bg-tertiary transition"
                   title="Opsi Sesi"
                 >
-                  <MoreVertical size={13} />
+                  <MoreVertical size={14} />
                 </button>
               </div>
 
@@ -544,10 +544,10 @@
                           e.stopPropagation();
                           activeDropdownId = activeDropdownId === session.id ? null : session.id;
                         }}
-                        class="session-more-btn p-0.5 text-ant-text-muted hover:text-ant-text rounded hover:bg-ant-bg"
+                        class="session-more-btn p-1 text-ant-text-secondary hover:text-ant-text rounded hover:bg-ant-bg-tertiary transition"
                         title="Opsi Sesi"
                       >
-                        <MoreVertical size={13} />
+                        <MoreVertical size={14} />
                       </button>
                     </div>
 
