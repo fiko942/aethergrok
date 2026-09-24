@@ -5,6 +5,8 @@
   import Button from '$lib/antd/Button.svelte';
   import ModelSelectDropdown from '$lib/components/chat/ModelSelectDropdown.svelte';
   import ReasoningEffortDropdown from '$lib/components/chat/ReasoningEffortDropdown.svelte';
+  import SlashCommandPopup from '$lib/components/chat/SlashCommandPopup.svelte';
+  import type { SkillItem } from '../../../app.d';
   import { playCameraShutterSound } from '$lib/utils/audio';
   import { settingsStore } from '$lib/stores/settings.svelte';
   import {
@@ -37,6 +39,11 @@
   let text = $state('');
   let textareaEl = $state<HTMLTextAreaElement | null>(null);
   let fileInputEl = $state<HTMLInputElement | null>(null);
+  let slashPopupRef = $state<any>(null);
+
+  // Slash Command Autocomplete State
+  let isSlashOpen = $state(false);
+  let slashQuery = $state('');
 
   // Composer configuration state
   let selectedModel = $state<string>(settingsStore.defaultModel || '9router');
@@ -58,6 +65,47 @@
     textareaEl.style.height = 'auto';
     const newHeight = Math.min(Math.max(textareaEl.scrollHeight, 40), 200);
     textareaEl.style.height = `${newHeight}px`;
+  }
+
+  // Detect "/" typing in textarea to trigger popup
+  function handleInput(e: Event) {
+    if (!textareaEl) return;
+    const val = textareaEl.value;
+    const cursor = textareaEl.selectionStart || 0;
+    const textBeforeCursor = val.slice(0, cursor);
+
+    // Look for slash command at word boundary or start of line
+    const match = textBeforeCursor.match(/(?:^|\s)\/([a-zA-Z0-9_-]*)$/);
+    if (match) {
+      isSlashOpen = true;
+      slashQuery = match[1];
+    } else {
+      isSlashOpen = false;
+    }
+  }
+
+  function handleSelectSlashSkill(skill: SkillItem) {
+    if (!textareaEl) return;
+    const val = textareaEl.value;
+    const cursor = textareaEl.selectionStart || 0;
+    const textBeforeCursor = val.slice(0, cursor);
+    const textAfterCursor = val.slice(cursor);
+
+    // Replace the trailing slash command query with `/${skill.name} `
+    const newPrefix = textBeforeCursor.replace(/(?:^|\s)\/([a-zA-Z0-9_-]*)$/, (m) => {
+      const startsWithSpace = m.startsWith(' ') ? ' ' : '';
+      return `${startsWithSpace}/${skill.name} `;
+    });
+
+    text = newPrefix + textAfterCursor;
+    isSlashOpen = false;
+
+    tick().then(() => {
+      adjustTextareaHeight();
+      textareaEl?.focus();
+      const newCursorPos = newPrefix.length;
+      textareaEl?.setSelectionRange(newCursorPos, newCursorPos);
+    });
   }
 
   $effect(() => {
@@ -193,6 +241,29 @@
   }
 
   function handleKeyDown(e: KeyboardEvent) {
+    if (isSlashOpen && slashPopupRef) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        slashPopupRef.selectNext?.();
+        return;
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        slashPopupRef.selectPrev?.();
+        return;
+      } else if (e.key === 'Enter' || e.key === 'Tab') {
+        const selected = slashPopupRef.getSelectedSkill?.();
+        if (selected) {
+          e.preventDefault();
+          handleSelectSlashSkill(selected);
+          return;
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        isSlashOpen = false;
+        return;
+      }
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
@@ -248,11 +319,21 @@
   {/if}
 
   <!-- Main Multi-line Input Area -->
-  <div class="p-3">
+  <div class="p-3 relative">
+    <!-- Slash Command Autocomplete Popover -->
+    <SlashCommandPopup
+      bind:this={slashPopupRef}
+      visible={isSlashOpen}
+      query={slashQuery}
+      onSelect={handleSelectSlashSkill}
+      onClose={() => isSlashOpen = false}
+    />
+
     <div class="relative bg-ant-bg border border-ant-border focus-within:border-ant-primary rounded-xl transition-all shadow-inner overflow-hidden">
       <textarea
         bind:this={textareaEl}
         bind:value={text}
+        oninput={handleInput}
         onkeydown={handleKeyDown}
         placeholder={isWorking ? "Grok is executing... (type to queue or steer)" : "Ask Grok anything, command tools, or inspect code... (Enter to send, Shift+Enter for newline)"}
         rows={1}

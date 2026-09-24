@@ -1,22 +1,23 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import type { SkillItem } from '../../../app.d';
-  import SkillCard from './SkillCard.svelte';
   import Button from '$lib/antd/Button.svelte';
   import {
     Sparkles,
     Search,
     X,
-    Filter,
     FolderKanban,
     RefreshCw,
-    Wrench,
-    CheckCircle2,
-    Code2,
+    Tag,
+    ArrowUpRight,
+    Terminal,
+    Bot,
     Palette,
     Server,
-    Bot,
-    Terminal
+    Layout,
+    Check,
+    FileText,
+    ExternalLink
   } from 'lucide-svelte';
 
   interface Props {
@@ -32,6 +33,7 @@
   let skills = $state<SkillItem[]>([]);
   let isLoading = $state(false);
   let searchInputEl = $state<HTMLInputElement | null>(null);
+  let selectedSkillId = $state<string | null>(null);
 
   const categories: Array<'All' | 'Frontend' | 'Backend' | 'Design' | 'Agents' | 'Tools'> = [
     'All',
@@ -42,7 +44,15 @@
     'Tools'
   ];
 
-  // Mock skills fallback for preview mode
+  // Category Styling Tokens
+  const categoryBadges: Record<string, { bg: string; text: string; border: string }> = {
+    Frontend: { bg: 'bg-blue-500/15', text: 'text-blue-500 dark:text-blue-400', border: 'border-blue-500/30' },
+    Backend: { bg: 'bg-emerald-500/15', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/30' },
+    Design: { bg: 'bg-purple-500/15', text: 'text-purple-600 dark:text-purple-400', border: 'border-purple-500/30' },
+    Agents: { bg: 'bg-amber-500/15', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-500/30' },
+    Tools: { bg: 'bg-cyan-500/15', text: 'text-cyan-600 dark:text-cyan-400', border: 'border-cyan-500/30' }
+  };
+
   const previewSkills: SkillItem[] = [
     {
       id: 'grok:design-taste-frontend',
@@ -120,37 +130,11 @@
         skills = previewSkills;
       }
     } catch (err) {
-      console.error('Failed to load skills:', err);
+      console.warn('Failed to load skills from Go bridge:', err);
       skills = previewSkills;
     } finally {
       isLoading = false;
     }
-  }
-
-  // Filter skills based on query and active category
-  const filteredSkills = $derived(
-    skills.filter((skill) => {
-      const matchCat =
-        activeCategory === 'All' ||
-        skill.category.toLowerCase() === activeCategory.toLowerCase();
-
-      if (!matchCat) return false;
-
-      const q = searchQuery.toLowerCase().trim();
-      if (!q) return true;
-
-      const nameMatch = skill.name.toLowerCase().includes(q);
-      const descMatch = skill.description?.toLowerCase().includes(q) || false;
-      const tagMatch = skill.tags?.some((t) => t.toLowerCase().includes(q)) || false;
-      const actMatch = skill.actions?.some((a) => a.toLowerCase().includes(q)) || false;
-
-      return nameMatch || descMatch || tagMatch || actMatch;
-    })
-  );
-
-  function handleSelect(skill: SkillItem) {
-    onSelectSkill(skill);
-    onClose();
   }
 
   $effect(() => {
@@ -162,14 +146,37 @@
     }
   });
 
-  function handleBackdropClick(e: MouseEvent) {
-    if (e.target === e.currentTarget) {
+  const filteredSkills = $derived(
+    skills.filter((skill) => {
+      const matchesCategory =
+        activeCategory === 'All' || skill.category?.toLowerCase() === activeCategory.toLowerCase();
+      const q = searchQuery.toLowerCase().trim();
+      if (!q) return matchesCategory;
+
+      const matchesQuery =
+        skill.name.toLowerCase().includes(q) ||
+        (skill.description && skill.description.toLowerCase().includes(q)) ||
+        (skill.tags && skill.tags.some((t) => t.toLowerCase().includes(q))) ||
+        (skill.scope && skill.scope.toLowerCase().includes(q));
+
+      return matchesCategory && matchesQuery;
+    })
+  );
+
+  function handleSelect(skill: SkillItem) {
+    selectedSkillId = skill.id;
+    onSelectSkill(skill);
+    onClose();
+  }
+
+  function handleKeyDown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
       onClose();
     }
   }
 
-  function handleKeyDown(e: KeyboardEvent) {
-    if (e.key === 'Escape' && visible) {
+  function handleBackdropClick(e: MouseEvent) {
+    if (e.target === e.currentTarget) {
       onClose();
     }
   }
@@ -179,12 +186,12 @@
 
 {#if visible}
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 select-none animate-in fade-in duration-150"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 select-none animate-in fade-in duration-150"
     onclick={handleBackdropClick}
     role="presentation"
   >
     <div
-      class="w-full max-w-4xl max-h-[85vh] flex flex-col bg-ant-bg-secondary border border-ant-border rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
+      class="w-full max-w-5xl max-h-[88vh] flex flex-col bg-ant-bg-secondary border border-ant-border rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 text-ant-text"
       role="dialog"
       aria-modal="true"
       tabindex="-1"
@@ -197,13 +204,13 @@
           </div>
           <div>
             <div class="flex items-center space-x-2">
-              <h2 class="text-sm font-bold text-white tracking-tight">Skills & MCP Discovery Catalog</h2>
+              <h2 class="text-sm font-bold text-ant-text tracking-tight">Skills & MCP Discovery Catalog</h2>
               <span class="px-2 py-0.5 text-[10px] font-semibold bg-ant-primary/20 text-ant-primary rounded-full border border-ant-primary/30">
                 {skills.length} Installed
               </span>
             </div>
             <p class="text-xs text-ant-text-secondary mt-0.5">
-              Explore skills from <code class="text-ant-primary text-[11px]">~/.grok/skills/</code> and <code class="text-ant-primary text-[11px]">~/.agents/skills/</code>
+              Explore skills from <code class="text-ant-primary text-[11px] font-mono">~/.grok/skills/</code> and <code class="text-ant-primary text-[11px] font-mono">~/.agents/skills/</code>
             </p>
           </div>
         </div>
@@ -212,7 +219,7 @@
           <button
             type="button"
             onclick={loadSkills}
-            class="p-1.5 rounded-lg text-ant-text-secondary hover:text-white hover:bg-ant-bg-tertiary transition"
+            class="p-1.5 rounded-lg text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary transition"
             title="Rescan Skill Directories"
           >
             <RefreshCw size={15} class={isLoading ? 'animate-spin text-ant-primary' : ''} />
@@ -220,7 +227,7 @@
           <button
             type="button"
             onclick={onClose}
-            class="p-1.5 rounded-lg text-ant-text-secondary hover:text-white hover:bg-ant-bg-tertiary transition"
+            class="p-1.5 rounded-lg text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary transition"
             title="Close"
           >
             <X size={17} />
@@ -228,8 +235,8 @@
         </div>
       </div>
 
-      <!-- Controls: Search Input & Category Tabs -->
-      <div class="px-6 py-3.5 border-b border-ant-border-secondary bg-ant-bg/80 flex flex-col sm:flex-row gap-3 items-center justify-between flex-shrink-0">
+      <!-- Controls: Search Input & Category Filter Tabs -->
+      <div class="px-6 py-3.5 border-b border-ant-border bg-ant-bg/80 flex flex-col sm:flex-row gap-3 items-center justify-between flex-shrink-0">
         <!-- Search Field -->
         <div class="relative w-full sm:w-80">
           <Search size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-ant-text-muted" />
@@ -237,14 +244,14 @@
             bind:this={searchInputEl}
             bind:value={searchQuery}
             type="text"
-            placeholder="Search skills, actions, tags..."
-            class="w-full pl-9 pr-8 py-1.5 text-xs bg-ant-bg-secondary border border-ant-border focus:border-ant-primary rounded-lg text-white placeholder:text-ant-text-muted outline-none transition"
+            placeholder="Search skills, triggers, keywords..."
+            class="w-full pl-9 pr-8 py-1.5 text-xs bg-ant-bg border border-ant-border focus:border-ant-primary rounded-lg text-ant-text placeholder:text-ant-text-muted outline-none transition shadow-inner"
           />
           {#if searchQuery}
             <button
               type="button"
               onclick={() => searchQuery = ''}
-              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-ant-text-muted hover:text-white text-xs"
+              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-ant-text-muted hover:text-ant-text text-xs"
             >
               <X size={13} />
             </button>
@@ -252,7 +259,7 @@
         </div>
 
         <!-- Category Tabs -->
-        <div class="flex items-center space-x-1 bg-ant-bg-secondary p-1 rounded-lg border border-ant-border-secondary overflow-x-auto max-w-full">
+        <div class="flex items-center space-x-1 bg-ant-bg-secondary p-1 rounded-lg border border-ant-border overflow-x-auto max-w-full">
           {#each categories as cat}
             <button
               type="button"
@@ -265,8 +272,8 @@
         </div>
       </div>
 
-      <!-- Skills Grid Content -->
-      <div class="flex-1 overflow-y-auto p-6 scrollbar-thin">
+      <!-- Clean Table View Layout -->
+      <div class="flex-1 overflow-y-auto p-4 scrollbar-thin">
         {#if isLoading}
           <div class="flex flex-col items-center justify-center py-20 text-ant-text-secondary">
             <RefreshCw size={24} class="animate-spin text-ant-primary mb-3" />
@@ -275,9 +282,9 @@
         {:else if filteredSkills.length === 0}
           <div class="flex flex-col items-center justify-center py-16 text-center text-ant-text-secondary">
             <FolderKanban size={36} class="text-ant-text-muted mb-3 opacity-40" />
-            <div class="text-sm font-semibold text-white">No skills matching query</div>
+            <div class="text-sm font-semibold text-ant-text">No skills matching query</div>
             <p class="text-xs text-ant-text-muted mt-1 max-w-sm">
-              Try adjusting your search terms or selecting the "All" category tab.
+              Try adjusting your search query or switching the category tab.
             </p>
             {#if searchQuery}
               <Button size="small" type="default" onclick={() => { searchQuery = ''; activeCategory = 'All'; }} class="mt-4">
@@ -286,24 +293,110 @@
             {/if}
           </div>
         {:else}
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-            {#each filteredSkills as skill (skill.id)}
-              <SkillCard
-                {skill}
-                onUse={handleSelect}
-              />
-            {/each}
+          <div class="border border-ant-border rounded-xl overflow-hidden bg-ant-bg shadow-sm">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-ant-bg-secondary border-b border-ant-border text-[11px] font-semibold text-ant-text-secondary select-none">
+                  <th class="py-2.5 px-4 w-[220px]">Skill / Command</th>
+                  <th class="py-2.5 px-3 w-[110px]">Category</th>
+                  <th class="py-2.5 px-3">Description & Triggers</th>
+                  <th class="py-2.5 px-3 w-[140px] hidden md:table-cell">Tags</th>
+                  <th class="py-2.5 px-4 w-[110px] text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-ant-border-secondary">
+                {#each filteredSkills as skill (skill.id)}
+                  {@const catStyle = categoryBadges[skill.category] || { bg: 'bg-ant-primary/10', text: 'text-ant-primary', border: 'border-ant-primary/30' }}
+                  <tr class="hover:bg-ant-bg-tertiary/60 transition-colors group">
+                    <!-- Name & Command -->
+                    <td class="py-3 px-4 align-top">
+                      <div class="flex flex-col gap-1">
+                        <div class="flex items-center gap-1.5 font-semibold text-ant-text group-hover:text-ant-primary transition-colors">
+                          <Sparkles size={12} class="text-ant-primary flex-shrink-0" />
+                          <span class="truncate">{skill.name}</span>
+                        </div>
+                        <div class="inline-flex items-center gap-1">
+                          <span class="px-1.5 py-0.2 rounded font-mono text-[10px] bg-ant-bg-tertiary text-ant-primary border border-ant-border-secondary">
+                            /{skill.name}
+                          </span>
+                          <span class="text-[9px] uppercase tracking-wider text-ant-text-muted px-1 font-mono">
+                            {skill.scope}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+
+                    <!-- Category -->
+                    <td class="py-3 px-3 align-top">
+                      <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border {catStyle.bg} {catStyle.text} {catStyle.border}">
+                        {#if skill.category === 'Frontend'}
+                          <Layout size={10} class="mr-1" />
+                        {:else if skill.category === 'Backend'}
+                          <Server size={10} class="mr-1" />
+                        {:else if skill.category === 'Design'}
+                          <Palette size={10} class="mr-1" />
+                        {:else if skill.category === 'Agents'}
+                          <Bot size={10} class="mr-1" />
+                        {:else}
+                          <Terminal size={10} class="mr-1" />
+                        {/if}
+                        {skill.category}
+                      </span>
+                    </td>
+
+                    <!-- Description -->
+                    <td class="py-3 px-3 align-top">
+                      <p class="text-[11px] text-ant-text-secondary leading-relaxed line-clamp-2">
+                        {skill.description || 'No description provided.'}
+                      </p>
+                    </td>
+
+                    <!-- Tags -->
+                    <td class="py-3 px-3 align-top hidden md:table-cell">
+                      {#if skill.tags && skill.tags.length > 0}
+                        <div class="flex flex-wrap gap-1">
+                          {#each skill.tags.slice(0, 2) as tag}
+                            <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] bg-ant-bg-secondary text-ant-text-muted border border-ant-border-secondary">
+                              <Tag size={9} class="mr-1 opacity-70" />
+                              <span class="truncate max-w-[70px]">{tag}</span>
+                            </span>
+                          {/each}
+                          {#if skill.tags.length > 2}
+                            <span class="text-[9px] text-ant-text-muted self-center">
+                              +{skill.tags.length - 2}
+                            </span>
+                          {/if}
+                        </div>
+                      {:else}
+                        <span class="text-[10px] text-ant-text-muted italic">-</span>
+                      {/if}
+                    </td>
+
+                    <!-- Action -->
+                    <td class="py-3 px-4 align-top text-right">
+                      <Button
+                        type="primary"
+                        size="small"
+                        onclick={() => handleSelect(skill)}
+                        class="!px-2.5 !py-1 !text-[11px] shadow-sm flex items-center justify-center ml-auto"
+                      >
+                        <span>Use</span>
+                        <ArrowUpRight size={11} class="ml-1" />
+                      </Button>
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
           </div>
         {/if}
       </div>
 
-      <!-- Footer Info -->
-      <div class="px-6 py-2.5 bg-ant-bg border-t border-ant-border-secondary/60 flex items-center justify-between text-[11px] text-ant-text-muted flex-shrink-0">
+      <!-- Footer Bar -->
+      <div class="px-6 py-2.5 border-t border-ant-border bg-ant-bg-secondary flex items-center justify-between text-xs text-ant-text-muted flex-shrink-0">
+        <span>Showing <strong class="text-ant-text">{filteredSkills.length}</strong> of {skills.length} skills</span>
         <div class="flex items-center space-x-2">
-          <span>Showing <strong class="text-white">{filteredSkills.length}</strong> of {skills.length} skills</span>
-        </div>
-        <div>
-          <span>Press <kbd class="px-1.5 py-0.5 rounded bg-ant-bg-secondary border border-ant-border text-[10px] text-ant-text font-mono">Esc</kbd> to exit</span>
+          <span class="font-mono text-[10px] bg-ant-bg px-1.5 py-0.5 rounded border border-ant-border">Press Esc to exit</span>
         </div>
       </div>
     </div>
