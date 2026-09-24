@@ -1,18 +1,15 @@
 <script lang="ts">
-  import type { ChatMessage, ToolCall } from '$lib/stores/session.svelte';
+  import type { ChatMessage } from '$lib/stores/session.svelte';
+  import ToolCallCard from './ToolCallCard.svelte';
   import {
     Bot,
     User,
     Terminal,
-    ChevronDown,
-    ChevronRight,
-    CheckCircle2,
-    XCircle,
-    Loader2,
     Clock,
     Zap,
     Copy,
-    Check
+    Check,
+    Image as ImageIcon
   } from 'lucide-svelte';
 
   interface Props {
@@ -23,15 +20,10 @@
   let { message, turnNumber }: Props = $props();
 
   let copied = $state(false);
-  let expandedToolCalls = $state<Record<string, boolean>>({});
 
   function formatTime(timestamp: number): string {
     const d = new Date(timestamp);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  }
-
-  function toggleToolCall(id: string) {
-    expandedToolCalls[id] = !expandedToolCalls[id];
   }
 
   async function copyContent() {
@@ -58,12 +50,17 @@
 
     // Code blocks ```lang\ncode\n```
     escaped = escaped.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (_match, lang, code) => {
-      const languageBadge = lang ? `<span class="absolute top-2 right-2 text-[10px] uppercase font-mono text-ant-text-muted bg-ant-bg-tertiary px-1.5 py-0.5 rounded border border-ant-border-secondary">${lang}</span>` : '';
+      const languageBadge = lang
+        ? `<span class="absolute top-2 right-2 text-[10px] uppercase font-mono text-ant-text-muted bg-ant-bg-tertiary px-1.5 py-0.5 rounded border border-ant-border-secondary">${lang}</span>`
+        : '';
       return `<div class="relative my-3 rounded-lg overflow-hidden border border-ant-border bg-ant-bg-secondary">${languageBadge}<pre class="p-3.5 text-xs font-mono overflow-x-auto text-ant-text leading-relaxed"><code>${code.trim()}</code></pre></div>`;
     });
 
     // Inline code `code`
-    escaped = escaped.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 mx-0.5 text-[11px] font-mono rounded bg-ant-bg-tertiary text-ant-primary border border-ant-border-secondary">$1</code>');
+    escaped = escaped.replace(
+      /`([^`]+)`/g,
+      '<code class="px-1.5 py-0.5 mx-0.5 text-[11px] font-mono rounded bg-ant-bg-tertiary text-ant-primary border border-ant-border-secondary">$1</code>'
+    );
 
     // Bold **text**
     escaped = escaped.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-white">$1</strong>');
@@ -72,7 +69,10 @@
     escaped = escaped.replace(/\*([^*]+)\*/g, '<em class="italic text-ant-text-secondary">$1</em>');
 
     // Blockquotes > text
-    escaped = escaped.replace(/^>\s*(.+)$/gm, '<blockquote class="border-l-2 border-ant-primary pl-3 py-0.5 my-1.5 text-ant-text-secondary italic">$1</blockquote>');
+    escaped = escaped.replace(
+      /^>\s*(.+)$/gm,
+      '<blockquote class="border-l-2 border-ant-primary pl-3 py-0.5 my-1.5 text-ant-text-secondary italic">$1</blockquote>'
+    );
 
     // Bullet points
     escaped = escaped.replace(/^\s*[-*]\s+(.+)$/gm, '<li class="ml-4 list-disc text-ant-text my-0.5">$1</li>');
@@ -155,6 +155,24 @@
     </div>
   </div>
 
+  <!-- Vision Images Preview (if present) -->
+  {#if message.images && message.images.length > 0}
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      {#each message.images as img (img.id)}
+        <div class="relative rounded-md overflow-hidden border border-ant-border bg-ant-bg-secondary group/img max-w-[140px] max-h-[90px]">
+          {#if img.dataUrl}
+            <img src={img.dataUrl} alt={img.filePath} class="object-cover w-full h-full rounded" />
+          {:else}
+            <div class="p-2 text-[10px] text-ant-text-muted flex items-center gap-1">
+              <ImageIcon size={12} />
+              <span class="truncate">{img.filePath}</span>
+            </div>
+          {/if}
+        </div>
+      {/each}
+    </div>
+  {/if}
+
   <!-- Message Body (Formatted Markdown) -->
   {#if message.content}
     <div class="text-xs leading-relaxed text-ant-text font-normal space-y-2 select-text">
@@ -162,7 +180,7 @@
     </div>
   {/if}
 
-  <!-- Tool Invocations Section -->
+  <!-- Tool Invocations Section using ToolCallCard -->
   {#if message.toolCalls && message.toolCalls.length > 0}
     <div class="mt-3 space-y-2">
       <div class="text-[11px] font-semibold text-ant-text-secondary flex items-center gap-1.5">
@@ -170,64 +188,9 @@
         <span>Tool Invocations ({message.toolCalls.length})</span>
       </div>
 
-      <div class="space-y-1.5">
+      <div class="space-y-2">
         {#each message.toolCalls as tool (tool.id)}
-          {@const isExpanded = !!expandedToolCalls[tool.id]}
-          <div class="rounded-md border border-ant-border bg-ant-bg-secondary overflow-hidden">
-            <!-- Tool Header Bar -->
-            <button
-              type="button"
-              onclick={() => toggleToolCall(tool.id)}
-              class="w-full flex items-center justify-between px-2.5 py-1.5 text-xs text-left bg-ant-bg-secondary hover:bg-ant-bg-tertiary transition"
-            >
-              <div class="flex items-center space-x-2 min-w-0">
-                {#if isExpanded}
-                  <ChevronDown size={13} class="text-ant-text-muted flex-shrink-0" />
-                {:else}
-                  <ChevronRight size={13} class="text-ant-text-muted flex-shrink-0" />
-                {/if}
-                <span class="font-mono font-medium text-white truncate">{tool.tool}</span>
-                {#if tool.status === 'running'}
-                  <span class="flex items-center text-[10px] text-ant-primary bg-ant-primary/10 px-1.5 py-0.2 rounded border border-ant-primary/20">
-                    <Loader2 size={10} class="animate-spin mr-1" /> Running
-                  </span>
-                {:else if tool.status === 'completed'}
-                  <span class="flex items-center text-[10px] text-ant-success bg-ant-success/10 px-1.5 py-0.2 rounded border border-ant-success/20">
-                    <CheckCircle2 size={10} class="mr-1" /> Success
-                  </span>
-                {:else if tool.status === 'error'}
-                  <span class="flex items-center text-[10px] text-ant-error bg-ant-error/10 px-1.5 py-0.2 rounded border border-ant-error/20">
-                    <XCircle size={10} class="mr-1" /> Failed
-                  </span>
-                {/if}
-              </div>
-
-              {#if tool.startTime && tool.endTime}
-                <span class="text-[10px] font-mono text-ant-text-muted">
-                  {tool.endTime - tool.startTime}ms
-                </span>
-              {/if}
-            </button>
-
-            <!-- Expanded Details: Parameters & Output -->
-            {#if isExpanded}
-              <div class="p-2.5 bg-ant-bg border-t border-ant-border text-[11px] font-mono space-y-2">
-                {#if tool.params}
-                  <div>
-                    <div class="text-[10px] font-semibold text-ant-text-muted uppercase mb-1">Parameters</div>
-                    <pre class="p-2 rounded bg-ant-bg-secondary text-ant-text border border-ant-border-secondary overflow-x-auto"><code>{typeof tool.params === 'string' ? tool.params : JSON.stringify(tool.params, null, 2)}</code></pre>
-                  </div>
-                {/if}
-
-                {#if tool.result}
-                  <div>
-                    <div class="text-[10px] font-semibold text-ant-text-muted uppercase mb-1">Result</div>
-                    <pre class="p-2 rounded bg-ant-bg-secondary text-ant-text border border-ant-border-secondary overflow-x-auto max-h-48"><code>{tool.result}</code></pre>
-                  </div>
-                {/if}
-              </div>
-            {/if}
-          </div>
+          <ToolCallCard toolCall={tool} />
         {/each}
       </div>
     </div>
@@ -236,8 +199,8 @@
   <!-- Streaming pulse indicator -->
   {#if message.status === 'streaming'}
     <div class="flex items-center space-x-1.5 mt-2 text-ant-primary text-xs font-mono">
-      <Loader2 size={12} class="animate-spin" />
-      <span>Grok is thinking...</span>
+      <span class="inline-block w-2 h-2 rounded-full bg-ant-primary animate-ping mr-1"></span>
+      <span>Grok is thinking & executing...</span>
     </div>
   {/if}
 </div>

@@ -1,6 +1,37 @@
 /// <reference types="svelte" />
 /// <reference types="vite/client" />
 
+export interface SnapshotResult {
+  filePath: string;
+  dataUrl: string;
+  base64: string;
+  width?: number;
+  height?: number;
+  timestamp: number;
+}
+
+export interface PromptRequestPayload {
+  sessionId: string;
+  prompt: string;
+  images?: string[];
+  options?: {
+    model?: string;
+    reasoningEffort?: string;
+    workingDir?: string;
+    skillDirs?: string[];
+    temperature?: number;
+    disableTools?: boolean;
+    systemPrompt?: string;
+    customFlags?: string[];
+  };
+}
+
+export interface PermissionResponsePayload {
+  sessionId: string;
+  requestId: string;
+  decision: 'allow_once' | 'allow_always' | 'reject';
+}
+
 declare global {
   interface Window {
     runtime?: {
@@ -21,6 +52,11 @@ declare global {
       main?: {
         App?: {
           Greet: (name: string) => Promise<string>;
+          RunPromptStream: (req: PromptRequestPayload) => Promise<void>;
+          RespondPermission: (resp: PermissionResponsePayload) => Promise<void>;
+          CancelSession: (sessionId: string) => Promise<void>;
+          SetGrokBinaryPath: (path: string) => Promise<void>;
+          CaptureScreenExcludingSelf: (delayMs: number) => Promise<SnapshotResult>;
         };
       };
     };

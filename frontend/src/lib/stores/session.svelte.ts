@@ -1,13 +1,43 @@
 export type SessionStatus = 'working' | 'waiting_permission' | 'finished' | 'error' | 'idle';
 
+export interface DiffData {
+  oldPath?: string;
+  newPath?: string;
+  oldContent?: string;
+  newContent?: string;
+  diffUnified?: string; // Unified diff string (patch format)
+  addedCount?: number;
+  removedCount?: number;
+}
+
 export interface ToolCall {
   id: string;
-  tool: string;
+  tool: string; // 'read_file' | 'write' | 'search_replace' | 'run_terminal_cmd' | 'bash' | string
   params?: Record<string, unknown> | string;
   result?: string;
   status: 'running' | 'completed' | 'error' | 'pending';
   startTime?: number;
   endTime?: number;
+  diff?: DiffData;
+}
+
+export interface PermissionRequest {
+  sessionId: string;
+  requestId: string;
+  toolName: string;
+  description: string;
+  details?: Record<string, unknown>;
+  options?: Array<{ id: string; label: string }>;
+}
+
+export interface VisionImage {
+  id: string;
+  filePath: string;
+  dataUrl: string;
+  sizeBytes?: number;
+  width?: number;
+  height?: number;
+  timestamp: number;
 }
 
 export interface ChatMessage {
@@ -21,6 +51,7 @@ export interface ChatMessage {
     total?: number;
   };
   toolCalls?: ToolCall[];
+  images?: VisionImage[];
   status?: 'streaming' | 'done' | 'error';
   isSteer?: boolean;
 }
@@ -34,6 +65,7 @@ export interface Session {
   messages: ChatMessage[];
   // Windowing state per session
   visibleTurnCount: number; // Number of recent user turns currently in DOM window (default 10)
+  pendingPermission?: PermissionRequest | null;
 }
 
 export const STATUS_META: Record<SessionStatus, { label: string; dotClass: string; hex: string; icon: string }> = {
@@ -92,7 +124,8 @@ class SessionStore {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       messages: [],
-      visibleTurnCount: DEFAULT_WINDOW_TURNS
+      visibleTurnCount: DEFAULT_WINDOW_TURNS,
+      pendingPermission: null
     };
   }
 
@@ -210,7 +243,8 @@ class SessionStore {
       updatedAt: Date.now(),
       // Deep clone messages
       messages: JSON.parse(JSON.stringify(source.messages)),
-      visibleTurnCount: DEFAULT_WINDOW_TURNS
+      visibleTurnCount: DEFAULT_WINDOW_TURNS,
+      pendingPermission: null
     };
 
     // Insert next to the source session
@@ -224,6 +258,19 @@ class SessionStore {
     const session = this.sessions.find((s) => s.id === id);
     if (session) {
       session.status = status;
+      session.updatedAt = Date.now();
+    }
+  }
+
+  setPendingPermission(sessionId: string, perm: PermissionRequest | null): void {
+    const session = this.sessions.find((s) => s.id === sessionId);
+    if (session) {
+      session.pendingPermission = perm;
+      if (perm) {
+        session.status = 'waiting_permission';
+      } else if (session.status === 'waiting_permission') {
+        session.status = 'working';
+      }
       session.updatedAt = Date.now();
     }
   }
@@ -266,7 +313,8 @@ class SessionStore {
       role: message.role,
       content: message.content,
       tokens: message.tokens,
-      toolCalls: message.toolCalls,
+      toolCalls: message.toolCalls ? [...message.toolCalls] : undefined,
+      images: message.images ? [...message.images] : undefined,
       status: message.status,
       isSteer: message.isSteer
     };
@@ -274,6 +322,39 @@ class SessionStore {
     session.messages.push(msg);
     session.updatedAt = Date.now();
     return msg;
+  }
+
+  updateToolCall(sessionId: string, toolId: string, updater: (tool: ToolCall) => void): void {
+    const session = this.sessions.find((s) => s.id === sessionId);
+    if (!session) return;
+    for (const msg of session.messages) {
+      if (msg.toolCalls) {
+        const target = msg.toolCalls.find((t) => t.id === toolId);
+        if (target) {
+          updater(target);
+          session.updatedAt = Date.now();
+          return;
+        }
+      }
+    }
+  }
+
+  appendDelta(sessionId: string, delta: string, role: 'assistant' | 'user' = 'assistant'): void {
+    const session = this.sessions.find((s) => s.id === sessionId);
+    if (!session) return;
+
+    if (session.messages.length === 0 || session.messages[session.messages.length - 1].role !== role) {
+      this.addMessage(sessionId, {
+        role,
+        content: delta,
+        status: 'streaming'
+      });
+    } else {
+      const lastMsg = session.messages[session.messages.length - 1];
+      lastMsg.content += delta;
+      lastMsg.status = 'streaming';
+      session.updatedAt = Date.now();
+    }
   }
 
   updateLastMessage(sessionId: string, updater: (msg: ChatMessage) => void): void {
@@ -289,6 +370,7 @@ class SessionStore {
     if (session) {
       session.messages = [];
       session.visibleTurnCount = DEFAULT_WINDOW_TURNS;
+      session.pendingPermission = null;
       session.updatedAt = Date.now();
     }
   }
