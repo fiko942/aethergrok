@@ -6,6 +6,7 @@ import (
 
 	"aethergrok/pkg/grokrunner"
 	"aethergrok/pkg/screen"
+	"aethergrok/pkg/skills"
 
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -15,6 +16,7 @@ type App struct {
 	ctx           context.Context
 	runner        *grokrunner.Runner
 	screenCapture *screen.Orchestrator
+	skillsReg     *skills.Registry
 }
 
 // NewApp creates a new App application struct
@@ -22,6 +24,7 @@ func NewApp() *App {
 	return &App{
 		runner:        grokrunner.NewRunner(),
 		screenCapture: screen.NewOrchestrator(),
+		skillsReg:     skills.NewRegistry(),
 	}
 }
 
@@ -131,4 +134,20 @@ func (a *App) CaptureScreenExcludingSelf(delayMs int) (*screen.SnapshotResult, e
 		winCtrl = &wailsWindowController{ctx: a.ctx}
 	}
 	return a.screenCapture.CaptureScreenExcludingWindow(context.Background(), winCtrl, delayMs)
+}
+
+// GetInstalledSkills returns all discovered skills from ~/.grok/skills/ and ~/.agents/skills/
+func (a *App) GetInstalledSkills() []skills.Skill {
+	if a.skillsReg == nil {
+		a.skillsReg = skills.NewRegistry()
+	}
+	return a.skillsReg.GetAll()
+}
+
+// SearchSkills queries skills by text query and category
+func (a *App) SearchSkills(query string, category string) []skills.Skill {
+	if a.skillsReg == nil {
+		a.skillsReg = skills.NewRegistry()
+	}
+	return a.skillsReg.Search(query, category)
 }

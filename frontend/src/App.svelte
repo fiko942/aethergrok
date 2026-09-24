@@ -7,6 +7,8 @@
   import MessageList from '$lib/components/chat/MessageList.svelte';
   import Composer from '$lib/components/chat/Composer.svelte';
   import PermissionModal from '$lib/components/chat/PermissionModal.svelte';
+  import SkillCatalog from '$lib/components/skills/SkillCatalog.svelte';
+  import type { SkillItem } from './app.d';
   import {
     sessionStore,
     type VisionImage,
@@ -28,9 +30,17 @@
   let reasoningEffort = $state<'low' | 'medium' | 'high'>('medium');
   let selectedModel = $state('grok-4.6');
   let pingResult = $state<string>('');
+  let skillsCatalogVisible = $state(false);
+  let composerRef = $state<{ appendText: (str: string) => void } | null>(null);
 
   const isWorking = $derived(sessionStore.activeSession?.status === 'working');
   const pendingPermission = $derived(sessionStore.activeSession?.pendingPermission || null);
+
+  function handleSelectSkill(skill: SkillItem) {
+    if (composerRef) {
+      composerRef.appendText(`/${skill.name}`);
+    }
+  }
 
   // Wails bridge greeting check
   async function testBridge() {
@@ -386,6 +396,9 @@
     </div>
 
     <div class="flex items-center space-x-3">
+      <Button size="small" type="default" onclick={() => skillsCatalogVisible = true}>
+        <Sparkles size={13} class="mr-1 text-ant-primary" /> Skills Hub
+      </Button>
       <div class="flex items-center space-x-2 text-xs text-ant-text-secondary bg-ant-bg px-2.5 py-1 rounded-md border border-ant-border">
         <Badge status={isWorking ? 'processing' : 'success'} />
         <span>Model: <strong class="text-white">{selectedModel}</strong></span>
@@ -478,13 +491,22 @@
 
       <!-- Rich Composer Component with Snapshot Trigger & Vision Bar -->
       <Composer
+        bind:this={composerRef}
         disabled={false}
         {isWorking}
         onSend={handleSendMessage}
         onCancel={handleCancelSession}
+        onOpenSkillsCatalog={() => skillsCatalogVisible = true}
       />
     </main>
   </div>
+
+  <!-- Skills & MCP Discovery Catalog Modal -->
+  <SkillCatalog
+    visible={skillsCatalogVisible}
+    onClose={() => skillsCatalogVisible = false}
+    onSelectSkill={handleSelectSkill}
+  />
 
   <!-- Interactive Permission Modal -->
   {#if pendingPermission}

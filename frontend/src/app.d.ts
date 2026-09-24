@@ -32,6 +32,19 @@ export interface PermissionResponsePayload {
   decision: 'allow_once' | 'allow_always' | 'reject';
 }
 
+export interface SkillItem {
+  id: string;
+  name: string;
+  description: string;
+  category: 'All' | 'Frontend' | 'Backend' | 'Design' | 'Agents' | 'Tools';
+  tags?: string[];
+  actions?: string[];
+  path: string;
+  directory: string;
+  scope: string;
+  prompt?: string;
+}
+
 declare global {
   interface Window {
     runtime?: {
@@ -57,6 +70,8 @@ declare global {
           CancelSession: (sessionId: string) => Promise<void>;
           SetGrokBinaryPath: (path: string) => Promise<void>;
           CaptureScreenExcludingSelf: (delayMs: number) => Promise<SnapshotResult>;
+          GetInstalledSkills: () => Promise<SkillItem[]>;
+          SearchSkills: (query: string, category: string) => Promise<SkillItem[]>;
         };
       };
     };

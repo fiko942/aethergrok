@@ -25,9 +25,10 @@
       reasoningEffort: 'low' | 'medium' | 'high';
     }) => void;
     onCancel?: () => void;
+    onOpenSkillsCatalog?: () => void;
   }
 
-  let { disabled = false, isWorking = false, onSend, onCancel }: Props = $props();
+  let { disabled = false, isWorking = false, onSend, onCancel, onOpenSkillsCatalog }: Props = $props();
 
   let text = $state('');
   let textareaEl = $state<HTMLTextAreaElement | null>(null);
@@ -54,6 +55,18 @@
       tick().then(adjustTextareaHeight);
     }
   });
+
+  export function appendText(str: string) {
+    if (!text || text.trim() === '') {
+      text = str;
+    } else {
+      text = `${text.trimEnd()} ${str}`;
+    }
+    tick().then(() => {
+      adjustTextareaHeight();
+      textareaEl?.focus();
+    });
+  }
 
   // Snapshot trigger button calls Go bridge CaptureScreenExcludingSelf
   async function handleTakeSnapshot() {
@@ -257,6 +270,19 @@
             class="hidden"
             onchange={handleFileSelect}
           />
+
+          {#if onOpenSkillsCatalog}
+            <!-- Skills Discovery Catalog Modal Trigger -->
+            <button
+              type="button"
+              onclick={onOpenSkillsCatalog}
+              class="flex items-center space-x-1 px-2 py-1 rounded-md text-[11px] text-ant-text-muted hover:text-ant-primary hover:bg-ant-primary/10 border border-transparent hover:border-ant-primary/30 transition"
+              title="Open Skills & MCP Discovery Catalog"
+            >
+              <Sparkles size={13} class="text-ant-primary" />
+              <span class="hidden sm:inline font-medium">Skills</span>
+            </button>
+          {/if}
 
           <!-- Divider -->
           <div class="w-px h-4 bg-ant-border-secondary hidden sm:block"></div>
