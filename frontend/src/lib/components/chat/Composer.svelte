@@ -295,7 +295,7 @@
   }
 </script>
 
-<div class="flex flex-col w-full bg-ant-bg-secondary border-t border-ant-border flex-shrink-0">
+<div class="flex flex-col w-full bg-ant-bg-secondary border-t border-ant-border flex-shrink-0 relative z-30">
   <!-- Vision Preview Chips Strip -->
   {#if attachedImages.length > 0}
     <SnapshotBar
@@ -319,7 +319,7 @@
   {/if}
 
   <!-- Main Multi-line Input Area -->
-  <div class="p-3 relative">
+  <div class="p-3 relative z-30">
     <!-- Slash Command Autocomplete Popover -->
     <SlashCommandPopup
       bind:this={slashPopupRef}
@@ -341,7 +341,7 @@
       ></textarea>
 
       <!-- Composer Bottom Control Bar -->
-      <div class="flex items-center justify-between px-3 py-2 border-t border-ant-border-secondary/60 bg-ant-bg/70 text-xs select-none">
+      <div class="flex items-center justify-between px-3 py-2 border-t border-ant-border-secondary/60 bg-ant-bg/70 text-xs select-none relative z-40">
         <div class="flex items-center space-x-1.5">
           <!-- Non-Intrusive Snapshot Trigger -->
           <button

@@ -172,11 +172,11 @@
   <!-- Dropdown Menu / Popover with Search & Options -->
   {#if isOpen}
     <div
-      class="absolute bottom-full left-0 mb-3 w-80 max-w-[90vw] bg-ant-bg-secondary border border-ant-border rounded-xl shadow-2xl z-[100] flex flex-col animate-in fade-in zoom-in-95 duration-150"
-      style="box-shadow: 0 12px 36px 0 rgba(0, 0, 0, 0.45), 0 4px 12px 0 rgba(0, 0, 0, 0.25);"
+      class="absolute bottom-full left-0 mb-3 w-80 max-w-[90vw] bg-[#ffffff] dark:bg-[#181b26] border border-ant-border rounded-xl shadow-2xl z-[100] flex flex-col animate-in fade-in zoom-in-95 duration-150 ring-1 ring-black/10 dark:ring-white/10"
+      style="box-shadow: 0 20px 40px -4px rgba(0, 0, 0, 0.45), 0 8px 16px -4px rgba(0, 0, 0, 0.25);"
     >
       <!-- Dropdown Header & Search Box -->
-      <div class="p-3 border-b border-ant-border bg-ant-bg-secondary rounded-t-xl">
+      <div class="p-3 border-b border-ant-border bg-[#fafafa] dark:bg-[#181b26] rounded-t-xl">
         <div class="flex items-center justify-between mb-2 px-0.5">
           <div class="flex items-center gap-1.5 text-[11px] font-semibold text-ant-text">
             <Sparkles size={12} class="text-ant-primary" />
@@ -206,7 +206,7 @@
       </div>
 
       <!-- Models List -->
-      <div class="max-h-60 overflow-y-auto p-1.5 space-y-1 scrollbar-thin bg-ant-bg">
+      <div class="max-h-60 overflow-y-auto p-1.5 space-y-1 scrollbar-thin bg-[#ffffff] dark:bg-[#0f1117]">
         {#if filteredOptions.length === 0}
           <div class="py-6 text-center text-xs text-ant-text-muted">
             <Info size={16} class="mx-auto mb-1.5 opacity-50" />
@@ -251,7 +251,7 @@
       </div>
 
       <!-- Footer Quick Status -->
-      <div class="px-3 py-2 bg-ant-bg-secondary border-t border-ant-border rounded-b-xl flex items-center justify-between text-[10px] text-ant-text-muted">
+      <div class="px-3 py-2 bg-[#fafafa] dark:bg-[#181b26] border-t border-ant-border rounded-b-xl flex items-center justify-between text-[10px] text-ant-text-muted">
         <span>{filteredOptions.length} available</span>
         <span class="font-mono text-[9px]">grok CLI</span>
       </div>
