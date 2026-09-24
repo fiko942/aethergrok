@@ -74,6 +74,7 @@ declare global {
           SearchSkills: (query: string, category: string) => Promise<SkillItem[]>;
           SelectWorkspaceDirectory: () => Promise<string>;
           SaveMarkdownExport: (defaultFilename: string, content: string) => Promise<string>;
+          GetAvailableModels: () => Promise<Array<{ id: string; name: string; description: string; isDefault: boolean }>>;
         };
       };
     };

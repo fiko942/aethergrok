@@ -3,6 +3,7 @@
   import type { VisionImage } from '$lib/stores/session.svelte';
   import SnapshotBar from '$lib/components/snapshot/SnapshotBar.svelte';
   import Button from '$lib/antd/Button.svelte';
+  import ModelSelectDropdown from '$lib/components/chat/ModelSelectDropdown.svelte';
   import { playCameraShutterSound } from '$lib/utils/audio';
   import { settingsStore } from '$lib/stores/settings.svelte';
   import {
@@ -312,21 +313,15 @@
             </button>
           {/if}
 
-          <!-- Model Selector Pill (cycles available CLI models) -->
-          <button
-            type="button"
-            class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono text-ant-text-secondary bg-ant-bg-secondary border border-ant-border hover:border-ant-primary/40 transition"
-            onclick={() => {
-              const models = ['9router', '9router-general-purpose', '9router-explore', '9router-plan'];
-              const currIdx = models.indexOf(selectedModel);
-              const nextIdx = (currIdx + 1) % models.length;
-              selectedModel = models[nextIdx];
+          <!-- Model Selector Dropdown with Search & CLI Discovery -->
+          <ModelSelectDropdown
+            bind:value={selectedModel}
+            disabled={disabled || isWorking}
+            onChange={(m) => {
+              settingsStore.defaultModel = m;
+              settingsStore.saveToStorage();
             }}
-            title="Toggle active model engine"
-          >
-            <Cpu size={12} class="mr-1 text-ant-primary" />
-            <span>{selectedModel}</span>
-          </button>
+          />
 
           <!-- Reasoning Effort Indicator -->
           <button

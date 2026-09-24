@@ -1,5 +1,23 @@
 export namespace grokrunner {
 	
+	export class ModelInfo {
+	    id: string;
+	    name: string;
+	    description: string;
+	    isDefault: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ModelInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.isDefault = source["isDefault"];
+	    }
+	}
 	export class PermissionResponse {
 	    sessionId: string;
 	    requestId: string;

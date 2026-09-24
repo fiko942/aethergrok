@@ -10,6 +10,10 @@ export function CaptureScreenExcludingSelf(arg1) {
   return window['go']['main']['App']['CaptureScreenExcludingSelf'](arg1);
 }
 
+export function GetAvailableModels() {
+  return window['go']['main']['App']['GetAvailableModels']();
+}
+
 export function GetInstalledSkills() {
   return window['go']['main']['App']['GetInstalledSkills']();
 }

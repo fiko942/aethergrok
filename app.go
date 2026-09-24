@@ -204,3 +204,11 @@ func (a *App) SearchSkills(query string, category string) []skills.Skill {
 	}
 	return a.skillsReg.Search(query, category)
 }
+
+// GetAvailableModels returns the list of available models from Grok CLI
+func (a *App) GetAvailableModels() []grokrunner.ModelInfo {
+	if a.runner == nil {
+		a.runner = grokrunner.NewRunner()
+	}
+	return a.runner.DiscoverAvailableModels()
+}
