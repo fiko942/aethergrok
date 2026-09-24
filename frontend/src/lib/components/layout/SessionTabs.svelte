@@ -95,7 +95,7 @@
         onclick={() => sessionStore.switchSession(session.id)}
         onkeydown={(e) => e.key === 'Enter' && sessionStore.switchSession(session.id)}
         class="group relative flex items-center h-8 pl-2.5 pr-2 rounded-md text-xs font-medium cursor-pointer transition-all duration-150 border max-w-[200px] min-w-[120px] flex-shrink-0 {isActive
-          ? 'bg-ant-bg text-ant-primary border-ant-border border-b-ant-bg shadow-sm'
+          ? 'bg-ant-bg text-ant-primary border-ant-border border-b-ant-bg shadow-sm font-semibold'
           : 'bg-ant-bg-tertiary/40 text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'} {isDragging ? 'opacity-40 scale-95' : ''} {isOver ? 'border-r-2 border-r-ant-primary' : ''}"
       >
         <!-- Status Indicator Dot (Ant Design palette) -->

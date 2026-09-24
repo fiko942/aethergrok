@@ -301,7 +301,7 @@
               }}
               onkeydown={(e) => e.key === 'Enter' && sessionStore.switchSession(session.id)}
               class="group relative flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-medium cursor-pointer transition border {isActive
-                ? 'bg-ant-primary/15 text-ant-primary border-ant-primary/40 shadow-sm'
+                ? 'bg-ant-primary/10 text-ant-primary border-ant-primary/50 shadow-sm font-semibold'
                 : 'bg-ant-bg-secondary/70 text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'}"
             >
               <!-- Left: Title & Folder Badge -->
@@ -496,7 +496,7 @@
                     }}
                     onkeydown={(e) => e.key === 'Enter' && sessionStore.switchSession(session.id)}
                     class="group relative flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-medium cursor-pointer transition border {isActive
-                      ? 'bg-ant-primary/15 text-ant-primary border-ant-primary/40 shadow-sm'
+                      ? 'bg-ant-primary/10 text-ant-primary border-ant-primary/50 shadow-sm font-semibold'
                       : 'bg-ant-bg-secondary/40 text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'}"
                   >
                     <!-- Left: Checkbox/Dot & Title -->
