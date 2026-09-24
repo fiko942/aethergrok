@@ -1,108 +1,107 @@
-# 2026-09-25: AetherGrok (Grok Desktop GUI) Comprehensive Implementation Plan
+# 2026-09-25: AetherGrok (Grok Desktop GUI) - Deep Research, Dependencies & Risk Mitigation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Transform the Grok Desktop client into an ultra-high performance, lightweight GUI studio (AetherGrok) for the Grok Agentic AI CLI with Ant Design component system tokens, Svelte 5 lightweight client layer, native smart screen snapshots with application exclusion, multi-session management, and rich visual tool rendering.
-
-**Architecture:** 
-1. **Frontend Presentation & Design System:** Svelte 5 / Ant Design Token System (`@ant-design/colors`, Ant Design components) with optimized reactive stores.
-2. **Native Orchestration Layer:** Native system bridge for smart desktop snapshot (auto-hide self window, capture active display, restore window), session persistence parser (`~/.grok/sessions`), and streaming NDJSON parser for `grok` CLI agent execution.
-
-**Tech Stack:**
-- Frontend: Svelte 5, TypeScript, Tailwind CSS with Ant Design Tokens (`#1677FF`, `#0F1117`, `#181B26`), Ant Design Icons Svelte, Lucide.
-- Desktop Bridge: Go / Wails v2 (or lightweight embedded bridge runtime).
-- AI Engine: Grok Build CLI (`grok --output-format streaming-json`, `grok agent stdio`).
+**Goal:** Menentukan daftar dependensi/library optimal untuk desktop GUI Grok Build (AetherGrok), mengidentifikasi seluruh potensi kendala teknis (memori, storage, konkurensi, IPC bottleneck, multi-platform), dan merancang solusi mitigasi teruji agar aplikasi tetap ringan, stabil, dan responsif pada perangkat laptop berspesifikasi rendah.
 
 ---
 
-## 1. Target Audience, Brand Identity, & User Persona
+## 1. Inventory Library & Dependensi (Tujuan & Alasan Pemilihan)
 
-### A. Target Audience & Customer Demographics
-* **Age Bracket:** 20 – 45 years old.
-* **Gender Demographics:** All developers, engineers, and technical creators (neutral, modern, professional tech ergonomics).
-* **Professions:** Full-stack Software Engineers, AI/ML Engineers, DevOps/SREs, System Architects, Technical Tech Leads.
-* **Hardware Profile:** Developers working on constrained or efficiency-focused laptops (MacBook Air/Pro, Windows Ultrabooks, low-spec dual-core devices) requiring minimal RAM (<60MB idle) and zero background lag.
+### A. Frontend Presentation Layer (Svelte 5 + Ant Design Ecosystem)
+| Package / Library | Kategori | Tujuan & Alasan Pemilihan |
+| :--- | :--- | :--- |
+| `svelte` (v5) | UI Framework | Compile-time reactivity via Runes (`$state`, `$derived`, `$effect`), zero virtual DOM overhead, bundle size sangat kecil (<30KB), konsumsi memori minim. |
+| `@ant-design/colors` | Color Token Engine | Menyediakan palet token warna Ant Design resmi (10-step palette) untuk Dark Mode, High Contrast, dan sistem status visual. |
+| `@ant-design/icons-svelte` / `lucide-svelte` | Iconography | Koleksi icon SVG teroptimasi untuk tombol snapshot, multi-session tabs, file chips, tool status, dan navigasi setting. |
+| `tailwindcss` + `@tailwindcss/typography` | Utility Styling | Utilitas CSS atomic untuk layouting cepat, performa render tinggi, dan integrasi token Ant Design tanpa runtime CSS overhead. |
+| `diff2html` + `diff` | Visual Diff Inspector | Render visual line-by-line / side-by-side diff perubahan kode dari tool Grok (`write`, `search_replace`) dengan highlighting warna +hijau / -merah. |
+| `highlight.js` (core bundle) | Code Highlighting | Syntax highlighting untuk output blok kode Markdown, dibatasi hanya untuk bahasa umum (JS, TS, Go, Python, Rust, HTML, CSS, JSON, YAML) guna menghemat memori. |
+| `katex` (KaTeX) | LaTeX Math Rendering | Render persamaan matematika inline/display secara offline, jauh lebih cepat dan ringan dibanding MathJax penuh. |
+| `mermaid` (Dynamic Import) | Diagram Engine | Render diagram Mermaid secara asinkron saat blok ` ```mermaid ` terdeteksi, menghindari beban memori saat sesi tidak memuat diagram. |
+| `@floating-ui/dom` | Overlay Positioning | Positioning tooltips, context menus, model selector dropdown, dan popovers yang presisi dan bebas dependency berat. |
 
-### B. Brand Identity & Design System Tokens (Ant Design System Theme)
-* **Product Name:** **AetherGrok** (*The Grok Build Desktop GUI Studio*)
-* **Typography Hierarchy:**
-  * UI Primary Sans-serif: `Geist Sans`, `Inter`, `-apple-system`, `BlinkMacSystemFont`, `Segoe UI`, `Roboto`, `sans-serif`
-  * Monospace Code & CLI Stream: `JetBrains Mono`, `Fira Code`, `SF Mono`, `monospace`
-* **Ant Design Color Palette (Dark High-Tech Studio):**
-  * `antd-primary`: `#1677FF` (Ant Design Standard Blue) / Neon Highlight: `#00F0FF`
-  * `antd-bg-base`: `#0F1117` (Deep Slate Slate Canvas)
-  * `antd-bg-container`: `#181B26` (Panels, Sidebars, Cards)
-  * `antd-bg-elevated`: `#222634` (Dropdowns, Floating Overlays, Modals)
-  * `antd-border`: `#2E3446` (Crisp 1px borders)
-  * `antd-text`: `#F3F4F6` (High-contrast text)
-  * `antd-text-secondary`: `#8C93A4` (Muted labels & timestamps)
-  * `antd-success`: `#52C41A` (Finished subagents, successful tool execution)
-  * `antd-warning`: `#FAAD14` (Permission approval required)
-  * `antd-error`: `#FF4D4F` (Execution error, failed turn)
-
----
-
-## 2. Core Feature Specifications
-
-### 1. Smart Non-Intrusive Screen Snapshot (App Window Exclusion)
-* **Behavior:** When the snapshot button (or hotkey `Cmd/Ctrl + Shift + S`) is triggered:
-  1. Instantly hide the Grok Desktop window (`Window.Hide()`).
-  2. Sleep 50ms for display compositor flush.
-  3. Execute platform-native capture on the active display (macOS `CGDisplayCreateImage`, Windows `BitBlt` / GDI).
-  4. Restore and focus the Grok Desktop window (`Window.Show()`, `Window.Focus()`).
-  5. Attach captured image to the current composer turn as vision context with instant preview.
-
-### 2. Multi-Session Docking Workspace
-* Tabbed multi-session manager with drag-and-drop ordering.
-* Status indicator dots:
-  * 🔵 Blue: Processing / Reasoning
-  * 🟡 Yellow: Awaiting User Approval / Tool Permission
-  * 🟢 Green: Finished turn
-  * 🔴 Red: Failed turn
-  * ⚪ Gray: Idle
-* Instant fast-switching with zero-lag DOM flush and virtualized turn rendering.
-
-### 3. Skills & MCP Registry Hub
-* Automatic discovery of skills in `~/.grok/skills/`, `~/.agents/skills/`, and `.grok/workflows/`.
-* Visual card catalog with instant search, category filters, and one-click injection into composer.
-
-### 4. Settings & Theming System
-* Full Ant Design dark and high-contrast theme toggling.
-* Model selection (Grok 4.6, Grok Code, custom models).
-* Reasoning effort slider (`none`, `low`, `medium`, `high`, `max`).
-* Permission auto-approval toggle (Auto-accept, Agent, Plan mode).
+### B. Core Desktop Engine & Native Bridge (Go / Wails v2)
+| Package / Module | Kategori | Tujuan & Alasan Pemilihan |
+| :--- | :--- | :--- |
+| `github.com/wailsapp/wails/v2` | Desktop Bridge | Integrasi Go backend dengan WebView native OS (WebKit di macOS, WebView2 di Windows). Menghasilkan single binary mandiri (~15-25MB) dengan idle RAM <40MB. |
+| `github.com/kbinani/screenshot` | Screen Capturer | Native cross-platform display capture engine (menggunakan CoreGraphics di macOS dan GDI/BitBlt di Windows). |
+| `github.com/mattn/go-sqlite3` / `modernc.org/sqlite` | Local Storage | Cache indexing metadata sesi, riwayat pencarian cepat, dan metadata skill tanpa memindai ratusan file JSONL di disk setiap frame. |
+| `github.com/fsnotify/fsnotify` | Filesystem Watcher | Memantau perubahan file konfigurasi (`~/.grok/config.toml`), skill baru di `~/.grok/skills/`, dan pembaruan log sesi di `~/.grok/sessions/` secara real-time berbasis OS event. |
+| `golang.org/x/sys` | OS Level Interop | Akses Win32 window APIs (Windows) dan CoreGraphics/AppKit hooks (macOS) untuk auto-hide dan restore window aplikasi saat snapshot. |
 
 ---
 
-## 3. Implementation Tasks & Verification
+## 2. Analisis Potensi Masalah & Bottleneck Teknis (Brainstorming & Risk Depiction)
 
-### Task 1: Initialize Ant Design Svelte Component & Token Library
-- [ ] Setup `@ant-design/colors` token configuration in Tailwind and CSS custom variables.
-- [ ] Implement Ant Design styled Svelte components: `Button`, `Card`, `Modal`, `Switch`, `Badge`, `Tabs`.
-- [ ] Verify light/dark theme transition without layout shifting.
+### 1. Masalah Keterbatasan Memori & DOM Explosion (Memory Bloat & Chat Lag)
+* **Penyebab:**
+  * Sesi Grok berdurasi panjang dapat menghasilkan ribuan baris teks, puluhan tool calls, inline diffs besar, dan base64 images.
+  * Jika seluruh riwayat pesan dirender langsung ke dalam DOM, browser WebView akan mengalami memory leak, garbage collection lag, dan UI freeze saat scroll.
+* **Gejala:** Memory melonjak >500MB, scroll tersendat (<15 FPS), lag parah saat berpindah antar tab sesi.
 
-### Task 2: Implement Native Snapshot Engine with Window Auto-Hide
-- [ ] Implement window state coordinator for snapshot trigger.
-- [ ] Implement macOS CoreGraphics capture adapter.
-- [ ] Implement Windows Win32 GDI capture adapter.
-- [ ] Connect image compression and composer vision attachment.
+### 2. Masalah Penyimpanan Disk & File I/O Bottleneck (Storage & Stat Flooding)
+* **Penyebab:**
+  * Direktori `~/.grok/sessions/` menyimpan ratusan sesi dalam format file `.jsonl` dan snapshot repository.
+  * Pemindaian sinkron (`os.Stat` / `ioutil.ReadDir`) pada ratusan folder sesi di setiap render siklus sidebar menyebabkan pembacaan disk tinggi (disk IO thrashing).
+  * Temporary screenshot image yang tidak dibersihkan menumpuk dan menghabiskan ruang disk lokal.
 
-### Task 3: Multi-Session Docking & Tab Management
-- [ ] Create reactive Svelte 5 multi-session state manager.
-- [ ] Build drag-and-drop tab bar with real-time status dots.
-- [ ] Integrate session forking and history loading from `~/.grok/sessions/`.
+### 3. Masalah Bottleneck Streaming NDJSON & IPC Throughput
+* **Penyebab:**
+  * Grok CLI dengan flag `--output-format streaming-json` atau `streaming-messages-json` dapat memancarkan ratusan chunk per detik saat mode reasoning/thinking aktif.
+  * Mengirim setiap token kecil satu per satu melalui jembatan IPC (Go ↔ Svelte) menyebabkan IPC congestion dan freeze pada UI main-thread.
 
-### Task 4: Visual Tool Call Cards & Diff Inspector
-- [ ] Build inline tool execution cards (`read_file`, `write`, `run_terminal_cmd`).
-- [ ] Implement colorized file diff viewer (+green, -red) with side-by-side / unified toggles.
-- [ ] Implement Permission approval cards (Allow once, Always allow, Reject).
+### 4. Masalah Snapshot Visual Glitch & Screen Race Condition
+* **Penyebab:**
+  * Menyembunyikan jendela aplikasi (`Window.Hide()`) dan memicu capture secara instan dapat menangkap bayangan transparan jendela aplikasi (ghost window frame) jika window compositor OS (macOS Quartz / Windows DWM) belum selesai me-render ulang layar.
+  * Di multi-monitor setup, penentuan layar aktif (active display vs cursor display) dapat menghasilkan koordinat snapshot yang salah.
 
-### Task 5: Skills & MCP Explorer Modal
-- [ ] Implement filesystem scanner for `SKILL.md` files.
-- [ ] Build visual catalog modal with category filters and search.
-- [ ] Add one-click skill parameter form and prompt generator.
+### 5. Masalah Zombie Subprocesses & Concurrent Session Locking
+* **Penyebab:**
+  * Menjalankan banyak subagent atau beberapa sesi paralel dapat meninggalkan proses `grok` yang tetap berjalan di background saat jendela aplikasi ditutup paksa.
+  * Dua sesi yang mengakses git worktree yang sama dapat menyebabkan file lock conflict.
 
-### Task 6: Packaging, Performance Profiling & Cross-Platform Verification
-- [ ] Verify idle RAM consumption under 60MB.
-- [ ] Verify 60FPS fluid UI interaction and smooth tab switching.
-- [ ] Build macOS and Windows distribution binaries.
+---
+
+## 3. Rencana Solusi & Strategi Mitigasi Teruji
+
+```
++-------------------------------------------------------------------------------+
+|                      MITIGATION ARCHITECTURE MATRIX                           |
++-------------------------------------------------------------------------------+
+| 1. Virtualized Message Windowing : Hanya render 10-15 turn aktif dalam DOM.   |
+| 2. Sliding Window Buffer        : Chunk stream buffer 16ms (60FPS batching).  |
+| 3. SQLite Local Metadata Cache   : Eliminasi synchronous filesystem disk scan.|
+| 4. Smart Snapshot Synchronization: Compositor flush + multi-display detection.|
+| 5. Process Lifecycle Supervisor  : Auto-kill orphan subprocesses on app exit. |
++-------------------------------------------------------------------------------+
+```
+
+### Solusi 1: Virtualized Chat Windowing & Progressive History Loading
+* **Mekanisme:**
+  * Terapkan arsitektur *windowed turn rendering*: hanya 10 turn percakapan terakhir yang dirender di DOM aktif.
+  * Turn terdahulu disimpan di memori Svelte state / SQLite cache dan hanya dimasukkan ke DOM saat pengguna melakukan scroll ke atas (*infinite scroll with virtual spacer*).
+  * Card diff besar yang sudah collapsed diganti dengan lightweight placeholder.
+
+### Solusi 2: Stream Token Batching (Sliding Window Buffer 16ms)
+* **Mekanisme:**
+  * Di Go backend, streaming chunk dari stdout `grok` dikumpulkan dalam buffer lokal dengan interval 16ms (disesuaikan dengan refresh rate 60 FPS).
+  * Go memancarkan event `grok:delta_batch` berisi gabungan token daripada memicu ratusan event IPC individual, menjaga UI thread tetap ringan.
+
+### Solusi 3: SQLite Session Cache & Auto Cleanup Temporary Media
+* **Mekanisme:**
+  * Gunakan SQLite database lokal (`~/.grok-desktop/cache.db`) untuk mengindeks ID sesi, judul, waktu modifikasi, dan token usage.
+  * Pemindaian disk hanya berjalan saat ada notifikasi filesystem dari `fsnotify`.
+  * Folder snapshot temporary (`/tmp/aethergrok_snaps/`) memiliki mekanisme auto-prune: gambar screenshot berumur >24 jam atau yang sudah ter-upload otomatis dihapus saat sesi ditutup.
+
+### Solusi 4: Smart Native Snapshot Engine dengan Compositor Synchronization
+* **Mekanisme:**
+  * `Window.Hide()` dipanggil dengan async channel.
+  * Delay minimal 50ms untuk macOS dan 80ms untuk Windows guna memastikan desktop window manager selesai me-repaint area yang sebelumnya tertutup.
+  * Identifikasi posisi kursor mouse untuk memilih display index yang benar pada konfigurasi multi-monitor.
+  * Setelah capture selesai, gambar dikompres ke WebP/PNG dengan resolusi optimal sebelum diserahkan ke Svelte UI.
+
+### Solusi 5: Process Lifecycle Supervisor & Graceful Shutdown Hooks
+* **Mekanisme:**
+  * Setiap subprocess `grok` didaftarkan ke dalam Process Group (PGID) mandiri di backend Go.
+  * Tambahkan listener `runtime.EventsOn(ctx, "app:shutdown")` dan Go signal handling (`SIGINT`, `SIGTERM`) untuk memastikan seluruh subagent dan subprocess ditutup secara bersih (`KillProcessGroup`) saat aplikasi dimatikan.
