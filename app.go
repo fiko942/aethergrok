@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"aethergrok/pkg/grokrunner"
 	"aethergrok/pkg/screen"
@@ -142,6 +143,58 @@ func (a *App) GetInstalledSkills() []skills.Skill {
 		a.skillsReg = skills.NewRegistry()
 	}
 	return a.skillsReg.GetAll()
+}
+
+// SelectWorkspaceDirectory opens a native directory picker dialog
+func (a *App) SelectWorkspaceDirectory() (string, error) {
+	if a.ctx == nil {
+		return "", fmt.Errorf("application context not initialized")
+	}
+	dir, err := wailsRuntime.OpenDirectoryDialog(a.ctx, wailsRuntime.OpenDialogOptions{
+		Title: "Select Workspace Folder",
+	})
+	if err != nil {
+		return "", err
+	}
+	return dir, nil
+}
+
+// SaveMarkdownExport opens a native save file dialog and writes markdown content to the selected path
+func (a *App) SaveMarkdownExport(defaultFilename string, content string) (string, error) {
+	if a.ctx == nil {
+		return "", fmt.Errorf("application context not initialized")
+	}
+	filePath, err := wailsRuntime.SaveFileDialog(a.ctx, wailsRuntime.SaveDialogOptions{
+		Title:           "Export Session as Markdown",
+		DefaultFilename: defaultFilename,
+		Filters: []wailsRuntime.FileFilter{
+			{
+				DisplayName: "Markdown Files (*.md)",
+				Pattern:     "*.md",
+			},
+			{
+				DisplayName: "Text Files (*.txt)",
+				Pattern:     "*.txt",
+			},
+			{
+				DisplayName: "All Files (*.*)",
+				Pattern:     "*.*",
+			},
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+	if filePath == "" {
+		return "", nil // User cancelled
+	}
+
+	err = os.WriteFile(filePath, []byte(content), 0644)
+	if err != nil {
+		return "", fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return filePath, nil
 }
 
 // SearchSkills queries skills by text query and category

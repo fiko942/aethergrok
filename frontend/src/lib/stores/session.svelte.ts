@@ -58,6 +58,7 @@ export interface ChatMessage {
 
 export interface Session {
   id: string;
+  workspaceId: string;
   title: string;
   status: SessionStatus;
   createdAt: number;
@@ -66,6 +67,13 @@ export interface Session {
   // Windowing state per session
   visibleTurnCount: number; // Number of recent user turns currently in DOM window (default 10)
   pendingPermission?: PermissionRequest | null;
+}
+
+export interface WorkspaceFolder {
+  id: string;
+  name: string; // e.g. "affilia", "grok-desktop"
+  path: string; // e.g. "/Users/fiko942/Desktop/affilia"
+  createdAt: number;
 }
 
 export const STATUS_META: Record<SessionStatus, { label: string; dotClass: string; hex: string; icon: string }> = {
@@ -105,21 +113,39 @@ export const DEFAULT_WINDOW_TURNS = 10;
 export const PREPEND_CHUNK_TURNS = 10;
 
 class SessionStore {
+  workspaces = $state<WorkspaceFolder[]>([]);
+  activeWorkspaceId = $state<string>('');
   sessions = $state<Session[]>([]);
   activeSessionId = $state<string | null>(null);
 
+  // Multi-select state
+  isSelectionMode = $state<boolean>(false);
+  selectedSessionIds = $state<Set<string>>(new Set());
+
   constructor() {
-    // Initialize with a default session
-    const initialSession = this.createNewSessionModel('Grok Session 1');
+    // Initialize default workspace
+    const defaultWs: WorkspaceFolder = {
+      id: 'ws_affilia_root',
+      name: 'affilia',
+      path: '/Users/fiko942/Desktop/affilia',
+      createdAt: Date.now()
+    };
+    this.workspaces = [defaultWs];
+    this.activeWorkspaceId = defaultWs.id;
+
+    // Initialize with a default session linked to default workspace
+    const initialSession = this.createNewSessionModel('Log Audit & Automation', defaultWs.id);
     this.sessions = [initialSession];
     this.activeSessionId = initialSession.id;
   }
 
-  private createNewSessionModel(title?: string): Session {
+  private createNewSessionModel(title?: string, wsId?: string): Session {
     const id = 'sess_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36);
+    const workspaceId = wsId || this.activeWorkspaceId || (this.workspaces[0]?.id ?? 'ws_default');
     return {
       id,
-      title: title || `Session ${this.sessions.length + 1}`,
+      workspaceId,
+      title: title || `Session ${this.sessions.filter((s) => s.workspaceId === workspaceId).length + 1}`,
       status: 'idle',
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -127,6 +153,17 @@ class SessionStore {
       visibleTurnCount: DEFAULT_WINDOW_TURNS,
       pendingPermission: null
     };
+  }
+
+  // Active Workspace Getter
+  get activeWorkspace(): WorkspaceFolder | undefined {
+    return this.workspaces.find((w) => w.id === this.activeWorkspaceId);
+  }
+
+  // Sessions filtered by active workspace
+  get activeWorkspaceSessions(): Session[] {
+    if (!this.activeWorkspaceId) return this.sessions;
+    return this.sessions.filter((s) => s.workspaceId === this.activeWorkspaceId);
   }
 
   // Active Session Getter
@@ -184,9 +221,110 @@ class SessionStore {
     return remaining > 0 ? remaining : 0;
   }
 
-  // Actions
-  createSession(title?: string): Session {
-    const newSession = this.createNewSessionModel(title);
+  // Workspace Actions
+  addWorkspace(name: string, path: string): WorkspaceFolder {
+    const existing = this.workspaces.find((w) => w.path === path);
+    if (existing) {
+      this.activeWorkspaceId = existing.id;
+      return existing;
+    }
+
+    const id = 'ws_' + Math.random().toString(36).substring(2, 9);
+    const newWs: WorkspaceFolder = {
+      id,
+      name,
+      path,
+      createdAt: Date.now()
+    };
+    this.workspaces.push(newWs);
+    this.activeWorkspaceId = id;
+
+    // Create a starter session for the newly added workspace
+    this.createSession(`New ${name} Task`, id);
+    return newWs;
+  }
+
+  switchWorkspace(id: string): void {
+    if (this.activeWorkspaceId === id) return;
+    this.activeWorkspaceId = id;
+    
+    // Switch to first session in this workspace or create one
+    const wsSessions = this.sessions.filter((s) => s.workspaceId === id);
+    if (wsSessions.length > 0) {
+      this.activeSessionId = wsSessions[0].id;
+    } else {
+      const ws = this.workspaces.find((w) => w.id === id);
+      this.createSession(ws ? `Task for ${ws.name}` : 'New Task', id);
+    }
+  }
+
+  removeWorkspace(id: string): void {
+    const index = this.workspaces.findIndex((w) => w.id === id);
+    if (index === -1) return;
+
+    this.workspaces.splice(index, 1);
+    // Remove associated sessions
+    this.sessions = this.sessions.filter((s) => s.workspaceId !== id);
+
+    if (this.workspaces.length === 0) {
+      const fallback = this.addWorkspace('default', '/');
+      return;
+    }
+
+    if (this.activeWorkspaceId === id) {
+      this.activeWorkspaceId = this.workspaces[0].id;
+      const wsSessions = this.sessions.filter((s) => s.workspaceId === this.activeWorkspaceId);
+      this.activeSessionId = wsSessions[0]?.id || null;
+    }
+  }
+
+  // Selection Mode Actions
+  toggleSelectionMode(enabled?: boolean): void {
+    this.isSelectionMode = enabled !== undefined ? enabled : !this.isSelectionMode;
+    if (!this.isSelectionMode) {
+      this.selectedSessionIds = new Set();
+    }
+  }
+
+  toggleSessionSelected(sessionId: string): void {
+    const next = new Set(this.selectedSessionIds);
+    if (next.has(sessionId)) {
+      next.delete(sessionId);
+    } else {
+      next.add(sessionId);
+    }
+    this.selectedSessionIds = next;
+  }
+
+  selectAllSessions(): void {
+    const currentSessions = this.activeWorkspaceSessions;
+    const allIds = currentSessions.map((s) => s.id);
+    this.selectedSessionIds = new Set(allIds);
+  }
+
+  deselectAllSessions(): void {
+    this.selectedSessionIds = new Set();
+  }
+
+  deleteSelectedSessions(): void {
+    if (this.selectedSessionIds.size === 0) return;
+    const idsToDelete = new Set(this.selectedSessionIds);
+    this.sessions = this.sessions.filter((s) => !idsToDelete.has(s.id));
+    this.selectedSessionIds = new Set();
+    this.isSelectionMode = false;
+
+    // Check if active session was deleted
+    const currentWsSessions = this.activeWorkspaceSessions;
+    if (currentWsSessions.length === 0) {
+      this.createSession();
+    } else if (!this.activeSessionId || idsToDelete.has(this.activeSessionId)) {
+      this.activeSessionId = currentWsSessions[0].id;
+    }
+  }
+
+  // Session Actions
+  createSession(title?: string, wsId?: string): Session {
+    const newSession = this.createNewSessionModel(title, wsId);
     this.sessions.push(newSession);
     this.activeSessionId = newSession.id;
     return newSession;
@@ -196,9 +334,11 @@ class SessionStore {
     if (this.activeSessionId === id) return;
     const target = this.sessions.find((s) => s.id === id);
     if (target) {
-      // Clean switch: reset visible turns to default 10-turn window on switch
       target.visibleTurnCount = DEFAULT_WINDOW_TURNS;
       this.activeSessionId = id;
+      if (target.workspaceId && target.workspaceId !== this.activeWorkspaceId) {
+        this.activeWorkspaceId = target.workspaceId;
+      }
     }
   }
 
@@ -206,20 +346,20 @@ class SessionStore {
     const index = this.sessions.findIndex((s) => s.id === id);
     if (index === -1) return;
 
+    const wsId = this.sessions[index].workspaceId;
     this.sessions.splice(index, 1);
 
-    if (this.sessions.length === 0) {
-      const fallback = this.createNewSessionModel('New Session');
-      this.sessions = [fallback];
+    const remainingInWs = this.sessions.filter((s) => s.workspaceId === wsId);
+    if (remainingInWs.length === 0) {
+      const fallback = this.createNewSessionModel('New Task', wsId);
+      this.sessions.push(fallback);
       this.activeSessionId = fallback.id;
       return;
     }
 
     if (this.activeSessionId === id) {
-      // Switch to nearest neighbor
-      const nextIndex = Math.min(index, this.sessions.length - 1);
-      this.activeSessionId = this.sessions[nextIndex].id;
-      this.sessions[nextIndex].visibleTurnCount = DEFAULT_WINDOW_TURNS;
+      this.activeSessionId = remainingInWs[0].id;
+      remainingInWs[0].visibleTurnCount = DEFAULT_WINDOW_TURNS;
     }
   }
 
@@ -237,17 +377,16 @@ class SessionStore {
 
     const forked: Session = {
       id: 'sess_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36),
+      workspaceId: source.workspaceId,
       title: `${source.title} (Fork)`,
       status: 'idle',
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      // Deep clone messages
       messages: JSON.parse(JSON.stringify(source.messages)),
       visibleTurnCount: DEFAULT_WINDOW_TURNS,
       pendingPermission: null
     };
 
-    // Insert next to the source session
     const sourceIndex = this.sessions.findIndex((s) => s.id === id);
     this.sessions.splice(sourceIndex + 1, 0, forked);
     this.activeSessionId = forked.id;
@@ -296,7 +435,7 @@ class SessionStore {
 
     const total = this.totalUserTurns;
     if (session.visibleTurnCount >= total) {
-      return false; // All turns already visible
+      return false;
     }
 
     session.visibleTurnCount = Math.min(total, session.visibleTurnCount + chunk);
@@ -360,19 +499,9 @@ class SessionStore {
   updateLastMessage(sessionId: string, updater: (msg: ChatMessage) => void): void {
     const session = this.sessions.find((s) => s.id === sessionId);
     if (!session || session.messages.length === 0) return;
-    const lastMsg = session.messages[session.messages.length - 1];
-    updater(lastMsg);
+    const last = session.messages[session.messages.length - 1];
+    updater(last);
     session.updatedAt = Date.now();
-  }
-
-  clearMessages(sessionId: string): void {
-    const session = this.sessions.find((s) => s.id === sessionId);
-    if (session) {
-      session.messages = [];
-      session.visibleTurnCount = DEFAULT_WINDOW_TURNS;
-      session.pendingPermission = null;
-      session.updatedAt = Date.now();
-    }
   }
 }
 

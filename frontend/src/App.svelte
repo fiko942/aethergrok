@@ -9,6 +9,7 @@
   import PermissionModal from '$lib/components/chat/PermissionModal.svelte';
   import SkillCatalog from '$lib/components/skills/SkillCatalog.svelte';
   import SettingsModal from '$lib/components/layout/SettingsModal.svelte';
+  import WorkspaceSidebar from '$lib/components/layout/WorkspaceSidebar.svelte';
   import ScreenFlash from '$lib/components/snapshot/ScreenFlash.svelte';
   import { playCameraShutterSound } from '$lib/utils/audio';
   import { settingsStore } from '$lib/stores/settings.svelte';
@@ -554,83 +555,37 @@
 
   <!-- Main Layout Grid -->
   <div class="flex flex-1 overflow-hidden">
-    <!-- Left Sidebar: Session & Capability Navigation -->
-    <aside class="w-64 bg-ant-bg-secondary border-r border-ant-border flex flex-col justify-between p-3 space-y-4">
-      <div class="space-y-4">
-        <div>
-          <div class="text-[11px] font-semibold tracking-wider text-ant-text-muted uppercase px-2 mb-2">
-            Workspace
-          </div>
-          <div class="space-y-1">
-            <button class="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-md bg-ant-primary/15 text-ant-primary font-medium text-xs border border-ant-primary/30">
-              <Bot size={15} />
-              <span class="truncate">{sessionStore.activeSession?.title || 'Active Session'}</span>
-            </button>
-            <button class="w-full flex items-center space-x-2.5 px-2.5 py-2 rounded-md hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-text transition text-xs">
-              <Terminal size={15} />
-              <span class="truncate">Background Task Runner</span>
-            </button>
-          </div>
-        </div>
-
-        <div>
-          <div class="text-[11px] font-semibold tracking-wider text-ant-text-muted uppercase px-2 mb-2">
-            Engine Controls
-          </div>
-          <div class="p-3 bg-ant-bg rounded-lg border border-ant-border-secondary space-y-3">
-            <div class="flex items-center justify-between text-xs">
-              <span class="text-ant-text-secondary flex items-center">
-                <Camera size={13} class="mr-1.5 text-ant-text-muted" /> Auto-Hide Window
-              </span>
-              <Switch bind:checked={autoHideWindow} size="small" />
-            </div>
-
-            <div class="flex items-center justify-between text-xs pt-1 border-t border-ant-border/40">
-              <span class="text-ant-text-secondary flex items-center">
-                <Volume2 size={13} class="mr-1.5 text-ant-text-muted" /> Shutter Audio
-              </span>
-              <Switch bind:checked={settingsStore.snapshotSoundEnabled} size="small" />
-            </div>
-
-            <div class="text-xs space-y-1 pt-1 border-t border-ant-border/40">
-              <div class="text-ant-text-secondary flex items-center justify-between">
-                <span class="flex items-center"><SlidersHorizontal size={13} class="mr-1.5 text-ant-text-muted" /> Reasoning Effort</span>
-                <span class="text-ant-primary font-semibold uppercase text-[10px]">{reasoningEffort}</span>
-              </div>
-              <div class="grid grid-cols-3 gap-1 pt-1">
-                {#each ['low', 'medium', 'high'] as effort}
-                  <button
-                    class="py-1 text-[11px] rounded font-medium transition {reasoningEffort === effort ? 'bg-ant-primary text-white' : 'bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-text'}"
-                    onclick={() => reasoningEffort = effort as 'low' | 'medium' | 'high'}
-                  >
-                    {effort}
-                  </button>
-                {/each}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <div class="text-[11px] font-semibold tracking-wider text-ant-text-muted uppercase px-2 mb-2">
-            Active Security Mode
-          </div>
-          <div class="p-2.5 bg-ant-bg rounded-lg border border-ant-border-secondary flex items-center space-x-2">
-            <Shield size={16} class="text-ant-success flex-shrink-0" />
-            <div class="min-w-0 flex-1">
-              <div class="text-xs font-semibold text-white capitalize">{settingsStore.permissionMode}</div>
-              <div class="text-[10px] text-ant-text-muted truncate">Guarded Tool Confirmations</div>
-            </div>
-          </div>
-        </div>
+    <!-- Left Sidebar: Workspace & Session Management -->
+    <aside class="w-72 bg-ant-bg-secondary border-r border-ant-border flex flex-col justify-between p-3 overflow-hidden">
+      <!-- Workspace Folders & Sessions List -->
+      <div class="flex-1 overflow-hidden min-h-0">
+        <WorkspaceSidebar />
       </div>
 
-      <div class="p-2.5 bg-ant-bg rounded-lg border border-ant-border flex items-center justify-between text-xs">
-        <div class="flex items-center space-x-2">
-          <Code2 size={14} class="text-ant-primary" />
-          <span class="text-ant-text-secondary text-[11px]">Diff Previewer</span>
+      <!-- Compact Engine Controls & Diff Status Footer -->
+      <div class="pt-3 mt-2 border-t border-ant-border-secondary space-y-2 flex-shrink-0">
+        <div class="p-2.5 bg-ant-bg rounded-lg border border-ant-border-secondary space-y-2 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-ant-text-secondary flex items-center">
+              <Camera size={13} class="mr-1.5 text-ant-text-muted" /> Auto-Hide
+            </span>
+            <Switch bind:checked={autoHideWindow} size="small" />
+          </div>
+          <div class="flex items-center justify-between pt-1.5 border-t border-ant-border/40">
+            <span class="text-ant-text-secondary flex items-center">
+              <Volume2 size={13} class="mr-1.5 text-ant-text-muted" /> Cekrek Sound
+            </span>
+            <Switch bind:checked={settingsStore.snapshotSoundEnabled} size="small" />
+          </div>
         </div>
-        <Badge status="success" />
+
+        <div class="p-2 bg-ant-bg rounded-lg border border-ant-border flex items-center justify-between text-xs">
+          <div class="flex items-center space-x-2">
+            <Code2 size={13} class="text-ant-primary" />
+            <span class="text-ant-text-secondary text-[11px]">Diff Previewer</span>
+          </div>
+          <Badge status="success" />
+        </div>
       </div>
     </aside>
 

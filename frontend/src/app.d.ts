@@ -72,6 +72,8 @@ declare global {
           CaptureScreenExcludingSelf: (delayMs: number) => Promise<SnapshotResult>;
           GetInstalledSkills: () => Promise<SkillItem[]>;
           SearchSkills: (query: string, category: string) => Promise<SkillItem[]>;
+          SelectWorkspaceDirectory: () => Promise<string>;
+          SaveMarkdownExport: (defaultFilename: string, content: string) => Promise<string>;
         };
       };
     };
