@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { X, Code, Eye, Copy, Check, FileText } from 'lucide-svelte';
+  import { X, Code, Eye, Copy, Check, FileText, AlertTriangle, FileWarning, ArrowRight } from 'lucide-svelte';
   import FileIcon from './FileIcon.svelte';
 
   let {
@@ -17,6 +17,8 @@
   let content = $state('');
   let isLoading = $state(false);
   let errorMsg = $state('');
+  let isLargeFilePending = $state(false);
+  let largeFileSize = $state(0);
   let viewMode = $state<'code' | 'preview'>('code'); // for markdown
   let copied = $state(false);
 
@@ -24,22 +26,44 @@
   const fileName = $derived(filePath ? filePath.split('/').pop() || filePath : '');
   const ext = $derived(fileName.includes('.') ? '.' + fileName.split('.').pop() : '');
 
-  async function loadFileContent() {
+  function formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  async function loadFileContent(allowLarge: boolean = false) {
     if (!filePath || !workspacePath) return;
     isLoading = true;
     errorMsg = '';
-    content = '';
+    if (!allowLarge) {
+      content = '';
+      isLargeFilePending = false;
+      largeFileSize = 0;
+    }
 
     try {
       const win = window as any;
       if (win.go?.main?.App?.ReadWorkspaceFileContent) {
-        const text = await win.go.main.App.ReadWorkspaceFileContent(workspacePath, filePath);
+        const text = await win.go.main.App.ReadWorkspaceFileContent(workspacePath, filePath, allowLarge);
         content = text;
+        isLargeFilePending = false;
       } else {
         errorMsg = 'Backend bridge not available';
       }
     } catch (err: any) {
-      errorMsg = err?.toString() || 'Failed to read file';
+      const errStr = err?.toString() || '';
+      if (errStr.includes('LARGE_FILE_CONFIRM_REQUIRED:')) {
+        const match = errStr.match(/LARGE_FILE_CONFIRM_REQUIRED:(\d+)/);
+        if (match) {
+          largeFileSize = parseInt(match[1], 10);
+        }
+        isLargeFilePending = true;
+      } else {
+        errorMsg = errStr || 'Failed to read file';
+      }
     } finally {
       isLoading = false;
     }
@@ -47,7 +71,9 @@
 
   $effect(() => {
     if (isOpen && filePath) {
-      loadFileContent();
+      isLargeFilePending = false;
+      largeFileSize = 0;
+      loadFileContent(false);
       if (isMarkdown) {
         viewMode = 'preview';
       } else {
@@ -117,7 +143,7 @@
         </div>
 
         <div class="flex items-center gap-2 shrink-0">
-          {#if isMarkdown}
+          {#if isMarkdown && !isLargeFilePending && !errorMsg}
             <div class="flex items-center bg-[#1e1e22] border border-[#27272a] rounded-lg p-0.5 text-xs">
               <button
                 onclick={() => (viewMode = 'preview')}
@@ -136,19 +162,21 @@
             </div>
           {/if}
 
-          <button
-            onclick={copyContent}
-            title="Copy Content"
-            class="flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg border border-[#27272a] bg-[#1e1e22] text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors"
-          >
-            {#if copied}
-              <Check class="w-3.5 h-3.5 text-emerald-400" />
-              <span>Copied</span>
-            {:else}
-              <Copy class="w-3.5 h-3.5 text-zinc-400" />
-              <span>Copy</span>
-            {/if}
-          </button>
+          {#if !isLargeFilePending && content}
+            <button
+              onclick={copyContent}
+              title="Copy Content"
+              class="flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg border border-[#27272a] bg-[#1e1e22] text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors"
+            >
+              {#if copied}
+                <Check class="w-3.5 h-3.5 text-emerald-400" />
+                <span>Copied</span>
+              {:else}
+                <Copy class="w-3.5 h-3.5 text-zinc-400" />
+                <span>Copy</span>
+              {/if}
+            </button>
+          {/if}
 
           <button
             onclick={onClose}
@@ -165,6 +193,38 @@
         {#if isLoading}
           <div class="flex items-center justify-center h-full text-zinc-500">
             <span class="animate-pulse">Loading file content...</span>
+          </div>
+        {:else if isLargeFilePending}
+          <!-- Large File Confirmation Box -->
+          <div class="flex flex-col items-center justify-center h-full p-6 text-center max-w-lg mx-auto animate-in fade-in duration-200">
+            <div class="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-4 text-amber-400 shadow-lg shadow-amber-500/5">
+              <FileWarning class="w-6 h-6" />
+            </div>
+            
+            <h3 class="text-base font-semibold text-zinc-100 mb-1.5 font-sans">
+              Ukuran Berkas Cukup Besar
+            </h3>
+            
+            <p class="text-xs text-zinc-400 mb-6 leading-relaxed">
+              Berkas <span class="font-mono text-zinc-200 font-semibold">{fileName}</span> berukuran <span class="text-amber-400 font-mono font-semibold">{formatBytes(largeFileSize)}</span>. Membuka berkas berukuran besar dapat membutuhkan waktu render lebih lama.
+            </p>
+
+            <div class="flex items-center gap-3">
+              <button
+                onclick={onClose}
+                class="px-4 py-2 text-xs font-medium rounded-lg border border-[#27272a] bg-[#1a1a1d] text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors"
+              >
+                Batal
+              </button>
+
+              <button
+                onclick={() => loadFileContent(true)}
+                class="px-4 py-2 text-xs font-medium rounded-lg bg-amber-600 hover:bg-amber-500 text-white shadow-lg shadow-amber-600/20 transition-all flex items-center gap-1.5"
+              >
+                <span>Tetap Buka Berkas</span>
+                <ArrowRight class="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         {:else if errorMsg}
           <div class="flex items-center justify-center h-full text-rose-400 text-xs font-mono p-4">
@@ -213,7 +273,13 @@
       <!-- Footer -->
       <div class="px-4 py-2 border-t border-[#27272a] bg-[#141416] flex items-center justify-between text-[11px] text-zinc-500 font-mono shrink-0">
         <span>Read-Only Mode</span>
-        <span>{content.split('\n').length} lines &bull; {content.length} bytes</span>
+        {#if !isLargeFilePending && content}
+          <span>{content.split('\n').length} lines &bull; {formatBytes(content.length)}</span>
+        {:else if isLargeFilePending}
+          <span class="text-amber-400/80">{formatBytes(largeFileSize)}</span>
+        {:else}
+          <span>0 lines</span>
+        {/if}
       </div>
     </div>
   </div>

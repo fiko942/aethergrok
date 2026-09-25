@@ -389,9 +389,9 @@ func (a *App) ReadWorkspaceDirectory(workspacePath, relativeDir string) ([]works
 	return workspace.ReadDirectory(workspacePath, relativeDir)
 }
 
-// ReadWorkspaceFileContent reads a file's content up to 1MB for read-only preview
-func (a *App) ReadWorkspaceFileContent(workspacePath, relativePath string) (string, error) {
-	return workspace.ReadFileContent(workspacePath, relativePath)
+// ReadWorkspaceFileContent reads a file's content with safety checks and confirmation flags
+func (a *App) ReadWorkspaceFileContent(workspacePath, relativePath string, allowLarge bool) (string, error) {
+	return workspace.ReadFileContent(workspacePath, relativePath, allowLarge)
 }
 
 // GetWorkspaceGitStatus returns the branch, modified files, and diff stat

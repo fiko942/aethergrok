@@ -52,7 +52,7 @@ export function PushWorkspaceChanges(arg1:string):Promise<string>;
 
 export function ReadWorkspaceDirectory(arg1:string,arg2:string):Promise<Array<workspace.FileItem>>;
 
-export function ReadWorkspaceFileContent(arg1:string,arg2:string):Promise<string>;
+export function ReadWorkspaceFileContent(arg1:string,arg2:string,arg3:boolean):Promise<string>;
 
 export function RespondPermission(arg1:grokrunner.PermissionResponse):Promise<void>;
 

@@ -104,21 +104,34 @@ func ReadDirectory(workspacePath, relativeDir string) ([]FileItem, error) {
 	return results, nil
 }
 
-// ReadFileContent reads file content as text, capped at 1MB to prevent memory explosion
-func ReadFileContent(workspacePath, relativePath string) (string, error) {
+// ReadFileContent reads file content as text. If maxBytes > 0 it caps, if 0 it reads up to 50MB
+func ReadFileContent(workspacePath, relativePath string, allowLarge bool) (string, error) {
 	fullPath := filepath.Join(workspacePath, relativePath)
 	info, err := os.Stat(fullPath)
 	if err != nil {
 		return "", err
 	}
 
-	if info.Size() > 1024*1024 {
-		return "", fmt.Errorf("file size (%d bytes) exceeds 1MB preview limit", info.Size())
+	// 1MB threshold for confirmation requirement
+	const standardLimit = 1024 * 1024 // 1MB
+	const absoluteHardLimit = 50 * 1024 * 1024 // 50MB absolute safeguard
+
+	if info.Size() > standardLimit && !allowLarge {
+		return "", fmt.Errorf("LARGE_FILE_CONFIRM_REQUIRED:%d", info.Size())
+	}
+
+	if info.Size() > absoluteHardLimit {
+		return "", fmt.Errorf("file size (%d bytes) exceeds absolute 50MB system limit", info.Size())
 	}
 
 	data, err := os.ReadFile(fullPath)
 	if err != nil {
 		return "", err
+	}
+
+	// If file contains binary null byte, return notice instead of scrambled text
+	if bytes.IndexByte(data, 0) != -1 {
+		return fmt.Sprintf("[Binary File Notice]\nFile '%s' is a binary file (%d bytes). Text preview is not supported.", filepath.Base(relativePath), len(data)), nil
 	}
 
 	return string(data), nil
