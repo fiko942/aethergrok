@@ -1,11 +1,13 @@
 <script lang="ts">
   import { sessionStore } from '$lib/stores/session.svelte';
   import { formatMultipleSessionsAsMarkdown, downloadOrSaveMarkdown } from '$lib/utils/markdownExport';
-  import { CheckSquare, Square, Download, Trash2, X, Check } from 'lucide-svelte';
+  import { Download, Trash2, X } from 'lucide-svelte';
+  import CustomCheckbox from '$lib/components/ui/CustomCheckbox.svelte';
 
   const selectedCount = $derived(sessionStore.selectedSessionIds.size);
   const totalCount = $derived(sessionStore.activeWorkspaceSessions.length);
   const isAllSelected = $derived(totalCount > 0 && selectedCount === totalCount);
+  const isIndeterminate = $derived(selectedCount > 0 && selectedCount < totalCount);
 
   let isExporting = $state(false);
   let actionFeedback = $state<string | null>(null);
@@ -72,16 +74,11 @@
       <div class="flex items-center space-x-2">
         <button
           onclick={handleToggleSelectAll}
-          class="flex items-center space-x-1.5 text-xs text-zinc-300 hover:text-white font-medium transition"
+          class="flex items-center space-x-2 text-xs text-zinc-300 hover:text-white font-medium transition group"
           title={isAllSelected ? 'Deselect all sessions' : 'Select all sessions in workspace'}
         >
-          {#if isAllSelected}
-            <CheckSquare size={14} class="text-indigo-400" />
-            <span>Deselect All</span>
-          {:else}
-            <Square size={14} class="text-zinc-500" />
-            <span>Select All</span>
-          {/if}
+          <CustomCheckbox checked={isAllSelected} indeterminate={isIndeterminate} size="sm" />
+          <span>{isAllSelected ? 'Deselect All' : 'Select All'}</span>
         </button>
       </div>
 

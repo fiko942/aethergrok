@@ -29,6 +29,7 @@
     AlertCircle,
     CheckCircle2
   } from 'lucide-svelte';
+  import CustomCheckbox from '$lib/components/ui/CustomCheckbox.svelte';
 
   let activeDropdownId = $state<string | null>(null);
   let activeDropdownCoords = $state<{ top: number; right: number } | null>(null);
@@ -603,13 +604,9 @@
                         <button
                           type="button"
                           onclick={(e) => { e.stopPropagation(); sessionStore.toggleSessionSelected(session.id); }}
-                          class="flex-shrink-0 text-ant-primary"
+                          class="flex-shrink-0"
                         >
-                          {#if isChecked}
-                            <CheckSquare size={14} class="text-ant-primary" />
-                          {:else}
-                            <Square size={14} class="text-ant-text-muted" />
-                          {/if}
+                          <CustomCheckbox checked={isChecked} size="sm" />
                         </button>
                       {:else if session.status === 'working'}
                         <span class="flex items-center justify-center flex-shrink-0 text-ant-primary" title="Status: Working / Generating...">
