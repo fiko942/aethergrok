@@ -67,31 +67,31 @@
 </script>
 
 {#if sessionStore.isSelectionMode}
-  <div class="p-2.5 bg-ant-bg border border-ant-primary/25 rounded-lg shadow-xl shadow-black/40 space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
+  <div class="p-2.5 bg-[#18181b] border border-[#27272a] rounded-xl shadow-2xl space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
     <div class="flex items-center justify-between">
       <div class="flex items-center space-x-2">
         <button
           onclick={handleToggleSelectAll}
-          class="flex items-center space-x-1.5 text-xs text-ant-primary hover:text-ant-primary-hover font-medium transition"
+          class="flex items-center space-x-1.5 text-xs text-zinc-300 hover:text-white font-medium transition"
           title={isAllSelected ? 'Deselect all sessions' : 'Select all sessions in workspace'}
         >
           {#if isAllSelected}
-            <CheckSquare size={14} class="text-ant-primary" />
+            <CheckSquare size={14} class="text-indigo-400" />
             <span>Deselect All</span>
           {:else}
-            <Square size={14} class="text-ant-text-secondary" />
+            <Square size={14} class="text-zinc-500" />
             <span>Select All</span>
           {/if}
         </button>
       </div>
 
       <div class="flex items-center space-x-1.5">
-        <span class="px-2 py-0.5 text-[11px] font-semibold bg-ant-primary/20 text-ant-primary rounded-full border border-ant-primary/30">
+        <span class="px-2 py-0.5 text-[11px] font-mono font-medium bg-[#222226] text-zinc-300 rounded-md border border-[#2e2e34]">
           {selectedCount} selected
         </span>
         <button
           onclick={handleCancelSelection}
-          class="p-1 text-ant-text-muted hover:text-white rounded hover:bg-ant-bg-tertiary transition"
+          class="p-1 text-zinc-500 hover:text-zinc-200 rounded hover:bg-zinc-800 transition"
           title="Close Selection Mode"
         >
           <X size={14} />
@@ -100,28 +100,28 @@
     </div>
 
     <!-- Batch action buttons -->
-    <div class="grid grid-cols-2 gap-2 pt-1 border-t border-white/5">
+    <div class="grid grid-cols-2 gap-2 pt-1.5 border-t border-[#27272a]">
       <button
         onclick={handleBatchExport}
         disabled={selectedCount === 0 || isExporting}
-        class="flex items-center justify-center space-x-1.5 px-2 py-1.5 rounded-md text-xs font-medium bg-ant-primary/20 hover:bg-ant-primary/30 text-ant-primary border border-ant-primary/25 transition disabled:opacity-40 disabled:pointer-events-none"
+        class="flex items-center justify-center space-x-1.5 px-2 py-1.5 rounded-lg text-xs font-medium bg-[#222226] hover:bg-zinc-800 text-zinc-200 border border-transparent hover:border-zinc-700 transition disabled:opacity-40 disabled:pointer-events-none"
       >
-        <Download size={13} />
+        <Download size={13} class="text-zinc-400" />
         <span>{isExporting ? 'Exporting...' : 'Export (.md)'}</span>
       </button>
 
       <button
         onclick={handleBatchDelete}
         disabled={selectedCount === 0}
-        class="flex items-center justify-center space-x-1.5 px-2 py-1.5 rounded-md text-xs font-medium bg-ant-error/15 hover:bg-ant-error/25 text-ant-error border border-ant-error/25 transition disabled:opacity-40 disabled:pointer-events-none"
+        class="flex items-center justify-center space-x-1.5 px-2 py-1.5 rounded-lg text-xs font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-transparent hover:border-rose-500/30 transition disabled:opacity-40 disabled:pointer-events-none"
       >
-        <Trash2 size={13} />
+        <Trash2 size={13} class="text-rose-400" />
         <span>Delete</span>
       </button>
     </div>
 
     {#if actionFeedback}
-      <div class="text-[11px] text-ant-success text-center font-medium bg-ant-success/10 py-1 rounded border border-ant-success/20">
+      <div class="text-[11px] text-emerald-400 text-center font-medium bg-emerald-950/40 py-1 rounded border border-emerald-800/30">
         {actionFeedback}
       </div>
     {/if}

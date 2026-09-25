@@ -872,19 +872,19 @@
 
           {#if isWorking}
             <!-- Live Elapsed Execution Timer -->
-            <div class="flex items-center space-x-1.5 px-2 py-0.5 rounded-md bg-ant-primary/10 border border-ant-primary/25 text-ant-primary text-[11px] font-mono shadow-sm animate-pulse">
-              <Timer size={11} class="animate-spin text-ant-primary" />
+            <div class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-[#1a1a1d] text-zinc-300 text-[11px] font-mono shadow-inner">
+              <Timer size={11} class="animate-spin text-indigo-400" />
               <span class="font-medium">{formatElapsed(elapsedSeconds)}</span>
             </div>
 
             <!-- Stop/Cancel Execution Button -->
             <button
               type="button"
-              class="w-7 h-7 rounded-lg flex items-center justify-center bg-ant-error text-white hover:bg-ant-error-hover transition shadow-sm"
+              class="w-7 h-7 rounded-lg flex items-center justify-center bg-rose-600/90 text-white hover:bg-rose-500 transition shadow-sm"
               onclick={onCancel}
               title="Stop turn execution"
             >
-              <Square size={12} class="fill-current" />
+              <Square size={11} class="fill-current" />
             </button>
           {:else}
             <!-- Send Button (Blue circle / rounded up arrow) -->
