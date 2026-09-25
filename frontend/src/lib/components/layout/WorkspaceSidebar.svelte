@@ -494,7 +494,6 @@
       {@const isExpanded = ws.isExpanded === true}
       {@const { visible, totalCount, hasMore, hiddenCount } = getWorkspaceSessions(ws.id)}
       {@const isMissing = ws.existsOnDisk === false}
-      {@const isListExpanded = expandedWorkspaceSessionIds.has(ws.id)}
 
       <div class="rounded-lg {isMissing ? 'bg-rose-500/5 border border-rose-500/20' : 'bg-ant-bg-tertiary/20 border border-white/5'} overflow-hidden">
         <!-- Workspace Folder Header -->

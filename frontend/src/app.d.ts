@@ -1,10 +1,15 @@
 /// <reference types="svelte" />
 /// <reference types="vite/client" />
 
+declare global {
+  const __APP_VERSION__: string;
+}
+
 export interface SnapshotResult {
   filePath: string;
   dataUrl: string;
-  base64: string;
+  base64?: string;
+  sizeBytes?: number;
   width?: number;
   height?: number;
   timestamp: number;
@@ -45,6 +50,39 @@ export interface SkillItem {
   prompt?: string;
 }
 
+export interface DiscoveredSkill {
+  name: string;
+  description: string;
+  category: string;
+  tags?: string[];
+  relativePath: string;
+  skillFile: string;
+  prereqs: string[];
+  commands: string[];
+}
+
+export interface SkillAnalysisResult {
+  repoUrl: string;
+  repoName: string;
+  tempPath: string;
+  skills: DiscoveredSkill[];
+  globalPrereqs: string[];
+  suggestedScripts: string[];
+}
+
+export interface SkillInstallPayload {
+  tempPath: string;
+  skillPaths: string[];
+  targetScope: 'grok' | 'agents';
+}
+
+export interface SkillInstallResult {
+  success: boolean;
+  installedCount: number;
+  installedPaths: string[];
+  errors?: string[];
+}
+
 declare global {
   interface Window {
     runtime?: {
@@ -60,11 +98,13 @@ declare global {
       WindowShow: () => void;
       WindowClose: () => void;
       Quit: () => void;
+      BrowserOpenURL: (url: string) => void;
     };
     go?: {
       main?: {
         App?: {
           Greet: (name: string) => Promise<string>;
+          OpenExternalURL: (targetURL: string) => Promise<void>;
           RunPromptStream: (req: PromptRequestPayload) => Promise<void>;
           RespondPermission: (resp: PermissionResponsePayload) => Promise<void>;
           CancelSession: (sessionId: string) => Promise<void>;
@@ -73,6 +113,7 @@ declare global {
           GetInstalledSkills: () => Promise<SkillItem[]>;
           SearchSkills: (query: string, category: string) => Promise<SkillItem[]>;
           SelectWorkspaceDirectory: () => Promise<string>;
+          CheckDirectoryExists: (dirPath: string) => Promise<boolean>;
           SaveMarkdownExport: (defaultFilename: string, content: string) => Promise<string>;
           GetAvailableModels: () => Promise<Array<{ id: string; name: string; description: string; isDefault: boolean }>>;
           DiscoverGrokSessions: (workspacePath: string) => Promise<Array<{ id: string; title: string; createdAt: number; updatedAt: number }>>;
@@ -80,6 +121,13 @@ declare global {
           DeleteGrokSession: (workspacePath: string, sessionId: string) => Promise<void>;
           GetSessionUsage: (workspacePath: string, sessionID: string) => Promise<any>;
           CompactSession: (workspacePath: string, sessionID: string) => Promise<any>;
+          ScanGitHubSkills: (repoURL: string) => Promise<SkillAnalysisResult>;
+          InstallDiscoveredSkills: (payload: SkillInstallPayload) => Promise<SkillInstallResult>;
+          CleanupSkillImportTemp: (tempPath: string) => Promise<void>;
+          ExecuteSkillSetupCommand: (workDir: string, commandLine: string) => Promise<void>;
+          RevertWorkspaceFiles: (workspacePath: string, filePaths: string[]) => Promise<void>;
+          CheckAndRequestAccessibilityPermissions: () => Promise<{ granted: boolean; message: string; platform: string }>;
+          OpenAccessibilitySettings: () => Promise<void>;
         };
       };
     };

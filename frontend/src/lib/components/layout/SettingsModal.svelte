@@ -34,6 +34,7 @@
   import Card from '$lib/antd/Card.svelte';
   import Switch from '$lib/antd/Switch.svelte';
   import Badge from '$lib/antd/Badge.svelte';
+  import KeyRecorderModal from '$lib/components/ui/KeyRecorderModal.svelte';
 
   let {
     visible = false,
@@ -63,6 +64,16 @@
 
   let isRecordingShortcut = $state(false);
   let saveSuccessNotice = $state(false);
+
+  function openExternal(url: string) {
+    if (window.go?.main?.App?.OpenExternalURL) {
+      window.go.main.App.OpenExternalURL(url);
+    } else if (window.runtime?.BrowserOpenURL) {
+      window.runtime.BrowserOpenURL(url);
+    } else {
+      window.open(url, '_blank');
+    }
+  }
 
   $effect(() => {
     if (visible) {
@@ -165,15 +176,25 @@
     }
   };
 
-  const keyboardShortcuts = [
-    { key: '⌘ / Ctrl + Enter', action: 'Send message / Submit turn in composer', scope: 'Composer' },
-    { key: 'Esc', action: 'Dismiss modal / Clear active overlay dialog', scope: 'Global' },
-    { key: '⌘ / Ctrl + K', action: 'Open Skills & MCP discovery catalog', scope: 'Global' },
-    { key: '⌘ / Ctrl + ,', action: 'Open Settings modal', scope: 'Global' },
-    { key: '⌘ / Ctrl + T', action: 'Create a new conversation session tab', scope: 'Tabs' },
-    { key: '⌘ / Ctrl + W', action: 'Close current session tab', scope: 'Tabs' },
-    { key: '⌘ / Ctrl + Shift + S', action: 'Trigger instantaneous smart screen snapshot', scope: 'Screen' },
-    { key: '⌘ / Ctrl + R', action: 'Re-run or retry last agent turn', scope: 'Conversation' }
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
+  interface ShortcutItem {
+    keys: string[];
+    action: string;
+    scope: string;
+  }
+
+  const keyboardShortcuts: ShortcutItem[] = [
+    { keys: [isMac ? '⌘' : 'Ctrl', 'Enter'], action: 'Send message / Submit turn in composer', scope: 'Composer' },
+    { keys: ['Esc'], action: 'Dismiss modal / Clear active overlay dialog', scope: 'Global' },
+    { keys: [isMac ? '⌘' : 'Ctrl', 'K'], action: 'Open Skills & MCP discovery catalog', scope: 'Global' },
+    { keys: [isMac ? '⌘' : 'Ctrl', ','], action: 'Open Settings & Preferences modal', scope: 'Global' },
+    { keys: [isMac ? '⌘' : 'Ctrl', 'T'], action: 'Create a new conversation session tab', scope: 'Tabs' },
+    { keys: [isMac ? '⌘' : 'Ctrl', 'W'], action: 'Close current session tab', scope: 'Tabs' },
+    { keys: [isMac ? '⌘' : 'Ctrl', '1-8'], action: 'Switch to session tab 1 through 8', scope: 'Tabs' },
+    { keys: [isMac ? '⌘' : 'Ctrl', '9'], action: 'Switch to the last open session tab', scope: 'Tabs' },
+    { keys: [isMac ? '⌘' : 'Ctrl', 'Shift', 'S'], action: 'Trigger instantaneous smart screen snapshot', scope: 'Screen' },
+    { keys: [isMac ? '⌘' : 'Ctrl', 'R'], action: 'Re-run or retry last agent turn', scope: 'Conversation' }
   ];
 
   function handleThemeChange(t: ThemeMode) {
@@ -258,9 +279,15 @@
           <div>
             <h2 id="settings-modal-title" class="font-serif-display text-base font-semibold text-ant-text tracking-tight flex items-center gap-2">
               Settings & Workspace Preferences
-              <span class="px-2 py-0.5 text-[10px] font-serif font-medium bg-ant-primary/15 text-ant-primary rounded-full">
-                AetherGrok Studio
-              </span>
+              <button
+                type="button"
+                onclick={() => openExternal('https://github.com/fiko942/grok-build')}
+                class="px-2 py-0.5 text-[10px] font-serif font-medium bg-ant-primary/15 hover:bg-ant-primary/25 text-ant-primary rounded-full transition cursor-pointer flex items-center gap-1 border-0"
+                title="View AetherGrok repository on GitHub"
+              >
+                <span>AetherGrok Studio</span>
+                <ExternalLink size={10} class="opacity-70" />
+              </button>
             </h2>
             <p class="text-xs text-ant-text-secondary mt-0.5">
               Configure local Grok runtime execution, smart screen snapshot, and theme appearance.
@@ -304,10 +331,18 @@
           {/each}
 
           <div class="mt-auto pt-4 border-t border-white/5 px-2 pb-2">
-            <div class="text-[11px] text-ant-text-secondary font-mono leading-tight">
-              AetherGrok Studio
-              <div class="text-[10px] opacity-60">Build 1.0.0 (Wails/Go)</div>
-            </div>
+            <button
+              type="button"
+              onclick={() => openExternal('https://github.com/fiko942/grok-build')}
+              class="w-full text-left p-1.5 rounded-lg hover:bg-ant-bg-tertiary transition group cursor-pointer"
+              title="Open GitHub repository"
+            >
+              <div class="text-[11px] text-ant-text group-hover:text-ant-primary font-mono leading-tight flex items-center justify-between">
+                <span>AetherGrok Studio</span>
+                <ExternalLink size={10} class="opacity-40 group-hover:opacity-100" />
+              </div>
+              <div class="text-[10px] text-ant-text-muted mt-0.5 font-mono">Build {__APP_VERSION__} (Wails/Go)</div>
+            </button>
           </div>
         </nav>
 
@@ -374,21 +409,27 @@
                           Custom keybinding to trigger native screen capture instantly.
                         </div>
                       </div>
-                      <span class="text-xs font-mono font-bold text-ant-primary bg-ant-primary/10 px-2.5 py-1 rounded">
-                        {editSnapshotShortcut}
-                      </span>
+                      <div class="flex items-center gap-1.5">
+                        {#each (editSnapshotShortcut ? editSnapshotShortcut.split('+') : ['CmdOrCtrl', 'Shift', 'S']) as keySegment}
+                          <kbd class="px-2 py-0.5 text-xs font-mono font-medium text-ant-primary bg-ant-primary/10 rounded">
+                            {keySegment.trim()}
+                          </kbd>
+                        {/each}
+                      </div>
                     </div>
 
                     <div class="flex items-center gap-2">
-                      <input
-                        type="text"
-                        bind:value={editSnapshotShortcut}
-                        placeholder="e.g. CmdOrCtrl+Shift+S"
-                        class="flex-1 px-3 py-1.5 text-xs font-mono bg-ant-bg border border-white/10 rounded-lg text-ant-text focus:outline-none focus:border-ant-primary"
-                      />
                       <button
                         type="button"
-                        class="px-2.5 py-1.5 text-xs rounded-lg border border-white/10 hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-text transition"
+                        onclick={() => isRecordingShortcut = true}
+                        class="flex-1 px-3 py-1.5 text-xs font-serif rounded-lg bg-ant-primary/10 hover:bg-ant-primary/20 text-ant-primary transition flex items-center justify-center gap-2"
+                      >
+                        <Keyboard size={14} />
+                        Record / Change Shortcut
+                      </button>
+                      <button
+                        type="button"
+                        class="px-2.5 py-1.5 text-xs rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-ant-text-secondary hover:text-ant-text transition"
                         onclick={() => editSnapshotShortcut = 'CmdOrCtrl+Shift+S'}
                       >
                         Reset Default
@@ -885,10 +926,10 @@
                 </p>
               </div>
 
-              <div class="border border-white/5 rounded-xl overflow-hidden bg-ant-bg">
+              <div class="rounded-xl overflow-hidden bg-ant-bg">
                 <table class="w-full text-left border-collapse text-xs">
                   <thead>
-                    <tr class="border-b border-white/5 bg-ant-bg-tertiary/40">
+                    <tr class="bg-ant-bg-tertiary/40">
                       <th class="px-4 py-2.5 font-semibold text-ant-text">Key Combination</th>
                       <th class="px-4 py-2.5 font-semibold text-ant-text">Action Trigger</th>
                       <th class="px-4 py-2.5 font-semibold text-ant-text-secondary">Scope</th>
@@ -897,10 +938,21 @@
                   <tbody class="divide-y divide-white/5">
                     {#each keyboardShortcuts as shortcut}
                       <tr class="hover:bg-ant-bg-secondary/40 transition">
-                        <td class="px-4 py-2.5 font-mono text-ant-primary font-medium">{shortcut.key}</td>
-                        <td class="px-4 py-2.5 text-ant-text">{shortcut.action}</td>
+                        <td class="px-4 py-2.5">
+                          <div class="flex items-center gap-1.5 flex-wrap">
+                            {#each shortcut.keys as k, i}
+                              <kbd class="px-2 py-0.5 text-xs font-mono font-medium text-ant-primary bg-ant-primary/10 rounded">
+                                {k}
+                              </kbd>
+                              {#if i < shortcut.keys.length - 1}
+                                <span class="text-[11px] text-ant-text-muted font-mono font-semibold">+</span>
+                              {/if}
+                            {/each}
+                          </div>
+                        </td>
+                        <td class="px-4 py-2.5 text-ant-text font-serif">{shortcut.action}</td>
                         <td class="px-4 py-2.5 text-ant-text-secondary">
-                          <span class="px-2 py-0.5 text-[10px] font-medium bg-ant-bg-tertiary rounded border border-white/5">
+                          <span class="px-2 py-0.5 text-[10px] font-medium bg-white/[0.04] text-ant-text-secondary rounded">
                             {shortcut.scope}
                           </span>
                         </td>
@@ -917,108 +969,92 @@
             <div class="space-y-6 animate-in fade-in duration-100">
               <div>
                 <h3 class="font-serif-display text-base font-semibold text-ant-text flex items-center gap-2">
-                  About AetherGrok Studio
-                  <span class="px-2 py-0.5 text-[10px] font-mono bg-ant-primary/15 text-ant-primary rounded-full">v1.0.0</span>
+                  AetherGrok Studio
+                  <span class="px-2 py-0.5 text-[10px] font-mono bg-ant-primary/15 text-ant-primary rounded-full">v{__APP_VERSION__}</span>
                 </h3>
-                <p class="font-serif text-xs text-ant-text-secondary mt-0.5">
-                  The high-performance, local-first GUI workstation and autonomous orchestrator for Grok CLI.
+                <p class="font-serif text-xs text-ant-text-secondary mt-1">
+                  A tactile, local-first desktop workstation for autonomous Grok CLI workflows.
                 </p>
               </div>
 
-              <!-- Mission & Purpose Card -->
-              <Card>
-                <div class="space-y-3">
-                  <div class="flex items-center gap-2 text-ant-primary">
-                    <Sparkles size={16} />
-                    <span class="text-xs font-semibold text-ant-text">Purpose & Vision</span>
-                  </div>
-                  <p class="font-serif text-xs text-ant-text-secondary leading-relaxed">
-                    AetherGrok was built to transform raw terminal AI tooling into a refined, tactile desktop experience. Rather than being confined to terminal windows or bloated web wrappers, AetherGrok gives developers a native, memory-efficient workspace with non-intrusive smart screen snapshots, Anthropic Serif typography, and precise token management.
-                  </p>
-                  <p class="font-serif text-xs text-ant-text-secondary leading-relaxed">
-                    Designed for engineers who want zero context latency, instant visual debugging, and seamless agent orchestration directly over local project repositories.
-                  </p>
+              <!-- Human Crafted Dedication Card -->
+              <div class="p-4 rounded-xl bg-ant-bg space-y-2">
+                <div class="flex items-center gap-2 text-ant-text text-xs font-serif font-medium">
+                  <Heart size={14} class="text-rose-500 fill-rose-500/20" />
+                  <span>Made with love by Wiji Fiko Teren</span>
                 </div>
-              </Card>
-
-              <!-- Who It Is For Card -->
-              <Card>
-                <div class="space-y-3">
-                  <div class="flex items-center gap-2 text-ant-primary">
-                    <Code2 size={16} />
-                    <span class="text-xs font-semibold text-ant-text">Who Is It For?</span>
-                  </div>
-                  <div class="grid grid-cols-2 gap-3 pt-1">
-                    <div class="p-3 rounded-lg bg-ant-bg border border-white/5 space-y-1">
-                      <div class="text-xs font-bold text-ant-text">Software Engineers</div>
-                      <p class="text-[11px] text-ant-text-secondary leading-normal">
-                        Rapid codebase navigation, automated refactoring, and instant multi-turn diff reviews.
-                      </p>
-                    </div>
-                    <div class="p-3 rounded-lg bg-ant-bg border border-white/5 space-y-1">
-                      <div class="text-xs font-bold text-ant-text">Agent & AI Researchers</div>
-                      <p class="text-[11px] text-ant-text-secondary leading-normal">
-                        Granular control over reasoning effort, context compaction routines, and skill ecosystem imports.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </Card>
+                <p class="font-serif text-xs text-ant-text-secondary leading-relaxed">
+                  Crafted for developers who care about tactile typography, keyboard-driven navigation, and direct access to native tools without heavy cloud wrappers or slow interfaces.
+                </p>
+              </div>
 
               <!-- Open Source & Developer Portfolio Links -->
               <div class="grid grid-cols-2 gap-3.5">
                 <!-- GitHub Repository Card -->
-                <div class="p-4 rounded-xl bg-ant-bg border border-white/5 space-y-3 flex flex-col justify-between hover:border-white/15 transition">
+                <button
+                  type="button"
+                  onclick={() => openExternal('https://github.com/fiko942/grok-build')}
+                  class="p-4 rounded-xl bg-ant-bg hover:bg-ant-bg-tertiary/40 space-y-3 flex flex-col justify-between transition text-left cursor-pointer group"
+                >
                   <div class="space-y-1.5">
-                    <div class="flex items-center space-x-2 text-ant-text">
+                    <div class="flex items-center space-x-2 text-ant-text group-hover:text-ant-primary transition-colors">
                       <Github size={16} class="text-ant-primary" />
-                      <span class="text-xs font-bold">Open-Source Project</span>
+                      <span class="text-xs font-semibold">Open-Source Project</span>
                     </div>
                     <p class="text-[11px] text-ant-text-secondary leading-relaxed">
-                      AetherGrok is open source. Inspect the architecture, contribute features, or report issues on GitHub.
+                      Source code, issue tracking, and contributions on GitHub.
                     </p>
                   </div>
-                  <a
-                    href="https://github.com/fiko942/grok-build"
-                    target="_blank"
-                    rel="noreferrer"
-                    class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-serif font-medium bg-ant-bg-tertiary hover:bg-white/10 text-ant-text transition border border-white/5"
-                  >
-                    <span>github.com/fiko942/grok-build</span>
-                    <ExternalLink size={12} class="opacity-70" />
-                  </a>
-                </div>
+                  <div class="inline-flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-mono bg-ant-bg-secondary group-hover:bg-white/5 text-ant-text transition">
+                    <span class="truncate">github.com/fiko942/grok-build</span>
+                    <ExternalLink size={12} class="opacity-60 group-hover:opacity-100 ml-1.5 flex-shrink-0" />
+                  </div>
+                </button>
 
                 <!-- Developer Portfolio Card -->
-                <div class="p-4 rounded-xl bg-ant-bg border border-white/5 space-y-3 flex flex-col justify-between hover:border-white/15 transition">
+                <button
+                  type="button"
+                  onclick={() => openExternal('https://wijifikoteren.streampeg.com')}
+                  class="p-4 rounded-xl bg-ant-bg hover:bg-ant-bg-tertiary/40 space-y-3 flex flex-col justify-between transition text-left cursor-pointer group"
+                >
                   <div class="space-y-1.5">
-                    <div class="flex items-center space-x-2 text-ant-text">
+                    <div class="flex items-center space-x-2 text-ant-text group-hover:text-ant-primary transition-colors">
                       <Globe size={16} class="text-ant-primary" />
-                      <span class="text-xs font-bold">Developer Portfolio</span>
+                      <span class="text-xs font-semibold">Developer Portfolio</span>
                     </div>
                     <p class="text-[11px] text-ant-text-secondary leading-relaxed">
-                      Crafted by Fiko. Explore other software engineering tools, creative technologies, and projects.
+                      Personal portfolio, software projects, design experiments, and writing.
                     </p>
                   </div>
-                  <a
-                    href="https://wijifikoteren.streampeg.com"
-                    target="_blank"
-                    rel="noreferrer"
-                    class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-serif font-medium bg-ant-primary/15 hover:bg-ant-primary/25 text-ant-primary transition border border-transparent"
-                  >
-                    <span>wijifikoteren.streampeg.com</span>
-                    <ExternalLink size={12} />
-                  </a>
+                  <div class="inline-flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-mono bg-ant-primary/10 group-hover:bg-ant-primary/20 text-ant-primary transition">
+                    <span class="truncate">wijifikoteren.streampeg.com</span>
+                    <ExternalLink size={12} class="opacity-80 group-hover:opacity-100 ml-1.5 flex-shrink-0" />
+                  </div>
+                </button>
+              </div>
+
+              <!-- Clean Engineering Overview -->
+              <div class="p-3.5 rounded-xl bg-ant-bg space-y-2 text-xs">
+                <div class="font-serif font-medium text-ant-text">Core Capabilities</div>
+                <div class="grid grid-cols-2 gap-2 text-[11px] text-ant-text-secondary font-serif">
+                  <div class="p-2 rounded-lg bg-ant-bg-secondary/60">
+                    <div class="font-sans font-semibold text-ant-text mb-0.5">Tactile Desktop Speed</div>
+                    Direct Go process management with low-latency streaming and zero telemetry bloat.
+                  </div>
+                  <div class="p-2 rounded-lg bg-ant-bg-secondary/60">
+                    <div class="font-sans font-semibold text-ant-text mb-0.5">Smart Screen Capture</div>
+                    Non-intrusive full-display snapshots with auto-window exclusion for visual grounding.
+                  </div>
                 </div>
               </div>
 
               <!-- Tech Stack Footer Info -->
-              <div class="pt-2 text-center text-[11px] text-ant-text-muted font-mono flex items-center justify-center gap-2">
-                <span>Built with Wails v2 (Go 1.24)</span>
+              <div class="pt-1 text-center text-[10.5px] text-ant-text-muted font-mono flex items-center justify-center gap-2">
+                <span>Wails v2 (Go 1.24)</span>
                 <span>•</span>
-                <span>Svelte 5 Runes</span>
+                <span>Svelte 5</span>
                 <span>•</span>
-                <span>Tailwind CSS</span>
+                <span>Anthropic Serif</span>
               </div>
             </div>
           {/if}
@@ -1047,4 +1083,17 @@
       </div>
     </div>
   </div>
+
+  <!-- Key Recorder Modal for Live Input Capture -->
+  <KeyRecorderModal
+    open={isRecordingShortcut}
+    currentShortcut={editSnapshotShortcut}
+    onSave={(newKey) => {
+      editSnapshotShortcut = newKey;
+      isRecordingShortcut = false;
+    }}
+    onCancel={() => {
+      isRecordingShortcut = false;
+    }}
+  />
 {/if}

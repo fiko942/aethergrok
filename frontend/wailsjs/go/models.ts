@@ -229,6 +229,27 @@ export namespace grokrunner {
 
 }
 
+export namespace permissions {
+	
+	export class Status {
+	    granted: boolean;
+	    message: string;
+	    platform: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Status(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.granted = source["granted"];
+	        this.message = source["message"];
+	        this.platform = source["platform"];
+	    }
+	}
+
+}
+
 export namespace screen {
 	
 	export class SnapshotResult {
@@ -260,6 +281,32 @@ export namespace screen {
 
 export namespace skills {
 	
+	export class DiscoveredSkill {
+	    name: string;
+	    description: string;
+	    category: string;
+	    tags: string[];
+	    relativePath: string;
+	    skillFile: string;
+	    prereqs: string[];
+	    commands: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new DiscoveredSkill(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.category = source["category"];
+	        this.tags = source["tags"];
+	        this.relativePath = source["relativePath"];
+	        this.skillFile = source["skillFile"];
+	        this.prereqs = source["prereqs"];
+	        this.commands = source["commands"];
+	    }
+	}
 	export class Skill {
 	    id: string;
 	    name: string;
@@ -288,6 +335,80 @@ export namespace skills {
 	        this.directory = source["directory"];
 	        this.scope = source["scope"];
 	        this.prompt = source["prompt"];
+	    }
+	}
+	export class SkillAnalysisResult {
+	    repoUrl: string;
+	    repoName: string;
+	    tempPath: string;
+	    skills: DiscoveredSkill[];
+	    globalPrereqs: string[];
+	    suggestedScripts: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new SkillAnalysisResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.repoUrl = source["repoUrl"];
+	        this.repoName = source["repoName"];
+	        this.tempPath = source["tempPath"];
+	        this.skills = this.convertValues(source["skills"], DiscoveredSkill);
+	        this.globalPrereqs = source["globalPrereqs"];
+	        this.suggestedScripts = source["suggestedScripts"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class SkillInstallPayload {
+	    tempPath: string;
+	    skillPaths: string[];
+	    targetScope: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SkillInstallPayload(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.tempPath = source["tempPath"];
+	        this.skillPaths = source["skillPaths"];
+	        this.targetScope = source["targetScope"];
+	    }
+	}
+	export class SkillInstallResult {
+	    success: boolean;
+	    installedCount: number;
+	    installedPaths: string[];
+	    errors?: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new SkillInstallResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.installedCount = source["installedCount"];
+	        this.installedPaths = source["installedPaths"];
+	        this.errors = source["errors"];
 	    }
 	}
 

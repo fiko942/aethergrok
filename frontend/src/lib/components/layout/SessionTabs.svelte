@@ -1,6 +1,6 @@
 <script lang="ts">
   import { sessionStore, STATUS_META, type Session } from '$lib/stores/session.svelte';
-  import { Plus, X, GitFork, Edit2, Check } from 'lucide-svelte';
+  import { Plus, X, GitFork, Edit2, Check, Loader2, AlertCircle, CheckCircle2, MessageSquare } from 'lucide-svelte';
 
   let draggedIndex = $state<number | null>(null);
   let dragOverIndex = $state<number | null>(null);
@@ -98,11 +98,24 @@
           ? 'bg-ant-bg text-ant-primary border-white/10 shadow-sm font-semibold'
           : 'bg-ant-bg-tertiary/40 text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'} {isDragging ? 'opacity-40 scale-95' : ''} {isOver ? 'border-r-2 border-r-ant-primary' : ''}"
       >
-        <!-- Status Indicator Dot (Ant Design palette) -->
-        <span
-          class="w-2 h-2 rounded-full mr-2 flex-shrink-0 {meta.dotClass}"
-          title={`Status: ${meta.label}`}
-        ></span>
+        <!-- Status Icon Matching Sidebar -->
+        {#if session.status === 'working'}
+          <span class="flex items-center justify-center flex-shrink-0 mr-1.5 text-ant-primary" title="Status: Working / Generating...">
+            <Loader2 size={12.5} class="animate-spin" />
+          </span>
+        {:else if session.status === 'waiting_permission'}
+          <span class="flex items-center justify-center flex-shrink-0 mr-1.5 text-amber-400" title="Status: Waiting Permission">
+            <AlertCircle size={12.5} class="animate-bounce" />
+          </span>
+        {:else if session.status === 'finished'}
+          <span class="flex items-center justify-center flex-shrink-0 mr-1.5 text-ant-success/80 group-hover:text-ant-success transition" title="Status: Completed">
+            <CheckCircle2 size={12.5} />
+          </span>
+        {:else}
+          <span class="flex items-center justify-center flex-shrink-0 mr-1.5 {isActive ? 'text-ant-primary' : 'text-ant-text-muted/70 group-hover:text-ant-text-secondary'} transition" title="Chat Session">
+            <MessageSquare size={12.5} />
+          </span>
+        {/if}
 
         <!-- Title or Edit Input -->
         {#if editingId === session.id}

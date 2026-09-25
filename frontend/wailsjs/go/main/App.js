@@ -10,8 +10,16 @@ export function CaptureScreenExcludingSelf(arg1) {
   return window['go']['main']['App']['CaptureScreenExcludingSelf'](arg1);
 }
 
+export function CheckAndRequestAccessibilityPermissions() {
+  return window['go']['main']['App']['CheckAndRequestAccessibilityPermissions']();
+}
+
 export function CheckDirectoryExists(arg1) {
   return window['go']['main']['App']['CheckDirectoryExists'](arg1);
+}
+
+export function CleanupSkillImportTemp(arg1) {
+  return window['go']['main']['App']['CleanupSkillImportTemp'](arg1);
 }
 
 export function CompactSession(arg1, arg2) {
@@ -24,6 +32,10 @@ export function DeleteGrokSession(arg1, arg2) {
 
 export function DiscoverGrokSessions(arg1) {
   return window['go']['main']['App']['DiscoverGrokSessions'](arg1);
+}
+
+export function ExecuteSkillSetupCommand(arg1, arg2) {
+  return window['go']['main']['App']['ExecuteSkillSetupCommand'](arg1, arg2);
 }
 
 export function GetAvailableModels() {
@@ -42,12 +54,28 @@ export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }
 
+export function InstallDiscoveredSkills(arg1) {
+  return window['go']['main']['App']['InstallDiscoveredSkills'](arg1);
+}
+
 export function LoadGrokSessionHistory(arg1, arg2) {
   return window['go']['main']['App']['LoadGrokSessionHistory'](arg1, arg2);
 }
 
+export function OpenAccessibilitySettings() {
+  return window['go']['main']['App']['OpenAccessibilitySettings']();
+}
+
+export function OpenExternalURL(arg1) {
+  return window['go']['main']['App']['OpenExternalURL'](arg1);
+}
+
 export function RespondPermission(arg1) {
   return window['go']['main']['App']['RespondPermission'](arg1);
+}
+
+export function RevertWorkspaceFiles(arg1, arg2) {
+  return window['go']['main']['App']['RevertWorkspaceFiles'](arg1, arg2);
 }
 
 export function RunPromptStream(arg1) {
@@ -56,6 +84,10 @@ export function RunPromptStream(arg1) {
 
 export function SaveMarkdownExport(arg1, arg2) {
   return window['go']['main']['App']['SaveMarkdownExport'](arg1, arg2);
+}
+
+export function ScanGitHubSkills(arg1) {
+  return window['go']['main']['App']['ScanGitHubSkills'](arg1);
 }
 
 export function SearchSkills(arg1, arg2) {

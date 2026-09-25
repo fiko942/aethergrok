@@ -4,9 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"aethergrok/pkg/grokrunner"
+	"aethergrok/pkg/permissions"
 	"aethergrok/pkg/screen"
 	"aethergrok/pkg/skills"
 
@@ -243,10 +246,93 @@ func (a *App) SearchSkills(query string, category string) []skills.Skill {
 	return a.skillsReg.Search(query, category)
 }
 
+// OpenExternalURL opens a web address in the user's default operating system browser
+func (a *App) OpenExternalURL(targetURL string) error {
+	trimmed := strings.TrimSpace(targetURL)
+	if trimmed == "" {
+		return fmt.Errorf("URL is empty")
+	}
+
+	if a.ctx != nil {
+		wailsRuntime.BrowserOpenURL(a.ctx, trimmed)
+		return nil
+	}
+
+	return fmt.Errorf("application context not initialized")
+}
+
 // GetAvailableModels returns the list of available models from Grok CLI
 func (a *App) GetAvailableModels() []grokrunner.ModelInfo {
 	if a.runner == nil {
 		a.runner = grokrunner.NewRunner()
 	}
 	return a.runner.DiscoverAvailableModels()
+}
+
+// ScanGitHubSkills clones and inspects a GitHub repository for skills and dependencies
+func (a *App) ScanGitHubSkills(repoURL string) (*skills.SkillAnalysisResult, error) {
+	ctx := a.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return skills.ScanGitHubRepo(ctx, repoURL)
+}
+
+// InstallDiscoveredSkills copies selected skills into user's ~/.grok/skills or ~/.agents/skills
+func (a *App) InstallDiscoveredSkills(payload skills.SkillInstallPayload) (*skills.SkillInstallResult, error) {
+	res, err := skills.InstallDiscoveredSkills(payload)
+	if err == nil && a.skillsReg != nil {
+		// Rescan registry to immediately reflect newly installed skills
+		a.skillsReg.ScanSkills()
+	}
+	return res, err
+}
+
+// CleanupSkillImportTemp removes cloned temporary files
+func (a *App) CleanupSkillImportTemp(tempPath string) error {
+	return skills.CleanupTempSkills(tempPath)
+}
+
+// RevertWorkspaceFiles checks out or reverts file changes in git repository if applicable
+func (a *App) RevertWorkspaceFiles(workspacePath string, filePaths []string) error {
+	if workspacePath == "" || len(filePaths) == 0 {
+		return nil
+	}
+
+	// Check if workspace is a git repo
+	gitDir := filepath.Join(workspacePath, ".git")
+	if info, err := os.Stat(gitDir); err == nil && info.IsDir() {
+		// Run git checkout -- <files>
+		args := append([]string{"checkout", "--"}, filePaths...)
+		cmd := exec.Command("git", args...)
+		cmd.Dir = workspacePath
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("git revert failed: %w (output: %s)", err, string(out))
+		}
+	}
+	return nil
+}
+
+// ExecuteSkillSetupCommand executes a command line in temp directory and streams logs via Wails event
+func (a *App) ExecuteSkillSetupCommand(workDir, commandLine string) error {
+	ctx := a.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return skills.ExecuteSetupCommand(ctx, workDir, commandLine, func(line string) {
+		if a.ctx != nil {
+			wailsRuntime.EventsEmit(a.ctx, "skill:install_log", line)
+		}
+	})
+}
+
+// CheckAndRequestAccessibilityPermissions checks if the app has macOS Accessibility / Input Monitoring permission
+// and prompts the user or opens System Settings if needed.
+func (a *App) CheckAndRequestAccessibilityPermissions() permissions.Status {
+	return permissions.CheckAndRequestAccessibility()
+}
+
+// OpenAccessibilitySettings opens macOS System Settings to Accessibility panel
+func (a *App) OpenAccessibilitySettings() error {
+	return permissions.OpenAccessibilityPreferences()
 }

@@ -15,10 +15,12 @@
   import { dialogStore } from '$lib/stores/dialog.svelte';
   import { playCameraShutterSound } from '$lib/utils/audio';
   import { settingsStore } from '$lib/stores/settings.svelte';
-  import type { SkillItem } from './app.d';
+  import type { SkillItem, SnapshotResult } from './app.d';
   import {
     sessionStore,
     type VisionImage,
+    type AttachedFile,
+    type QueuedPrompt,
     type ToolCall,
     type PermissionRequest
   } from '$lib/stores/session.svelte';
@@ -46,6 +48,7 @@
     appendText: (str: string) => void;
     attachImage: (img: VisionImage) => void;
     focusInput: () => void;
+    restorePrompt: (payload: { text: string; images?: VisionImage[]; attachments?: AttachedFile[] }) => void;
   } | null>(null);
 
   // Sync settingsStore default values
@@ -91,7 +94,7 @@
   async function performGlobalSnapshot() {
     const delay = settingsStore.snapshotDelayMs || 50;
 
-    let snapshotResult: { dataUrl: string; filePath?: string; width?: number; height?: number } | null = null;
+    let snapshotResult: SnapshotResult | null = null;
 
     if (window.go?.main?.App?.CaptureScreenExcludingSelf) {
       try {
@@ -127,7 +130,9 @@
         dataUrl: mockCanvas.toDataURL('image/png'),
         filePath: '/tmp/aethergrok_snapshot_preview.png',
         width: 1920,
-        height: 1080
+        height: 1080,
+        sizeBytes: 15400,
+        timestamp: Date.now()
       };
     }
 
@@ -147,23 +152,11 @@
     }
   }
 
-  // Wails bridge greeting check
-  async function testBridge() {
-    if (window.go?.main?.App?.Greet) {
-      try {
-        pingResult = await window.go.main.App.Greet('Agent');
-      } catch (err) {
-        pingResult = `Error: ${String(err)}`;
-      }
-    } else {
-      pingResult = 'Go Wails bridge ready (browser preview mode)';
-    }
-  }
-
-  // Handle user turn submission from rich Composer
+  // Handle user turn submission from rich Composer (supports queuing while working)
   async function handleSendMessage(payload: {
     text: string;
     images: VisionImage[];
+    attachments?: AttachedFile[];
     model: string;
     reasoningEffort: 'low' | 'medium' | 'high';
   }) {
@@ -171,15 +164,54 @@
     if (!activeSession) return;
     const sessionId = activeSession.id;
 
+    // If Grok is currently working, enqueue the prompt turn
+    if (activeSession.status === 'working') {
+      const queuedId = 'q_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36);
+      sessionStore.addQueuedPrompt(sessionId, {
+        id: queuedId,
+        text: payload.text,
+        images: payload.images || [],
+        attachments: payload.attachments || [],
+        model: payload.model,
+        reasoningEffort: payload.reasoningEffort,
+        timestamp: Date.now()
+      });
+      return;
+    }
+
+    // Execute immediately if idle
+    await executeTurn(sessionId, payload);
+  }
+
+  // Execute a prompt turn
+  async function executeTurn(sessionId: string, payload: {
+    text: string;
+    images: VisionImage[];
+    attachments?: AttachedFile[];
+    model: string;
+    reasoningEffort: 'low' | 'medium' | 'high';
+    isSteer?: boolean;
+  }) {
+    // Combine text and any text/document attachments into final prompt
+    let fullPromptText = payload.text;
+    if (payload.attachments && payload.attachments.length > 0) {
+      const docAttachments = payload.attachments.filter(a => !a.isImage && a.content);
+      if (docAttachments.length > 0) {
+        const docContext = docAttachments.map(d => `--- Attached File: ${d.name} ---\n${d.content}\n--- End of ${d.name} ---`).join('\n\n');
+        fullPromptText = fullPromptText ? `${fullPromptText}\n\n${docContext}` : docContext;
+      }
+    }
+
     // Record user message with vision images
     const userMsg = sessionStore.addMessage(sessionId, {
       role: 'user',
       content: payload.text,
       images: payload.images.length > 0 ? payload.images : undefined,
+      isSteer: payload.isSteer,
       tokens: {
-        input: Math.ceil(payload.text.length / 4) + payload.images.length * 100,
+        input: Math.ceil(fullPromptText.length / 4) + payload.images.length * 100,
         output: 0,
-        total: Math.ceil(payload.text.length / 4) + payload.images.length * 100
+        total: Math.ceil(fullPromptText.length / 4) + payload.images.length * 100
       }
     });
 
@@ -203,7 +235,7 @@
         const workingDir = sessionStore.activeWorkspace?.path;
         await window.go.main.App.RunPromptStream({
           sessionId,
-          prompt: payload.text,
+          prompt: fullPromptText,
           images: payload.images.map((img) => img.filePath),
           options: {
             model: payload.model || undefined,
@@ -218,11 +250,51 @@
           status: 'error'
         });
         sessionStore.setSessionStatus(sessionId, 'error');
+        checkAndDispatchNextQueue(sessionId);
       }
     } else {
       // Browser preview mode: simulate agent lifecycle with rich tool calls and diff card
       simulateAgentResponse(sessionId, userMsg.content, payload.images);
     }
+  }
+
+  // Steer: cancel current turn and immediately run the chosen prompt
+  async function handleSteerPrompt(promptItem: QueuedPrompt) {
+    const activeSession = sessionStore.activeSession;
+    if (!activeSession) return;
+    const sessionId = activeSession.id;
+
+    // 1. Remove this item from queue
+    sessionStore.removeQueuedPrompt(sessionId, promptItem.id);
+
+    // 2. Cancel current running turn
+    await handleCancelSession();
+
+    // 3. Immediately dispatch the steer prompt
+    await executeTurn(sessionId, {
+      text: promptItem.text,
+      images: promptItem.images || [],
+      attachments: promptItem.attachments || [],
+      model: promptItem.model,
+      reasoningEffort: promptItem.reasoningEffort,
+      isSteer: true
+    });
+  }
+
+  // Auto-dequeue helper
+  function checkAndDispatchNextQueue(sessionId: string) {
+    setTimeout(() => {
+      const next = sessionStore.popNextQueuedPrompt(sessionId);
+      if (next) {
+        executeTurn(sessionId, {
+          text: next.text,
+          images: next.images || [],
+          attachments: next.attachments || [],
+          model: next.model,
+          reasoningEffort: next.reasoningEffort
+        });
+      }
+    }, 200);
   }
 
   // Cancel running session
@@ -245,6 +317,40 @@
         msg.content += '\n\n*(Turn cancelled by user)*';
       }
     });
+  }
+
+  // Edit last user turn: rollback turn on disk/session and load payload into composer
+  async function handleEditLastTurn() {
+    const activeSession = sessionStore.activeSession;
+    if (!activeSession) return;
+
+    // 1. Cancel session if currently running
+    if (activeSession.status === 'working') {
+      await handleCancelSession();
+    }
+
+    // 2. Perform rollback in session store
+    const rollback = sessionStore.rollbackLastUserTurn(activeSession.id);
+    if (!rollback) return;
+
+    // 3. Revert workspace files modified during this turn if in git repo
+    const ws = sessionStore.activeWorkspace;
+    if (ws && rollback.revertFiles.length > 0 && window.go?.main?.App?.RevertWorkspaceFiles) {
+      try {
+        await window.go.main.App.RevertWorkspaceFiles(ws.path, rollback.revertFiles);
+      } catch (err) {
+        console.error('Failed to revert workspace files on turn rollback:', err);
+      }
+    }
+
+    // 4. Restore text, images, and attachments back into composer
+    if (composerRef) {
+      composerRef.restorePrompt({
+        text: rollback.text,
+        images: rollback.images,
+        attachments: rollback.attachments
+      });
+    }
   }
 
   // Permission modal resolution
@@ -354,18 +460,39 @@
       });
 
       sessionStore.setSessionStatus(sessionId, 'finished');
+      checkAndDispatchNextQueue(sessionId);
     }, 600);
   }
 
   // Helper to test if a keydown matches configured shortcut string
   function matchesShortcut(e: KeyboardEvent, shortcutStr: string): boolean {
     if (!shortcutStr) return false;
+
+    // Check if target is an input/textarea/contenteditable
+    const target = e.target as HTMLElement | null;
+    const isEditingText = target && (
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.isContentEditable
+    );
+
+    // 1. Direct code check (e.g. ShiftLeft, ShiftRight, MetaLeft, MetaRight, AltLeft, AltRight, ControlLeft, ControlRight)
+    if (e.code && shortcutStr.toLowerCase() === e.code.toLowerCase()) {
+      return true;
+    }
+
+    // If editing text, do not fire single-key printable shortcuts like '/' or 'delete' unless modifiers are held
     const parts = shortcutStr.toLowerCase().split('+').map((s) => s.trim());
     const hasCmdOrCtrl = parts.includes('cmdorctrl') || parts.includes('cmd') || parts.includes('ctrl') || parts.includes('meta');
     const hasShift = parts.includes('shift');
     const hasAlt = parts.includes('alt') || parts.includes('opt') || parts.includes('option');
 
     const keyPart = parts.find((p) => !['cmdorctrl', 'cmd', 'ctrl', 'meta', 'shift', 'alt', 'opt', 'option'].includes(p));
+
+    if (isEditingText && !hasCmdOrCtrl && !hasAlt) {
+      // Don't intercept normal typing in inputs
+      return false;
+    }
 
     const isMetaOrCtrl = e.metaKey || e.ctrlKey;
     if (hasCmdOrCtrl && !isMetaOrCtrl) return false;
@@ -375,7 +502,18 @@
     if (hasAlt && !e.altKey) return false;
     if (!hasAlt && e.altKey) return false;
 
-    if (keyPart && e.key.toLowerCase() !== keyPart) return false;
+    if (keyPart) {
+      const eKey = e.key.toLowerCase();
+      const eCode = e.code.toLowerCase();
+      if (eKey === keyPart) return true;
+      if (eCode === keyPart || eCode === `key${keyPart}` || eCode === `digit${keyPart}`) return true;
+      if (keyPart === '/' && (eKey === '/' || eCode === 'slash')) return true;
+      if (keyPart === 'delete' && (eKey === 'delete' || eCode === 'delete')) return true;
+      if (keyPart === 'backspace' && (eKey === 'backspace' || eCode === 'backspace')) return true;
+      if (keyPart === 'space' && (eKey === ' ' || eCode === 'space')) return true;
+      return false;
+    }
+
     return true;
   }
 
@@ -410,6 +548,26 @@
       sessionStore.createSession();
       return;
     }
+
+    // Cmd/Ctrl + 1-9: Browser-style quick session tab switching
+    if (isMetaOrCtrl && !e.shiftKey && !e.altKey && e.key >= '1' && e.key <= '9') {
+      const tabs = sessionStore.openWorkspaceTabs;
+      if (tabs.length > 0) {
+        e.preventDefault();
+        if (e.key === '9') {
+          // Switch to last open tab
+          const lastTab = tabs[tabs.length - 1];
+          if (lastTab) sessionStore.switchSession(lastTab.id);
+        } else {
+          const tabIndex = parseInt(e.key, 10) - 1;
+          if (tabIndex >= 0 && tabIndex < tabs.length) {
+            const targetTab = tabs[tabIndex];
+            if (targetTab) sessionStore.switchSession(targetTab.id);
+          }
+        }
+        return;
+      }
+    }
   }
 
   // Wails Event Listeners
@@ -420,8 +578,20 @@
   let unsubError: (() => void) | undefined;
 
   onMount(() => {
-    testBridge();
     window.addEventListener('keydown', handleGlobalKeyDown);
+
+    // Check and request macOS Accessibility / Input Monitoring permissions on startup
+    if (window.go?.main?.App?.CheckAndRequestAccessibilityPermissions) {
+      window.go.main.App.CheckAndRequestAccessibilityPermissions()
+        .then((status: { granted: boolean; message: string; platform: string }) => {
+          if (!status.granted && status.platform === 'darwin') {
+            console.warn('macOS Accessibility permission prompt triggered:', status.message);
+          }
+        })
+        .catch((err: unknown) => {
+          console.error('Error checking macOS accessibility permissions:', err);
+        });
+    }
 
     // Hook Wails native runtime events if available
     if (window.runtime?.EventsOn) {
@@ -518,6 +688,9 @@
               console.error('Failed to auto-sync sessions after turn:', err);
             }
           }
+
+          // Automatically pop and dispatch next queued prompt if available
+          checkAndDispatchNextQueue(event.sessionId);
         }
       });
 
@@ -599,7 +772,7 @@
       </div>
       <div class="flex items-center space-x-2">
         <span class="font-serif-display font-bold text-base tracking-tight text-ant-text">AetherGrok</span>
-        <span class="px-1.5 py-0.2 text-[9.5px] font-mono font-medium bg-white/5 text-ant-text-muted rounded border border-transparent">v1.0.0</span>
+        <span class="px-1.5 py-0.2 text-[9.5px] font-mono font-medium bg-white/5 text-ant-text-muted rounded border border-transparent">v{__APP_VERSION__}</span>
       </div>
     </div>
 
@@ -614,9 +787,6 @@
         <Badge status={isWorking ? 'processing' : 'success'} />
         <span>Model: <strong class="text-ant-text">{selectedModel}</strong></span>
       </div>
-      <Button size="small" type="default" onclick={testBridge}>
-        <Zap size={13} class="mr-1 text-ant-primary" /> Test Bridge
-      </Button>
       <Button size="small" type="default" onclick={() => settingsModalVisible = true} class="!px-2">
         <Settings size={14} class="text-ant-text-secondary hover:text-ant-primary transition-colors" />
       </Button>
@@ -658,7 +828,7 @@
 
       <!-- Chat Feed Viewport (10-Turn Windowing) -->
       <div class="flex-1 overflow-hidden relative">
-        <MessageList />
+        <MessageList onEditLastTurn={handleEditLastTurn} />
       </div>
 
       <!-- Rich Prompt Composer with Snapshot & Model Selectors -->
@@ -666,6 +836,7 @@
         bind:this={composerRef}
         {isWorking}
         onSend={handleSendMessage}
+        onSteer={handleSteerPrompt}
         onCancel={handleCancelSession}
         onOpenSkillsCatalog={() => skillsCatalogVisible = true}
       />

@@ -52,6 +52,7 @@ export interface ChatMessage {
   };
   toolCalls?: ToolCall[];
   images?: VisionImage[];
+  attachments?: AttachedFile[];
   reasoningContent?: string;
   status?: 'streaming' | 'done' | 'error';
   isSteer?: boolean;
@@ -72,6 +73,35 @@ export interface SessionUsage {
   primaryModelId: string;
 }
 
+export interface AttachedFile {
+  id: string;
+  name: string;
+  filePath: string;
+  sizeBytes?: number;
+  mimeType?: string;
+  content?: string; // Text/markdown/code content
+  dataUrl?: string; // Base64 data URL for images
+  isImage: boolean;
+  timestamp: number;
+}
+
+export interface QueuedPrompt {
+  id: string;
+  text: string;
+  images: VisionImage[];
+  attachments: AttachedFile[];
+  model: string;
+  reasoningEffort: 'low' | 'medium' | 'high';
+  agentMode?: string;
+  timestamp: number;
+}
+
+export interface SessionDraft {
+  text: string;
+  images: VisionImage[];
+  attachments: AttachedFile[];
+}
+
 export interface Session {
   id: string;
   grokSessionId?: string; // Real UUID discovered from Grok CLI execution
@@ -88,6 +118,8 @@ export interface Session {
   isPinned?: boolean;
   pinnedAt?: number;
   usage?: SessionUsage;
+  queuedPrompts?: QueuedPrompt[];
+  draft?: SessionDraft;
 }
 
 export interface WorkspaceFolder {
@@ -829,13 +861,53 @@ class SessionStore {
     const session = this.activeSession;
     if (!session) return false;
 
-    const total = this.totalUserTurns;
-    if (session.visibleTurnCount >= total) {
-      return false;
+    const totalTurns = session.messages.filter((m) => m.role === 'user').length;
+    if (session.visibleTurnCount >= totalTurns) {
+      return false; // Already fully loaded
     }
 
-    session.visibleTurnCount = Math.min(total, session.visibleTurnCount + chunk);
+    session.visibleTurnCount = Math.min(totalTurns, session.visibleTurnCount + chunk);
     return true;
+  }
+
+  // Queue and Steer management methods
+  addQueuedPrompt(sessionId: string, prompt: QueuedPrompt): void {
+    const session = this.sessions.find((s) => s.id === sessionId);
+    if (!session) return;
+    if (!session.queuedPrompts) {
+      session.queuedPrompts = [];
+    }
+    session.queuedPrompts.push(prompt);
+  }
+
+  removeQueuedPrompt(sessionId: string, promptId: string): void {
+    const session = this.sessions.find((s) => s.id === sessionId);
+    if (!session || !session.queuedPrompts) return;
+    session.queuedPrompts = session.queuedPrompts.filter((p) => p.id !== promptId);
+  }
+
+  updateQueuedPrompt(sessionId: string, promptId: string, newText: string): void {
+    const session = this.sessions.find((s) => s.id === sessionId);
+    if (!session || !session.queuedPrompts) return;
+    const item = session.queuedPrompts.find((p) => p.id === promptId);
+    if (item) {
+      item.text = newText;
+    }
+  }
+
+  reorderQueuedPrompt(sessionId: string, fromIndex: number, toIndex: number): void {
+    const session = this.sessions.find((s) => s.id === sessionId);
+    if (!session || !session.queuedPrompts) return;
+    if (fromIndex < 0 || fromIndex >= session.queuedPrompts.length) return;
+    if (toIndex < 0 || toIndex >= session.queuedPrompts.length) return;
+    const [moved] = session.queuedPrompts.splice(fromIndex, 1);
+    session.queuedPrompts.splice(toIndex, 0, moved);
+  }
+
+  popNextQueuedPrompt(sessionId: string): QueuedPrompt | undefined {
+    const session = this.sessions.find((s) => s.id === sessionId);
+    if (!session || !session.queuedPrompts || session.queuedPrompts.length === 0) return undefined;
+    return session.queuedPrompts.shift();
   }
 
   addMessage(sessionId: string, message: Omit<ChatMessage, 'id' | 'timestamp'> & { id?: string; timestamp?: number }): ChatMessage {
@@ -898,6 +970,62 @@ class SessionStore {
     const last = session.messages[session.messages.length - 1];
     updater(last);
     session.updatedAt = Date.now();
+  }
+
+  // Rollback last user turn: finds last user message and subsequent assistant messages,
+  // removes them from history, and returns the payload to re-load into composer
+  rollbackLastUserTurn(sessionId: string): {
+    text: string;
+    images: VisionImage[];
+    attachments: AttachedFile[];
+    revertFiles: string[];
+  } | null {
+    const session = this.sessions.find((s) => s.id === sessionId);
+    if (!session || session.messages.length === 0) return null;
+
+    // Find index of the last message with role === 'user'
+    let lastUserIdx = -1;
+    for (let i = session.messages.length - 1; i >= 0; i--) {
+      if (session.messages[i].role === 'user') {
+        lastUserIdx = i;
+        break;
+      }
+    }
+
+    if (lastUserIdx === -1) return null;
+
+    const userMsg = session.messages[lastUserIdx];
+    const removedMessages = session.messages.slice(lastUserIdx);
+
+    // Extract any files that were modified by tools in this turn to revert
+    const revertFilesSet = new Set<string>();
+    for (const msg of removedMessages) {
+      if (msg.toolCalls) {
+        for (const tc of msg.toolCalls) {
+          if (tc.diff?.newPath) {
+            revertFilesSet.add(tc.diff.newPath);
+          } else if (tc.diff?.oldPath) {
+            revertFilesSet.add(tc.diff.oldPath);
+          } else if (tc.params) {
+            const p = tc.params as Record<string, any>;
+            if (p.path || p.file_path || p.filePath || p.target_file) {
+              revertFilesSet.add(p.path || p.file_path || p.filePath || p.target_file);
+            }
+          }
+        }
+      }
+    }
+
+    // Truncate session messages back to before this user turn
+    session.messages = session.messages.slice(0, lastUserIdx);
+    session.updatedAt = Date.now();
+
+    return {
+      text: userMsg.content,
+      images: userMsg.images ? [...userMsg.images] : [],
+      attachments: userMsg.attachments ? [...userMsg.attachments] : [],
+      revertFiles: Array.from(revertFilesSet)
+    };
   }
 }
 

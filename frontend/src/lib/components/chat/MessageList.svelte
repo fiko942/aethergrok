@@ -2,12 +2,30 @@
   import { onMount, tick } from 'svelte';
   import { sessionStore, type ChatMessage } from '$lib/stores/session.svelte';
   import MessageItem from './MessageItem.svelte';
+  import ImageLightboxModal from './ImageLightboxModal.svelte';
   import { ArrowUp, Loader2, Sparkles, Brain, Cpu, Compass, CheckCircle2, AlertCircle } from 'lucide-svelte';
+
+  interface Props {
+    onEditLastTurn?: () => void;
+  }
+
+  let { onEditLastTurn }: Props = $props();
 
   let containerEl = $state<HTMLDivElement | null>(null);
   let topSentinelEl = $state<HTMLDivElement | null>(null);
   let isHydrating = $state(false);
   let autoScrollToBottom = $state(true);
+
+  // Lightbox modal state
+  let lightboxVisible = $state(false);
+  let lightboxSrc = $state('');
+  let lightboxTitle = $state('');
+
+  function handleOpenImage(src: string, title?: string) {
+    lightboxSrc = src;
+    lightboxTitle = title || 'Image Preview';
+    lightboxVisible = true;
+  }
 
   // Live thinking timer state for in-transcript activity indicator
   let elapsedSeconds = $state(0);
@@ -78,6 +96,18 @@
       map.set(msg.id, currentTurn);
     }
     return map;
+  });
+
+  // Identify last user message ID to allow editing
+  const lastUserMessageId = $derived.by(() => {
+    const session = sessionStore.activeSession;
+    if (!session) return null;
+    for (let i = session.messages.length - 1; i >= 0; i--) {
+      if (session.messages[i].role === 'user') {
+        return session.messages[i].id;
+      }
+    }
+    return null;
   });
 
   // Track active session changes for clean DOM scroll reset
@@ -237,6 +267,9 @@
       <MessageItem
         {message}
         turnNumber={turnMap.get(message.id)}
+        isLastUserTurn={message.id === lastUserMessageId}
+        onEditLastTurn={onEditLastTurn}
+        onOpenImage={handleOpenImage}
       />
     {/each}
 
@@ -316,4 +349,12 @@
       </div>
     {/if}
   {/if}
+
+  <!-- Fullscreen Image Lightbox Modal -->
+  <ImageLightboxModal
+    visible={lightboxVisible}
+    imageSrc={lightboxSrc}
+    imageTitle={lightboxTitle}
+    onClose={() => lightboxVisible = false}
+  />
 </div>

@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { tick } from 'svelte';
-  import type { VisionImage } from '$lib/stores/session.svelte';
-  import SnapshotBar from '$lib/components/snapshot/SnapshotBar.svelte';
+  import { tick, onMount, onDestroy } from 'svelte';
+  import type { VisionImage, AttachedFile, QueuedPrompt } from '$lib/stores/session.svelte';
   import SlashCommandPopup from '$lib/components/chat/SlashCommandPopup.svelte';
   import ModelEffortPopover from '$lib/components/chat/composer/ModelEffortPopover.svelte';
   import ContextUsagePopover from '$lib/components/chat/composer/ContextUsagePopover.svelte';
   import AgentModeDropdown, { type AgentModeType } from '$lib/components/chat/composer/AgentModeDropdown.svelte';
+  import AttachmentChip from '$lib/components/chat/composer/AttachmentChip.svelte';
+  import QueueStackBar from '$lib/components/chat/composer/QueueStackBar.svelte';
   import type { SkillItem } from '../../../app.d';
   import { playCameraShutterSound } from '$lib/utils/audio';
   import { settingsStore, type ReasoningEffort } from '$lib/stores/settings.svelte';
@@ -18,8 +19,13 @@
     SlidersHorizontal,
     Camera,
     Paperclip,
+    FileText,
+    FileCode,
     Loader2,
-    Timer
+    Timer,
+    X,
+    Eye,
+    Upload
   } from 'lucide-svelte';
 
   interface Props {
@@ -28,19 +34,22 @@
     onSend: (payload: {
       text: string;
       images: VisionImage[];
+      attachments?: AttachedFile[];
       model: string;
       reasoningEffort: 'low' | 'medium' | 'high';
       agentMode?: AgentModeType;
     }) => void;
+    onSteer?: (prompt: QueuedPrompt) => void;
     onCancel?: () => void;
     onOpenSkillsCatalog?: () => void;
   }
 
-  let { disabled = false, isWorking = false, onSend, onCancel, onOpenSkillsCatalog }: Props = $props();
+  let { disabled = false, isWorking = false, onSend, onSteer, onCancel, onOpenSkillsCatalog }: Props = $props();
 
   let text = $state('');
   let textareaEl = $state<HTMLTextAreaElement | null>(null);
   let fileInputEl = $state<HTMLInputElement | null>(null);
+  let plusMenuContainerEl = $state<HTMLDivElement | null>(null);
   let slashPopupRef = $state<any>(null);
 
   // Slash Command Autocomplete State
@@ -52,6 +61,28 @@
 
   // Plus Action Menu dropdown state
   let isPlusMenuOpen = $state(false);
+
+  // Full file and preview modal state
+  let attachedFiles = $state<AttachedFile[]>([]);
+  let previewModalItem = $state<AttachedFile | null>(null);
+
+  // Active session queue
+  const currentQueue = $derived(sessionStore.activeSession?.queuedPrompts || []);
+
+  // Click outside listener for plus menu
+  function handleWindowClick(e: MouseEvent) {
+    if (isPlusMenuOpen && plusMenuContainerEl && !plusMenuContainerEl.contains(e.target as Node)) {
+      isPlusMenuOpen = false;
+    }
+  }
+
+  onMount(() => {
+    window.addEventListener('click', handleWindowClick);
+  });
+
+  onDestroy(() => {
+    window.removeEventListener('click', handleWindowClick);
+  });
 
   // Elapsed execution timer state (in seconds)
   let elapsedSeconds = $state(0);
@@ -96,6 +127,10 @@
   let attachedImages = $state<VisionImage[]>([]);
   let isTakingSnapshot = $state(false);
   let snapshotError = $state<string | null>(null);
+
+  // Drag and drop overlay state
+  let isDragOver = $state(false);
+  let dragCounter = 0;
 
   // Calculate session tokens from active session
   const activeSessionTokens = $derived.by(() => {
@@ -157,6 +192,48 @@
   $effect(() => {
     if (settingsStore.defaultModel) {
       selectedModel = settingsStore.defaultModel;
+    }
+  });
+
+  // Per-session prompt draft isolation
+  let activeSessionId = $derived(sessionStore.activeSessionId);
+  let trackedSessionId: string | null = null;
+
+  $effect(() => {
+    const curId = activeSessionId;
+    if (curId !== trackedSessionId) {
+      // 1. Save draft of the previous session if any
+      if (trackedSessionId) {
+        const prevSession = sessionStore.sessions.find((s) => s.id === trackedSessionId);
+        if (prevSession) {
+          prevSession.draft = {
+            text,
+            images: [...attachedImages],
+            attachments: [...attachedFiles]
+          };
+        }
+      }
+
+      // 2. Load draft of the newly selected session
+      if (curId) {
+        const newSession = sessionStore.sessions.find((s) => s.id === curId);
+        if (newSession && newSession.draft) {
+          text = newSession.draft.text || '';
+          attachedImages = [...(newSession.draft.images || [])];
+          attachedFiles = [...(newSession.draft.attachments || [])];
+        } else {
+          text = '';
+          attachedImages = [];
+          attachedFiles = [];
+        }
+      } else {
+        text = '';
+        attachedImages = [];
+        attachedFiles = [];
+      }
+
+      trackedSessionId = curId;
+      tick().then(() => adjustTextareaHeight());
     }
   });
 
@@ -229,10 +306,51 @@
 
   export function attachImage(img: VisionImage) {
     attachedImages = [...attachedImages, img];
+    attachedFiles = [
+      ...attachedFiles,
+      {
+        id: img.id,
+        name: img.filePath.split(/[/\\]/).pop() || 'Snapshot.jpg',
+        filePath: img.filePath,
+        sizeBytes: img.sizeBytes,
+        dataUrl: img.dataUrl,
+        isImage: true,
+        timestamp: img.timestamp
+      }
+    ];
   }
 
   export function focusInput() {
     tick().then(() => {
+      textareaEl?.focus();
+    });
+  }
+
+  // Restore prompt text, images, and attachments from a rolled back turn or queue
+  export function restorePrompt(payload: { text: string; images?: VisionImage[]; attachments?: AttachedFile[] }) {
+    text = payload.text || '';
+    attachedImages = payload.images ? [...payload.images] : [];
+    attachedFiles = payload.attachments ? [...payload.attachments] : [];
+
+    tick().then(() => {
+      adjustTextareaHeight();
+      textareaEl?.focus();
+    });
+  }
+
+  // Load a queued prompt back into composer for editing, removing it from queue
+  function handleEditQueuedPrompt(promptItem: QueuedPrompt) {
+    text = promptItem.text || '';
+    attachedImages = [...(promptItem.images || [])];
+    attachedFiles = [...(promptItem.attachments || [])];
+
+    // Remove from queue
+    if (sessionStore.activeSessionId) {
+      sessionStore.removeQueuedPrompt(sessionStore.activeSessionId, promptItem.id);
+    }
+
+    tick().then(() => {
+      adjustTextareaHeight();
       textareaEl?.focus();
     });
   }
@@ -261,6 +379,18 @@
             timestamp: result.timestamp || Date.now()
           };
           attachedImages = [...attachedImages, newImg];
+          attachedFiles = [
+            ...attachedFiles,
+            {
+              id: newImg.id,
+              name: newImg.filePath.split(/[/\\]/).pop() || 'Screen_Capture.jpg',
+              filePath: newImg.filePath,
+              sizeBytes: newImg.sizeBytes,
+              dataUrl: newImg.dataUrl,
+              isImage: true,
+              timestamp: newImg.timestamp
+            }
+          ];
 
           if (settingsStore.snapshotSoundEnabled) {
             playCameraShutterSound(0.5);
@@ -284,14 +414,24 @@
           ctx.fillText('Captured via Browser Canvas Fallback', 40, 130);
         }
         const dataUrl = dummyCanvas.toDataURL('image/png');
-        attachedImages = [
-          ...attachedImages,
+        const newImg: VisionImage = {
+          id: 'snap_preview_' + Date.now(),
+          filePath: `preview_snapshot_${Date.now()}.png`,
+          dataUrl,
+          sizeBytes: 15420,
+          timestamp: Date.now()
+        };
+        attachedImages = [...attachedImages, newImg];
+        attachedFiles = [
+          ...attachedFiles,
           {
-            id: 'snap_preview_' + Date.now(),
-            filePath: `preview_snapshot_${Date.now()}.png`,
-            dataUrl,
-            sizeBytes: 15420,
-            timestamp: Date.now()
+            id: newImg.id,
+            name: newImg.filePath,
+            filePath: newImg.filePath,
+            sizeBytes: newImg.sizeBytes,
+            dataUrl: newImg.dataUrl,
+            isImage: true,
+            timestamp: newImg.timestamp
           }
         ];
 
@@ -308,40 +448,123 @@
     }
   }
 
-  function handleFileSelect(e: Event) {
-    const target = e.target as HTMLInputElement;
-    if (!target.files || target.files.length === 0) return;
+  // Centralized file processor for input selection, drag-and-drop, and paste
+  function processFiles(files: FileList | File[]) {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const isImg = file.type.startsWith('image/');
+      const fileId = 'file_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36);
 
-    for (let i = 0; i < target.files.length; i++) {
-      const file = target.files[i];
-      if (!file.type.startsWith('image/')) continue;
-
-      const reader = new FileReader();
-      reader.onload = (readEvent) => {
-        const dataUrl = readEvent.target?.result as string;
-        attachedImages = [
-          ...attachedImages,
-          {
-            id: 'img_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36),
+      if (isImg) {
+        const reader = new FileReader();
+        reader.onload = (readEvent) => {
+          const dataUrl = readEvent.target?.result as string;
+          const newImg: VisionImage = {
+            id: fileId,
             filePath: file.name,
             dataUrl,
             sizeBytes: file.size,
             timestamp: Date.now()
-          }
-        ];
-      };
-      reader.readAsDataURL(file);
+          };
+          attachedImages = [...attachedImages, newImg];
+          attachedFiles = [
+            ...attachedFiles,
+            {
+              id: fileId,
+              name: file.name,
+              filePath: file.name,
+              sizeBytes: file.size,
+              mimeType: file.type,
+              dataUrl,
+              isImage: true,
+              timestamp: Date.now()
+            }
+          ];
+        };
+        reader.readAsDataURL(file);
+      } else {
+        // Read text/markdown/code/json files as text for LLM injection
+        const reader = new FileReader();
+        reader.onload = (readEvent) => {
+          const content = readEvent.target?.result as string;
+          attachedFiles = [
+            ...attachedFiles,
+            {
+              id: fileId,
+              name: file.name,
+              filePath: file.name,
+              sizeBytes: file.size,
+              mimeType: file.type || 'text/plain',
+              content,
+              isImage: false,
+              timestamp: Date.now()
+            }
+          ];
+        };
+        reader.readAsText(file);
+      }
     }
+  }
+
+  function handleFileSelect(e: Event) {
+    const target = e.target as HTMLInputElement;
+    if (!target.files || target.files.length === 0) return;
+    processFiles(target.files);
     target.value = '';
     isPlusMenuOpen = false;
   }
 
-  function removeImage(id: string) {
-    attachedImages = attachedImages.filter((img) => img.id !== id);
+  // Drag and Drop handlers for file drop directly into prompt box
+  function handleContainerDragEnter(e: DragEvent) {
+    if (e.dataTransfer?.types?.includes('Files')) {
+      e.preventDefault();
+      dragCounter++;
+      isDragOver = true;
+    }
   }
 
-  function clearAllImages() {
+  function handleContainerDragOver(e: DragEvent) {
+    if (e.dataTransfer?.types?.includes('Files')) {
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+      isDragOver = true;
+    }
+  }
+
+  function handleContainerDragLeave(e: DragEvent) {
+    e.preventDefault();
+    dragCounter--;
+    if (dragCounter <= 0) {
+      dragCounter = 0;
+      isDragOver = false;
+    }
+  }
+
+  function handleContainerDrop(e: DragEvent) {
+    e.preventDefault();
+    dragCounter = 0;
+    isDragOver = false;
+    if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+      processFiles(e.dataTransfer.files);
+    }
+  }
+
+  // Paste handler: if images or files are in clipboard, intercept them as attachments
+  function handlePaste(e: ClipboardEvent) {
+    if (e.clipboardData?.files && e.clipboardData.files.length > 0) {
+      e.preventDefault();
+      processFiles(e.clipboardData.files);
+    }
+  }
+
+  function removeAttachment(id: string) {
+    attachedImages = attachedImages.filter((img) => img.id !== id);
+    attachedFiles = attachedFiles.filter((att) => att.id !== id);
+  }
+
+  function clearAllAttachments() {
     attachedImages = [];
+    attachedFiles = [];
   }
 
   function handleKeyDown(e: KeyboardEvent) {
@@ -376,7 +599,7 @@
 
   function handleSubmit() {
     const trimmed = text.trim();
-    if ((!trimmed && attachedImages.length === 0) || disabled) return;
+    if ((!trimmed && attachedImages.length === 0 && attachedFiles.length === 0) || disabled) return;
 
     const mappedEffort: 'low' | 'medium' | 'high' = 
       reasoningEffort === 'none' ? 'low' : reasoningEffort === 'max' ? 'high' : reasoningEffort;
@@ -384,6 +607,7 @@
     onSend({
       text: trimmed,
       images: [...attachedImages],
+      attachments: [...attachedFiles],
       model: selectedModel,
       reasoningEffort: mappedEffort,
       agentMode
@@ -391,6 +615,13 @@
 
     text = '';
     attachedImages = [];
+    attachedFiles = [];
+    if (sessionStore.activeSessionId) {
+      const curSession = sessionStore.sessions.find((s) => s.id === sessionStore.activeSessionId);
+      if (curSession) {
+        curSession.draft = undefined;
+      }
+    }
     if (textareaEl) {
       textareaEl.style.height = '40px';
     }
@@ -398,14 +629,29 @@
 </script>
 
 <div class="flex flex-col w-full bg-ant-bg-secondary border-t border-white/5 flex-shrink-0 relative z-30">
-  <!-- Vision Preview Chips Strip -->
-  {#if attachedImages.length > 0}
-    <SnapshotBar
-      images={attachedImages}
-      onRemove={removeImage}
-      onClearAll={clearAllImages}
+  <!-- Interactive Queue Stack Bar -->
+  <div class="px-3 pt-2">
+    <QueueStackBar
+      queue={currentQueue}
+      onSteer={(prompt) => {
+        if (onSteer) {
+          onSteer(prompt);
+        } else {
+          sessionStore.removeQueuedPrompt(sessionStore.activeSessionId || '', prompt.id);
+          handleSubmit();
+        }
+      }}
+      onReorder={(fromIdx, toIdx) => {
+        sessionStore.reorderQueuedPrompt(sessionStore.activeSessionId || '', fromIdx, toIdx);
+      }}
+      onRemove={(id) => {
+        sessionStore.removeQueuedPrompt(sessionStore.activeSessionId || '', id);
+      }}
+      onEdit={(prompt) => {
+        handleEditQueuedPrompt(prompt);
+      }}
     />
-  {/if}
+  </div>
 
   {#if snapshotError}
     <div class="px-3 py-1 bg-ant-error/15 text-ant-error text-[11px] border-b border-ant-error/20 flex items-center justify-between">
@@ -420,7 +666,7 @@
     </div>
   {/if}
 
-  <!-- Main Multi-line Input Area -->
+  <!-- Main Multi-line Input Area with IN-BOX Attachment Chips -->
   <div class="p-3 relative z-30">
     <!-- Slash Command Autocomplete Popover -->
     <SlashCommandPopup
@@ -431,23 +677,73 @@
       onClose={() => isSlashOpen = false}
     />
 
-    <div class="relative bg-ant-bg border border-white/[0.04] hover:border-white/[0.08] focus-within:!border-ant-primary/30 rounded-xl transition-all shadow-sm">
+    <div
+      class="relative bg-ant-bg border border-white/[0.04] hover:border-white/[0.08] focus-within:!border-ant-primary/30 rounded-xl transition-all shadow-sm flex flex-col"
+      ondragenter={handleContainerDragEnter}
+      ondragover={handleContainerDragOver}
+      ondragleave={handleContainerDragLeave}
+      ondrop={handleContainerDrop}
+      role="region"
+      aria-label="Prompt and attachment drop zone"
+    >
+      <!-- Visual Drag-and-Drop Active Overlay -->
+      {#if isDragOver}
+        <div class="absolute inset-0 z-50 bg-[#121316]/95 border-2 border-dashed border-blue-500/50 rounded-xl flex flex-col items-center justify-center space-y-1.5 backdrop-blur-md pointer-events-none animate-in fade-in duration-100 select-none">
+          <div class="p-2 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-sm">
+            <Upload size={18} />
+          </div>
+          <p class="text-xs font-serif text-ant-text font-medium">
+            Drop files or images to attach
+          </p>
+          <p class="text-[10px] font-mono text-ant-text-muted">
+            Images, Markdown, PDF, Code
+          </p>
+        </div>
+      {/if}
+
+      <!-- In-Box Attachment Chips Strip (Directly inside prompt box) -->
+      {#if attachedFiles.length > 0}
+        <div class="px-3 pt-2.5 pb-1 flex items-center gap-1.5 flex-wrap border-b border-white/5 bg-ant-bg/80 select-none rounded-t-xl">
+          <div class="text-[10px] font-mono text-ant-text-muted flex items-center gap-1 mr-1">
+            <Paperclip size={11} class="text-ant-primary" />
+            <span>Files ({attachedFiles.length})</span>
+          </div>
+
+          {#each attachedFiles as att (att.id)}
+            <AttachmentChip
+              attachment={att}
+              onRemove={removeAttachment}
+              onPreview={(item) => previewModalItem = item}
+            />
+          {/each}
+
+          <button
+            type="button"
+            onclick={clearAllAttachments}
+            class="text-[10px] text-ant-text-muted hover:text-rose-400 font-serif px-1.5 py-0.5 rounded hover:bg-white/5 transition ml-auto"
+          >
+            Clear all
+          </button>
+        </div>
+      {/if}
+
       <textarea
         bind:this={textareaEl}
         bind:value={text}
         oninput={handleInput}
         onkeydown={handleKeyDown}
+        onpaste={handlePaste}
         placeholder={isWorking ? "Grok is executing... (type to queue or steer)" : "Ask Grok anything, command tools, or inspect code... (Enter to send, Shift+Enter for newline)"}
         rows={1}
         class="w-full bg-transparent text-[13.5px] text-ant-text placeholder:text-ant-text-muted placeholder:font-serif placeholder:text-xs px-3.5 pt-3 pb-2 outline-none resize-none min-h-[44px] max-h-[200px] leading-relaxed block scrollbar-thin font-serif"
       ></textarea>
 
       <!-- Compact Reference-Style Prompt Box Bottom Bar -->
-      <div class="flex items-center justify-between px-2.5 py-1.5 border-t border-white/5 bg-ant-bg/60 text-xs select-none relative z-40">
+      <div class="flex items-center justify-between px-2.5 py-1.5 border-t border-white/5 bg-ant-bg/60 text-xs select-none relative z-40 rounded-b-xl">
         <!-- Left Action Cluster -->
         <div class="flex items-center space-x-1.5">
-          <!-- Plus (+) Attachment Trigger Menu -->
-          <div class="relative">
+          <!-- Plus (+) Attachment Trigger Menu with Click Outside Support -->
+          <div class="relative" bind:this={plusMenuContainerEl}>
             <button
               type="button"
               class="w-6 h-6 rounded-md flex items-center justify-center text-ant-text-muted hover:text-ant-text hover:bg-ant-bg-secondary transition border border-transparent hover:border-white/5"
@@ -460,18 +756,18 @@
             {#if isPlusMenuOpen}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <div
-                class="absolute bottom-full left-0 mb-1.5 w-48 bg-ant-bg border border-white/10 rounded-lg shadow-xl py-1 z-50 text-xs backdrop-blur-md"
+                class="absolute bottom-full left-0 mb-1.5 w-52 bg-ant-bg border border-white/10 rounded-lg shadow-xl py-1 z-50 text-xs backdrop-blur-md animate-in fade-in zoom-in-95 duration-100"
                 onclick={(e) => e.stopPropagation()}
                 onkeydown={(e) => e.key === 'Escape' && (isPlusMenuOpen = false)}
               >
-                <!-- File Picker Trigger -->
+                <!-- File / Document Picker Trigger (Images, MD, PDF, Code) -->
                 <button
                   type="button"
                   class="w-full px-3 py-1.5 flex items-center space-x-2 text-left text-ant-text hover:bg-ant-primary/10 hover:text-ant-primary transition"
                   onclick={() => { fileInputEl?.click(); isPlusMenuOpen = false; }}
                 >
                   <Paperclip size={13} class="text-ant-text-muted" />
-                  <span>Attach Image</span>
+                  <span>Attach File (Image, MD, PDF)</span>
                 </button>
 
                 <!-- Snapshot Screen Trigger -->
@@ -505,11 +801,11 @@
             {/if}
           </div>
 
-          <!-- Hidden Image File Input -->
+          <!-- Hidden File Input (Accepts Images, Markdown, PDFs, Code Files, Text) -->
           <input
             bind:this={fileInputEl}
             type="file"
-            accept="image/*"
+            accept="image/*,.md,.markdown,.txt,.pdf,.json,.ts,.js,.go,.py,.rs,.html,.css,.yaml,.yml"
             multiple
             class="hidden"
             onchange={handleFileSelect}
@@ -578,11 +874,11 @@
             <button
               type="button"
               class="w-7 h-7 rounded-lg flex items-center justify-center bg-ant-primary text-white hover:bg-ant-primary-hover disabled:opacity-30 disabled:hover:bg-ant-primary disabled:cursor-not-allowed transition shadow-sm"
-              disabled={(!text.trim() && attachedImages.length === 0) || disabled}
+              disabled={(!text.trim() && attachedImages.length === 0 && attachedFiles.length === 0) || disabled}
               onclick={handleSubmit}
               title="Send to Grok (Enter)"
             >
-              <ArrowUp size={14} class="stroke-[2.5]" />
+              <ArrowUp size={14} stroke-width="2.5" />
             </button>
           {/if}
         </div>

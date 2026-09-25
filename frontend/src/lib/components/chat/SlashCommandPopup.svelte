@@ -160,19 +160,19 @@
 
 {#if visible && filteredSkills.length > 0}
   <div
-    class="absolute bottom-full left-0 mb-3 w-96 max-w-[95vw] bg-ant-bg border border-ant-border rounded-xl shadow-2xl z-[100] flex flex-col animate-in fade-in zoom-in-95 duration-100 text-ant-text"
-    style="box-shadow: 0 20px 40px -4px rgba(0, 0, 0, 0.45), 0 8px 16px -4px rgba(0, 0, 0, 0.25);"
+    class="absolute bottom-full left-0 mb-3 w-96 max-w-[95vw] bg-ant-bg-secondary/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl z-[100] flex flex-col animate-in fade-in zoom-in-95 duration-100 text-ant-text"
+    style="box-shadow: 0 20px 40px -4px rgba(0, 0, 0, 0.5), 0 8px 16px -4px rgba(0, 0, 0, 0.3);"
   >
     <!-- Autocomplete Header -->
-    <div class="px-3.5 py-2.5 border-b border-ant-border bg-ant-bg-secondary rounded-t-xl flex items-center justify-between">
+    <div class="px-3.5 py-2.5 border-b border-white/5 bg-ant-bg-secondary rounded-t-xl flex items-center justify-between">
       <div class="flex items-center gap-1.5 text-[11px] font-semibold text-ant-text">
         <Sparkles size={12} class="text-ant-primary" />
         <span>Matching Skills ({filteredSkills.length})</span>
       </div>
       <div class="flex items-center gap-1.5 text-[10px] text-ant-text-muted">
-        <span class="px-1 py-0.2 rounded bg-ant-bg-tertiary border border-ant-border font-mono">↑↓</span>
+        <span class="px-1 py-0.2 rounded bg-ant-bg border border-white/5 font-mono">↑↓</span>
         <span>navigate</span>
-        <span class="px-1 py-0.2 rounded bg-ant-bg-tertiary border border-ant-border font-mono ml-1">Tab / ↵</span>
+        <span class="px-1 py-0.2 rounded bg-ant-bg border border-white/5 font-mono ml-1">Tab / ↵</span>
         <span>select</span>
       </div>
     </div>
@@ -180,7 +180,7 @@
     <!-- Autocomplete Items List -->
     <div
       bind:this={listContainerRef}
-      class="max-h-64 overflow-y-auto p-1.5 space-y-1 scrollbar-thin bg-ant-bg"
+      class="max-h-64 overflow-y-auto p-1.5 space-y-1 scrollbar-thin bg-transparent"
     >
       {#each filteredSkills as skill, idx (skill.id)}
         {@const isSelected = idx === selectedIndex}
@@ -188,14 +188,14 @@
           type="button"
           data-index={idx}
           class="w-full text-left p-2 rounded-lg text-xs transition-all flex items-start justify-between group {isSelected
-            ? 'bg-ant-primary/15 border border-ant-primary/40 text-ant-text'
-            : 'hover:bg-ant-bg-tertiary border border-transparent text-ant-text-secondary hover:text-ant-text'}"
+            ? 'bg-ant-primary/15 text-ant-text'
+            : 'hover:bg-ant-bg-tertiary/60 text-ant-text-secondary hover:text-ant-text'}"
           onclick={() => onSelect(skill)}
           onmouseenter={() => selectedIndex = idx}
         >
           <div class="flex items-start gap-2.5 min-w-0 pr-2">
             <!-- Scope / Category Avatar -->
-            <div class="mt-0.5 w-6 h-6 rounded flex items-center justify-center flex-shrink-0 {isSelected ? 'bg-ant-primary text-white' : 'bg-ant-bg-tertiary text-ant-primary border border-ant-border'}">
+            <div class="mt-0.5 w-6 h-6 rounded flex items-center justify-center flex-shrink-0 {isSelected ? 'bg-ant-primary/20 text-ant-primary' : 'bg-ant-bg-tertiary text-ant-text-muted'}">
               {#if skill.category === 'Frontend'}
                 <Layout size={12} />
               {:else if skill.category === 'Backend'}
@@ -215,7 +215,7 @@
                 <span class="font-mono font-semibold text-[11px] {isSelected ? 'text-ant-primary' : 'text-ant-text'}">
                   /{skill.name}
                 </span>
-                <span class="px-1 py-0.2 text-[9px] uppercase tracking-wider bg-ant-bg-secondary text-ant-text-muted rounded border border-ant-border-secondary font-mono">
+                <span class="px-1 py-0.2 text-[9px] uppercase tracking-wider bg-ant-bg text-ant-text-muted rounded font-mono">
                   {skill.scope}
                 </span>
               </div>
@@ -235,7 +235,7 @@
     </div>
 
     <!-- Quick Footer -->
-    <div class="px-3 py-2 bg-ant-bg-secondary border-t border-ant-border rounded-b-xl flex items-center justify-between text-[10px] text-ant-text-muted">
+    <div class="px-3 py-2 bg-ant-bg-secondary border-t border-white/5 rounded-b-xl flex items-center justify-between text-[10px] text-ant-text-muted">
       <span>Type skill name or press <strong class="text-ant-text">Esc</strong> to dismiss</span>
       <span class="font-mono text-ant-primary">/{query.replace(/^\//, '')}</span>
     </div>

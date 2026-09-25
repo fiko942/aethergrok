@@ -12,15 +12,19 @@
     Clock,
     Zap,
     Copy,
-    Check
+    Check,
+    Edit3
   } from 'lucide-svelte';
 
   interface Props {
     message: ChatMessage;
     turnNumber?: number;
+    isLastUserTurn?: boolean;
+    onEditLastTurn?: () => void;
+    onOpenImage?: (src: string, title?: string) => void;
   }
 
-  let { message, turnNumber }: Props = $props();
+  let { message, turnNumber, isLastUserTurn = false, onEditLastTurn, onOpenImage }: Props = $props();
 
   let showReasoning = $state(false);
   let showToolDetails = $state(true);
@@ -87,7 +91,12 @@
         {#if message.images && message.images.length > 0}
           <div class="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-white/5">
             {#each message.images as img}
-              <div class="relative rounded overflow-hidden border border-white/5 group/img">
+              <!-- svelte-ignore a11y_click_events_have_key_events -->
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <div
+                class="relative rounded overflow-hidden border border-white/5 group/img cursor-pointer hover:border-ant-primary/50 transition-all hover:scale-[1.02]"
+                onclick={() => onOpenImage?.(img.dataUrl || img.filePath, img.filePath || 'Attached Image')}
+              >
                 {#if img.dataUrl}
                   <img src={img.dataUrl} alt={img.filePath || "Attachment"} class="w-20 h-14 object-cover" />
                 {:else}
@@ -100,19 +109,32 @@
           </div>
         {/if}
 
-        <!-- Hover Copy Action -->
-        <button
-          type="button"
-          onclick={copyContent}
-          class="absolute -left-7 top-2 opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-ant-bg-secondary text-ant-text-muted hover:text-ant-text transition"
-          title="Copy message"
-        >
-          {#if copied}
-            <Check size={12} class="text-ant-success" />
-          {:else}
-            <Copy size={12} />
+        <!-- Hover Actions: Copy & Edit (Edit only on last user prompt) -->
+        <div class="absolute -left-14 top-2 opacity-0 group-hover:opacity-100 flex items-center space-x-1 transition">
+          {#if isLastUserTurn && onEditLastTurn}
+            <button
+              type="button"
+              onclick={onEditLastTurn}
+              class="p-1 rounded hover:bg-ant-bg-secondary text-ant-text-muted hover:text-ant-primary transition"
+              title="Edit prompt (roll back turn and edit in composer)"
+            >
+              <Edit3 size={12} />
+            </button>
           {/if}
-        </button>
+
+          <button
+            type="button"
+            onclick={copyContent}
+            class="p-1 rounded hover:bg-ant-bg-secondary text-ant-text-muted hover:text-ant-text transition"
+            title="Copy message"
+          >
+            {#if copied}
+              <Check size={12} class="text-ant-success" />
+            {:else}
+              <Copy size={12} />
+            {/if}
+          </button>
+        </div>
       </div>
     </div>
   </div>

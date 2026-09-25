@@ -2,6 +2,7 @@
   import { onMount, tick } from 'svelte';
   import type { SkillItem } from '../../../app.d';
   import Button from '$lib/antd/Button.svelte';
+  import SkillImporterModal from '$lib/components/skills/SkillImporterModal.svelte';
   import {
     Sparkles,
     Search,
@@ -17,7 +18,9 @@
     Layout,
     Check,
     FileText,
-    ExternalLink
+    ExternalLink,
+    FolderGit2,
+    Plus
   } from 'lucide-svelte';
 
   interface Props {
@@ -34,6 +37,7 @@
   let isLoading = $state(false);
   let searchInputEl = $state<HTMLInputElement | null>(null);
   let selectedSkillId = $state<string | null>(null);
+  let importerModalVisible = $state(false);
 
   const categories: Array<'All' | 'Frontend' | 'Backend' | 'Design' | 'Agents' | 'Tools'> = [
     'All',
@@ -216,6 +220,16 @@
         </div>
 
         <div class="flex items-center space-x-2">
+          <Button
+            size="small"
+            type="primary"
+            onclick={() => importerModalVisible = true}
+            class="!px-2.5 !py-1 text-xs flex items-center gap-1.5"
+          >
+            <FolderGit2 size={13} />
+            <span>Add Skills from GitHub</span>
+          </Button>
+
           <button
             type="button"
             onclick={loadSkills}
@@ -402,3 +416,12 @@
     </div>
   </div>
 {/if}
+
+<!-- Skill Importer Modal (GitHub) -->
+<SkillImporterModal
+  bind:visible={importerModalVisible}
+  onClose={() => importerModalVisible = false}
+  onInstalled={() => {
+    loadSkills();
+  }}
+/>
