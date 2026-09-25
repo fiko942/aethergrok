@@ -22,7 +22,13 @@
     CheckCircle2,
     Volume2,
     Zap,
-    Image as ImageIcon
+    Image as ImageIcon,
+    Info,
+    Globe,
+    Github,
+    ExternalLink,
+    Code2,
+    Heart
   } from 'lucide-svelte';
   import Button from '$lib/antd/Button.svelte';
   import Card from '$lib/antd/Card.svelte';
@@ -37,7 +43,7 @@
     onClose: () => void;
   } = $props();
 
-  type TabKey = 'general' | 'models' | 'permissions' | 'theme' | 'shortcuts';
+  type TabKey = 'general' | 'models' | 'permissions' | 'theme' | 'shortcuts' | 'about';
   let activeTab = $state<TabKey>('general');
 
   // Local draft state for edits
@@ -85,7 +91,8 @@
     { id: 'models', label: 'Models & Reasoning', icon: Brain, description: 'Default inference model and reasoning token budget' },
     { id: 'permissions', label: 'Permissions', icon: Shield, description: 'Security boundaries for filesystem, bash, and tool execution' },
     { id: 'theme', label: 'Theme & Appearance', icon: Palette, description: 'High-contrast, Ant Design light, and dark studio styles' },
-    { id: 'shortcuts', label: 'Shortcuts', icon: Keyboard, description: 'Quick access keyboard bindings and interaction triggers' }
+    { id: 'shortcuts', label: 'Shortcuts', icon: Keyboard, description: 'Quick access keyboard bindings and interaction triggers' },
+    { id: 'about', label: 'About AetherGrok', icon: Info, description: 'Mission, target audience, open-source repository, and developer portfolio' }
   ];
 
   const permissionDescriptions: Record<PermissionMode, {
@@ -901,6 +908,117 @@
                     {/each}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          {/if}
+
+          <!-- TAB 6: ABOUT AETHERGROK -->
+          {#if activeTab === 'about'}
+            <div class="space-y-6 animate-in fade-in duration-100">
+              <div>
+                <h3 class="font-serif-display text-base font-semibold text-ant-text flex items-center gap-2">
+                  About AetherGrok Studio
+                  <span class="px-2 py-0.5 text-[10px] font-mono bg-ant-primary/15 text-ant-primary rounded-full">v1.0.0</span>
+                </h3>
+                <p class="font-serif text-xs text-ant-text-secondary mt-0.5">
+                  The high-performance, local-first GUI workstation and autonomous orchestrator for Grok CLI.
+                </p>
+              </div>
+
+              <!-- Mission & Purpose Card -->
+              <Card>
+                <div class="space-y-3">
+                  <div class="flex items-center gap-2 text-ant-primary">
+                    <Sparkles size={16} />
+                    <span class="text-xs font-semibold text-ant-text">Purpose & Vision</span>
+                  </div>
+                  <p class="font-serif text-xs text-ant-text-secondary leading-relaxed">
+                    AetherGrok was built to transform raw terminal AI tooling into a refined, tactile desktop experience. Rather than being confined to terminal windows or bloated web wrappers, AetherGrok gives developers a native, memory-efficient workspace with non-intrusive smart screen snapshots, Anthropic Serif typography, and precise token management.
+                  </p>
+                  <p class="font-serif text-xs text-ant-text-secondary leading-relaxed">
+                    Designed for engineers who want zero context latency, instant visual debugging, and seamless agent orchestration directly over local project repositories.
+                  </p>
+                </div>
+              </Card>
+
+              <!-- Who It Is For Card -->
+              <Card>
+                <div class="space-y-3">
+                  <div class="flex items-center gap-2 text-ant-primary">
+                    <Code2 size={16} />
+                    <span class="text-xs font-semibold text-ant-text">Who Is It For?</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-3 pt-1">
+                    <div class="p-3 rounded-lg bg-ant-bg border border-white/5 space-y-1">
+                      <div class="text-xs font-bold text-ant-text">Software Engineers</div>
+                      <p class="text-[11px] text-ant-text-secondary leading-normal">
+                        Rapid codebase navigation, automated refactoring, and instant multi-turn diff reviews.
+                      </p>
+                    </div>
+                    <div class="p-3 rounded-lg bg-ant-bg border border-white/5 space-y-1">
+                      <div class="text-xs font-bold text-ant-text">Agent & AI Researchers</div>
+                      <p class="text-[11px] text-ant-text-secondary leading-normal">
+                        Granular control over reasoning effort, context compaction routines, and skill ecosystem imports.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              <!-- Open Source & Developer Portfolio Links -->
+              <div class="grid grid-cols-2 gap-3.5">
+                <!-- GitHub Repository Card -->
+                <div class="p-4 rounded-xl bg-ant-bg border border-white/5 space-y-3 flex flex-col justify-between hover:border-white/15 transition">
+                  <div class="space-y-1.5">
+                    <div class="flex items-center space-x-2 text-ant-text">
+                      <Github size={16} class="text-ant-primary" />
+                      <span class="text-xs font-bold">Open-Source Project</span>
+                    </div>
+                    <p class="text-[11px] text-ant-text-secondary leading-relaxed">
+                      AetherGrok is open source. Inspect the architecture, contribute features, or report issues on GitHub.
+                    </p>
+                  </div>
+                  <a
+                    href="https://github.com/fiko942/grok-build"
+                    target="_blank"
+                    rel="noreferrer"
+                    class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-serif font-medium bg-ant-bg-tertiary hover:bg-white/10 text-ant-text transition border border-white/5"
+                  >
+                    <span>github.com/fiko942/grok-build</span>
+                    <ExternalLink size={12} class="opacity-70" />
+                  </a>
+                </div>
+
+                <!-- Developer Portfolio Card -->
+                <div class="p-4 rounded-xl bg-ant-bg border border-white/5 space-y-3 flex flex-col justify-between hover:border-white/15 transition">
+                  <div class="space-y-1.5">
+                    <div class="flex items-center space-x-2 text-ant-text">
+                      <Globe size={16} class="text-ant-primary" />
+                      <span class="text-xs font-bold">Developer Portfolio</span>
+                    </div>
+                    <p class="text-[11px] text-ant-text-secondary leading-relaxed">
+                      Crafted by Fiko. Explore other software engineering tools, creative technologies, and projects.
+                    </p>
+                  </div>
+                  <a
+                    href="https://wijifikoteren.streampeg.com"
+                    target="_blank"
+                    rel="noreferrer"
+                    class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-serif font-medium bg-ant-primary/15 hover:bg-ant-primary/25 text-ant-primary transition border border-transparent"
+                  >
+                    <span>wijifikoteren.streampeg.com</span>
+                    <ExternalLink size={12} />
+                  </a>
+                </div>
+              </div>
+
+              <!-- Tech Stack Footer Info -->
+              <div class="pt-2 text-center text-[11px] text-ant-text-muted font-mono flex items-center justify-center gap-2">
+                <span>Built with Wails v2 (Go 1.24)</span>
+                <span>•</span>
+                <span>Svelte 5 Runes</span>
+                <span>•</span>
+                <span>Tailwind CSS</span>
               </div>
             </div>
           {/if}
