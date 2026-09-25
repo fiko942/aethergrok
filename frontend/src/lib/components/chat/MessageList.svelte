@@ -100,7 +100,7 @@
       return 'Evaluating tool outputs & preparing response...';
     }
 
-    if (elapsedSeconds > 8) {
+    if (elapsedMs > 8000) {
       return 'Formulating comprehensive response...';
     }
     return 'Grok is reasoning and planning actions...';
