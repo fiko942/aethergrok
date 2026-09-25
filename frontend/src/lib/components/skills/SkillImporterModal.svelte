@@ -258,7 +258,7 @@
       <!-- Top Title Header -->
       <div class="px-6 py-4 border-b border-white/5 flex items-center justify-between bg-ant-bg-secondary flex-shrink-0">
         <div class="flex items-center space-x-3">
-          <div class="w-8 h-8 rounded-lg bg-ant-primary/10 border border-ant-primary/20 flex items-center justify-center text-ant-primary">
+          <div class="w-8 h-8 rounded-lg bg-ant-primary/10 flex items-center justify-center text-ant-primary shadow-sm">
             <FolderGit2 size={17} />
           </div>
           <div>

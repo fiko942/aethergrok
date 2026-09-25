@@ -203,7 +203,7 @@
       <!-- Modal Header -->
       <div class="px-6 py-4 border-b border-ant-border-secondary flex items-center justify-between bg-ant-bg-secondary flex-shrink-0">
         <div class="flex items-center space-x-3">
-          <div class="w-8 h-8 rounded-lg bg-ant-primary/10 border border-ant-primary/30 flex items-center justify-center text-ant-primary">
+          <div class="w-8 h-8 rounded-lg bg-ant-primary/10 flex items-center justify-center text-ant-primary shadow-sm">
             <Sparkles size={18} />
           </div>
           <div>
