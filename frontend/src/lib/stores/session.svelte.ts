@@ -102,6 +102,8 @@ export interface SessionDraft {
   attachments: AttachedFile[];
 }
 
+export type RightSidebarTab = 'files' | 'changes';
+
 export interface Session {
   id: string;
   grokSessionId?: string; // Real UUID discovered from Grok CLI execution
@@ -120,6 +122,9 @@ export interface Session {
   usage?: SessionUsage;
   queuedPrompts?: QueuedPrompt[];
   draft?: SessionDraft;
+  // Tab-isolated Right Sidebar State
+  rightSidebarOpen?: boolean;
+  rightSidebarTab?: RightSidebarTab;
 }
 
 export interface WorkspaceFolder {
@@ -469,6 +474,26 @@ class SessionStore {
       this.createSession();
     } else if (!this.activeSessionId || idsToDelete.has(this.activeSessionId)) {
       this.activeSessionId = currentWsSessions[0].id;
+    }
+  }
+
+  // Right Sidebar Session-Isolated Toggle & Tab Switching
+  toggleRightSidebar(sessionId?: string): void {
+    const id = sessionId || this.activeSessionId;
+    if (!id) return;
+    const session = this.sessions.find((s) => s.id === id);
+    if (session) {
+      session.rightSidebarOpen = !session.rightSidebarOpen;
+    }
+  }
+
+  setRightSidebarTab(tab: RightSidebarTab, sessionId?: string): void {
+    const id = sessionId || this.activeSessionId;
+    if (!id) return;
+    const session = this.sessions.find((s) => s.id === id);
+    if (session) {
+      session.rightSidebarTab = tab;
+      session.rightSidebarOpen = true;
     }
   }
 

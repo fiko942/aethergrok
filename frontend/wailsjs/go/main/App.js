@@ -22,6 +22,10 @@ export function CleanupSkillImportTemp(arg1) {
   return window['go']['main']['App']['CleanupSkillImportTemp'](arg1);
 }
 
+export function CommitWorkspaceChanges(arg1, arg2) {
+  return window['go']['main']['App']['CommitWorkspaceChanges'](arg1, arg2);
+}
+
 export function CompactSession(arg1, arg2) {
   return window['go']['main']['App']['CompactSession'](arg1, arg2);
 }
@@ -50,6 +54,14 @@ export function GetSessionUsage(arg1, arg2) {
   return window['go']['main']['App']['GetSessionUsage'](arg1, arg2);
 }
 
+export function GetWorkspaceFileDiff(arg1, arg2) {
+  return window['go']['main']['App']['GetWorkspaceFileDiff'](arg1, arg2);
+}
+
+export function GetWorkspaceGitStatus(arg1) {
+  return window['go']['main']['App']['GetWorkspaceGitStatus'](arg1);
+}
+
 export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }
@@ -68,6 +80,22 @@ export function OpenAccessibilitySettings() {
 
 export function OpenExternalURL(arg1) {
   return window['go']['main']['App']['OpenExternalURL'](arg1);
+}
+
+export function PullWorkspaceChanges(arg1) {
+  return window['go']['main']['App']['PullWorkspaceChanges'](arg1);
+}
+
+export function PushWorkspaceChanges(arg1) {
+  return window['go']['main']['App']['PushWorkspaceChanges'](arg1);
+}
+
+export function ReadWorkspaceDirectory(arg1, arg2) {
+  return window['go']['main']['App']['ReadWorkspaceDirectory'](arg1, arg2);
+}
+
+export function ReadWorkspaceFileContent(arg1, arg2) {
+  return window['go']['main']['App']['ReadWorkspaceFileContent'](arg1, arg2);
 }
 
 export function RespondPermission(arg1) {

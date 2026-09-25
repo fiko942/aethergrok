@@ -12,6 +12,7 @@ import (
 	"aethergrok/pkg/permissions"
 	"aethergrok/pkg/screen"
 	"aethergrok/pkg/skills"
+	"aethergrok/pkg/workspace"
 
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -335,4 +336,39 @@ func (a *App) CheckAndRequestAccessibilityPermissions() permissions.Status {
 // OpenAccessibilitySettings opens macOS System Settings to Accessibility panel
 func (a *App) OpenAccessibilitySettings() error {
 	return permissions.OpenAccessibilityPreferences()
+}
+
+// ReadWorkspaceDirectory reads directory contents for the right sidebar file tree
+func (a *App) ReadWorkspaceDirectory(workspacePath, relativeDir string) ([]workspace.FileItem, error) {
+	return workspace.ReadDirectory(workspacePath, relativeDir)
+}
+
+// ReadWorkspaceFileContent reads a file's content up to 1MB for read-only preview
+func (a *App) ReadWorkspaceFileContent(workspacePath, relativePath string) (string, error) {
+	return workspace.ReadFileContent(workspacePath, relativePath)
+}
+
+// GetWorkspaceGitStatus returns the branch, modified files, and diff stat
+func (a *App) GetWorkspaceGitStatus(workspacePath string) (*workspace.GitStatusResult, error) {
+	return workspace.GetGitStatus(workspacePath)
+}
+
+// GetWorkspaceFileDiff returns unified diff for a single modified file
+func (a *App) GetWorkspaceFileDiff(workspacePath, filePath string) (string, error) {
+	return workspace.GetFileDiff(workspacePath, filePath)
+}
+
+// CommitWorkspaceChanges commits staged/modified changes
+func (a *App) CommitWorkspaceChanges(workspacePath, message string) error {
+	return workspace.ExecuteCommit(workspacePath, message)
+}
+
+// PushWorkspaceChanges pushes commits to upstream
+func (a *App) PushWorkspaceChanges(workspacePath string) (string, error) {
+	return workspace.ExecutePush(workspacePath)
+}
+
+// PullWorkspaceChanges pulls upstream commits
+func (a *App) PullWorkspaceChanges(workspacePath string) (string, error) {
+	return workspace.ExecutePull(workspacePath)
 }

@@ -10,6 +10,7 @@
   import SkillCatalog from '$lib/components/skills/SkillCatalog.svelte';
   import SettingsModal from '$lib/components/layout/SettingsModal.svelte';
   import WorkspaceSidebar from '$lib/components/layout/WorkspaceSidebar.svelte';
+  import RightSidebar from '$lib/components/layout/RightSidebar.svelte';
   import ScreenFlash from '$lib/components/snapshot/ScreenFlash.svelte';
   import ModalConfirm from '$lib/antd/ModalConfirm.svelte';
   import { dialogStore } from '$lib/stores/dialog.svelte';
@@ -37,6 +38,8 @@
     Volume2,
     PanelLeftClose,
     PanelLeftOpen,
+    PanelRightClose,
+    PanelRightOpen,
     ChevronRight
   } from 'lucide-svelte';
 
@@ -648,8 +651,15 @@
       return;
     }
 
+    // Cmd/Ctrl + Alt + B: Toggle right sidebar (workspace explorer / git inspector)
+    if (isMetaOrCtrl && e.altKey && e.key.toLowerCase() === 'b') {
+      e.preventDefault();
+      sessionStore.toggleRightSidebar();
+      return;
+    }
+
     // Cmd/Ctrl + B: Toggle left sidebar collapse
-    if (isMetaOrCtrl && !e.shiftKey && (e.key.toLowerCase() === 'b' || e.key === '\\')) {
+    if (isMetaOrCtrl && !e.shiftKey && !e.altKey && (e.key.toLowerCase() === 'b' || e.key === '\\')) {
       e.preventDefault();
       toggleSidebar();
       return;
@@ -931,6 +941,20 @@
       <Button size="small" type="default" onclick={() => settingsModalVisible = true} class="!px-2">
         <Settings size={14} class="text-ant-text-secondary hover:text-ant-primary transition-colors" />
       </Button>
+
+      <!-- Right Sidebar (Inspector) Toggle in Header -->
+      <button
+        type="button"
+        onclick={() => sessionStore.toggleRightSidebar()}
+        class="p-1.5 rounded-md text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg transition-colors"
+        title="Toggle Workspace Inspector (⌘⌥B)"
+      >
+        {#if currentSession?.rightSidebarOpen}
+          <PanelRightClose size={16} class="text-indigo-400" />
+        {:else}
+          <PanelRightOpen size={16} />
+        {/if}
+      </button>
     </div>
   </header>
 
@@ -1024,6 +1048,12 @@
         onOpenSkillsCatalog={() => skillsCatalogVisible = true}
       />
     </main>
+
+    <!-- Right Sidebar: Workspace Explorer & Git Changes Inspector (Session-Isolated) -->
+    <RightSidebar
+      workspacePath={currentSession?.workspacePath || ''}
+      sessionId={currentSession?.id}
+    />
   </div>
 
   <!-- Screen White Flash Visual Animation -->

@@ -4,6 +4,7 @@ import {screen} from '../models';
 import {permissions} from '../models';
 import {grokrunner} from '../models';
 import {skills} from '../models';
+import {workspace} from '../models';
 
 export function CancelSession(arg1:string):Promise<void>;
 
@@ -14,6 +15,8 @@ export function CheckAndRequestAccessibilityPermissions():Promise<permissions.St
 export function CheckDirectoryExists(arg1:string):Promise<boolean>;
 
 export function CleanupSkillImportTemp(arg1:string):Promise<void>;
+
+export function CommitWorkspaceChanges(arg1:string,arg2:string):Promise<void>;
 
 export function CompactSession(arg1:string,arg2:string):Promise<grokrunner.SessionUsageStats>;
 
@@ -29,6 +32,10 @@ export function GetInstalledSkills():Promise<Array<skills.Skill>>;
 
 export function GetSessionUsage(arg1:string,arg2:string):Promise<grokrunner.SessionUsageStats>;
 
+export function GetWorkspaceFileDiff(arg1:string,arg2:string):Promise<string>;
+
+export function GetWorkspaceGitStatus(arg1:string):Promise<workspace.GitStatusResult>;
+
 export function Greet(arg1:string):Promise<string>;
 
 export function InstallDiscoveredSkills(arg1:skills.SkillInstallPayload):Promise<skills.SkillInstallResult>;
@@ -38,6 +45,14 @@ export function LoadGrokSessionHistory(arg1:string,arg2:string):Promise<Array<gr
 export function OpenAccessibilitySettings():Promise<void>;
 
 export function OpenExternalURL(arg1:string):Promise<void>;
+
+export function PullWorkspaceChanges(arg1:string):Promise<string>;
+
+export function PushWorkspaceChanges(arg1:string):Promise<string>;
+
+export function ReadWorkspaceDirectory(arg1:string,arg2:string):Promise<Array<workspace.FileItem>>;
+
+export function ReadWorkspaceFileContent(arg1:string,arg2:string):Promise<string>;
 
 export function RespondPermission(arg1:grokrunner.PermissionResponse):Promise<void>;
 
