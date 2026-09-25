@@ -147,8 +147,8 @@ func GetGitStatus(workspacePath string) (*GitStatusResult, error) {
 		branch = "HEAD"
 	}
 
-	// 2. Get status porcelain
-	cmdStatus := exec.Command("git", "status", "--porcelain=v1")
+	// 2. Get status porcelain with -uall (untracked files individually listed, respecting .gitignore)
+	cmdStatus := exec.Command("git", "status", "--porcelain=v1", "-uall", "--ignored=no")
 	cmdStatus.Dir = workspacePath
 	statusOut, err := cmdStatus.Output()
 	if err != nil {
@@ -168,6 +168,10 @@ func GetGitStatus(workspacePath string) (*GitStatusResult, error) {
 
 		code := trimmed[0:2]
 		filePath := strings.TrimSpace(trimmed[3:])
+		// Strip surrounding quotes if git outputs quoted paths
+		if strings.HasPrefix(filePath, "\"") && strings.HasSuffix(filePath, "\"") {
+			filePath = filePath[1 : len(filePath)-1]
+		}
 
 		statusCode := "M"
 		if strings.Contains(code, "A") {
@@ -178,17 +182,31 @@ func GetGitStatus(workspacePath string) (*GitStatusResult, error) {
 			statusCode = "?"
 		}
 
-		// Calculate numstat lines
-		cmdDiff := exec.Command("git", "diff", "--numstat", "HEAD", "--", filePath)
-		cmdDiff.Dir = workspacePath
-		numstatOut, _ := cmdDiff.Output()
-
+		// Calculate numstat lines for tracked/staged/modified files
 		addCount := 0
 		delCount := 0
-		numParts := strings.Fields(string(numstatOut))
-		if len(numParts) >= 2 {
-			fmt.Sscanf(numParts[0], "%d", &addCount)
-			fmt.Sscanf(numParts[1], "%d", &delCount)
+
+		if statusCode != "?" {
+			cmdDiff := exec.Command("git", "diff", "--numstat", "HEAD", "--", filePath)
+			cmdDiff.Dir = workspacePath
+			numstatOut, _ := cmdDiff.Output()
+
+			numParts := strings.Fields(string(numstatOut))
+			if len(numParts) >= 2 {
+				fmt.Sscanf(numParts[0], "%d", &addCount)
+				fmt.Sscanf(numParts[1], "%d", &delCount)
+			}
+		} else {
+			// For untracked new files, count total lines in file as additions
+			fullPath := filepath.Join(workspacePath, filePath)
+			if data, err := os.ReadFile(fullPath); err == nil {
+				if len(data) > 0 {
+					addCount = bytes.Count(data, []byte("\n"))
+					if !bytes.HasSuffix(data, []byte("\n")) {
+						addCount++
+					}
+				}
+			}
 		}
 
 		totalAdd += addCount
@@ -197,7 +215,7 @@ func GetGitStatus(workspacePath string) (*GitStatusResult, error) {
 		changes = append(changes, GitFileChange{
 			Path:        filePath,
 			Status:      statusCode,
-			AddedLines:   addCount,
+			AddedLines:  addCount,
 			RemovedLines: delCount,
 		})
 	}
@@ -211,22 +229,33 @@ func GetGitStatus(workspacePath string) (*GitStatusResult, error) {
 	}, nil
 }
 
-// GetFileDiff returns unified diff for a single file
+// GetFileDiff returns unified diff for a single file (respecting untracked new files and .gitignore)
 func GetFileDiff(workspacePath, filePath string) (string, error) {
+	// First try git diff HEAD -- <filePath>
 	cmd := exec.Command("git", "diff", "HEAD", "--", filePath)
 	cmd.Dir = workspacePath
 	out, err := cmd.CombinedOutput()
-	if err != nil {
-		// If untracked, try diff with /dev/null
-		cmdUntracked := exec.Command("git", "diff", "--no-index", "/dev/null", filePath)
-		cmdUntracked.Dir = workspacePath
-		untrackedOut, _ := cmdUntracked.CombinedOutput()
-		if len(untrackedOut) > 0 {
-			return string(untrackedOut), nil
-		}
-		return "", err
+	if err == nil && len(out) > 0 {
+		return string(out), nil
 	}
-	return string(out), nil
+
+	// Also check working tree vs index (staged)
+	cmdStaged := exec.Command("git", "diff", "--", filePath)
+	cmdStaged.Dir = workspacePath
+	stagedOut, _ := cmdStaged.CombinedOutput()
+	if len(stagedOut) > 0 {
+		return string(stagedOut), nil
+	}
+
+	// For untracked new files, produce unified diff against /dev/null
+	cmdUntracked := exec.Command("git", "diff", "--no-index", "/dev/null", filePath)
+	cmdUntracked.Dir = workspacePath
+	untrackedOut, _ := cmdUntracked.CombinedOutput()
+	if len(untrackedOut) > 0 {
+		return string(untrackedOut), nil
+	}
+
+	return string(out), err
 }
 
 // ExecuteCommit performs git commit
