@@ -72,6 +72,29 @@ type PermissionResponse struct {
 	Decision  string `json:"decision"` // "allow_once", "allow_always", "reject"
 }
 
+// DiscoveredChatMessage represents a reconstructed message for the frontend
+type DiscoveredChatMessage struct {
+	ID               string                 `json:"id"`
+	Role             string                 `json:"role"` // "user", "assistant", "system"
+	Content          string                 `json:"content"`
+	Timestamp        int64                  `json:"timestamp"`
+	ReasoningContent string                 `json:"reasoningContent,omitempty"`
+	ToolCalls        []DiscoveredToolCall   `json:"toolCalls,omitempty"`
+	Tokens           map[string]interface{} `json:"tokens,omitempty"`
+	Status           string                 `json:"status,omitempty"`
+}
+
+// DiscoveredToolCall represents an executed tool reconstructed from history
+type DiscoveredToolCall struct {
+	ID        string                 `json:"id"`
+	Tool      string                 `json:"tool"`
+	Params    map[string]interface{} `json:"params,omitempty"`
+	Result    string                 `json:"result,omitempty"`
+	Status    string                 `json:"status"` // "completed", "failed", "running"
+	StartTime int64                  `json:"startTime,omitempty"`
+	EndTime   int64                  `json:"endTime,omitempty"`
+}
+
 // TurnCompleteEvent signals that the turn has completed
 type TurnCompleteEvent struct {
 	SessionID     string `json:"sessionId"`

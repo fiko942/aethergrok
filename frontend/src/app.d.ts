@@ -76,6 +76,7 @@ declare global {
           SaveMarkdownExport: (defaultFilename: string, content: string) => Promise<string>;
           GetAvailableModels: () => Promise<Array<{ id: string; name: string; description: string; isDefault: boolean }>>;
           DiscoverGrokSessions: (workspacePath: string) => Promise<Array<{ id: string; title: string; createdAt: number; updatedAt: number }>>;
+          LoadGrokSessionHistory: (workspacePath: string, sessionID: string) => Promise<Array<any>>;
           DeleteGrokSession: (workspacePath: string, sessionId: string) => Promise<void>;
         };
       };

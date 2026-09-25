@@ -1,5 +1,74 @@
 export namespace grokrunner {
 	
+	export class DiscoveredToolCall {
+	    id: string;
+	    tool: string;
+	    params?: Record<string, any>;
+	    result?: string;
+	    status: string;
+	    startTime?: number;
+	    endTime?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new DiscoveredToolCall(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.tool = source["tool"];
+	        this.params = source["params"];
+	        this.result = source["result"];
+	        this.status = source["status"];
+	        this.startTime = source["startTime"];
+	        this.endTime = source["endTime"];
+	    }
+	}
+	export class DiscoveredChatMessage {
+	    id: string;
+	    role: string;
+	    content: string;
+	    timestamp: number;
+	    reasoningContent?: string;
+	    toolCalls?: DiscoveredToolCall[];
+	    tokens?: Record<string, any>;
+	    status?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DiscoveredChatMessage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.role = source["role"];
+	        this.content = source["content"];
+	        this.timestamp = source["timestamp"];
+	        this.reasoningContent = source["reasoningContent"];
+	        this.toolCalls = this.convertValues(source["toolCalls"], DiscoveredToolCall);
+	        this.tokens = source["tokens"];
+	        this.status = source["status"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class GrokSessionMetadata {
 	    id: string;
 	    workspaceId: string;

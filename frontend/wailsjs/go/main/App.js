@@ -30,6 +30,10 @@ export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }
 
+export function LoadGrokSessionHistory(arg1, arg2) {
+  return window['go']['main']['App']['LoadGrokSessionHistory'](arg1, arg2);
+}
+
 export function RespondPermission(arg1) {
   return window['go']['main']['App']['RespondPermission'](arg1);
 }

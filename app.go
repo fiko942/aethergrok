@@ -202,6 +202,11 @@ func (a *App) DiscoverGrokSessions(workspacePath string) ([]grokrunner.GrokSessi
 	return grokrunner.DiscoverGrokSessions(workspacePath)
 }
 
+// LoadGrokSessionHistory reads and parses chat history messages for a specific session from disk
+func (a *App) LoadGrokSessionHistory(workspacePath, sessionID string) ([]grokrunner.DiscoveredChatMessage, error) {
+	return grokrunner.LoadGrokSessionMessages(workspacePath, sessionID)
+}
+
 // DeleteGrokSession removes a session folder from ~/.grok/sessions/
 func (a *App) DeleteGrokSession(workspacePath, sessionID string) error {
 	return grokrunner.DeleteGrokSessionDirectory(workspacePath, sessionID)

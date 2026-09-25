@@ -67,7 +67,7 @@
 
   function handleClose(session: Session, e: MouseEvent) {
     e.stopPropagation();
-    sessionStore.closeSession(session.id);
+    sessionStore.closeSessionTab(session.id);
   }
 
   function handleNewSession() {
@@ -77,7 +77,7 @@
 
 <div class="flex items-center w-full bg-ant-bg-secondary border-b border-ant-border-secondary px-2 h-10 select-none overflow-x-auto no-scrollbar gap-1.5">
   <div class="flex items-center space-x-1 flex-1 min-w-0 overflow-x-auto">
-    {#each sessionStore.activeWorkspaceSessions as session, index (session.id)}
+    {#each sessionStore.openWorkspaceTabs as session, index (session.id)}
       {@const isActive = sessionStore.activeSessionId === session.id}
       {@const meta = STATUS_META[session.status]}
       {@const isDragging = draggedIndex === index}

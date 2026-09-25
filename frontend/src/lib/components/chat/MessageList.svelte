@@ -230,10 +230,10 @@
 
     <!-- Live In-Transcript Activity & Thinking Indicator -->
     {#if isWorking}
-      <div class="my-2 p-3 rounded-lg border border-ant-primary/25 bg-ant-bg-secondary/60 backdrop-blur-sm shadow-sm animate-pulse flex items-center justify-between font-mono select-none">
+      <div class="my-2 p-3 rounded-lg border border-ant-primary/30 bg-ant-bg-secondary/70 backdrop-blur-md shadow-md flex items-center justify-between font-mono select-none">
         <div class="flex items-center space-x-2.5 min-w-0">
-          <div class="w-6 h-6 rounded-md bg-ant-primary/15 border border-ant-primary/30 flex items-center justify-center text-ant-primary flex-shrink-0">
-            <Brain size={14} class="animate-pulse" />
+          <div class="w-6 h-6 rounded-md bg-ant-primary/20 border border-ant-primary/40 flex items-center justify-center text-ant-primary flex-shrink-0 animate-pulse">
+            <Brain size={14} />
           </div>
           <div class="flex flex-col min-w-0">
             <span class="text-xs font-semibold text-white truncate flex items-center gap-1.5">
@@ -244,14 +244,14 @@
                 <span class="w-1 h-1 rounded-full bg-ant-primary animate-bounce [animation-delay:0.4s]"></span>
               </span>
             </span>
-            <span class="text-[10px] text-ant-text-muted mt-0.5">
-              Grok Agent sedang aktif mengeksekusi giliran (turn in progress)
+            <span class="text-[10px] text-ant-text-secondary mt-0.5">
+              Memproses tindakan & menganalisa berkas proyek
             </span>
           </div>
         </div>
 
         <!-- Right Side: Live Timer Pill -->
-        <div class="flex items-center space-x-1.5 px-2 py-0.5 rounded bg-ant-primary/10 border border-ant-primary/20 text-ant-primary text-[11px] font-mono flex-shrink-0 ml-3">
+        <div class="flex items-center space-x-1.5 px-2 py-0.5 rounded bg-ant-primary/15 border border-ant-primary/30 text-ant-primary text-[11px] font-mono flex-shrink-0 ml-3">
           <Loader2 size={11} class="animate-spin text-ant-primary" />
           <span class="font-medium">{elapsedSeconds}s</span>
         </div>

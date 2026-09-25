@@ -123,6 +123,7 @@ class SessionStore {
   activeWorkspaceId = $state<string>('');
   sessions = $state<Session[]>([]);
   activeSessionId = $state<string | null>(null);
+  openTabSessionIds = $state<string[]>([]); // Track sessions opened as active tabs
 
   // Multi-select state
   isSelectionMode = $state<boolean>(false);
@@ -143,6 +144,7 @@ class SessionStore {
     const initialSession = this.createNewSessionModel('Log Audit & Automation', defaultWs.id);
     this.sessions = [initialSession];
     this.activeSessionId = initialSession.id;
+    this.openTabSessionIds = [initialSession.id];
   }
 
   private createNewSessionModel(title?: string, wsId?: string): Session {
@@ -170,6 +172,12 @@ class SessionStore {
   get activeWorkspaceSessions(): Session[] {
     if (!this.activeWorkspaceId) return this.sessions;
     return this.sessions.filter((s) => s.workspaceId === this.activeWorkspaceId);
+  }
+
+  // Open tabs belonging to active workspace
+  get openWorkspaceTabs(): Session[] {
+    const wsSessions = this.activeWorkspaceSessions;
+    return wsSessions.filter((s) => this.openTabSessionIds.includes(s.id));
   }
 
   // Active Session Getter
@@ -332,23 +340,94 @@ class SessionStore {
   createSession(title?: string, wsId?: string): Session {
     const newSession = this.createNewSessionModel(title, wsId);
     this.sessions.push(newSession);
+    this.openTabSessionIds.push(newSession.id);
     this.activeSessionId = newSession.id;
     return newSession;
   }
 
-  switchSession(id: string): void {
-    if (this.activeSessionId === id) return;
+  // Open a session in a tab (e.g. clicked from sidebar)
+  async openSessionInTab(id: string): Promise<void> {
     const target = this.sessions.find((s) => s.id === id);
-    if (target) {
-      target.visibleTurnCount = DEFAULT_WINDOW_TURNS;
-      this.activeSessionId = id;
-      if (target.workspaceId && target.workspaceId !== this.activeWorkspaceId) {
-        this.activeWorkspaceId = target.workspaceId;
+    if (!target) return;
+
+    if (!this.openTabSessionIds.includes(id)) {
+      // Limit open tabs to 12 max to prevent visual overflow
+      if (this.openTabSessionIds.length >= 12) {
+        this.openTabSessionIds.shift();
+      }
+      this.openTabSessionIds.push(id);
+    }
+
+    target.visibleTurnCount = DEFAULT_WINDOW_TURNS;
+    this.activeSessionId = id;
+    if (target.workspaceId && target.workspaceId !== this.activeWorkspaceId) {
+      this.activeWorkspaceId = target.workspaceId;
+    }
+
+    // Lazy load real chat history from disk if session has 0 messages
+    if (target.messages.length === 0) {
+      await this.loadSessionHistoryFromDisk(target);
+    }
+  }
+
+  // Load chat history from disk via Go backend
+  async loadSessionHistoryFromDisk(session: Session): Promise<void> {
+    const ws = this.workspaces.find((w) => w.id === session.workspaceId);
+    if (!ws || !ws.path) return;
+
+    if (window.go?.main?.App?.LoadGrokSessionHistory) {
+      try {
+        const history = await window.go.main.App.LoadGrokSessionHistory(ws.path, session.id);
+        if (history && history.length > 0) {
+          session.messages = history.map((m: any, idx: number) => ({
+            id: m.id || `${session.id}_msg_${idx}`,
+            role: m.role || 'assistant',
+            content: m.content || '',
+            timestamp: m.timestamp || (session.createdAt + idx * 1000),
+            reasoningContent: m.reasoningContent,
+            toolCalls: m.toolCalls,
+            tokens: m.tokens,
+            status: m.status || 'done'
+          }));
+        }
+      } catch (err) {
+        console.error('Failed to load session history for', session.id, err);
       }
     }
   }
 
+  switchSession(id: string): void {
+    if (this.activeSessionId === id) return;
+    this.openSessionInTab(id);
+  }
+
+  // Close tab only (preserves session in sidebar and disk)
+  closeSessionTab(id: string): void {
+    const tabIdx = this.openTabSessionIds.indexOf(id);
+    if (tabIdx !== -1) {
+      this.openTabSessionIds.splice(tabIdx, 1);
+    }
+
+    const currentOpenInWs = this.openWorkspaceTabs;
+    if (currentOpenInWs.length === 0) {
+      // If no tabs remain open in this workspace, open the first available session or create a new one
+      const available = this.activeWorkspaceSessions;
+      if (available.length > 0) {
+        this.openSessionInTab(available[0].id);
+      } else {
+        this.createSession();
+      }
+      return;
+    }
+
+    if (this.activeSessionId === id) {
+      const nextTab = currentOpenInWs[Math.max(0, tabIdx - 1)] || currentOpenInWs[0];
+      this.openSessionInTab(nextTab.id);
+    }
+  }
+
   closeSession(id: string): void {
+    this.closeSessionTab(id);
     const index = this.sessions.findIndex((s) => s.id === id);
     if (index === -1) return;
 
@@ -359,6 +438,7 @@ class SessionStore {
     if (remainingInWs.length === 0) {
       const fallback = this.createNewSessionModel('New Task', wsId);
       this.sessions.push(fallback);
+      this.openTabSessionIds = [fallback.id];
       this.activeSessionId = fallback.id;
       return;
     }
@@ -430,8 +510,10 @@ class SessionStore {
         }
       }
       if (realFirst && (!this.activeSessionId || hasExistingPlaceholders.some((ph) => ph.id === this.activeSessionId))) {
-        this.activeSessionId = realFirst.id;
+        this.openSessionInTab(realFirst.id);
       }
+    } else if (this.activeSessionId && this.openTabSessionIds.length === 0) {
+      this.openTabSessionIds = [this.activeSessionId];
     }
   }
 

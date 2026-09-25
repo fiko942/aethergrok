@@ -18,6 +18,8 @@ export function GetInstalledSkills():Promise<Array<skills.Skill>>;
 
 export function Greet(arg1:string):Promise<string>;
 
+export function LoadGrokSessionHistory(arg1:string,arg2:string):Promise<Array<grokrunner.DiscoveredChatMessage>>;
+
 export function RespondPermission(arg1:grokrunner.PermissionResponse):Promise<void>;
 
 export function RunPromptStream(arg1:grokrunner.PromptRequest):Promise<void>;

@@ -296,10 +296,10 @@
                 if (sessionStore.isSelectionMode) {
                   sessionStore.toggleSessionSelected(session.id);
                 } else {
-                  sessionStore.switchSession(session.id);
+                  sessionStore.openSessionInTab(session.id);
                 }
               }}
-              onkeydown={(e) => e.key === 'Enter' && sessionStore.switchSession(session.id)}
+              onkeydown={(e) => e.key === 'Enter' && sessionStore.openSessionInTab(session.id)}
               class="group relative flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-medium cursor-pointer transition border {isActive
                 ? 'bg-ant-primary/10 text-ant-primary border-ant-primary/50 shadow-sm font-semibold'
                 : 'bg-ant-bg-secondary/70 text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'}"
@@ -491,10 +491,10 @@
                       if (sessionStore.isSelectionMode) {
                         sessionStore.toggleSessionSelected(session.id);
                       } else {
-                        sessionStore.switchSession(session.id);
+                        sessionStore.openSessionInTab(session.id);
                       }
                     }}
-                    onkeydown={(e) => e.key === 'Enter' && sessionStore.switchSession(session.id)}
+                    onkeydown={(e) => e.key === 'Enter' && sessionStore.openSessionInTab(session.id)}
                     class="group relative flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-medium cursor-pointer transition border {isActive
                       ? 'bg-ant-primary/10 text-ant-primary border-ant-primary/50 shadow-sm font-semibold'
                       : 'bg-ant-bg-secondary/40 text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'}"
