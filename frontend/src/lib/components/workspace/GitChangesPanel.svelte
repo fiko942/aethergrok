@@ -48,10 +48,9 @@
   // Selected file for diff modal
   let selectedDiffFile = $state<string | null>(null);
 
-  export async function refreshStatus() {
+  export async function refreshStatus(silent = false) {
     if (!workspacePath) return;
-    isLoading = true;
-    actionMessage = null;
+    if (!silent) isLoading = true;
 
     try {
       const win = window as any;
@@ -62,13 +61,25 @@
     } catch (err: any) {
       console.error('Failed to get git status:', err);
     } finally {
-      isLoading = false;
+      if (!silent) isLoading = false;
     }
   }
 
   $effect(() => {
     if (workspacePath) {
       refreshStatus();
+
+      // Auto-refresh every 5 seconds when panel is open
+      const interval = setInterval(() => {
+        // Do not interrupt while actively committing, pushing, or pulling
+        if (!isCommitting && !isPushing && !isPulling) {
+          refreshStatus(true);
+        }
+      }, 5000);
+
+      return () => {
+        clearInterval(interval);
+      };
     }
   });
 
