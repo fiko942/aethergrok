@@ -201,18 +201,18 @@
         type="button"
         onclick={loadEarlier}
         disabled={isHydrating}
-        class="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-medium bg-ant-bg-secondary hover:bg-ant-bg-tertiary text-ant-primary border border-ant-border shadow-sm transition-all duration-150 disabled:opacity-50"
+        class="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-medium bg-ant-bg-secondary hover:bg-ant-bg-tertiary text-ant-primary border border-white/10 shadow-sm transition-all duration-150 disabled:opacity-50"
       >
         {#if isHydrating}
           <Loader2 size={13} class="animate-spin text-ant-primary" />
           <span>Hydrating turns...</span>
         {:else}
           <ArrowUp size={13} class="text-ant-primary" />
-          <span>Load earlier turns ({sessionStore.remainingHiddenTurns} remaining)</span>
+          <span>Show previous ({sessionStore.remainingHiddenTurns} earlier turns)</span>
         {/if}
       </button>
     {:else if sessionStore.visibleMessages.length > 0}
-      <div class="text-[11px] text-ant-text-muted font-mono flex items-center gap-1.5 py-1">
+      <div class="text-[11px] text-ant-text-muted font-mono flex items-center gap-1.5 py-1 select-none">
         <span>Beginning of session conversation</span>
       </div>
     {/if}
