@@ -4,10 +4,30 @@
   import { Download, Trash2, X } from 'lucide-svelte';
   import CustomCheckbox from '$lib/components/ui/CustomCheckbox.svelte';
 
+  let { searchQuery = '' }: { searchQuery?: string } = $props();
+
+  // Find all visible/filtered sessions currently displayed in sidebar across all workspaces
+  const filteredSessions = $derived.by(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) {
+      return sessionStore.sessions;
+    }
+    return sessionStore.sessions.filter((s) => {
+      const matchTitle = s.title.toLowerCase().includes(q);
+      const ws = sessionStore.workspaces.find((w) => w.id === s.workspaceId);
+      const matchWs = ws ? ws.name.toLowerCase().includes(q) : false;
+      return matchTitle || matchWs;
+    });
+  });
+
+  const totalFilteredCount = $derived(filteredSessions.length);
+  const selectedFilteredCount = $derived(
+    filteredSessions.filter((s) => sessionStore.selectedSessionIds.has(s.id)).length
+  );
   const selectedCount = $derived(sessionStore.selectedSessionIds.size);
-  const totalCount = $derived(sessionStore.activeWorkspaceSessions.length);
-  const isAllSelected = $derived(totalCount > 0 && selectedCount === totalCount);
-  const isIndeterminate = $derived(selectedCount > 0 && selectedCount < totalCount);
+
+  const isAllSelected = $derived(totalFilteredCount > 0 && selectedFilteredCount === totalFilteredCount);
+  const isIndeterminate = $derived(selectedFilteredCount > 0 && selectedFilteredCount < totalFilteredCount);
 
   let isExporting = $state(false);
   let actionFeedback = $state<string | null>(null);
@@ -21,9 +41,19 @@
 
   function handleToggleSelectAll() {
     if (isAllSelected) {
-      sessionStore.deselectAllSessions();
+      // Deselect only the currently visible/filtered sessions
+      const next = new Set(sessionStore.selectedSessionIds);
+      for (const s of filteredSessions) {
+        next.delete(s.id);
+      }
+      sessionStore.selectedSessionIds = next;
     } else {
-      sessionStore.selectAllSessions();
+      // Select all currently visible/filtered sessions across all workspaces
+      const next = new Set(sessionStore.selectedSessionIds);
+      for (const s of filteredSessions) {
+        next.add(s.id);
+      }
+      sessionStore.selectedSessionIds = next;
     }
   }
 
@@ -32,7 +62,7 @@
     isExporting = true;
 
     try {
-      const selectedSessions = sessionStore.activeWorkspaceSessions.filter((s) =>
+      const selectedSessions = sessionStore.sessions.filter((s) =>
         sessionStore.selectedSessionIds.has(s.id)
       );
       const ws = sessionStore.activeWorkspace;
@@ -75,7 +105,7 @@
         <button
           onclick={handleToggleSelectAll}
           class="flex items-center space-x-2 text-xs text-zinc-300 hover:text-white font-medium transition group"
-          title={isAllSelected ? 'Deselect all sessions' : 'Select all sessions in workspace'}
+          title={isAllSelected ? 'Deselect visible sessions' : 'Select all visible sessions'}
         >
           <CustomCheckbox checked={isAllSelected} indeterminate={isIndeterminate} size="sm" />
           <span>{isAllSelected ? 'Deselect All' : 'Select All'}</span>

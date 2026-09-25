@@ -451,9 +451,13 @@ class SessionStore {
     this.selectedSessionIds = next;
   }
 
-  selectAllSessions(): void {
-    const currentSessions = this.activeWorkspaceSessions;
-    const allIds = currentSessions.map((s) => s.id);
+  selectAllSessions(customIds?: string[]): void {
+    if (customIds) {
+      this.selectedSessionIds = new Set(customIds);
+      return;
+    }
+    // Select all sessions across all workspaces
+    const allIds = this.sessions.map((s) => s.id);
     this.selectedSessionIds = new Set(allIds);
   }
 

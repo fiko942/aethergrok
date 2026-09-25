@@ -754,7 +754,7 @@
   {/if}
 
   <!-- 3. Multi-Select Batch Actions Footer Bar -->
-  <BatchActionBar />
+  <BatchActionBar {searchQuery} />
 
   <!-- Toast Notification -->
   {#if copiedToast}
