@@ -82,10 +82,6 @@ export function OpenExternalURL(arg1) {
   return window['go']['main']['App']['OpenExternalURL'](arg1);
 }
 
-export function RevealGrokConfigFile() {
-  return window['go']['main']['App']['RevealGrokConfigFile']();
-}
-
 export function PullWorkspaceChanges(arg1) {
   return window['go']['main']['App']['PullWorkspaceChanges'](arg1);
 }
@@ -104,6 +100,10 @@ export function ReadWorkspaceFileContent(arg1, arg2) {
 
 export function RespondPermission(arg1) {
   return window['go']['main']['App']['RespondPermission'](arg1);
+}
+
+export function RevealGrokConfigFile() {
+  return window['go']['main']['App']['RevealGrokConfigFile']();
 }
 
 export function RevertWorkspaceFiles(arg1, arg2) {

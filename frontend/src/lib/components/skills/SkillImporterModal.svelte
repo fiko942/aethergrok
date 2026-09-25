@@ -2,7 +2,7 @@
   import { tick, onMount, onDestroy } from 'svelte';
   import type { SkillAnalysisResult, DiscoveredSkill, SkillInstallPayload, SkillInstallResult } from '../../../app.d';
   import Button from '$lib/antd/Button.svelte';
-  import Checkbox from '$lib/antd/Checkbox.svelte';
+  import CustomCheckbox from '$lib/components/ui/CustomCheckbox.svelte';
   import Radio from '$lib/antd/Radio.svelte';
   import {
     Sparkles,
@@ -10,7 +10,6 @@
     FolderGit2,
     Check,
     Square,
-    CheckSquare,
     AlertCircle,
     Loader2,
     Terminal,
@@ -387,10 +386,13 @@
                     <Wrench size={13} />
                     <span>AI Detected Prerequisites & Runtime Setup</span>
                   </div>
-                  <Checkbox
-                    bind:checked={runSuggestedScripts}
-                    label="Execute dependency scripts after copy"
-                  />
+                  <label class="flex items-center gap-2 text-[11px] text-zinc-300 cursor-pointer select-none">
+                    <CustomCheckbox
+                      checked={runSuggestedScripts}
+                      size="sm"
+                    />
+                    <span onclick={() => runSuggestedScripts = !runSuggestedScripts}>Execute dependency scripts after copy</span>
+                  </label>
                 </div>
 
                 <div class="flex flex-wrap gap-1.5">
@@ -437,9 +439,11 @@
                 onclick={toggleSelectAll}
                 class="text-xs text-ant-primary hover:underline flex items-center gap-1.5 font-medium"
               >
-                <div class="w-4 h-4 rounded border flex items-center justify-center {selectedSkillPaths.length === analysisResult.skills.length ? 'border-ant-primary bg-ant-primary text-white' : 'border-zinc-700 bg-ant-bg-tertiary text-transparent'}">
-                  <Check size={11} class="stroke-[3] {selectedSkillPaths.length === analysisResult.skills.length ? 'opacity-100' : 'opacity-0'}" />
-                </div>
+                <CustomCheckbox
+                  checked={selectedSkillPaths.length === analysisResult.skills.length}
+                  indeterminate={selectedSkillPaths.length > 0 && selectedSkillPaths.length < analysisResult.skills.length}
+                  size="sm"
+                />
                 <span>{selectedSkillPaths.length === analysisResult.skills.length ? 'Deselect All' : `Select All (${analysisResult.skills.length})`}</span>
               </button>
             </div>
@@ -456,9 +460,10 @@
                     class="p-3 flex items-start gap-3 hover:bg-ant-bg-secondary/70 transition cursor-pointer {isChecked ? 'bg-ant-primary/5' : ''}"
                   >
                     <div class="mt-0.5 flex-shrink-0">
-                      <div class="w-4 h-4 rounded border flex items-center justify-center transition-colors {isChecked ? 'border-ant-primary bg-ant-primary text-white' : 'border-zinc-700 bg-ant-bg-tertiary text-transparent'}">
-                        <Check size={11} class="stroke-[3] {isChecked ? 'opacity-100' : 'opacity-0'}" />
-                      </div>
+                      <CustomCheckbox
+                        checked={isChecked}
+                        size="md"
+                      />
                     </div>
 
                     <div class="flex-1 min-w-0 space-y-1">

@@ -56,11 +56,11 @@ export function ReadWorkspaceFileContent(arg1:string,arg2:string):Promise<string
 
 export function RespondPermission(arg1:grokrunner.PermissionResponse):Promise<void>;
 
+export function RevealGrokConfigFile():Promise<void>;
+
 export function RevertWorkspaceFiles(arg1:string,arg2:Array<string>):Promise<void>;
 
 export function RunPromptStream(arg1:grokrunner.PromptRequest):Promise<void>;
-
-export function RevealGrokConfigFile():Promise<void>;
 
 export function SaveMarkdownExport(arg1:string,arg2:string):Promise<string>;
 

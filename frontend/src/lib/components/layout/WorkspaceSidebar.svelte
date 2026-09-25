@@ -15,7 +15,6 @@
     Tag,
     Trash2,
     Check,
-    CheckSquare,
     Square,
     ChevronDown,
     ChevronRight,
@@ -444,13 +443,9 @@
                     <button
                       type="button"
                       onclick={(e) => { e.stopPropagation(); sessionStore.toggleSessionSelected(session.id); }}
-                      class="flex-shrink-0 text-ant-primary"
+                      class="flex-shrink-0"
                     >
-                      {#if isChecked}
-                        <CheckSquare size={14} class="text-ant-primary" />
-                      {:else}
-                        <Square size={14} class="text-ant-text-muted" />
-                      {/if}
+                      <CustomCheckbox checked={isChecked} size="sm" />
                     </button>
                   {:else}
                     <Pin size={13} class="text-amber-400 fill-current flex-shrink-0" />
