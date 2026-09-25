@@ -55,6 +55,23 @@
     return circumference - (circumference * percentage) / 100;
   });
 
+  // Dynamic status color based on token limit consumption percentage
+  // < 60%: green / teal (healthy)
+  // 60% - 85%: amber / yellow (near capacity)
+  // > 85%: red / rose (critical)
+  const donutColorClass = $derived.by(() => {
+    if (percentage >= 85) {
+      return 'text-rose-500';
+    } else if (percentage >= 60) {
+      return 'text-amber-400';
+    }
+    return 'text-emerald-400';
+  });
+
+  const donutTrackClass = $derived.by(() => {
+    return 'text-white/10 dark:text-white/10';
+  });
+
   function toggleOpen(e: MouseEvent) {
     e.stopPropagation();
     isOpen = !isOpen;
@@ -102,7 +119,7 @@
         fill="none"
         stroke="currentColor"
         stroke-width="2.5"
-        class="text-ant-bg-tertiary"
+        class={donutTrackClass}
       />
       <circle
         cx="8"
@@ -114,7 +131,7 @@
         stroke-dasharray={circumference}
         stroke-dashoffset={strokeDashoffset}
         stroke-linecap="round"
-        class="{percentage > 85 ? 'text-amber-400' : 'text-amber-300'}"
+        class="{donutColorClass} transition-all duration-300"
       />
     </svg>
 
