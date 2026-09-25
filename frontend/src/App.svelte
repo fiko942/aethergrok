@@ -120,6 +120,7 @@
     focusInput: () => void;
     restorePrompt: (payload: { text: string; images?: VisionImage[]; attachments?: AttachedFile[] }) => void;
   } | null>(null);
+  let messageListRef = $state<{ forceScrollBottom: () => void } | null>(null);
 
   // Sync settingsStore default values
   $effect(() => {
@@ -293,6 +294,9 @@
     selectedModel = payload.model;
     reasoningEffort = payload.reasoningEffort;
     sessionStore.setSessionStatus(sessionId, 'working');
+
+    // Instantly force scroll to bottom on new prompt submission
+    messageListRef?.forceScrollBottom();
 
     // Auto-derive a provisional title only on the FIRST prompt if session has a default placeholder title
     const currentSession = sessionStore.sessions.find((s) => s.id === sessionId);
@@ -1060,7 +1064,11 @@
 
       <!-- Chat Feed Viewport (10-Turn Windowing) -->
       <div class="flex-1 overflow-hidden relative">
-        <MessageList onEditLastTurn={handleEditLastTurn} onPlanAction={handlePlanAction} />
+        <MessageList
+          bind:this={messageListRef}
+          onEditLastTurn={handleEditLastTurn}
+          onPlanAction={handlePlanAction}
+        />
       </div>
 
       <!-- Rich Prompt Composer with Snapshot & Model Selectors -->

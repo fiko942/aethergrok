@@ -12,7 +12,18 @@
 
   let { onEditLastTurn, onPlanAction }: Props = $props();
 
+  export function forceScrollBottom() {
+    autoScrollToBottom = true;
+    unreadActivityBelow = false;
+    tick().then(() => {
+      if (containerEl) {
+        containerEl.scrollTop = containerEl.scrollHeight;
+      }
+    });
+  }
+
   let containerEl = $state<HTMLDivElement | null>(null);
+  let contentWrapperEl = $state<HTMLDivElement | null>(null);
   let topSentinelEl = $state<HTMLDivElement | null>(null);
   let isHydrating = $state(false);
   let autoScrollToBottom = $state(true);
@@ -174,7 +185,7 @@
 
     // Check if user is near bottom to maintain stick-to-bottom
     const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
-    autoScrollToBottom = distanceFromBottom < 80;
+    autoScrollToBottom = distanceFromBottom < 100;
     showScrollToBottom = distanceFromBottom > 160;
 
     if (autoScrollToBottom) {
@@ -206,9 +217,15 @@
     });
   }
 
-  // Auto-scroll on new streaming messages if locked to bottom
+  // Auto-scroll on new streaming messages or DOM updates if locked to bottom
   $effect(() => {
     const msgs = sessionStore.visibleMessages;
+    // Track messages length and last message content/tools changes
+    const lastMsg = msgs[msgs.length - 1];
+    const _trackContent = lastMsg?.content;
+    const _trackTools = lastMsg?.toolCalls?.length;
+    const _trackStatus = lastMsg?.status;
+
     if (msgs.length > 0) {
       if (autoScrollToBottom) {
         tick().then(() => {
@@ -229,9 +246,21 @@
       containerEl.scrollTop = containerEl.scrollHeight;
     }
 
+    // Use ResizeObserver on contentWrapperEl to instantly follow streaming text/tool UI height expansions when pinned to bottom
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined' && contentWrapperEl) {
+      resizeObserver = new ResizeObserver(() => {
+        if (autoScrollToBottom && containerEl) {
+          containerEl.scrollTop = containerEl.scrollHeight;
+        }
+      });
+      resizeObserver.observe(contentWrapperEl);
+    }
+
     // Set up IntersectionObserver on top sentinel for smooth upward infinite hydration
+    let intersectionObserver: IntersectionObserver | null = null;
     if ('IntersectionObserver' in window && topSentinelEl && containerEl) {
-      const observer = new IntersectionObserver(
+      intersectionObserver = new IntersectionObserver(
         (entries) => {
           if (entries[0].isIntersecting && sessionStore.remainingHiddenTurns > 0 && !isHydrating) {
             loadEarlier();
@@ -244,12 +273,13 @@
         }
       );
 
-      observer.observe(topSentinelEl);
-
-      return () => {
-        observer.disconnect();
-      };
+      intersectionObserver.observe(topSentinelEl);
     }
+
+    return () => {
+      if (resizeObserver) resizeObserver.disconnect();
+      if (intersectionObserver) intersectionObserver.disconnect();
+    };
   });
 </script>
 
@@ -258,127 +288,129 @@
   onscroll={handleScroll}
   class="flex-1 w-full h-full overflow-y-auto px-4 py-3 space-y-3 relative bg-ant-bg select-text"
 >
-  <!-- Top Sentinel & Prepend History Header -->
-  <div bind:this={topSentinelEl} class="w-full flex justify-center py-2">
-    {#if sessionStore.remainingHiddenTurns > 0}
-      <button
-        type="button"
-        onclick={loadEarlier}
-        disabled={isHydrating}
-        class="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-medium bg-ant-bg-secondary hover:bg-ant-bg-tertiary text-ant-primary border border-white/10 shadow-sm transition-all duration-150 disabled:opacity-50"
-      >
-        {#if isHydrating}
-          <Loader2 size={13} class="animate-spin text-ant-primary" />
-          <span>Hydrating turns...</span>
-        {:else}
-          <ArrowUp size={13} class="text-ant-primary" />
-          <span>Show previous ({sessionStore.remainingHiddenTurns} earlier turns)</span>
-        {/if}
-      </button>
-    {:else if sessionStore.visibleMessages.length > 0}
-      <div class="text-[11px] text-ant-text-muted font-mono flex items-center gap-1.5 py-1 select-none">
-        <span>Beginning of session conversation</span>
-      </div>
-    {/if}
-  </div>
-
-  <!-- Empty state if no messages -->
-  {#if sessionStore.visibleMessages.length === 0}
-    <div class="flex flex-col items-center justify-center h-64 text-center space-y-3">
-      <div class="w-12 h-12 rounded-xl bg-ant-primary/10 border border-ant-primary/20 flex items-center justify-center text-ant-primary">
-        <Sparkles size={24} />
-      </div>
-      <div>
-        <h3 class="font-serif-display text-lg font-semibold text-ant-text tracking-tight">Start a new conversation</h3>
-        <p class="font-serif text-[13px] text-ant-text-secondary mt-1 max-w-sm leading-relaxed">
-          Ask Grok to inspect your code, execute terminal commands, or orchestrate autonomous agent tasks.
-        </p>
-      </div>
-    </div>
-  {:else}
-    <!-- Render 10-turn windowed messages -->
-    {#each sessionStore.visibleMessages as message (message.id)}
-      <MessageItem
-        {message}
-        turnNumber={turnMap.get(message.id)}
-        isLastUserTurn={message.id === lastUserMessageId}
-        onEditLastTurn={onEditLastTurn}
-        onOpenImage={handleOpenImage}
-        onPlanAction={onPlanAction}
-      />
-    {/each}
-
-    <!-- Live In-Transcript Compaction Indicator Banner -->
-    {#if sessionStore.isCompacting}
-      <div class="my-2.5 p-3 rounded-xl border border-zinc-800 bg-zinc-900/90 backdrop-blur-md shadow-lg flex items-center justify-between font-sans select-none animate-in fade-in duration-200">
-        <div class="flex items-center space-x-3 min-w-0">
-          <div class="w-7 h-7 rounded-lg bg-indigo-500/15 flex items-center justify-center text-indigo-400 flex-shrink-0 animate-spin">
-            <Loader2 size={14} />
-          </div>
-          <div class="flex flex-col min-w-0">
-            <span class="text-xs font-semibold text-zinc-100 truncate flex items-center gap-1.5">
-              <span>Compacting conversation context</span>
-            </span>
-            <span class="text-[11px] text-zinc-400 mt-0.5">
-              Summarizing earlier conversation turns to optimize context window
-            </span>
-          </div>
-        </div>
-
-        <div class="px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-300 text-[11px] font-mono flex-shrink-0 ml-3 border border-indigo-500/20">
-          <span class="font-medium">In progress...</span>
-        </div>
-      </div>
-    {:else if sessionStore.lastCompactNotice}
-      <div class="my-2.5 p-3 rounded-xl border flex items-center justify-between font-sans select-none text-xs transition-all duration-300 {sessionStore.lastCompactNotice.type === 'success' ? 'border-emerald-500/20 bg-zinc-900/90 text-emerald-300' : 'border-rose-500/20 bg-zinc-900/90 text-rose-300'} shadow-md">
-        <div class="flex items-center space-x-2.5">
-          {#if sessionStore.lastCompactNotice.type === 'success'}
-            <CheckCircle2 size={15} class="flex-shrink-0 text-emerald-400" />
-          {:else}
-            <AlertCircle size={15} class="flex-shrink-0 text-rose-400" />
-          {/if}
-          <span class="text-xs font-medium text-zinc-200">{sessionStore.lastCompactNotice.message}</span>
-        </div>
+  <div bind:this={contentWrapperEl} class="w-full space-y-3">
+    <!-- Top Sentinel & Prepend History Header -->
+    <div bind:this={topSentinelEl} class="w-full flex justify-center py-2">
+      {#if sessionStore.remainingHiddenTurns > 0}
         <button
           type="button"
-          onclick={() => sessionStore.lastCompactNotice = null}
-          class="text-[10.5px] text-zinc-400 hover:text-zinc-200 uppercase tracking-wider ml-3 px-2 py-0.5 rounded bg-zinc-800/60 hover:bg-zinc-800 transition"
+          onclick={loadEarlier}
+          disabled={isHydrating}
+          class="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-medium bg-ant-bg-secondary hover:bg-ant-bg-tertiary text-ant-primary border border-white/10 shadow-sm transition-all duration-150 disabled:opacity-50"
         >
-          Dismiss
+          {#if isHydrating}
+            <Loader2 size={13} class="animate-spin text-ant-primary" />
+            <span>Hydrating turns...</span>
+          {:else}
+            <ArrowUp size={13} class="text-ant-primary" />
+            <span>Show previous ({sessionStore.remainingHiddenTurns} earlier turns)</span>
+          {/if}
         </button>
-      </div>
-    {/if}
+      {:else if sessionStore.visibleMessages.length > 0}
+        <div class="text-[11px] text-ant-text-muted font-mono flex items-center gap-1.5 py-1 select-none">
+          <span>Beginning of session conversation</span>
+        </div>
+      {/if}
+    </div>
 
-    <!-- Live In-Transcript Activity & Thinking Indicator -->
-    {#if isWorking}
-      <div class="my-2 p-3 rounded-lg border border-white/5 bg-ant-bg-secondary/70 backdrop-blur-md shadow-sm flex items-center justify-between font-mono select-none">
-        <div class="flex items-center space-x-2.5 min-w-0">
-          <div class="w-6 h-6 rounded-md bg-ant-primary/10 text-ant-primary flex items-center justify-center flex-shrink-0 animate-pulse">
-            <Brain size={14} />
-          </div>
-          <div class="flex flex-col min-w-0">
-            <span class="text-xs font-semibold text-ant-text truncate flex items-center gap-1.5">
-              <span>{thinkingContextText}</span>
-              <span class="inline-flex space-x-0.5">
-                <span class="w-1 h-1 rounded-full bg-ant-primary animate-bounce"></span>
-                <span class="w-1 h-1 rounded-full bg-ant-primary animate-bounce [animation-delay:0.2s]"></span>
-                <span class="w-1 h-1 rounded-full bg-ant-primary animate-bounce [animation-delay:0.4s]"></span>
+    <!-- Empty state if no messages -->
+    {#if sessionStore.visibleMessages.length === 0}
+      <div class="flex flex-col items-center justify-center h-64 text-center space-y-3">
+        <div class="w-12 h-12 rounded-xl bg-ant-primary/10 border border-ant-primary/20 flex items-center justify-center text-ant-primary">
+          <Sparkles size={24} />
+        </div>
+        <div>
+          <h3 class="font-serif-display text-lg font-semibold text-ant-text tracking-tight">Start a new conversation</h3>
+          <p class="font-serif text-[13px] text-ant-text-secondary mt-1 max-w-sm leading-relaxed">
+            Ask Grok to inspect your code, execute terminal commands, or orchestrate autonomous agent tasks.
+          </p>
+        </div>
+      </div>
+    {:else}
+      <!-- Render 10-turn windowed messages -->
+      {#each sessionStore.visibleMessages as message (message.id)}
+        <MessageItem
+          {message}
+          turnNumber={turnMap.get(message.id)}
+          isLastUserTurn={message.id === lastUserMessageId}
+          onEditLastTurn={onEditLastTurn}
+          onOpenImage={handleOpenImage}
+          onPlanAction={onPlanAction}
+        />
+      {/each}
+
+      <!-- Live In-Transcript Compaction Indicator Banner -->
+      {#if sessionStore.isCompacting}
+        <div class="my-2.5 p-3 rounded-xl border border-zinc-800 bg-zinc-900/90 backdrop-blur-md shadow-lg flex items-center justify-between font-sans select-none animate-in fade-in duration-200">
+          <div class="flex items-center space-x-3 min-w-0">
+            <div class="w-7 h-7 rounded-lg bg-indigo-500/15 flex items-center justify-center text-indigo-400 flex-shrink-0 animate-spin">
+              <Loader2 size={14} />
+            </div>
+            <div class="flex flex-col min-w-0">
+              <span class="text-xs font-semibold text-zinc-100 truncate flex items-center gap-1.5">
+                <span>Compacting conversation context</span>
               </span>
-            </span>
-            <span class="text-[10px] text-ant-text-secondary mt-0.5">
-              Processing actions and analyzing workspace files
-            </span>
+              <span class="text-[11px] text-zinc-400 mt-0.5">
+                Summarizing earlier conversation turns to optimize context window
+              </span>
+            </div>
+          </div>
+
+          <div class="px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-300 text-[11px] font-mono flex-shrink-0 ml-3 border border-indigo-500/20">
+            <span class="font-medium">In progress...</span>
           </div>
         </div>
-
-        <!-- Right Side: Live Timer Pill -->
-        <div class="flex items-center space-x-1.5 px-2 py-0.5 rounded bg-ant-bg-tertiary/60 border border-white/5 text-ant-primary text-[11px] font-mono flex-shrink-0 ml-3">
-          <Loader2 size={11} class="animate-spin text-ant-primary" />
-          <span class="font-medium">{formattedElapsed}</span>
+      {:else if sessionStore.lastCompactNotice}
+        <div class="my-2.5 p-3 rounded-xl border flex items-center justify-between font-sans select-none text-xs transition-all duration-300 {sessionStore.lastCompactNotice.type === 'success' ? 'border-emerald-500/20 bg-zinc-900/90 text-emerald-300' : 'border-rose-500/20 bg-zinc-900/90 text-rose-300'} shadow-md">
+          <div class="flex items-center space-x-2.5">
+            {#if sessionStore.lastCompactNotice.type === 'success'}
+              <CheckCircle2 size={15} class="flex-shrink-0 text-emerald-400" />
+            {:else}
+              <AlertCircle size={15} class="flex-shrink-0 text-rose-400" />
+            {/if}
+            <span class="text-xs font-medium text-zinc-200">{sessionStore.lastCompactNotice.message}</span>
+          </div>
+          <button
+            type="button"
+            onclick={() => sessionStore.lastCompactNotice = null}
+            class="text-[10.5px] text-zinc-400 hover:text-zinc-200 uppercase tracking-wider ml-3 px-2 py-0.5 rounded bg-zinc-800/60 hover:bg-zinc-800 transition"
+          >
+            Dismiss
+          </button>
         </div>
-      </div>
+      {/if}
+
+      <!-- Live In-Transcript Activity & Thinking Indicator -->
+      {#if isWorking}
+        <div class="my-2 p-3 rounded-lg border border-white/5 bg-ant-bg-secondary/70 backdrop-blur-md shadow-sm flex items-center justify-between font-mono select-none">
+          <div class="flex items-center space-x-2.5 min-w-0">
+            <div class="w-6 h-6 rounded-md bg-ant-primary/10 text-ant-primary flex items-center justify-center flex-shrink-0 animate-pulse">
+              <Brain size={14} />
+            </div>
+            <div class="flex flex-col min-w-0">
+              <span class="text-xs font-semibold text-ant-text truncate flex items-center gap-1.5">
+                <span>{thinkingContextText}</span>
+                <span class="inline-flex space-x-0.5">
+                  <span class="w-1 h-1 rounded-full bg-ant-primary animate-bounce"></span>
+                  <span class="w-1 h-1 rounded-full bg-ant-primary animate-bounce [animation-delay:0.2s]"></span>
+                  <span class="w-1 h-1 rounded-full bg-ant-primary animate-bounce [animation-delay:0.4s]"></span>
+                </span>
+              </span>
+              <span class="text-[10px] text-ant-text-secondary mt-0.5">
+                Processing actions and analyzing workspace files
+              </span>
+            </div>
+          </div>
+
+          <!-- Right Side: Live Timer Pill -->
+          <div class="flex items-center space-x-1.5 px-2 py-0.5 rounded bg-ant-bg-tertiary/60 border border-white/5 text-ant-primary text-[11px] font-mono flex-shrink-0 ml-3">
+            <Loader2 size={11} class="animate-spin text-ant-primary" />
+            <span class="font-medium">{formattedElapsed}</span>
+          </div>
+        </div>
+      {/if}
     {/if}
-  {/if}
+  </div>
 
   <!-- Floating Scroll To Bottom Button -->
   {#if showScrollToBottom}
