@@ -783,33 +783,33 @@
             {#if isPlusMenuOpen}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <div
-                class="absolute bottom-full left-0 mb-1.5 w-52 bg-ant-bg border border-white/10 rounded-lg shadow-xl py-1 z-50 text-xs backdrop-blur-md animate-in fade-in zoom-in-95 duration-100"
+                class="absolute bottom-full left-0 mb-1.5 min-w-[220px] w-max bg-ant-bg border border-white/10 rounded-lg shadow-xl py-1 z-50 text-xs backdrop-blur-md animate-in fade-in zoom-in-95 duration-100"
                 onclick={(e) => e.stopPropagation()}
                 onkeydown={(e) => e.key === 'Escape' && (isPlusMenuOpen = false)}
               >
                 <!-- File / Document Picker Trigger (Images, MD, PDF, Code) -->
                 <button
                   type="button"
-                  class="w-full px-3 py-1.5 flex items-center space-x-2 text-left text-ant-text hover:bg-ant-primary/10 hover:text-ant-primary transition"
+                  class="w-full px-3 py-1.5 flex items-center space-x-2 text-left text-ant-text hover:bg-ant-primary/10 hover:text-ant-primary transition whitespace-nowrap"
                   onclick={() => { fileInputEl?.click(); isPlusMenuOpen = false; }}
                 >
-                  <Paperclip size={13} class="text-ant-text-muted" />
-                  <span>Attach File (Image, MD, PDF)</span>
+                  <Paperclip size={13} class="text-ant-text-muted shrink-0" />
+                  <span class="whitespace-nowrap">Attach File (Image, MD, PDF)</span>
                 </button>
 
                 <!-- Snapshot Screen Trigger -->
                 <button
                   type="button"
-                  class="w-full px-3 py-1.5 flex items-center space-x-2 text-left text-ant-text hover:bg-ant-primary/10 hover:text-ant-primary transition"
+                  class="w-full px-3 py-1.5 flex items-center space-x-2 text-left text-ant-text hover:bg-ant-primary/10 hover:text-ant-primary transition whitespace-nowrap"
                   onclick={handleTakeSnapshot}
                   disabled={isTakingSnapshot}
                 >
                   {#if isTakingSnapshot}
-                    <Loader2 size={13} class="animate-spin text-ant-primary" />
-                    <span>Capturing...</span>
+                    <Loader2 size={13} class="animate-spin text-ant-primary shrink-0" />
+                    <span class="whitespace-nowrap">Capturing...</span>
                   {:else}
-                    <Camera size={13} class="text-ant-primary" />
-                    <span>Take Screen Snapshot</span>
+                    <Camera size={13} class="text-ant-primary shrink-0" />
+                    <span class="whitespace-nowrap">Take Screen Snapshot</span>
                   {/if}
                 </button>
 
@@ -817,11 +817,11 @@
                   <div class="h-px bg-ant-border-secondary/50 my-1"></div>
                   <button
                     type="button"
-                    class="w-full px-3 py-1.5 flex items-center space-x-2 text-left text-ant-text hover:bg-ant-primary/10 hover:text-ant-primary transition"
+                    class="w-full px-3 py-1.5 flex items-center space-x-2 text-left text-ant-text hover:bg-ant-primary/10 hover:text-ant-primary transition whitespace-nowrap"
                     onclick={() => { onOpenSkillsCatalog(); isPlusMenuOpen = false; }}
                   >
-                    <Sparkles size={13} class="text-ant-warning" />
-                    <span>Browse Skills Hub</span>
+                    <Sparkles size={13} class="text-ant-warning shrink-0" />
+                    <span class="whitespace-nowrap">Browse Skills Hub</span>
                   </button>
                 {/if}
               </div>
