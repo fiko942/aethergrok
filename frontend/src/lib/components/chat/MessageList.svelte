@@ -87,10 +87,14 @@
     const currentId = sessionStore.activeSessionId;
     if (currentId !== lastSessionId) {
       lastSessionId = currentId;
-      // Scroll to bottom on session switch
+      // Scroll to bottom on session switch and acknowledge finished state
       tick().then(() => {
         if (containerEl) {
           containerEl.scrollTop = containerEl.scrollHeight;
+        }
+        const activeSession = sessionStore.activeSession;
+        if (activeSession && activeSession.status === 'finished') {
+          sessionStore.setSessionStatus(activeSession.id, 'idle');
         }
       });
     }
@@ -128,6 +132,14 @@
     // Check if user is near bottom to maintain stick-to-bottom
     const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
     autoScrollToBottom = distanceFromBottom < 80;
+
+    // Acknowledge finished turn when viewing the bottom of conversation
+    if (distanceFromBottom < 100) {
+      const activeSession = sessionStore.activeSession;
+      if (activeSession && activeSession.status === 'finished') {
+        sessionStore.setSessionStatus(activeSession.id, 'idle');
+      }
+    }
 
     // Trigger progressive prepend if user scrolls within 200px of top
     if (scrollTop < 200 && sessionStore.remainingHiddenTurns > 0 && !isHydrating) {

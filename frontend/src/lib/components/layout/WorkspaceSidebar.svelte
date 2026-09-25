@@ -257,14 +257,15 @@
     
     dialogStore.openConfirm({
       title: 'Delete Chat Session',
-      content: `Are you sure you want to delete "${session.title}"?`,
+      content: `Are you sure you want to delete "${session.title}"? This conversation will be removed from AetherGrok and Grok CLI.`,
       confirmText: 'Delete',
       cancelText: 'Cancel',
       type: 'danger',
       onConfirm: () => {
         sessionStore.closeSession(session.id);
         if (ws && window.go?.main?.App?.DeleteGrokSession) {
-          window.go.main.App.DeleteGrokSession(ws.path, session.id).catch(console.error);
+          const targetGrokId = session.grokSessionId || session.id;
+          window.go.main.App.DeleteGrokSession(ws.path, targetGrokId).catch(console.error);
         }
         showToast('Session deleted');
       }

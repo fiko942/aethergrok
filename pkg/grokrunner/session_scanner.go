@@ -396,11 +396,26 @@ func DeleteGrokSessionDirectory(workspacePath, sessionID string) error {
 	}
 
 	encodedPath := url.PathEscape(workspacePath)
-	targetDir := filepath.Join(home, ".grok", "sessions", encodedPath, sessionID)
+	sessionsParent := filepath.Join(home, ".grok", "sessions", encodedPath)
+	targetDir := filepath.Join(sessionsParent, sessionID)
 
+	// 1. Direct path removal
 	if _, err := os.Stat(targetDir); err == nil {
 		return os.RemoveAll(targetDir)
 	}
+
+	// 2. Fallback search inside workspace session folder for partial match or uuid match
+	entries, err := os.ReadDir(sessionsParent)
+	if err != nil {
+		return nil
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() && (entry.Name() == sessionID || strings.HasPrefix(entry.Name(), sessionID)) {
+			_ = os.RemoveAll(filepath.Join(sessionsParent, entry.Name()))
+		}
+	}
+
 	return nil
 }
 
