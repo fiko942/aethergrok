@@ -286,7 +286,21 @@ class SessionStore {
       updatedAt: Date.now(),
       messages: [],
       visibleTurnCount: DEFAULT_WINDOW_TURNS,
-      pendingPermission: null
+      pendingPermission: null,
+      usage: {
+        usedTokens: 2500, // Accurate baseline token calculation (system prompt, tools & harness overhead)
+        maxTokens: 200000,
+        lastTurnInput: 2500,
+        lastTurnOutput: 0,
+        lastTurnCacheRead: 0,
+        lastTurnReasoning: 0,
+        lastTurnModelCalls: 0,
+        totalInput: 2500,
+        totalOutput: 0,
+        totalCacheRead: 0,
+        turnCount: 0,
+        primaryModelId: '9router'
+      }
     };
   }
 
@@ -758,8 +772,8 @@ class SessionStore {
     for (const gs of grokSessions) {
       const existing = this.sessions.find((s) => s.id === gs.id);
       if (existing) {
-        // Update generic or outdated title with real discovered title
-        if (gs.title && (!existing.title || existing.title.startsWith('Session ') || existing.title.startsWith('Percakapan '))) {
+        // Update generic title only if user has not explicitly edited it and existing has not already been derived
+        if (gs.title && !existing.isCustomTitle && (existing.title.startsWith('Session ') || existing.title.startsWith('Percakapan ') || existing.title.startsWith('New '))) {
           existing.title = gs.title;
         }
         if (gs.updatedAt) {

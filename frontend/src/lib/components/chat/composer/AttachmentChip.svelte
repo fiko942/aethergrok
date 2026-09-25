@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { AttachedFile } from '$lib/stores/session.svelte';
-  import { FileText, FileCode, File, Image as ImageIcon, X, ZoomIn, Eye } from 'lucide-svelte';
+  import { resolveFileIcon } from '$lib/utils/fileIcons';
+  import { X, ZoomIn } from 'lucide-svelte';
 
   interface Props {
     attachment: AttachedFile;
@@ -18,30 +19,19 @@
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   }
 
-  function getFileIcon(name: string, isImage: boolean) {
-    if (isImage) return ImageIcon;
-    const ext = name.split('.').pop()?.toLowerCase();
-    if (['ts', 'js', 'json', 'py', 'go', 'rs', 'html', 'css', 'svelte'].includes(ext || '')) {
-      return FileCode;
-    }
-    if (['md', 'markdown', 'txt'].includes(ext || '')) {
-      return FileText;
-    }
-    return File;
-  }
-
-  const IconComponent = $derived(getFileIcon(attachment.name, attachment.isImage));
+  const iconMeta = $derived(resolveFileIcon(attachment.name, attachment.isImage));
+  const IconComponent = $derived(iconMeta.component);
 </script>
 
 <div
-  class="group relative inline-flex items-center gap-1.5 bg-ant-bg-secondary/90 hover:bg-ant-bg-tertiary border border-white/10 hover:border-white/20 rounded-lg pl-1.5 pr-2 py-1 text-xs text-ant-text transition-all duration-150 shadow-sm select-none max-w-[200px]"
+  class="group relative inline-flex items-center gap-2 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] hover:border-white/[0.14] rounded-lg pl-1.5 pr-2 py-1.5 text-xs text-ant-text transition-colors duration-150 select-none max-w-[220px]"
 >
   {#if attachment.isImage && attachment.dataUrl}
     <!-- Thumbnail for Image -->
     <button
       type="button"
       onclick={() => onPreview?.(attachment)}
-      class="relative w-6 h-6 rounded overflow-hidden border border-white/10 bg-black/40 flex-shrink-0 cursor-pointer flex items-center justify-center group-hover:border-ant-primary/50 transition"
+      class="relative w-7 h-7 rounded overflow-hidden bg-black/40 flex-shrink-0 cursor-pointer flex items-center justify-center border border-white/5 transition hover:opacity-90"
       title="View Image"
     >
       <img src={attachment.dataUrl} alt={attachment.name} class="w-full h-full object-cover" />
@@ -50,33 +40,40 @@
       </div>
     </button>
   {:else}
-    <!-- Icon for Document/Code -->
+    <!-- Dynamic Typed File Icon Badge -->
     <button
       type="button"
       onclick={() => onPreview?.(attachment)}
-      class="w-6 h-6 rounded bg-ant-primary/10 border border-ant-primary/20 flex items-center justify-center text-ant-primary flex-shrink-0 cursor-pointer"
+      class="w-7 h-7 rounded {iconMeta.bgClass} flex items-center justify-center {iconMeta.colorClass} flex-shrink-0 cursor-pointer transition-transform group-hover:scale-105"
       title="Inspect File"
     >
-      <IconComponent size={13} />
+      <IconComponent size={14} />
     </button>
   {/if}
 
-  <div class="flex flex-col justify-center min-w-0 flex-1 pr-1">
-    <span class="text-[11.5px] font-mono font-medium text-ant-text truncate leading-tight" title={attachment.name}>
-      {attachment.name}
-    </span>
-    {#if attachment.sizeBytes}
-      <span class="text-[9px] text-ant-text-muted font-mono leading-none mt-0.5">
-        {formatBytes(attachment.sizeBytes)}
+  <div class="flex flex-col justify-center min-w-0 flex-1 pr-0.5">
+    <div class="flex items-center gap-1 min-w-0">
+      <span class="text-[11.5px] font-mono font-medium text-ant-text truncate leading-tight" title={attachment.name}>
+        {attachment.name}
       </span>
-    {/if}
+    </div>
+    <div class="flex items-center gap-1.5 mt-0.5">
+      <span class="text-[8.5px] font-mono px-1 py-0.2 rounded bg-white/[0.06] text-ant-text-muted uppercase leading-none">
+        {iconMeta.badge}
+      </span>
+      {#if attachment.sizeBytes}
+        <span class="text-[9px] text-ant-text-muted font-mono leading-none">
+          {formatBytes(attachment.sizeBytes)}
+        </span>
+      {/if}
+    </div>
   </div>
 
   <!-- Remove Button -->
   <button
     type="button"
     onclick={() => onRemove(attachment.id)}
-    class="w-4 h-4 rounded hover:bg-white/10 flex items-center justify-center text-ant-text-muted hover:text-ant-text transition flex-shrink-0"
+    class="w-4 h-4 rounded hover:bg-white/10 flex items-center justify-center text-ant-text-muted hover:text-rose-400 transition flex-shrink-0"
     title="Remove attachment"
   >
     <X size={11} />

@@ -2,6 +2,8 @@
   import { tick, onMount, onDestroy } from 'svelte';
   import type { SkillAnalysisResult, DiscoveredSkill, SkillInstallPayload, SkillInstallResult } from '../../../app.d';
   import Button from '$lib/antd/Button.svelte';
+  import Checkbox from '$lib/antd/Checkbox.svelte';
+  import Radio from '$lib/antd/Radio.svelte';
   import {
     Sparkles,
     GitBranch,
@@ -164,12 +166,21 @@
         const res = await window.go.main.App.InstallDiscoveredSkills(payload);
         installResult = res;
 
-        for (const path of res.installedPaths || []) {
+        // Support both camelCase and PascalCase Wails IPC returns
+        const installedPaths: string[] = res.installedPaths || (res as any).InstalledPaths || [];
+        const installedCount: number = res.installedCount ?? (res as any).InstalledCount ?? installedPaths.length;
+        const errors: string[] = res.errors || (res as any).Errors || [];
+
+        for (const path of installedPaths) {
           installLogs.push(`[success] Installed: ${path}`);
         }
 
+        for (const err of errors) {
+          installLogs.push(`[error] ${err}`);
+        }
+
         // Run prerequisite setup commands if chosen and available
-        if (runSuggestedScripts && analysisResult.suggestedScripts.length > 0 && window.go?.main?.App?.ExecuteSkillSetupCommand) {
+        if (installedCount > 0 && runSuggestedScripts && analysisResult.suggestedScripts.length > 0 && window.go?.main?.App?.ExecuteSkillSetupCommand) {
           installLogs.push(`[info] Executing ${analysisResult.suggestedScripts.length} dependency installation script(s)...`);
           for (const cmd of analysisResult.suggestedScripts) {
             installLogs.push(`[cmd] $ ${cmd}`);
@@ -181,7 +192,11 @@
           }
         }
 
-        installLogs.push(`[complete] Successfully finished installing ${res.installedCount} skill(s).`);
+        if (errors.length > 0 && installedCount === 0) {
+          installLogs.push(`[error] Failed to install skill(s). See errors above.`);
+        } else {
+          installLogs.push(`[complete] Successfully finished installing ${installedCount} skill(s).`);
+        }
       } else {
         // Mock installation execution
         await new Promise((r) => setTimeout(r, 600));
@@ -372,10 +387,10 @@
                     <Wrench size={13} />
                     <span>AI Detected Prerequisites & Runtime Setup</span>
                   </div>
-                  <label class="flex items-center gap-1.5 text-[11px] text-ant-text-secondary cursor-pointer">
-                    <input type="checkbox" bind:checked={runSuggestedScripts} class="rounded text-ant-primary focus:ring-0" />
-                    <span>Execute dependency scripts after copy</span>
-                  </label>
+                  <Checkbox
+                    bind:checked={runSuggestedScripts}
+                    label="Execute dependency scripts after copy"
+                  />
                 </div>
 
                 <div class="flex flex-wrap gap-1.5">
@@ -401,30 +416,31 @@
 
             <!-- Target Scope Selection -->
             <div class="flex items-center justify-between px-1">
-              <div class="flex items-center gap-3 text-xs">
+              <div class="flex items-center gap-4 text-xs">
                 <span class="text-ant-text-secondary font-medium">Install destination:</span>
-                <label class="inline-flex items-center gap-1.5 cursor-pointer text-ant-text">
-                  <input type="radio" bind:group={targetScope} value="grok" class="text-ant-primary" />
-                  <span class="font-mono text-[11px]">~/.grok/skills/</span>
-                </label>
-                <label class="inline-flex items-center gap-1.5 cursor-pointer text-ant-text">
-                  <input type="radio" bind:group={targetScope} value="agents" class="text-ant-primary" />
-                  <span class="font-mono text-[11px]">~/.agents/skills/</span>
-                </label>
+                <Radio
+                  checked={targetScope === 'grok'}
+                  value="grok"
+                  label="~/.grok/skills/"
+                  onselect={() => targetScope = 'grok'}
+                />
+                <Radio
+                  checked={targetScope === 'agents'}
+                  value="agents"
+                  label="~/.agents/skills/"
+                  onselect={() => targetScope = 'agents'}
+                />
               </div>
 
               <button
                 type="button"
                 onclick={toggleSelectAll}
-                class="text-xs text-ant-primary hover:underline flex items-center gap-1"
+                class="text-xs text-ant-primary hover:underline flex items-center gap-1.5 font-medium"
               >
-                {#if selectedSkillPaths.length === analysisResult.skills.length}
-                  <CheckSquare size={13} />
-                  <span>Deselect All</span>
-                {:else}
-                  <Square size={13} />
-                  <span>Select All ({analysisResult.skills.length})</span>
-                {/if}
+                <div class="w-4 h-4 rounded border flex items-center justify-center {selectedSkillPaths.length === analysisResult.skills.length ? 'border-ant-primary bg-ant-primary text-white' : 'border-zinc-700 bg-ant-bg-tertiary text-transparent'}">
+                  <Check size={11} class="stroke-[3] {selectedSkillPaths.length === analysisResult.skills.length ? 'opacity-100' : 'opacity-0'}" />
+                </div>
+                <span>{selectedSkillPaths.length === analysisResult.skills.length ? 'Deselect All' : `Select All (${analysisResult.skills.length})`}</span>
               </button>
             </div>
 
@@ -439,12 +455,10 @@
                     onclick={() => toggleSkillSelection(skill.relativePath)}
                     class="p-3 flex items-start gap-3 hover:bg-ant-bg-secondary/70 transition cursor-pointer {isChecked ? 'bg-ant-primary/5' : ''}"
                   >
-                    <div class="mt-0.5 text-ant-primary flex-shrink-0">
-                      {#if isChecked}
-                        <CheckSquare size={15} class="text-ant-primary" />
-                      {:else}
-                        <Square size={15} class="text-ant-text-muted" />
-                      {/if}
+                    <div class="mt-0.5 flex-shrink-0">
+                      <div class="w-4 h-4 rounded border flex items-center justify-center transition-colors {isChecked ? 'border-ant-primary bg-ant-primary text-white' : 'border-zinc-700 bg-ant-bg-tertiary text-transparent'}">
+                        <Check size={11} class="stroke-[3] {isChecked ? 'opacity-100' : 'opacity-0'}" />
+                      </div>
                     </div>
 
                     <div class="flex-1 min-w-0 space-y-1">

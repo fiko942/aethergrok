@@ -294,9 +294,9 @@
     reasoningEffort = payload.reasoningEffort;
     sessionStore.setSessionStatus(sessionId, 'working');
 
-    // Auto-derive a provisional title from the first prompt if session has a default placeholder title
+    // Auto-derive a provisional title only on the FIRST prompt if session has a default placeholder title
     const currentSession = sessionStore.sessions.find((s) => s.id === sessionId);
-    if (currentSession && !currentSession.isCustomTitle && (currentSession.title.startsWith('Session ') || currentSession.title.startsWith('Percakapan ') || currentSession.title.startsWith('New '))) {
+    if (currentSession && !currentSession.isCustomTitle && currentSession.messages.filter(m => m.role === 'user').length <= 1 && (currentSession.title.startsWith('Session ') || currentSession.title.startsWith('Percakapan ') || currentSession.title.startsWith('New '))) {
       const firstLine = payload.text.split('\n')[0].trim();
       if (firstLine) {
         const previewTitle = firstLine.length > 38 ? firstLine.slice(0, 38) + '...' : firstLine;
@@ -1026,7 +1026,7 @@
       <button
         type="button"
         onclick={toggleSidebar}
-        class="absolute top-3 left-2 z-20 flex items-center justify-center w-7 h-7 rounded-md bg-ant-bg-secondary/90 hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-primary border border-white/10 shadow-md backdrop-blur-sm transition-all"
+        class="absolute top-3 left-2 z-20 flex items-center justify-center w-7 h-7 rounded-md bg-ant-bg-secondary/90 hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-primary border border-white/5 shadow-md backdrop-blur-sm transition-all"
         title="Expand Sidebar (⌘B)"
       >
         <ChevronRight size={15} />
@@ -1034,7 +1034,27 @@
     {/if}
 
     <!-- Center Workspace: Tabs & Chat Engine -->
-    <main class="flex-1 flex flex-col min-w-0 bg-ant-bg overflow-hidden relative">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <main
+      class="flex-1 flex flex-col min-w-0 bg-ant-bg overflow-hidden relative"
+      ondragenter={(e) => {
+        if (e.dataTransfer?.types?.includes('Files')) {
+          e.preventDefault();
+        }
+      }}
+      ondragover={(e) => {
+        if (e.dataTransfer?.types?.includes('Files')) {
+          e.preventDefault();
+          if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+        }
+      }}
+      ondrop={(e) => {
+        if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+          e.preventDefault();
+          composerRef?.handleExternalFiles?.(e.dataTransfer.files);
+        }
+      }}
+    >
       <!-- Session Tabs Bar (Drag & Drop + Badges) -->
       <SessionTabs />
 

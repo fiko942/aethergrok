@@ -110,18 +110,20 @@
 
   const filteredSkills = $derived.by(() => {
     const cleanQuery = query.toLowerCase().replace(/^\//, '').trim();
-    if (!cleanQuery) return skills.slice(0, 8);
+    if (!cleanQuery) return skills.slice(0, 12);
 
     return skills
       .filter((s) => {
         return (
           s.name.toLowerCase().includes(cleanQuery) ||
+          (s.id && s.id.toLowerCase().includes(cleanQuery)) ||
+          (s.path && s.path.toLowerCase().includes(cleanQuery)) ||
           s.category?.toLowerCase().includes(cleanQuery) ||
           (s.description && s.description.toLowerCase().includes(cleanQuery)) ||
           (s.tags && s.tags.some((t) => t.toLowerCase().includes(cleanQuery)))
         );
       })
-      .slice(0, 10);
+      .slice(0, 20);
   });
 
   $effect(() => {

@@ -2,12 +2,15 @@ export type ThemeMode = 'dark-studio' | 'dark-high-contrast' | 'light-antd';
 export type DefaultModel = '9router' | '9router-general-purpose' | '9router-explore' | '9router-plan' | 'custom' | string;
 export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high' | 'max';
 export type PermissionMode = 'default' | 'acceptEdits' | 'auto' | 'plan' | 'bypassPermissions';
+export type PlanGateMode = 'active' | 'bypass';
 
 export interface AppSettings {
   theme: ThemeMode;
   defaultModel: DefaultModel;
   defaultReasoningEffort: ReasoningEffort;
   permissionMode: PermissionMode;
+  planGateMode: PlanGateMode;
+  animationsEnabled: boolean;
   grokBinaryPath: string;
   snapshotShortcut: string;
   snapshotDelayMs: number;
@@ -27,6 +30,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   defaultModel: '9router',
   defaultReasoningEffort: 'medium',
   permissionMode: 'default',
+  planGateMode: 'active',
+  animationsEnabled: true,
   grokBinaryPath: '/Users/fiko942/.local/bin/grok',
   snapshotShortcut: 'CmdOrCtrl+Shift+S',
   snapshotDelayMs: 50,
@@ -44,6 +49,8 @@ export class SettingsStore {
   defaultModel = $state<DefaultModel>(DEFAULT_SETTINGS.defaultModel);
   defaultReasoningEffort = $state<ReasoningEffort>(DEFAULT_SETTINGS.defaultReasoningEffort);
   permissionMode = $state<PermissionMode>(DEFAULT_SETTINGS.permissionMode);
+  planGateMode = $state<PlanGateMode>(DEFAULT_SETTINGS.planGateMode);
+  animationsEnabled = $state<boolean>(DEFAULT_SETTINGS.animationsEnabled);
   grokBinaryPath = $state<string>(DEFAULT_SETTINGS.grokBinaryPath);
   snapshotShortcut = $state<string>(DEFAULT_SETTINGS.snapshotShortcut);
   snapshotDelayMs = $state<number>(DEFAULT_SETTINGS.snapshotDelayMs);
@@ -77,6 +84,12 @@ export class SettingsStore {
       }
       if (parsed.permissionMode && ['default', 'acceptEdits', 'auto', 'plan', 'bypassPermissions'].includes(parsed.permissionMode)) {
         this.permissionMode = parsed.permissionMode;
+      }
+      if (parsed.planGateMode && ['active', 'bypass'].includes(parsed.planGateMode)) {
+        this.planGateMode = parsed.planGateMode;
+      }
+      if (typeof parsed.animationsEnabled === 'boolean') {
+        this.animationsEnabled = parsed.animationsEnabled;
       }
       if (typeof parsed.grokBinaryPath === 'string') {
         this.grokBinaryPath = parsed.grokBinaryPath;
@@ -121,6 +134,8 @@ export class SettingsStore {
         defaultModel: this.defaultModel,
         defaultReasoningEffort: this.defaultReasoningEffort,
         permissionMode: this.permissionMode,
+        planGateMode: this.planGateMode,
+        animationsEnabled: this.animationsEnabled,
         grokBinaryPath: this.grokBinaryPath,
         snapshotShortcut: this.snapshotShortcut,
         snapshotDelayMs: this.snapshotDelayMs,

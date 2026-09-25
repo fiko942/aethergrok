@@ -1,5 +1,6 @@
 <script lang="ts">
   import { sessionStore } from '$lib/stores/session.svelte';
+  import { settingsStore } from '$lib/stores/settings.svelte';
   import { Folder, GitBranch, X, PanelRightClose } from 'lucide-svelte';
   import FileExplorerTree from '../workspace/FileExplorerTree.svelte';
   import FileViewerModal from '../workspace/FileViewerModal.svelte';
@@ -88,7 +89,7 @@
 {#if isOpen}
   <aside
     style="width: {width}px;"
-    class="relative h-full flex flex-col border-l border-[#27272a] bg-[#18181b] z-20 shrink-0 select-none {isDragging ? 'select-none pointer-events-none' : ''}"
+    class="relative h-full flex flex-col border-l border-[#27272a] bg-[#18181b] z-20 shrink-0 select-none {isDragging ? 'select-none pointer-events-none' : ''} {settingsStore.animationsEnabled ? 'transition-all duration-300 ease-out' : ''}"
   >
     <!-- Left Drag Divider Handle -->
     <div
@@ -131,15 +132,19 @@
       </button>
     </div>
 
-    <!-- Active Tab Body -->
-    <div class="flex-1 overflow-hidden">
+    <!-- Active Tab Body with Build / Peel Animation -->
+    <div class="flex-1 overflow-hidden {settingsStore.animationsEnabled ? 'tab-build-container' : ''}">
       {#if activeTab === 'files'}
-        <FileExplorerTree
-          workspacePath={workspacePath}
-          onSelectFile={(path) => (selectedFile = path)}
-        />
+        <div class="h-full {settingsStore.animationsEnabled ? 'animate-tab-build-in' : ''}">
+          <FileExplorerTree
+            workspacePath={workspacePath}
+            onSelectFile={(path) => (selectedFile = path)}
+          />
+        </div>
       {:else}
-        <GitChangesPanel workspacePath={workspacePath} />
+        <div class="h-full {settingsStore.animationsEnabled ? 'animate-tab-build-in' : ''}">
+          <GitChangesPanel workspacePath={workspacePath} />
+        </div>
       {/if}
     </div>
   </aside>

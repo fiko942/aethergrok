@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"aethergrok/pkg/grokrunner"
@@ -239,7 +240,52 @@ func (a *App) CompactSession(workspacePath, sessionID string) (*grokrunner.Sessi
 	return grokrunner.CompactSession(a.ctx, a.runner.GetBinaryPath(), workspacePath, sessionID)
 }
 
-// SearchSkills queries skills by text query and category
+// RevealGrokConfigFile reveals the user's ~/.grok/config.toml file in macOS Finder or Windows Explorer
+func (a *App) RevealGrokConfigFile() error {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get user home directory: %w", err)
+	}
+
+	configPath := filepath.Join(homeDir, ".grok", "config.toml")
+	// If config.toml does not exist, check if ~/.grok directory exists
+	grokDir := filepath.Join(homeDir, ".grok")
+	targetPath := configPath
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		if _, err := os.Stat(grokDir); err == nil {
+			targetPath = grokDir
+		} else {
+			return fmt.Errorf("grok configuration file not found at %s", configPath)
+		}
+	}
+
+	// Reveal in Finder on macOS or Explorer on Windows
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		if targetPath == configPath {
+			cmd = exec.Command("open", "-R", targetPath)
+		} else {
+			cmd = exec.Command("open", targetPath)
+		}
+	case "windows":
+		if targetPath == configPath {
+			cmd = exec.Command("explorer.exe", fmt.Sprintf("/select,%s", filepath.Clean(targetPath)))
+		} else {
+			cmd = exec.Command("explorer.exe", filepath.Clean(targetPath))
+		}
+	default:
+		// Linux fallback (xdg-open parent directory)
+		cmd = exec.Command("xdg-open", filepath.Dir(targetPath))
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to open file manager: %w", err)
+	}
+
+	return nil
+}
+
 func (a *App) SearchSkills(query string, category string) []skills.Skill {
 	if a.skillsReg == nil {
 		a.skillsReg = skills.NewRegistry()

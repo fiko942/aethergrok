@@ -60,6 +60,8 @@ export function RevertWorkspaceFiles(arg1:string,arg2:Array<string>):Promise<voi
 
 export function RunPromptStream(arg1:grokrunner.PromptRequest):Promise<void>;
 
+export function RevealGrokConfigFile():Promise<void>;
+
 export function SaveMarkdownExport(arg1:string,arg2:string):Promise<string>;
 
 export function ScanGitHubSkills(arg1:string):Promise<skills.SkillAnalysisResult>;

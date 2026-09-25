@@ -31,25 +31,27 @@
   }
 
   // Live thinking timer state for in-transcript activity indicator
-  let elapsedSeconds = $state(0);
+  let elapsedMs = $state(0);
   let thinkingTimer: ReturnType<typeof setInterval> | null = null;
+  let startTimestamp = 0;
 
   const isWorking = $derived(sessionStore.activeSession?.status === 'working');
 
-  // Track live elapsed timer for the transcript thinking indicator
+  // Track live elapsed timer for the transcript thinking indicator (in ms and seconds)
   $effect(() => {
     if (isWorking) {
-      elapsedSeconds = 0;
+      elapsedMs = 0;
+      startTimestamp = Date.now();
       if (thinkingTimer) clearInterval(thinkingTimer);
       thinkingTimer = setInterval(() => {
-        elapsedSeconds += 1;
-      }, 1000);
+        elapsedMs = Date.now() - startTimestamp;
+      }, 100);
     } else {
       if (thinkingTimer) {
         clearInterval(thinkingTimer);
         thinkingTimer = null;
       }
-      elapsedSeconds = 0;
+      elapsedMs = 0;
     }
 
     return () => {
@@ -58,6 +60,14 @@
         thinkingTimer = null;
       }
     };
+  });
+
+  const formattedElapsed = $derived.by(() => {
+    if (elapsedMs < 1000) {
+      return `${elapsedMs}ms`;
+    }
+    const sec = (elapsedMs / 1000).toFixed(1);
+    return `${sec}s`;
   });
 
   // Determine intelligent contextual thinking status text
@@ -300,44 +310,39 @@
 
     <!-- Live In-Transcript Compaction Indicator Banner -->
     {#if sessionStore.isCompacting}
-      <div class="my-2 p-3 rounded-lg border border-white/5 bg-ant-bg-secondary/70 backdrop-blur-md shadow-lg shadow-black/10 dark:shadow-black/40 flex items-center justify-between font-mono select-none animate-in fade-in duration-200">
-        <div class="flex items-center space-x-2.5 min-w-0">
-          <div class="w-6 h-6 rounded-md bg-ant-primary/15 border border-transparent flex items-center justify-center text-ant-primary flex-shrink-0 animate-spin">
-            <Loader2 size={13} />
+      <div class="my-2.5 p-3 rounded-xl border border-zinc-800 bg-zinc-900/90 backdrop-blur-md shadow-lg flex items-center justify-between font-sans select-none animate-in fade-in duration-200">
+        <div class="flex items-center space-x-3 min-w-0">
+          <div class="w-7 h-7 rounded-lg bg-indigo-500/15 flex items-center justify-center text-indigo-400 flex-shrink-0 animate-spin">
+            <Loader2 size={14} />
           </div>
           <div class="flex flex-col min-w-0">
-            <span class="text-xs font-semibold text-ant-text truncate flex items-center gap-1.5">
+            <span class="text-xs font-semibold text-zinc-100 truncate flex items-center gap-1.5">
               <span>Compacting conversation context</span>
-              <span class="inline-flex space-x-0.5">
-                <span class="w-1 h-1 rounded-full bg-ant-primary animate-bounce"></span>
-                <span class="w-1 h-1 rounded-full bg-ant-primary animate-bounce [animation-delay:0.2s]"></span>
-                <span class="w-1 h-1 rounded-full bg-ant-primary animate-bounce [animation-delay:0.4s]"></span>
-              </span>
             </span>
-            <span class="text-[10px] text-ant-text-secondary mt-0.5">
-              Executing compaction routine to summarize turns and reclaim context window
+            <span class="text-[11px] text-zinc-400 mt-0.5">
+              Summarizing earlier conversation turns to optimize context window
             </span>
           </div>
         </div>
 
-        <div class="px-2 py-0.5 rounded bg-ant-primary/15 border border-transparent text-ant-primary text-[11px] font-mono flex-shrink-0 ml-3">
-          <span class="font-medium">Compacting...</span>
+        <div class="px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-300 text-[11px] font-mono flex-shrink-0 ml-3 border border-indigo-500/20">
+          <span class="font-medium">In progress...</span>
         </div>
       </div>
     {:else if sessionStore.lastCompactNotice}
-      <div class="my-2 p-2.5 rounded-lg border flex items-center justify-between font-mono select-none text-xs transition-all duration-300 {sessionStore.lastCompactNotice.type === 'success' ? 'border-ant-success/20 bg-ant-success/10 text-ant-success' : 'border-ant-error/20 bg-ant-error/10 text-ant-error'}">
-        <div class="flex items-center space-x-2">
+      <div class="my-2.5 p-3 rounded-xl border flex items-center justify-between font-sans select-none text-xs transition-all duration-300 {sessionStore.lastCompactNotice.type === 'success' ? 'border-emerald-500/20 bg-zinc-900/90 text-emerald-300' : 'border-rose-500/20 bg-zinc-900/90 text-rose-300'} shadow-md">
+        <div class="flex items-center space-x-2.5">
           {#if sessionStore.lastCompactNotice.type === 'success'}
-            <CheckCircle2 size={14} class="flex-shrink-0 text-ant-success" />
+            <CheckCircle2 size={15} class="flex-shrink-0 text-emerald-400" />
           {:else}
-            <AlertCircle size={14} class="flex-shrink-0 text-ant-error" />
+            <AlertCircle size={15} class="flex-shrink-0 text-rose-400" />
           {/if}
-          <span class="text-[11.5px] font-medium">{sessionStore.lastCompactNotice.message}</span>
+          <span class="text-xs font-medium text-zinc-200">{sessionStore.lastCompactNotice.message}</span>
         </div>
         <button
           type="button"
           onclick={() => sessionStore.lastCompactNotice = null}
-          class="text-[10px] opacity-70 hover:opacity-100 uppercase tracking-wider ml-2 hover:underline"
+          class="text-[10.5px] text-zinc-400 hover:text-zinc-200 uppercase tracking-wider ml-3 px-2 py-0.5 rounded bg-zinc-800/60 hover:bg-zinc-800 transition"
         >
           Dismiss
         </button>
@@ -369,7 +374,7 @@
         <!-- Right Side: Live Timer Pill -->
         <div class="flex items-center space-x-1.5 px-2 py-0.5 rounded bg-ant-bg-tertiary/60 border border-white/5 text-ant-primary text-[11px] font-mono flex-shrink-0 ml-3">
           <Loader2 size={11} class="animate-spin text-ant-primary" />
-          <span class="font-medium">{elapsedSeconds}s</span>
+          <span class="font-medium">{formattedElapsed}</span>
         </div>
       </div>
     {/if}

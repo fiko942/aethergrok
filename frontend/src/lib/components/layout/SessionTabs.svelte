@@ -1,5 +1,6 @@
 <script lang="ts">
   import { sessionStore, STATUS_META, type Session } from '$lib/stores/session.svelte';
+  import { settingsStore } from '$lib/stores/settings.svelte';
   import { Plus, X, GitFork, Edit2, Check, Loader2, AlertCircle, CheckCircle2, MessageSquare } from 'lucide-svelte';
 
   let draggedIndex = $state<number | null>(null);
@@ -94,9 +95,9 @@
         ondragend={handleDragEnd}
         onclick={() => sessionStore.switchSession(session.id)}
         onkeydown={(e) => e.key === 'Enter' && sessionStore.switchSession(session.id)}
-        class="group relative flex items-center h-8 pl-2.5 pr-2 rounded-md text-xs font-medium cursor-pointer transition-all duration-150 border max-w-[200px] min-w-[120px] flex-shrink-0 {isActive
-          ? 'bg-ant-bg text-ant-primary border-white/10 shadow-sm font-semibold'
-          : 'bg-ant-bg-tertiary/40 text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'} {isDragging ? 'opacity-40 scale-95' : ''} {isOver ? 'border-r-2 border-r-ant-primary' : ''}"
+        class="group relative flex items-center h-8 pl-2.5 pr-2 rounded-md text-xs font-medium cursor-pointer transition-all duration-200 border max-w-[200px] min-w-[120px] flex-shrink-0 {isActive
+          ? 'bg-ant-bg text-ant-primary border-white/[0.08] shadow-sm font-semibold'
+          : 'bg-ant-bg-tertiary/40 text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'} {isDragging ? 'opacity-40 scale-95' : ''} {isOver ? 'border-r-2 border-r-ant-primary' : ''} {settingsStore.animationsEnabled ? 'tab-peel-transition' : ''}"
       >
         <!-- Status Icon Matching Sidebar -->
         {#if session.status === 'working'}
@@ -119,20 +120,36 @@
 
         <!-- Title or Edit Input -->
         {#if editingId === session.id}
-          <div class="flex items-center flex-1 min-w-0 mr-1">
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div
+            class="flex items-center flex-1 min-w-0 mr-1 gap-1"
+            onclick={(e) => e.stopPropagation()}
+            onkeydown={(e) => e.stopPropagation()}
+          >
             <input
               type="text"
               bind:value={editTitleInput}
               onkeydown={(e) => handleKeyDown(e, session)}
-              onblur={() => saveEditing(session)}
-              class="w-full bg-ant-bg-secondary text-white px-1 py-0.5 rounded text-xs outline-none border border-ant-primary/40"
+              class="w-full bg-ant-bg-tertiary text-ant-text px-1.5 py-0.5 rounded text-[11.5px] outline-none border border-ant-primary/40 focus:border-ant-primary transition font-serif"
+              autofocus
             />
+            <!-- Checkmark Confirm Button -->
             <button
               type="button"
               onclick={() => saveEditing(session)}
-              class="p-0.5 ml-1 text-ant-success hover:text-white"
+              class="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-white/5 transition flex-shrink-0"
+              title="Apply changes (Enter)"
             >
-              <Check size={12} />
+              <Check size={12} class="stroke-[2.2]" />
+            </button>
+            <!-- Cross Cancel Button (Always visible during edit) -->
+            <button
+              type="button"
+              onclick={() => editingId = null}
+              class="p-1 rounded text-zinc-400 hover:text-rose-400 hover:bg-white/5 transition flex-shrink-0"
+              title="Cancel (Esc)"
+            >
+              <X size={12} class="stroke-[2.2]" />
             </button>
           </div>
         {:else}
@@ -149,8 +166,8 @@
         {/if}
 
         <!-- Hover Actions: Fork, Rename & Close with fixed space reservation -->
-        <div class="items-center space-x-1 ml-1 flex-shrink-0 hidden group-hover:flex">
-          {#if editingId !== session.id}
+        {#if editingId !== session.id}
+          <div class="items-center space-x-1 ml-1 flex-shrink-0 hidden group-hover:flex">
             <button
               type="button"
               onclick={(e) => startEditing(session, e)}
@@ -167,17 +184,16 @@
             >
               <GitFork size={11} />
             </button>
-          {/if}
-
-          <button
-            type="button"
-            onclick={(e) => handleClose(session, e)}
-            class="p-0.5 rounded text-ant-text-muted hover:text-ant-error hover:bg-ant-bg-secondary transition"
-            title="Close session tab"
-          >
-            <X size={12} />
-          </button>
-        </div>
+            <button
+              type="button"
+              onclick={(e) => handleClose(session, e)}
+              class="p-0.5 rounded text-ant-text-muted hover:text-ant-error hover:bg-ant-bg-secondary transition"
+              title="Close session tab"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        {/if}
 
         <!-- Active Bottom Line Accent -->
         {#if isActive}

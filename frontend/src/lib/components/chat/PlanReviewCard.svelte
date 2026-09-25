@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { settingsStore } from '$lib/stores/settings.svelte';
   import { Check, X, MessageSquare, ListTodo, Sparkles } from 'lucide-svelte';
 
   interface Props {
@@ -10,6 +12,15 @@
 
   let showCustomInput = $state(false);
   let customFeedback = $state('');
+
+  onMount(() => {
+    // If Plan Gate Bypass mode is enabled in Settings, automatically approve and implement
+    if (settingsStore.planGateMode === 'bypass') {
+      setTimeout(() => {
+        onAction('approve');
+      }, 300);
+    }
+  });
 
   function handleApprove() {
     onAction('approve');
@@ -28,9 +39,9 @@
   }
 </script>
 
-<div class="my-3 rounded-xl border border-[#27272a] bg-[#18181b]/95 p-4 shadow-xl backdrop-blur-md space-y-3 font-serif">
+<div class="my-3 rounded-xl border border-white/[0.08] bg-[#18181b]/95 p-4 shadow-xl backdrop-blur-md space-y-3 font-serif">
   <!-- Card Header -->
-  <div class="flex items-center justify-between pb-2 border-b border-[#27272a]/60">
+  <div class="flex items-center justify-between pb-2 border-b border-white/5">
     <div class="flex items-center space-x-2.5">
       <div class="w-7 h-7 rounded-lg bg-indigo-500/15 text-indigo-400 flex items-center justify-center flex-shrink-0">
         <ListTodo size={16} />
@@ -38,12 +49,20 @@
       <div>
         <h4 class="font-serif-display text-sm font-semibold text-zinc-100 tracking-tight flex items-center gap-1.5">
           <span>{planTitle}</span>
-          <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-            Plan Gate Active
-          </span>
+          {#if settingsStore.planGateMode === 'bypass'}
+            <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              Auto-Bypass (Active)
+            </span>
+          {:else}
+            <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              Plan Gate Active
+            </span>
+          {/if}
         </h4>
         <p class="text-[11.5px] text-zinc-400 mt-0.5">
-          Review the generated plan above. Workspace mutations and commands remain blocked until approved.
+          {settingsStore.planGateMode === 'bypass'
+            ? 'Plan Gate bypass is active. Actions are approved automatically.'
+            : 'Review the generated plan above. Workspace mutations and commands remain blocked until approved.'}
         </p>
       </div>
     </div>

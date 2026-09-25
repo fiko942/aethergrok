@@ -82,6 +82,10 @@ export function OpenExternalURL(arg1) {
   return window['go']['main']['App']['OpenExternalURL'](arg1);
 }
 
+export function RevealGrokConfigFile() {
+  return window['go']['main']['App']['RevealGrokConfigFile']();
+}
+
 export function PullWorkspaceChanges(arg1) {
   return window['go']['main']['App']['PullWorkspaceChanges'](arg1);
 }

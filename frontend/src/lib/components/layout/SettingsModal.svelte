@@ -28,7 +28,11 @@
     Github,
     ExternalLink,
     Code2,
-    Heart
+    Heart,
+    FolderOpen,
+    FileCode2,
+    ShieldCheck,
+    ZapOff
   } from 'lucide-svelte';
   import Button from '$lib/antd/Button.svelte';
   import Card from '$lib/antd/Card.svelte';
@@ -60,6 +64,8 @@
   let editCustomModelName = $state('');
   let editDefaultReasoningEffort = $state<ReasoningEffort>(settingsStore.defaultReasoningEffort);
   let editPermissionMode = $state<PermissionMode>(settingsStore.permissionMode);
+  let editPlanGateMode = $state<PlanGateMode>(settingsStore.planGateMode);
+  let editAnimationsEnabled = $state<boolean>(settingsStore.animationsEnabled);
   let editTheme = $state<ThemeMode>(settingsStore.theme);
 
   let isRecordingShortcut = $state(false);
@@ -91,6 +97,8 @@
       }
       editDefaultReasoningEffort = settingsStore.defaultReasoningEffort;
       editPermissionMode = settingsStore.permissionMode;
+      editPlanGateMode = settingsStore.planGateMode;
+      editAnimationsEnabled = settingsStore.animationsEnabled;
       editTheme = settingsStore.theme;
       isRecordingShortcut = false;
       saveSuccessNotice = false;
@@ -220,6 +228,8 @@
       defaultModel: finalModel,
       defaultReasoningEffort: editDefaultReasoningEffort,
       permissionMode: editPermissionMode,
+      planGateMode: editPlanGateMode,
+      animationsEnabled: editAnimationsEnabled,
       theme: editTheme
     });
 
@@ -734,10 +744,41 @@
                   </div>
                 </div>
               </Card>
+
+              <!-- Open Config File Card -->
+              <Card>
+                <div class="flex items-center justify-between">
+                  <div class="space-y-0.5">
+                    <div class="text-xs font-semibold text-ant-text flex items-center gap-1.5">
+                      <FolderOpen size={14} class="text-ant-primary" />
+                      Grok Configuration File
+                    </div>
+                    <div class="text-[11px] text-ant-text-secondary">
+                      Open ~/.grok/config.toml in your system file manager (Finder / Explorer) with the file focused.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="px-3 py-1.5 rounded-lg bg-ant-primary/10 hover:bg-ant-primary/20 text-ant-primary text-xs font-medium border border-ant-primary/20 hover:border-ant-primary/40 transition flex items-center gap-1.5 cursor-pointer"
+                    onclick={async () => {
+                      try {
+                        if (window.go?.main?.App?.RevealGrokConfigFile) {
+                          await window.go.main.App.RevealGrokConfigFile();
+                        }
+                      } catch (err) {
+                        console.error('Failed to open config file:', err);
+                      }
+                    }}
+                  >
+                    <FileCode2 size={13} />
+                    <span>Open Config File</span>
+                  </button>
+                </div>
+              </Card>
             </div>
           {/if}
 
-          <!-- TAB 3: PERMISSIONS -->
+          <!-- TAB 3: PERMISSIONS & PLAN GATE -->
           {#if activeTab === 'permissions'}
             <div class="space-y-6 animate-in fade-in duration-100">
               <div>
@@ -746,6 +787,64 @@
                   Control how AetherGrok asks for confirmation before executing bash commands or modifying project files.
                 </p>
               </div>
+
+              <!-- Plan Gate Mode Configuration -->
+              <Card>
+                <div class="space-y-3">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="text-xs font-semibold text-ant-text flex items-center gap-1.5">
+                        <ShieldCheck size={14} class="text-ant-primary" />
+                        Plan Gate Mode
+                      </div>
+                      <div class="text-[11px] text-ant-text-secondary">
+                        Choose whether plan proposals require manual approval or are automatically approved and executed.
+                      </div>
+                    </div>
+                    <span class="text-xs font-mono font-bold {editPlanGateMode === 'bypass' ? 'text-amber-400 bg-amber-400/10' : 'text-ant-primary bg-ant-primary/10'} px-2 py-0.5 rounded capitalize">
+                      {editPlanGateMode === 'bypass' ? 'Bypass (Auto)' : 'Active (Manual)'}
+                    </span>
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-2.5 pt-1">
+                    <button
+                      type="button"
+                      class="p-3 rounded-lg border text-left transition {editPlanGateMode === 'active'
+                        ? 'bg-ant-primary/15 border-ant-primary text-ant-text shadow-sm'
+                        : 'bg-ant-bg border-white/5 text-ant-text-secondary hover:border-white/15 hover:text-ant-text'}"
+                      onclick={() => editPlanGateMode = 'active'}
+                    >
+                      <div class="flex items-center justify-between">
+                        <div class="text-xs font-semibold text-ant-text">Active (Manual Review)</div>
+                        {#if editPlanGateMode === 'active'}
+                          <CheckCircle2 size={14} class="text-ant-primary" />
+                        {/if}
+                      </div>
+                      <div class="text-[10px] text-ant-text-muted mt-1 leading-relaxed">
+                        Presents interactive Approve, Implement, and Custom Feedback action cards before proceeding.
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      class="p-3 rounded-lg border text-left transition {editPlanGateMode === 'bypass'
+                        ? 'bg-amber-500/15 border-amber-500 text-ant-text shadow-sm'
+                        : 'bg-ant-bg border-white/5 text-ant-text-secondary hover:border-white/15 hover:text-ant-text'}"
+                      onclick={() => editPlanGateMode = 'bypass'}
+                    >
+                      <div class="flex items-center justify-between">
+                        <div class="text-xs font-semibold text-amber-300">Bypass (Auto-Approve)</div>
+                        {#if editPlanGateMode === 'bypass'}
+                          <CheckCircle2 size={14} class="text-amber-400" />
+                        {/if}
+                      </div>
+                      <div class="text-[10px] text-ant-text-muted mt-1 leading-relaxed">
+                        Instantly auto-approves and implements any plan proposals generated by the agent without blocking.
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </Card>
 
               <div class="space-y-3">
                 {#each (Object.keys(permissionDescriptions) as Array<PermissionMode>) as modeKey}
@@ -914,6 +1013,25 @@
                   </p>
                 </button>
               </div>
+
+              <!-- Smooth UI Animations Toggle -->
+              <Card>
+                <div class="flex items-center justify-between">
+                  <div class="space-y-0.5">
+                    <div class="text-xs font-semibold text-ant-text flex items-center gap-1.5">
+                      <Sparkles size={14} class="text-ant-primary" />
+                      Fluid UI Transitions & Animations
+                    </div>
+                    <div class="text-[11px] text-ant-text-secondary">
+                      Enable smooth tab peels, sidebar expansion slides, switch toggles, and action group animations. Disable on low-spec hardware.
+                    </div>
+                  </div>
+                  <Switch
+                    bind:checked={editAnimationsEnabled}
+                    size="small"
+                  />
+                </div>
+              </Card>
             </div>
           {/if}
 

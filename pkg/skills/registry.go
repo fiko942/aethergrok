@@ -17,7 +17,10 @@ type Registry struct {
 // DefaultDirectories contains the canonical paths per specification
 var DefaultDirectories = []string{
 	"~/.grok/skills/",
+	"~/.grok/bundled/skills/",
 	"~/.agents/skills/",
+	"~/.claude/skills/",
+	"~/.codex/skills/",
 }
 
 // NewRegistry initializes a registry with specified search directories

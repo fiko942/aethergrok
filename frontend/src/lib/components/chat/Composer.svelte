@@ -84,24 +84,26 @@
     window.removeEventListener('click', handleWindowClick);
   });
 
-  // Elapsed execution timer state (in seconds)
-  let elapsedSeconds = $state(0);
+  // Elapsed execution timer state (in milliseconds and seconds)
+  let elapsedMs = $state(0);
   let timerInterval: ReturnType<typeof setInterval> | null = null;
+  let timerStart = 0;
 
   // Track elapsed thinking/working timer
   $effect(() => {
     if (isWorking) {
-      elapsedSeconds = 0;
+      elapsedMs = 0;
+      timerStart = Date.now();
       if (timerInterval) clearInterval(timerInterval);
       timerInterval = setInterval(() => {
-        elapsedSeconds += 1;
-      }, 1000);
+        elapsedMs = Date.now() - timerStart;
+      }, 100);
     } else {
       if (timerInterval) {
         clearInterval(timerInterval);
         timerInterval = null;
       }
-      elapsedSeconds = 0;
+      elapsedMs = 0;
     }
 
     return () => {
@@ -112,11 +114,15 @@
     };
   });
 
-  function formatElapsed(sec: number): string {
+  function formatElapsed(ms: number): string {
+    if (ms < 1000) {
+      return `${ms}ms`;
+    }
+    const sec = Math.floor(ms / 1000);
     const m = Math.floor(sec / 60);
     const s = sec % 60;
     if (m === 0) {
-      return `${s}s`;
+      return `${(ms / 1000).toFixed(1)}s`;
     }
     return `${m}m ${s < 10 ? '0' : ''}${s}s`;
   }
@@ -523,6 +529,10 @@
     }
   }
 
+  export function handleExternalFiles(files: FileList | File[]) {
+    processFiles(files);
+  }
+
   function handleContainerDragOver(e: DragEvent) {
     if (e.dataTransfer?.types?.includes('Files')) {
       e.preventDefault();
@@ -874,7 +884,7 @@
             <!-- Live Elapsed Execution Timer -->
             <div class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-[#1a1a1d] text-zinc-300 text-[11px] font-mono shadow-inner">
               <Timer size={11} class="animate-spin text-indigo-400" />
-              <span class="font-medium">{formatElapsed(elapsedSeconds)}</span>
+              <span class="font-medium">{formatElapsed(elapsedMs)}</span>
             </div>
 
             <!-- Stop/Cancel Execution Button -->

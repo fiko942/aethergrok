@@ -95,7 +95,8 @@ func ScanGitHubRepo(ctx context.Context, repoInput string) (*SkillAnalysisResult
 		SuggestedScripts: make([]string, 0),
 	}
 
-	// Scan for SKILL.md / skill.md
+	// Scan for SKILL.md / skill.md with deduplication
+	seenSkillPaths := make(map[string]bool)
 	err = filepath.Walk(tempDir, func(path string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil {
 			return nil
@@ -122,7 +123,11 @@ func ScanGitHubRepo(ctx context.Context, repoInput string) (*SkillAnalysisResult
 			}
 
 			skillMeta := parseSkillFile(path, relFile, relDir)
-			result.Skills = append(result.Skills, skillMeta)
+			key := fmt.Sprintf("%s:%s", strings.ToLower(skillMeta.Name), relDir)
+			if !seenSkillPaths[key] {
+				seenSkillPaths[key] = true
+				result.Skills = append(result.Skills, skillMeta)
+			}
 		}
 		return nil
 	})
@@ -260,8 +265,21 @@ func InstallDiscoveredSkills(payload SkillInstallPayload) (*SkillInstallResult, 
 	for _, relPath := range payload.SkillPaths {
 		srcDir := filepath.Join(payload.TempPath, relPath)
 		skillName := filepath.Base(srcDir)
-		if skillName == "." || skillName == "/" || skillName == "" {
-			skillName = filepath.Base(payload.TempPath)
+		
+		// If skill is in repo root or relative path is empty, try to resolve name from SKILL.md
+		if skillName == "." || skillName == "/" || skillName == "" || strings.HasPrefix(skillName, "aethergrok-skills") {
+			candidateSkillFile := filepath.Join(srcDir, "SKILL.md")
+			if !fileExists(candidateSkillFile) {
+				candidateSkillFile = filepath.Join(srcDir, "skill.md")
+			}
+			if fileExists(candidateSkillFile) {
+				if parsed, parseErr := ParseSkillFile(candidateSkillFile); parseErr == nil && parsed != nil && parsed.Name != "" {
+					skillName = parsed.Name
+				}
+			}
+			if skillName == "." || skillName == "/" || skillName == "" || strings.HasPrefix(skillName, "aethergrok-skills") {
+				skillName = filepath.Base(payload.TempPath)
+			}
 		}
 
 		destDir := filepath.Join(targetBase, skillName)
@@ -327,6 +345,16 @@ func ExecuteSetupCommand(ctx context.Context, workDir, commandLine string, onLog
 }
 
 func copyDirectory(src, dst string) error {
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return fmt.Errorf("source path inaccessible: %w", err)
+	}
+
+	// If source is a single file rather than a directory
+	if !srcInfo.IsDir() {
+		return copyFile(src, filepath.Join(dst, filepath.Base(src)))
+	}
+
 	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -338,6 +366,29 @@ func copyDirectory(src, dst string) error {
 		}
 
 		targetPath := filepath.Join(dst, rel)
+
+		// Check if it is a directory or symlink pointing to a directory
+		evalInfo, statErr := os.Stat(path)
+		if statErr == nil && evalInfo.IsDir() {
+			name := evalInfo.Name()
+			if name == ".git" {
+				return filepath.SkipDir
+			}
+			return os.MkdirAll(targetPath, 0755)
+		}
+
+		// Handle symlink
+		if info.Mode()&os.ModeSymlink != 0 {
+			resolvedTarget, resolveErr := os.Readlink(path)
+			if resolveErr == nil {
+				if statErr == nil && !evalInfo.IsDir() {
+					return copyFile(path, targetPath)
+				}
+				_ = os.MkdirAll(filepath.Dir(targetPath), 0755)
+				_ = os.Symlink(resolvedTarget, targetPath)
+				return nil
+			}
+		}
 
 		if info.IsDir() {
 			name := info.Name()

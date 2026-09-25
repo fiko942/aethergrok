@@ -335,3 +335,55 @@ hr {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover, #4b5563);
 }
+
+/* ========================================================================= */
+/* Unique Organic UI Animations: Tab Peel, Build In, & Smooth Drawer         */
+/* ========================================================================= */
+
+@keyframes tabPeelIn {
+  0% {
+    opacity: 0.2;
+    transform: perspective(600px) rotateX(14deg) translateY(3px) scale(0.97);
+    filter: blur(1px);
+  }
+  60% {
+    transform: perspective(600px) rotateX(-2deg) translateY(-0.5px) scale(1.005);
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(600px) rotateX(0deg) translateY(0) scale(1);
+    filter: blur(0px);
+  }
+}
+
+.tab-peel-transition {
+  transform-origin: bottom center;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.tab-peel-transition[aria-selected="true"] {
+  animation: tabPeelIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes tabBuildIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.98) translateY(6px);
+    filter: blur(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+}
+
+.animate-tab-build-in {
+  animation: tabBuildIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.sidebar-smooth-transition {
+  transition: width 0.26s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+

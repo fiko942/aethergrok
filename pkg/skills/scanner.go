@@ -179,44 +179,68 @@ func ScanSkillDirectories(directories []string) ([]Skill, []error) {
 	var skills []Skill
 	var errs []error
 	seenNames := make(map[string]bool)
+	visitedDirs := make(map[string]bool)
+
+	var scanDirRecursive func(dirPath string, depth int)
+	scanDirRecursive = func(dirPath string, depth int) {
+		if depth > 10 {
+			return
+		}
+		realPath, err := filepath.EvalSymlinks(dirPath)
+		if err != nil {
+			realPath = dirPath
+		}
+		if visitedDirs[realPath] {
+			return
+		}
+		visitedDirs[realPath] = true
+
+		entries, err := os.ReadDir(dirPath)
+		if err != nil {
+			return
+		}
+
+		for _, entry := range entries {
+			name := entry.Name()
+			if strings.HasPrefix(name, ".") {
+				continue
+			}
+			fullPath := filepath.Join(dirPath, name)
+
+			// Resolve symlinks if entry is a symlink
+			isDir := entry.IsDir()
+			if entry.Type()&os.ModeSymlink != 0 {
+				targetInfo, statErr := os.Stat(fullPath)
+				if statErr == nil && targetInfo.IsDir() {
+					isDir = true
+				}
+			}
+
+			if isDir {
+				scanDirRecursive(fullPath, depth+1)
+			} else if strings.EqualFold(name, "SKILL.md") || strings.HasSuffix(strings.ToLower(name), ".skill.md") {
+				skill, parseErr := ParseSkillFile(fullPath)
+				if parseErr != nil {
+					errs = append(errs, fmt.Errorf("error parsing %s: %w", fullPath, parseErr))
+					continue
+				}
+
+				canonName := strings.ToLower(strings.TrimSpace(skill.Name))
+				if canonName != "" && !seenNames[canonName] {
+					seenNames[canonName] = true
+					skills = append(skills, *skill)
+				}
+			}
+		}
+	}
 
 	for _, dir := range directories {
-		// Expand ~ to user home directory if present
 		expandedDir := expandHome(dir)
 		info, err := os.Stat(expandedDir)
 		if err != nil || !info.IsDir() {
 			continue
 		}
-
-		err = filepath.WalkDir(expandedDir, func(path string, d os.DirEntry, walkErr error) error {
-			if walkErr != nil {
-				return nil
-			}
-
-			// Do not descend into hidden directories other than root matching
-			if d.IsDir() && strings.HasPrefix(d.Name(), ".") && path != expandedDir {
-				return filepath.SkipDir
-			}
-
-			if !d.IsDir() && strings.EqualFold(d.Name(), "SKILL.md") {
-				skill, err := ParseSkillFile(path)
-				if err != nil {
-					errs = append(errs, fmt.Errorf("error parsing %s: %w", path, err))
-					return nil
-				}
-
-				// Deduplicate by name if already seen (e.g. ~/.grok prioritized over ~/.agents)
-				if !seenNames[skill.Name] {
-					seenNames[skill.Name] = true
-					skills = append(skills, *skill)
-				}
-			}
-			return nil
-		})
-
-		if err != nil {
-			errs = append(errs, err)
-		}
+		scanDirRecursive(expandedDir, 0)
 	}
 
 	return skills, errs
