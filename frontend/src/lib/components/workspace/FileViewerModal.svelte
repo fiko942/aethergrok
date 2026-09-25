@@ -104,9 +104,9 @@
 <svelte:window onkeydown={handleKeydown} />
 
 {#if isOpen}
-  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
+  <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150">
     <div
-      class="bg-[#18181b] border border-[#27272a] rounded-xl shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden text-zinc-200"
+      class="bg-[#18181b] border border-[#27272a] rounded-xl shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden text-zinc-200 relative z-[101]"
     >
       <!-- Header -->
       <div class="px-4 py-3 border-b border-[#27272a] flex items-center justify-between bg-[#141416] shrink-0">

@@ -143,14 +143,14 @@
       {/if}
     </div>
   </aside>
+{/if}
 
-  <!-- Read-Only File Viewer Modal -->
-  {#if selectedFile}
-    <FileViewerModal
-      isOpen={true}
-      filePath={selectedFile}
-      workspacePath={workspacePath}
-      onClose={() => (selectedFile = null)}
-    />
-  {/if}
+<!-- Read-Only File Viewer Modal mounted outside aside to avoid stacking context traps -->
+{#if selectedFile}
+  <FileViewerModal
+    isOpen={true}
+    filePath={selectedFile}
+    workspacePath={workspacePath}
+    onClose={() => (selectedFile = null)}
+  />
 {/if}

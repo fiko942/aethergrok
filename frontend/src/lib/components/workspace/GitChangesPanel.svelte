@@ -304,7 +304,7 @@
   {/if}
 </div>
 
-<!-- Diff Viewer Modal -->
+<!-- Diff Viewer Modal mounted outside container with high z-index -->
 {#if selectedDiffFile}
   <DiffViewModal
     isOpen={true}
