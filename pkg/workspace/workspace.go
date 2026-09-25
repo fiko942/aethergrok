@@ -229,33 +229,66 @@ func GetGitStatus(workspacePath string) (*GitStatusResult, error) {
 	}, nil
 }
 
-// GetFileDiff returns unified diff for a single file (respecting untracked new files and .gitignore)
+// GetFileDiff returns unified diff for a single file (respecting untracked new files and directories)
 func GetFileDiff(workspacePath, filePath string) (string, error) {
-	// First try git diff HEAD -- <filePath>
+	if workspacePath == "" || filePath == "" {
+		return "", fmt.Errorf("invalid path parameters")
+	}
+
+	// 1. Try standard git diff HEAD -- <filePath>
 	cmd := exec.Command("git", "diff", "HEAD", "--", filePath)
 	cmd.Dir = workspacePath
 	out, err := cmd.CombinedOutput()
-	if err == nil && len(out) > 0 {
+	if err == nil && len(bytes.TrimSpace(out)) > 0 {
 		return string(out), nil
 	}
 
-	// Also check working tree vs index (staged)
+	// 2. Check working tree vs staged index
 	cmdStaged := exec.Command("git", "diff", "--", filePath)
 	cmdStaged.Dir = workspacePath
 	stagedOut, _ := cmdStaged.CombinedOutput()
-	if len(stagedOut) > 0 {
+	if len(bytes.TrimSpace(stagedOut)) > 0 {
 		return string(stagedOut), nil
 	}
 
-	// For untracked new files, produce unified diff against /dev/null
-	cmdUntracked := exec.Command("git", "diff", "--no-index", "/dev/null", filePath)
-	cmdUntracked.Dir = workspacePath
-	untrackedOut, _ := cmdUntracked.CombinedOutput()
-	if len(untrackedOut) > 0 {
-		return string(untrackedOut), nil
+	// 3. For untracked files or directories, inspect on disk
+	fullPath := filepath.Join(workspacePath, filePath)
+	info, statErr := os.Stat(fullPath)
+	if statErr == nil {
+		if info.IsDir() {
+			// If it's a directory (e.g. tests/__pycache__), diff each child file inside it
+			var combined strings.Builder
+			_ = filepath.Walk(fullPath, func(p string, fi os.FileInfo, walkErr error) error {
+				if walkErr != nil || fi.IsDir() {
+					return nil
+				}
+				rel, rErr := filepath.Rel(workspacePath, p)
+				if rErr == nil {
+					cmdChild := exec.Command("git", "diff", "--no-index", "/dev/null", rel)
+					cmdChild.Dir = workspacePath
+					childOut, _ := cmdChild.CombinedOutput()
+					if len(childOut) > 0 {
+						combined.WriteString(string(childOut))
+						combined.WriteString("\n")
+					}
+				}
+				return nil
+			})
+			if combined.Len() > 0 {
+				return combined.String(), nil
+			}
+		} else {
+			// Single untracked file diff against /dev/null
+			cmdUntracked := exec.Command("git", "diff", "--no-index", "/dev/null", filePath)
+			cmdUntracked.Dir = workspacePath
+			untrackedOut, _ := cmdUntracked.CombinedOutput()
+			if len(untrackedOut) > 0 {
+				return string(untrackedOut), nil
+			}
+		}
 	}
 
-	return string(out), err
+	return string(out), nil
 }
 
 // ExecuteCommit performs git commit
