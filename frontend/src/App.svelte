@@ -141,6 +141,10 @@
   const isWorking = $derived(sessionStore.activeSession?.status === 'working');
   const pendingPermission = $derived(sessionStore.activeSession?.pendingPermission || null);
   const currentSession = $derived(sessionStore.activeSession);
+  const currentSessionWorkspace = $derived.by(() => {
+    if (!currentSession) return sessionStore.activeWorkspace;
+    return sessionStore.workspaces.find((w) => w.id === currentSession.workspaceId) || sessionStore.activeWorkspace;
+  });
 
   function handleSelectSkill(skill: SkillItem) {
     if (composerRef) {
@@ -1052,7 +1056,7 @@
 
     <!-- Right Sidebar: Workspace Explorer & Git Changes Inspector (Session-Isolated) -->
     <RightSidebar
-      workspacePath={currentSession?.workspacePath || ''}
+      workspacePath={currentSessionWorkspace?.path || ''}
       sessionId={currentSession?.id}
     />
   </div>
