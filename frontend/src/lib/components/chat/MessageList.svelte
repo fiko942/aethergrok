@@ -192,7 +192,7 @@
       unreadActivityBelow = false;
     }
 
-    // Acknowledge finished turn when viewing the bottom of conversation
+    // Acknowledge finished turn when viewing the bottom of conversation (only reset from 'finished' to 'idle', never interrupt 'working')
     if (distanceFromBottom < 100) {
       const activeSession = sessionStore.activeSession;
       if (activeSession && activeSession.status === 'finished') {

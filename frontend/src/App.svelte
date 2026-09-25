@@ -724,6 +724,10 @@
     if (window.runtime?.EventsOn) {
       unsubDelta = window.runtime.EventsOn('grok:delta_batch', (event: { sessionId: string; delta: string; role?: string }) => {
         if (event.sessionId) {
+          const session = sessionStore.sessions.find((s) => s.id === event.sessionId);
+          if (session && session.status !== 'working') {
+            sessionStore.setSessionStatus(event.sessionId, 'working');
+          }
           sessionStore.appendDelta(event.sessionId, event.delta, (event.role as 'assistant' | 'user') || 'assistant');
         }
       });
@@ -738,6 +742,9 @@
       }) => {
         if (event.sessionId) {
           const session = sessionStore.sessions.find((s) => s.id === event.sessionId);
+          if (session && session.status !== 'working') {
+            sessionStore.setSessionStatus(event.sessionId, 'working');
+          }
           if (!session) return;
 
           let found = false;
