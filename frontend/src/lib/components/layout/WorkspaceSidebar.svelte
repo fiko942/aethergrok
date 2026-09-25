@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { sessionStore, STATUS_META, type Session, type WorkspaceFolder } from '$lib/stores/session.svelte';
+  import { settingsStore } from '$lib/stores/settings.svelte';
   import { dialogStore } from '$lib/stores/dialog.svelte';
   import { formatSessionAsMarkdown, downloadOrSaveMarkdown } from '$lib/utils/markdownExport';
   import BatchActionBar from './BatchActionBar.svelte';
@@ -66,6 +67,19 @@
       [wsId]: PAGE_SIZE
     };
     sessionStore.toggleWorkspaceExpanded(wsId);
+  }
+
+  function handleSelectSession(sessionId: string) {
+    if (sessionStore.isSelectionMode) {
+      sessionStore.toggleSessionSelected(sessionId);
+    } else {
+      sessionStore.openSessionInTab(sessionId);
+      // If viewport is in compact mode (< 840px), auto-collapse the sidebar drawer
+      if (typeof window !== 'undefined' && window.innerWidth < 840) {
+        settingsStore.sidebarCollapsed = true;
+        settingsStore.saveToStorage();
+      }
+    }
   }
 
   function toggleDropdown(sessionId: string, e: MouseEvent) {
@@ -416,14 +430,8 @@
             <div
               role="button"
               tabindex="0"
-              onclick={() => {
-                if (sessionStore.isSelectionMode) {
-                  sessionStore.toggleSessionSelected(session.id);
-                } else {
-                  sessionStore.openSessionInTab(session.id);
-                }
-              }}
-              onkeydown={(e) => e.key === 'Enter' && sessionStore.openSessionInTab(session.id)}
+              onclick={() => handleSelectSession(session.id)}
+              onkeydown={(e) => e.key === 'Enter' && handleSelectSession(session.id)}
               class="group relative flex items-center justify-between px-2.5 py-1.5 rounded-md text-[13px] font-sans cursor-pointer transition-colors duration-150 {isActive
                 ? 'bg-ant-primary/15 text-ant-primary font-medium'
                 : 'bg-ant-bg-secondary/40 text-ant-text/80 hover:text-ant-text hover:bg-ant-bg-tertiary/70'}"
@@ -583,14 +591,8 @@
                   <div
                     role="button"
                     tabindex="0"
-                    onclick={() => {
-                      if (sessionStore.isSelectionMode) {
-                        sessionStore.toggleSessionSelected(session.id);
-                      } else {
-                        sessionStore.openSessionInTab(session.id);
-                      }
-                    }}
-                    onkeydown={(e) => e.key === 'Enter' && sessionStore.openSessionInTab(session.id)}
+                    onclick={() => handleSelectSession(session.id)}
+                    onkeydown={(e) => e.key === 'Enter' && handleSelectSession(session.id)}
                     class="group relative flex items-center justify-between px-2.5 py-1.5 rounded-md text-[13px] font-sans cursor-pointer transition-colors duration-150 {isActive
                       ? 'bg-ant-primary/15 text-ant-primary font-medium'
                       : 'bg-transparent text-ant-text/80 hover:text-ant-text hover:bg-ant-bg-tertiary/70'}"

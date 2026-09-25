@@ -16,6 +16,8 @@ export interface AppSettings {
   snapshotAutoAttach: boolean;
   activeWindowTurnCount: number;
   maxContextTokens: number;
+  sidebarWidth: number;
+  sidebarCollapsed: boolean;
 }
 
 const STORAGE_KEY = 'aethergrok_settings_v1';
@@ -32,7 +34,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   snapshotFlashEnabled: true,
   snapshotAutoAttach: true,
   activeWindowTurnCount: 10,
-  maxContextTokens: 200000
+  maxContextTokens: 200000,
+  sidebarWidth: 288,
+  sidebarCollapsed: false
 };
 
 export class SettingsStore {
@@ -48,6 +52,8 @@ export class SettingsStore {
   snapshotAutoAttach = $state<boolean>(DEFAULT_SETTINGS.snapshotAutoAttach);
   activeWindowTurnCount = $state<number>(DEFAULT_SETTINGS.activeWindowTurnCount);
   maxContextTokens = $state<number>(DEFAULT_SETTINGS.maxContextTokens);
+  sidebarWidth = $state<number>(DEFAULT_SETTINGS.sidebarWidth);
+  sidebarCollapsed = $state<boolean>(DEFAULT_SETTINGS.sidebarCollapsed);
 
   constructor() {
     this.loadFromStorage();
@@ -96,6 +102,12 @@ export class SettingsStore {
       if (typeof parsed.maxContextTokens === 'number' && Number.isFinite(parsed.maxContextTokens)) {
         this.maxContextTokens = parsed.maxContextTokens;
       }
+      if (typeof parsed.sidebarWidth === 'number' && Number.isFinite(parsed.sidebarWidth)) {
+        this.sidebarWidth = Math.min(480, Math.max(220, parsed.sidebarWidth));
+      }
+      if (typeof parsed.sidebarCollapsed === 'boolean') {
+        this.sidebarCollapsed = parsed.sidebarCollapsed;
+      }
     } catch (err) {
       console.warn('Failed to load settings from localStorage:', err);
     }
@@ -116,7 +128,9 @@ export class SettingsStore {
         snapshotFlashEnabled: this.snapshotFlashEnabled,
         snapshotAutoAttach: this.snapshotAutoAttach,
         activeWindowTurnCount: this.activeWindowTurnCount,
-        maxContextTokens: this.maxContextTokens
+        maxContextTokens: this.maxContextTokens,
+        sidebarWidth: this.sidebarWidth,
+        sidebarCollapsed: this.sidebarCollapsed
       };
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (err) {
@@ -136,6 +150,9 @@ export class SettingsStore {
     if (partial.snapshotFlashEnabled !== undefined) this.snapshotFlashEnabled = partial.snapshotFlashEnabled;
     if (partial.snapshotAutoAttach !== undefined) this.snapshotAutoAttach = partial.snapshotAutoAttach;
     if (partial.activeWindowTurnCount !== undefined) this.activeWindowTurnCount = partial.activeWindowTurnCount;
+    if (partial.maxContextTokens !== undefined) this.maxContextTokens = partial.maxContextTokens;
+    if (partial.sidebarWidth !== undefined) this.sidebarWidth = Math.min(480, Math.max(220, partial.sidebarWidth));
+    if (partial.sidebarCollapsed !== undefined) this.sidebarCollapsed = partial.sidebarCollapsed;
     this.saveToStorage();
   }
 

@@ -191,6 +191,7 @@
     { keys: [isMac ? '⌘' : 'Ctrl', ','], action: 'Open Settings & Preferences modal', scope: 'Global' },
     { keys: [isMac ? '⌘' : 'Ctrl', 'T'], action: 'Create a new conversation session tab', scope: 'Tabs' },
     { keys: [isMac ? '⌘' : 'Ctrl', 'W'], action: 'Close current session tab', scope: 'Tabs' },
+    { keys: [isMac ? '⌘' : 'Ctrl', 'B'], action: 'Toggle left sidebar collapse & expand', scope: 'Navigation' },
     { keys: [isMac ? '⌘' : 'Ctrl', '1-8'], action: 'Switch to session tab 1 through 8', scope: 'Tabs' },
     { keys: [isMac ? '⌘' : 'Ctrl', '9'], action: 'Switch to the last open session tab', scope: 'Tabs' },
     { keys: [isMac ? '⌘' : 'Ctrl', 'Shift', 'S'], action: 'Trigger instantaneous smart screen snapshot', scope: 'Screen' },

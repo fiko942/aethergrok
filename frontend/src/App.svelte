@@ -34,7 +34,10 @@
     Code2,
     Shield,
     Settings,
-    Volume2
+    Volume2,
+    PanelLeftClose,
+    PanelLeftOpen,
+    ChevronRight
   } from 'lucide-svelte';
 
   let autoHideWindow = $state(true);
@@ -44,6 +47,70 @@
   let skillsCatalogVisible = $state(false);
   let settingsModalVisible = $state(false);
   let flashActive = $state(false);
+
+  // Sidebar Resizing & Responsive State
+  const COMPACT_BREAKPOINT = 840;
+  let windowWidth = $state(typeof window !== 'undefined' ? window.innerWidth : 1200);
+  let isCompact = $derived(windowWidth < COMPACT_BREAKPOINT);
+  let isDraggingSidebar = $state(false);
+  let dragStartX = 0;
+  let dragStartWidth = 288;
+
+  function handleResizeStart(e: MouseEvent) {
+    if (isCompact || settingsStore.sidebarCollapsed) return;
+    isDraggingSidebar = true;
+    dragStartX = e.clientX;
+    dragStartWidth = settingsStore.sidebarWidth || 288;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+    window.addEventListener('mousemove', handleResizeMove);
+    window.addEventListener('mouseup', handleResizeEnd);
+  }
+
+  function handleResizeMove(e: MouseEvent) {
+    if (!isDraggingSidebar) return;
+    const delta = e.clientX - dragStartX;
+    const newWidth = dragStartWidth + delta;
+    if (newWidth < 160) {
+      settingsStore.sidebarCollapsed = true;
+    } else {
+      settingsStore.sidebarCollapsed = false;
+      settingsStore.sidebarWidth = Math.min(480, Math.max(220, newWidth));
+    }
+  }
+
+  function handleResizeEnd() {
+    if (isDraggingSidebar) {
+      isDraggingSidebar = false;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      settingsStore.saveToStorage();
+      window.removeEventListener('mousemove', handleResizeMove);
+      window.removeEventListener('mouseup', handleResizeEnd);
+    }
+  }
+
+  function handleResetSidebarWidth() {
+    settingsStore.sidebarWidth = 288;
+    settingsStore.sidebarCollapsed = false;
+    settingsStore.saveToStorage();
+  }
+
+  function toggleSidebar() {
+    settingsStore.sidebarCollapsed = !settingsStore.sidebarCollapsed;
+    settingsStore.saveToStorage();
+  }
+
+  function handleWindowResize() {
+    if (typeof window !== 'undefined') {
+      const prevCompact = windowWidth < COMPACT_BREAKPOINT;
+      windowWidth = window.innerWidth;
+      const nowCompact = windowWidth < COMPACT_BREAKPOINT;
+      if (!prevCompact && nowCompact) {
+        settingsStore.sidebarCollapsed = true;
+      }
+    }
+  }
   let composerRef = $state<{
     appendText: (str: string) => void;
     attachImage: (img: VisionImage) => void;
@@ -549,6 +616,13 @@
       return;
     }
 
+    // Cmd/Ctrl + B: Toggle left sidebar collapse
+    if (isMetaOrCtrl && !e.shiftKey && (e.key.toLowerCase() === 'b' || e.key === '\\')) {
+      e.preventDefault();
+      toggleSidebar();
+      return;
+    }
+
     // Cmd/Ctrl + 1-9: Browser-style quick session tab switching
     if (isMetaOrCtrl && !e.shiftKey && !e.altKey && e.key >= '1' && e.key <= '9') {
       const tabs = sessionStore.openWorkspaceTabs;
@@ -579,6 +653,8 @@
 
   onMount(() => {
     window.addEventListener('keydown', handleGlobalKeyDown);
+    window.addEventListener('resize', handleWindowResize);
+    handleWindowResize();
 
     // Check and request macOS Accessibility / Input Monitoring permissions on startup
     if (window.go?.main?.App?.CheckAndRequestAccessibilityPermissions) {
@@ -752,6 +828,9 @@
 
   onDestroy(() => {
     window.removeEventListener('keydown', handleGlobalKeyDown);
+    window.removeEventListener('resize', handleWindowResize);
+    window.removeEventListener('mousemove', handleResizeMove);
+    window.removeEventListener('mouseup', handleResizeEnd);
     unsubDelta?.();
     unsubTool?.();
     unsubPerm?.();
@@ -766,7 +845,22 @@
     class="flex items-center justify-between pl-20 pr-4 h-12 bg-ant-bg-secondary border-b border-white/5 flex-shrink-0"
     style="--wails-draggable:drag"
   >
-    <div class="flex items-center space-x-3">
+    <div class="flex items-center space-x-2.5">
+      <!-- Sidebar Toggle Button in Header -->
+      <button
+        type="button"
+        onclick={toggleSidebar}
+        class="p-1.5 rounded-md text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg transition-colors"
+        title="Sidebar (⌘B)"
+        style="--wails-draggable:no-drag"
+      >
+        {#if settingsStore.sidebarCollapsed}
+          <PanelLeftOpen size={16} />
+        {:else}
+          <PanelLeftClose size={16} />
+        {/if}
+      </button>
+
       <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-ant-primary/10 border border-ant-primary/20 text-ant-primary shadow-sm">
         <Sparkles size={16} />
       </div>
@@ -776,7 +870,7 @@
       </div>
     </div>
 
-    <div class="flex items-center space-x-3">
+    <div class="flex items-center space-x-3" style="--wails-draggable:no-drag">
       <Button size="small" type="primary" onclick={performGlobalSnapshot}>
         <Camera size={13} class="mr-1" /> Snapshot
       </Button>
@@ -794,9 +888,24 @@
   </header>
 
   <!-- Main Layout Grid -->
-  <div class="flex flex-1 overflow-hidden">
-    <!-- Left Sidebar: Workspace & Session Management -->
-    <aside class="w-72 bg-ant-bg-secondary border-r border-white/5 flex flex-col justify-between p-3 overflow-hidden">
+  <div class="flex flex-1 overflow-hidden relative">
+    <!-- Compact Backdrop Overlay (<840px breakpoint) -->
+    {#if isCompact && !settingsStore.sidebarCollapsed}
+      <div
+        role="button"
+        tabindex="0"
+        aria-label="Close sidebar overlay"
+        onclick={toggleSidebar}
+        onkeydown={(e) => (e.key === 'Escape' || e.key === 'Enter') && toggleSidebar()}
+        class="fixed inset-0 top-12 bg-black/50 backdrop-blur-xs z-30 transition-opacity duration-200 cursor-pointer"
+      ></div>
+    {/if}
+
+    <!-- Left Sidebar: Workspace & Session Management (Resizable & Collapsible) -->
+    <aside
+      class="{isCompact ? 'fixed top-12 bottom-0 left-0 z-40 shadow-2xl transition-transform duration-200 ease-out' : 'relative transition-[width] duration-200 ease-out'} bg-ant-bg-secondary border-r border-white/5 flex flex-col justify-between p-3 overflow-hidden flex-shrink-0"
+      style="{isCompact ? (settingsStore.sidebarCollapsed ? 'transform: translateX(-100%); width: 288px;' : 'transform: translateX(0); width: 288px;') : (settingsStore.sidebarCollapsed ? 'width: 0px; padding: 0px; border-right: none;' : `width: ${settingsStore.sidebarWidth || 288}px;`)}"
+    >
       <!-- Workspace Folders & Sessions List -->
       <div class="flex-1 overflow-hidden min-h-0">
         <WorkspaceSidebar />
@@ -820,6 +929,33 @@
         </div>
       </div>
     </aside>
+
+    <!-- 6px Drag Resize Handle Divider (Desktop Mode only) -->
+    {#if !isCompact && !settingsStore.sidebarCollapsed}
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        tabindex="0"
+        onmousedown={handleResizeStart}
+        ondblclick={handleResetSidebarWidth}
+        title="Drag to resize (220-480px), Double-click to reset"
+        class="w-[6px] -ml-[3px] hover:w-[6px] hover:bg-ant-primary/40 active:bg-ant-primary transition-colors cursor-col-resize z-20 select-none flex-shrink-0 relative group flex items-center justify-center"
+      >
+        <div class="w-[2px] h-8 rounded-full bg-white/10 group-hover:bg-ant-primary/60 transition-colors"></div>
+      </div>
+    {/if}
+
+    <!-- Collapsed Floating Edge Indicator Button -->
+    {#if settingsStore.sidebarCollapsed}
+      <button
+        type="button"
+        onclick={toggleSidebar}
+        class="absolute top-3 left-2 z-20 flex items-center justify-center w-7 h-7 rounded-md bg-ant-bg-secondary/90 hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-primary border border-white/10 shadow-md backdrop-blur-sm transition-all"
+        title="Expand Sidebar (⌘B)"
+      >
+        <ChevronRight size={15} />
+      </button>
+    {/if}
 
     <!-- Center Workspace: Tabs & Chat Engine -->
     <main class="flex-1 flex flex-col min-w-0 bg-ant-bg overflow-hidden relative">
