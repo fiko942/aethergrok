@@ -18,9 +18,10 @@ AetherGrok is an ultra-performant, native desktop GUI companion for Grok Build C
   - Debounced search filter at the top (200ms debounce).
   - Read-only file viewer (`FileViewerModal.svelte`) with syntax highlighting and 1MB size safety cap.
   - Dual-mode Markdown viewer: Raw code view vs. Rendered preview styled with Anthropic serif font.
-- **Tab 2: Git Inspector**:
+- **Tab 2: Git Inspector & 5s Auto-Refresh**:
   - Active branch name badge with Clean/Dirty status indicator.
   - Uncommitted changes list with status badges (`M`, `A`, `D`, `U`) and addition/deletion metrics.
+  - 5-second automatic silent background polling to update uncommitted status without flickering or UI freeze. Automatically pauses during active git actions.
   - Quick commit input with **Commit**, **Commit & Push**, and **Pull** actions.
   - Visual interactive diff modal (`DiffViewModal.svelte`) displaying unified diffs with green additions (`+`) and red deletions (`-`).
 
@@ -40,5 +41,5 @@ AetherGrok is an ultra-performant, native desktop GUI companion for Grok Build C
 ---
 
 ## 4. Key Bug Fixes & Guardrails
-- **CurrentSession Reactive Rune**: Explicitly declared as `const currentSession = $derived(sessionStore.activeSession);` at the top level of `App.svelte` to prevent blank screen runtime crashes.
+- **CurrentSession Reactive Rune**: Explicitly declared as `const currentSession = $derived(sessionStore.activeSession);` and `const currentSessionWorkspace = $derived.by(...)` at the top level of `App.svelte` to prevent blank screen runtime crashes and ensure accurate workspace path resolution.
 - **Sidebar Width Stretch Fix**: Replaced rigid `w-64` in `WorkspaceSidebar.svelte` with dynamic `w-full` container layout.

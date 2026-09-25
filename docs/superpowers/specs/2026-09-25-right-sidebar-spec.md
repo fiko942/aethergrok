@@ -11,9 +11,10 @@ Users working with multiple workspace sessions need immediate access to workspac
    - Fast debounced file/folder search bar at the top of the tab.
    - Read-only file viewer (modal/sheet) with syntax highlighting for code files (JSON, Shell, TS/JS, Go).
    - Dual-mode viewer for Markdown (`.md`): Raw code vs Rendered preview with Anthropic serif font.
-4. **Git Changes Inspector**:
+4. **Git Changes Inspector & Auto-Refresh**:
    - Current git branch badge with clean/dirty status.
    - List of uncommitted changed files with status labels (`M`, `A`, `D`, `?`) and addition/deletion line metrics.
+   - Automatic 5-second polling background refresh (`silent = true`) to immediately reflect file modifications, additions, and deletions without blocking UI interaction or flickering. Polling safely pauses during active commit/push/pull operations.
    - Action controls: Commit message input, Commit button, Commit & Push button, Pull button.
    - Visual diff inspection: Clicking any changed file opens an interactive line-by-line diff modal with green (+) for additions and red (-) for deletions.
 5. **Theme & Style**:
@@ -38,3 +39,10 @@ Users working with multiple workspace sessions need immediate access to workspac
 - Methods:
   - `toggleRightSidebar(sessionId?: string)`
   - `setRightSidebarTab(tab, sessionId?: string)`
+- Components:
+  - `frontend/src/lib/components/layout/RightSidebar.svelte`
+  - `frontend/src/lib/components/workspace/FileExplorerTree.svelte`
+  - `frontend/src/lib/components/workspace/FileIcon.svelte`
+  - `frontend/src/lib/components/workspace/FileViewerModal.svelte`
+  - `frontend/src/lib/components/workspace/GitChangesPanel.svelte` (with 5s silent auto-refresh interval)
+  - `frontend/src/lib/components/workspace/DiffViewModal.svelte`
