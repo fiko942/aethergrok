@@ -140,6 +140,7 @@
 
   const isWorking = $derived(sessionStore.activeSession?.status === 'working');
   const pendingPermission = $derived(sessionStore.activeSession?.pendingPermission || null);
+  const currentSession = $derived(sessionStore.activeSession);
 
   function handleSelectSkill(skill: SkillItem) {
     if (composerRef) {
