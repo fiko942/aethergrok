@@ -372,7 +372,7 @@
   }
 </script>
 
-<aside class="flex flex-col w-64 h-full bg-ant-bg-secondary border-r border-white/5 select-none relative z-20 font-serif">
+<div class="flex flex-col w-full h-full bg-ant-bg-secondary select-none relative z-20 font-serif">
   <!-- 1. Search Bar & Action Controls -->
   <div class="p-2.5 border-b border-white/5 space-y-2">
     <!-- Search Bar -->
@@ -528,7 +528,7 @@
               {/if}
             </span>
             <Folder size={14} class="{isMissing ? 'text-rose-400' : 'text-ant-primary'} flex-shrink-0" />
-            <span class="text-xs font-semibold {isMissing ? 'text-rose-300 line-through' : 'text-ant-text'} truncate max-w-[110px]" title={ws.path}>{ws.name}</span>
+            <span class="text-xs font-semibold {isMissing ? 'text-rose-300 line-through' : 'text-ant-text'} truncate flex-1 min-w-0" title={ws.path}>{ws.name}</span>
             {#if isMissing}
               <span class="text-[9px] bg-rose-500/20 text-rose-300 px-1 py-0.2 rounded font-medium ml-1">Missing</span>
             {:else}
@@ -765,4 +765,4 @@
       {copiedToast}
     </div>
   {/if}
-</aside>
+</div>
