@@ -100,9 +100,36 @@
   // Calculate session tokens from active session
   const activeSessionTokens = $derived.by(() => {
     const session = sessionStore.activeSession;
-    if (!session || !session.messages) {
-      return { used: 153036, max: 200000, totalInput: 133089013, totalOutput: 621193, totalCache: 69119302 };
+    if (session?.usage) {
+      return {
+        used: session.usage.usedTokens,
+        max: session.usage.maxTokens,
+        lastTurnInput: session.usage.lastTurnInput,
+        lastTurnOutput: session.usage.lastTurnOutput,
+        lastTurnCacheRead: session.usage.lastTurnCacheRead,
+        lastTurnReasoning: session.usage.lastTurnReasoning,
+        lastTurnModelCalls: session.usage.lastTurnModelCalls,
+        totalInput: session.usage.totalInput,
+        totalOutput: session.usage.totalOutput,
+        totalCache: session.usage.totalCacheRead
+      };
     }
+
+    if (!session || !session.messages || session.messages.length === 0) {
+      return {
+        used: 0,
+        max: settingsStore.maxContextTokens || 200000,
+        lastTurnInput: 0,
+        lastTurnOutput: 0,
+        lastTurnCacheRead: 0,
+        lastTurnReasoning: 0,
+        lastTurnModelCalls: 0,
+        totalInput: 0,
+        totalOutput: 0,
+        totalCache: 0
+      };
+    }
+
     let totalIn = 0;
     let totalOut = 0;
     for (const msg of session.messages) {
@@ -111,13 +138,18 @@
         totalOut += msg.tokens.output || 0;
       }
     }
-    const used = (totalIn + totalOut) || 153036;
+    const used = totalIn + totalOut;
     return {
       used,
-      max: 200000,
-      totalInput: totalIn || 133089013,
-      totalOutput: totalOut || 621193,
-      totalCache: 69119302
+      max: settingsStore.maxContextTokens || 200000,
+      lastTurnInput: 0,
+      lastTurnOutput: 0,
+      lastTurnCacheRead: 0,
+      lastTurnReasoning: 0,
+      lastTurnModelCalls: 0,
+      totalInput: totalIn,
+      totalOutput: totalOut,
+      totalCache: 0
     };
   });
 
@@ -218,13 +250,14 @@
       if (window.go?.main?.App?.CaptureScreenExcludingSelf) {
         const result = await window.go.main.App.CaptureScreenExcludingSelf(delay);
         if (result && (result.dataUrl || result.base64)) {
+          const calculatedSize = result.sizeBytes || (result.base64 ? Math.floor(result.base64.length * 0.75) : undefined);
           const newImg: VisionImage = {
             id: 'snap_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36),
-            filePath: result.filePath || `Screen_Capture_${Date.now()}.png`,
-            dataUrl: result.dataUrl || `data:image/png;base64,${result.base64}`,
+            filePath: result.filePath || `Screen_Capture_${Date.now()}.jpg`,
+            dataUrl: result.dataUrl || `data:image/jpeg;base64,${result.base64}`,
             width: result.width,
             height: result.height,
-            sizeBytes: result.base64 ? Math.floor(result.base64.length * 0.75) : undefined,
+            sizeBytes: calculatedSize,
             timestamp: result.timestamp || Date.now()
           };
           attachedImages = [...attachedImages, newImg];
@@ -364,7 +397,7 @@
   }
 </script>
 
-<div class="flex flex-col w-full bg-ant-bg-secondary border-t border-ant-border-secondary flex-shrink-0 relative z-30">
+<div class="flex flex-col w-full bg-ant-bg-secondary border-t border-white/5 flex-shrink-0 relative z-30">
   <!-- Vision Preview Chips Strip -->
   {#if attachedImages.length > 0}
     <SnapshotBar
@@ -380,7 +413,7 @@
       <button
         type="button"
         onclick={() => snapshotError = null}
-        class="text-ant-text-muted hover:text-white ml-2 text-xs"
+        class="text-ant-text-muted hover:text-ant-text ml-2 text-xs"
       >
         ×
       </button>
@@ -398,7 +431,7 @@
       onClose={() => isSlashOpen = false}
     />
 
-    <div class="relative bg-ant-bg border border-ant-border-secondary focus-within:border-ant-primary/80 rounded-xl transition-all shadow-sm">
+    <div class="relative bg-ant-bg border border-white/[0.04] hover:border-white/[0.08] focus-within:!border-ant-primary/30 rounded-xl transition-all shadow-sm">
       <textarea
         bind:this={textareaEl}
         bind:value={text}
@@ -406,18 +439,18 @@
         onkeydown={handleKeyDown}
         placeholder={isWorking ? "Grok is executing... (type to queue or steer)" : "Ask Grok anything, command tools, or inspect code... (Enter to send, Shift+Enter for newline)"}
         rows={1}
-        class="w-full bg-transparent text-xs text-ant-text placeholder:text-ant-text-muted px-3.5 pt-3 pb-2 outline-none resize-none min-h-[44px] max-h-[200px] leading-relaxed block scrollbar-thin font-sans"
+        class="w-full bg-transparent text-[13.5px] text-ant-text placeholder:text-ant-text-muted placeholder:font-serif placeholder:text-xs px-3.5 pt-3 pb-2 outline-none resize-none min-h-[44px] max-h-[200px] leading-relaxed block scrollbar-thin font-serif"
       ></textarea>
 
       <!-- Compact Reference-Style Prompt Box Bottom Bar -->
-      <div class="flex items-center justify-between px-2.5 py-1.5 border-t border-ant-border-secondary/40 bg-ant-bg/60 text-xs select-none relative z-40">
+      <div class="flex items-center justify-between px-2.5 py-1.5 border-t border-white/5 bg-ant-bg/60 text-xs select-none relative z-40">
         <!-- Left Action Cluster -->
         <div class="flex items-center space-x-1.5">
           <!-- Plus (+) Attachment Trigger Menu -->
           <div class="relative">
             <button
               type="button"
-              class="w-6 h-6 rounded-md flex items-center justify-center text-ant-text-muted hover:text-ant-text hover:bg-ant-bg-secondary transition border border-transparent hover:border-ant-border-secondary"
+              class="w-6 h-6 rounded-md flex items-center justify-center text-ant-text-muted hover:text-ant-text hover:bg-ant-bg-secondary transition border border-transparent hover:border-white/5"
               onclick={(e) => { e.stopPropagation(); isPlusMenuOpen = !isPlusMenuOpen; }}
               title="Add files, images, or snapshot"
             >
@@ -427,7 +460,7 @@
             {#if isPlusMenuOpen}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <div
-                class="absolute bottom-full left-0 mb-1.5 w-48 bg-ant-bg-elevated border border-ant-border-secondary rounded-lg shadow-xl py-1 z-50 text-xs backdrop-blur-md"
+                class="absolute bottom-full left-0 mb-1.5 w-48 bg-ant-bg border border-white/10 rounded-lg shadow-xl py-1 z-50 text-xs backdrop-blur-md"
                 onclick={(e) => e.stopPropagation()}
                 onkeydown={(e) => e.key === 'Escape' && (isPlusMenuOpen = false)}
               >
@@ -501,9 +534,18 @@
           <ContextUsagePopover
             usedTokens={activeSessionTokens.used}
             maxTokens={activeSessionTokens.max}
+            lastTurnInput={activeSessionTokens.lastTurnInput}
+            lastTurnOutput={activeSessionTokens.lastTurnOutput}
+            lastTurnCacheRead={activeSessionTokens.lastTurnCacheRead}
+            lastTurnReasoning={activeSessionTokens.lastTurnReasoning}
+            lastTurnModelCalls={activeSessionTokens.lastTurnModelCalls}
             totalInput={activeSessionTokens.totalInput}
             totalOutput={activeSessionTokens.totalOutput}
             totalCacheRead={activeSessionTokens.totalCache}
+            isCompacting={sessionStore.isCompacting}
+            onCompact={() => {
+              sessionStore.compactActiveSession();
+            }}
           />
         </div>
 

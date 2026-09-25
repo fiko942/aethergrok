@@ -48,6 +48,7 @@
   let editSnapshotFlashEnabled = $state(settingsStore.snapshotFlashEnabled);
   let editSnapshotAutoAttach = $state(settingsStore.snapshotAutoAttach);
   let editActiveWindowTurnCount = $state(settingsStore.activeWindowTurnCount);
+  let editMaxContextTokens = $state(settingsStore.maxContextTokens || 200000);
   let editDefaultModel = $state<DefaultModel>(settingsStore.defaultModel);
   let editCustomModelName = $state('');
   let editDefaultReasoningEffort = $state<ReasoningEffort>(settingsStore.defaultReasoningEffort);
@@ -66,6 +67,7 @@
       editSnapshotFlashEnabled = settingsStore.snapshotFlashEnabled;
       editSnapshotAutoAttach = settingsStore.snapshotAutoAttach;
       editActiveWindowTurnCount = settingsStore.activeWindowTurnCount;
+      editMaxContextTokens = settingsStore.maxContextTokens || 200000;
       editDefaultModel = settingsStore.defaultModel;
       if (settingsStore.defaultModel !== 'grok-4.6' && settingsStore.defaultModel !== 'grok-code') {
         editCustomModelName = settingsStore.defaultModel;
@@ -185,6 +187,7 @@
       snapshotFlashEnabled: editSnapshotFlashEnabled,
       snapshotAutoAttach: editSnapshotAutoAttach,
       activeWindowTurnCount: Math.max(2, Math.min(50, Number(editActiveWindowTurnCount) || 10)),
+      maxContextTokens: Math.max(16000, Number(editMaxContextTokens) || 200000),
       defaultModel: finalModel,
       defaultReasoningEffort: editDefaultReasoningEffort,
       permissionMode: editPermissionMode,
@@ -207,6 +210,7 @@
     editSnapshotFlashEnabled = settingsStore.snapshotFlashEnabled;
     editSnapshotAutoAttach = settingsStore.snapshotAutoAttach;
     editActiveWindowTurnCount = settingsStore.activeWindowTurnCount;
+    editMaxContextTokens = 200000;
     editDefaultModel = settingsStore.defaultModel;
     editCustomModelName = '';
     editDefaultReasoningEffort = settingsStore.defaultReasoningEffort;
@@ -236,18 +240,18 @@
   >
     <!-- Modal Container -->
     <div
-      class="w-full max-w-4xl h-[680px] max-h-[90vh] flex flex-col bg-ant-bg-secondary border border-ant-border-secondary rounded-2xl shadow-2xl overflow-hidden"
+      class="w-full max-w-4xl h-[680px] max-h-[90vh] flex flex-col bg-ant-bg-secondary border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
     >
       <!-- Header -->
-      <div class="px-6 py-4 border-b border-ant-border-secondary flex items-center justify-between bg-ant-bg-secondary flex-shrink-0">
+      <div class="px-6 py-4 border-b border-white/5 flex items-center justify-between bg-ant-bg-secondary flex-shrink-0">
         <div class="flex items-center space-x-3">
-          <div class="w-8 h-8 rounded-lg bg-ant-primary/10 border border-ant-primary/30 flex items-center justify-center text-ant-primary shadow-sm">
+          <div class="w-8 h-8 rounded-lg bg-ant-primary/10 border border-ant-primary/20 flex items-center justify-center text-ant-primary shadow-sm">
             <Settings size={18} />
           </div>
           <div>
-            <h2 id="settings-modal-title" class="text-sm font-bold text-ant-text tracking-tight flex items-center gap-2">
+            <h2 id="settings-modal-title" class="font-serif-display text-base font-semibold text-ant-text tracking-tight flex items-center gap-2">
               Settings & Workspace Preferences
-              <span class="px-2 py-0.5 text-[10px] font-semibold bg-ant-primary/15 text-ant-primary rounded-full border border-ant-primary/30">
+              <span class="px-2 py-0.5 text-[10px] font-serif font-semibold bg-ant-primary/15 text-ant-primary rounded-full border border-ant-primary/20">
                 AetherGrok Studio
               </span>
             </h2>
@@ -277,13 +281,13 @@
       <!-- Main Body: Sidebar + Content -->
       <div class="flex flex-1 min-h-0 overflow-hidden">
         <!-- Sidebar Navigation Tabs -->
-        <nav class="w-56 bg-ant-bg border-r border-ant-border-secondary flex flex-col p-2 space-y-1 flex-shrink-0" aria-label="Settings navigation">
+        <nav class="w-56 bg-ant-bg border-r border-white/5 flex flex-col p-2 space-y-1 flex-shrink-0" aria-label="Settings navigation">
           {#each tabs as tab}
             {@const IconComponent = tab.icon}
             <button
               type="button"
               class="w-full flex items-center space-x-2.5 px-3 py-2 rounded-lg text-xs font-medium text-left transition {activeTab === tab.id
-                ? 'bg-ant-primary/15 text-ant-primary border border-ant-primary/30 font-semibold'
+                ? 'bg-ant-primary/15 text-ant-primary border border-ant-primary/25 font-semibold'
                 : 'text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border border-transparent'}"
               onclick={() => activeTab = tab.id}
             >
@@ -292,7 +296,7 @@
             </button>
           {/each}
 
-          <div class="mt-auto pt-4 border-t border-ant-border-secondary/60 px-2 pb-2">
+          <div class="mt-auto pt-4 border-t border-white/5 px-2 pb-2">
             <div class="text-[11px] text-ant-text-secondary font-mono leading-tight">
               AetherGrok Studio
               <div class="text-[10px] opacity-60">Build 1.0.0 (Wails/Go)</div>
@@ -307,8 +311,8 @@
           {#if activeTab === 'general'}
             <div class="space-y-6 animate-in fade-in duration-100">
               <div>
-                <h3 class="text-sm font-semibold text-ant-text">General & Smart Screen Snapshot</h3>
-                <p class="text-xs text-ant-text-secondary mt-0.5">
+                <h3 class="font-serif-display text-base font-semibold text-ant-text">General & Smart Screen Snapshot</h3>
+                <p class="font-serif text-xs text-ant-text-secondary mt-0.5">
                   Configure CLI runner location, native snapshot behavior on macOS & Windows, and DOM memory bounds.
                 </p>
               </div>
@@ -335,7 +339,7 @@
                     type="text"
                     bind:value={editGrokBinaryPath}
                     placeholder="/Users/fiko942/.local/bin/grok"
-                    class="w-full px-3 py-2 text-xs font-mono bg-ant-bg border border-ant-border rounded-lg text-ant-text focus:outline-none focus:border-ant-primary focus:ring-1 focus:ring-ant-primary transition"
+                    class="w-full px-3 py-2 text-xs font-mono bg-ant-bg border border-white/10 rounded-lg text-ant-text focus:outline-none focus:border-ant-primary focus:ring-1 focus:ring-ant-primary transition"
                   />
                 </div>
               </Card>
@@ -343,7 +347,7 @@
               <!-- Smart Screen Snapshot Settings Card -->
               <Card>
                 <div class="space-y-4">
-                  <div class="flex items-center justify-between border-b border-ant-border/50 pb-2">
+                  <div class="flex items-center justify-between border-b border-white/5 pb-2">
                     <div class="flex items-center gap-2">
                       <Camera size={16} class="text-ant-primary" />
                       <div class="text-xs font-semibold text-ant-text">Non-Intrusive Smart Snapshot (macOS & Windows)</div>
@@ -352,7 +356,7 @@
                   </div>
 
                   <!-- Snapshot Shortcut Key Binding -->
-                  <div class="space-y-2 pt-2 border-t border-ant-border/40">
+                  <div class="space-y-2 pt-2 border-t border-white/5">
                     <div class="flex items-center justify-between">
                       <div class="space-y-0.5">
                         <div class="text-xs font-medium text-ant-text flex items-center gap-1.5">
@@ -363,7 +367,7 @@
                           Custom keybinding to trigger native screen capture instantly.
                         </div>
                       </div>
-                      <span class="text-xs font-mono font-bold text-ant-primary bg-ant-primary/10 px-2.5 py-1 rounded border border-ant-primary/30">
+                      <span class="text-xs font-mono font-bold text-ant-primary bg-ant-primary/10 px-2.5 py-1 rounded border border-ant-primary/20">
                         {editSnapshotShortcut}
                       </span>
                     </div>
@@ -373,11 +377,11 @@
                         type="text"
                         bind:value={editSnapshotShortcut}
                         placeholder="e.g. CmdOrCtrl+Shift+S"
-                        class="flex-1 px-3 py-1.5 text-xs font-mono bg-ant-bg border border-ant-border rounded-lg text-ant-text focus:outline-none focus:border-ant-primary"
+                        class="flex-1 px-3 py-1.5 text-xs font-mono bg-ant-bg border border-white/10 rounded-lg text-ant-text focus:outline-none focus:border-ant-primary"
                       />
                       <button
                         type="button"
-                        class="px-2.5 py-1.5 text-xs rounded-lg border border-ant-border hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-text transition"
+                        class="px-2.5 py-1.5 text-xs rounded-lg border border-white/10 hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-text transition"
                         onclick={() => editSnapshotShortcut = 'CmdOrCtrl+Shift+S'}
                       >
                         Reset Default
@@ -390,10 +394,10 @@
                     <div class="space-y-0.5">
                       <div class="text-xs font-medium text-ant-text flex items-center gap-1.5">
                         <Volume2 size={13} class="text-ant-primary" />
-                        Camera Shutter Audio ("Cekrek" Sound)
+                        Camera Shutter Audio (Shutter Sound)
                       </div>
                       <div class="text-[11px] text-ant-text-secondary">
-                        Synthesizes a realistic dual-stage mechanical shutter click on capture via Web Audio API.
+                        Synthesizes a realistic mechanical shutter click on capture via Web Audio API.
                       </div>
                     </div>
                     <Switch
@@ -403,7 +407,7 @@
                   </div>
 
                   <!-- Screen Flash FX Toggle -->
-                  <div class="flex items-center justify-between pt-2 border-t border-ant-border/40">
+                  <div class="flex items-center justify-between pt-2 border-t border-white/5">
                     <div class="space-y-0.5">
                       <div class="text-xs font-medium text-ant-text flex items-center gap-1.5">
                         <Zap size={13} class="text-ant-warning" />
@@ -420,7 +424,7 @@
                   </div>
 
                   <!-- Auto-Attach to Composer Toggle -->
-                  <div class="flex items-center justify-between pt-2 border-t border-ant-border/40">
+                  <div class="flex items-center justify-between pt-2 border-t border-white/5">
                     <div class="space-y-0.5">
                       <div class="text-xs font-medium text-ant-text flex items-center gap-1.5">
                         <ImageIcon size={13} class="text-ant-success" />
@@ -437,7 +441,7 @@
                   </div>
 
                   <!-- Compositor Delay Slider -->
-                  <div class="space-y-2 pt-2 border-t border-ant-border/40">
+                  <div class="space-y-2 pt-2 border-t border-white/5">
                     <div class="flex items-center justify-between">
                       <div>
                         <div class="text-xs font-medium text-ant-text">OS Compositor Flush Delay</div>
@@ -503,8 +507,8 @@
           {#if activeTab === 'models'}
             <div class="space-y-6 animate-in fade-in duration-100">
               <div>
-                <h3 class="text-sm font-semibold text-ant-text">Inference Models & Reasoning Depth</h3>
-                <p class="text-xs text-ant-text-secondary mt-0.5">
+                <h3 class="font-serif-display text-base font-semibold text-ant-text">Inference Models & Reasoning Depth</h3>
+                <p class="font-serif text-xs text-ant-text-secondary mt-0.5">
                   Select default model engine and reasoning effort stops for complex tasks.
                 </p>
               </div>
@@ -514,8 +518,8 @@
                 <button
                   type="button"
                   class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router'
-                    ? 'border-ant-primary bg-ant-primary/10 shadow-sm'
-                    : 'border-ant-border bg-ant-bg hover:border-ant-primary/50'}"
+                    ? 'border-ant-primary/40 bg-ant-primary/10 shadow-sm'
+                    : 'border-white/5 bg-ant-bg hover:border-white/20'}"
                   onclick={() => editDefaultModel = '9router'}
                 >
                   <div class="flex items-center justify-between mb-1">
@@ -534,8 +538,8 @@
                 <button
                   type="button"
                   class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router-general-purpose'
-                    ? 'border-ant-primary bg-ant-primary/10 shadow-sm'
-                    : 'border-ant-border bg-ant-bg hover:border-ant-primary/50'}"
+                    ? 'border-ant-primary/40 bg-ant-primary/10 shadow-sm'
+                    : 'border-white/5 bg-ant-bg hover:border-white/20'}"
                   onclick={() => editDefaultModel = '9router-general-purpose'}
                 >
                   <div class="flex items-center justify-between mb-1">
@@ -554,8 +558,8 @@
                 <button
                   type="button"
                   class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router-explore'
-                    ? 'border-ant-primary bg-ant-primary/10 shadow-sm'
-                    : 'border-ant-border bg-ant-bg hover:border-ant-primary/50'}"
+                    ? 'border-ant-primary/40 bg-ant-primary/10 shadow-sm'
+                    : 'border-white/5 bg-ant-bg hover:border-white/20'}"
                   onclick={() => editDefaultModel = '9router-explore'}
                 >
                   <div class="flex items-center justify-between mb-1">
@@ -574,8 +578,8 @@
                 <button
                   type="button"
                   class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router-plan'
-                    ? 'border-ant-primary bg-ant-primary/10 shadow-sm'
-                    : 'border-ant-border bg-ant-bg hover:border-ant-primary/50'}"
+                    ? 'border-ant-primary/40 bg-ant-primary/10 shadow-sm'
+                    : 'border-white/5 bg-ant-bg hover:border-white/20'}"
                   onclick={() => editDefaultModel = '9router-plan'}
                 >
                   <div class="flex items-center justify-between mb-1">
@@ -608,12 +612,76 @@
                         type="button"
                         class="px-3 py-2 rounded-lg text-xs font-medium border capitalize transition {editDefaultReasoningEffort === effort
                           ? 'bg-ant-primary text-white border-ant-primary shadow-sm'
-                          : 'bg-ant-bg text-ant-text-secondary border-ant-border hover:text-ant-text hover:bg-ant-bg-tertiary'}"
+                          : 'bg-ant-bg text-ant-text-secondary border-white/5 hover:text-ant-text hover:bg-ant-bg-tertiary'}"
                         onclick={() => editDefaultReasoningEffort = effort as ReasoningEffort}
                       >
                         {effort}
                       </button>
                     {/each}
+                  </div>
+                </div>
+              </Card>
+
+              <!-- Context Window Token Limit Setting -->
+              <Card>
+                <div class="space-y-3.5">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="text-xs font-semibold text-ant-text flex items-center gap-1.5">
+                        <Brain size={14} class="text-ant-primary" />
+                        Session Context Window Limit
+                      </div>
+                      <div class="text-[11px] text-ant-text-secondary">
+                        Maximum token capacity for conversation history and active reasoning context (Default: 200k).
+                      </div>
+                    </div>
+                    <span class="text-xs font-mono font-bold text-ant-primary bg-ant-primary/10 px-2.5 py-1 rounded-lg border border-ant-primary/20">
+                      {editMaxContextTokens >= 1000000 ? `${(editMaxContextTokens / 1000000).toFixed(0)}M` : `${Math.round(editMaxContextTokens / 1000)}k`} tokens
+                    </span>
+                  </div>
+
+                  <!-- Quick Presets -->
+                  <div class="grid grid-cols-4 gap-2">
+                    {#each [
+                      { label: '128k', value: 128000, desc: 'Fast / Compact' },
+                      { label: '200k (Default)', value: 200000, desc: 'Recommended' },
+                      { label: '500k', value: 500000, desc: 'Large Transcripts' },
+                      { label: '1M', value: 1000000, desc: 'Ultra Deep Context' }
+                    ] as preset}
+                      <button
+                        type="button"
+                        class="p-2.5 rounded-lg border text-left transition {editMaxContextTokens === preset.value
+                          ? 'bg-ant-primary/15 border-ant-primary text-ant-text font-semibold shadow-sm'
+                          : 'bg-ant-bg border-white/5 text-ant-text-secondary hover:border-white/15 hover:text-ant-text'}"
+                        onclick={() => editMaxContextTokens = preset.value}
+                      >
+                        <div class="text-xs font-bold {editMaxContextTokens === preset.value ? 'text-ant-primary' : 'text-ant-text'}">{preset.label}</div>
+                        <div class="text-[10px] text-ant-text-muted mt-0.5">{preset.desc}</div>
+                      </button>
+                    {/each}
+                  </div>
+
+                  <!-- Custom Numeric Token Limit Input -->
+                  <div class="pt-2 border-t border-white/5 flex items-center gap-3">
+                    <div class="text-[11px] text-ant-text-secondary whitespace-nowrap">
+                      Custom Token Limit:
+                    </div>
+                    <input
+                      type="number"
+                      min="16000"
+                      max="2000000"
+                      step="1000"
+                      bind:value={editMaxContextTokens}
+                      class="flex-1 px-3 py-1.5 text-xs font-mono bg-ant-bg border border-white/10 rounded-lg text-ant-text focus:outline-none focus:border-ant-primary focus:ring-1 focus:ring-ant-primary transition"
+                      placeholder="200000"
+                    />
+                    <button
+                      type="button"
+                      class="px-2.5 py-1.5 text-xs rounded-lg border border-white/10 bg-ant-bg hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-text transition"
+                      onclick={() => editMaxContextTokens = 200000}
+                    >
+                      Reset 200k
+                    </button>
                   </div>
                 </div>
               </Card>
@@ -624,8 +692,8 @@
           {#if activeTab === 'permissions'}
             <div class="space-y-6 animate-in fade-in duration-100">
               <div>
-                <h3 class="text-sm font-semibold text-ant-text">Security & Execution Boundaries</h3>
-                <p class="text-xs text-ant-text-secondary mt-0.5">
+                <h3 class="font-serif-display text-base font-semibold text-ant-text">Security & Execution Boundaries</h3>
+                <p class="font-serif text-xs text-ant-text-secondary mt-0.5">
                   Control how AetherGrok asks for confirmation before executing bash commands or modifying project files.
                 </p>
               </div>
@@ -636,8 +704,8 @@
                   <button
                     type="button"
                     class="w-full p-4 rounded-xl border text-left transition {editPermissionMode === modeKey
-                      ? 'border-ant-primary bg-ant-primary/10 shadow-sm'
-                      : 'border-ant-border bg-ant-bg hover:border-ant-primary/40'}"
+                      ? 'border-ant-primary/40 bg-ant-primary/10 shadow-sm'
+                      : 'border-white/5 bg-ant-bg hover:border-white/20'}"
                     onclick={() => editPermissionMode = modeKey}
                   >
                     <div class="flex items-center justify-between mb-2">
@@ -658,7 +726,7 @@
                       {mode.summary}
                     </p>
 
-                    <ul class="space-y-1 pl-4 border-l-2 border-ant-border/60 text-[10px] text-ant-text-secondary">
+                    <ul class="space-y-1 pl-4 border-l-2 border-white/10 text-[10px] text-ant-text-secondary">
                       {#each mode.details as detail}
                         <li>• {detail}</li>
                       {/each}
@@ -673,8 +741,8 @@
           {#if activeTab === 'theme'}
             <div class="space-y-6 animate-in fade-in duration-100">
               <div>
-                <h3 class="text-sm font-semibold text-ant-text">Theme & Color Customization</h3>
-                <p class="text-xs text-ant-text-secondary mt-0.5">
+                <h3 class="font-serif-display text-base font-semibold text-ant-text">Theme & Color Customization</h3>
+                <p class="font-serif text-xs text-ant-text-secondary mt-0.5">
                   Select a tailored desktop aesthetic optimized for deep contrast, minimal eye strain, and readability.
                 </p>
               </div>
@@ -684,8 +752,8 @@
                 <button
                   type="button"
                   class="group p-4 rounded-xl border text-left transition-all duration-150 flex flex-col justify-between space-y-3.5 relative overflow-hidden {editTheme === 'dark-studio'
-                    ? 'border-ant-primary ring-2 ring-ant-primary/30 bg-ant-bg-tertiary/80 shadow-lg shadow-black/20'
-                    : 'border-ant-border bg-ant-bg hover:border-ant-primary/50 hover:bg-ant-bg-tertiary/40'}"
+                    ? 'border-ant-primary/40 ring-1 ring-ant-primary/30 bg-ant-bg-tertiary/80 shadow-lg shadow-black/20'
+                    : 'border-white/5 bg-ant-bg hover:border-white/20 hover:bg-ant-bg-tertiary/40'}"
                   onclick={() => handleThemeChange('dark-studio')}
                 >
                   <div class="flex items-center justify-between w-full">
@@ -699,7 +767,7 @@
                   </div>
 
                   <!-- Theme Swatches & Mini Window Mockup -->
-                  <div class="h-20 rounded-lg bg-[#0F1117] border border-[#2E3446] p-2.5 flex flex-col justify-between shadow-inner w-full">
+                  <div class="h-20 rounded-lg bg-[#0F1117] border border-white/5 p-2.5 flex flex-col justify-between shadow-inner w-full">
                     <div class="flex items-center justify-between">
                       <div class="flex space-x-1.5">
                         <div class="w-2.5 h-2.5 rounded-full bg-[#FF5F56]"></div>
@@ -709,7 +777,7 @@
                       <span class="text-[9px] font-mono text-[#4096FF]">#0F1117</span>
                     </div>
                     <div class="space-y-1.5">
-                      <div class="h-2 w-24 bg-[#181B26] rounded border border-[#2E3446]/50"></div>
+                      <div class="h-2 w-24 bg-[#181B26] rounded border border-white/5"></div>
                       <div class="h-1.5 w-16 bg-[#1677FF]/40 rounded"></div>
                     </div>
                   </div>
@@ -723,8 +791,8 @@
                 <button
                   type="button"
                   class="group p-4 rounded-xl border text-left transition-all duration-150 flex flex-col justify-between space-y-3.5 relative overflow-hidden {editTheme === 'dark-high-contrast'
-                    ? 'border-ant-primary ring-2 ring-ant-primary/30 bg-ant-bg-tertiary/80 shadow-lg shadow-black/20'
-                    : 'border-ant-border bg-ant-bg hover:border-ant-primary/50 hover:bg-ant-bg-tertiary/40'}"
+                    ? 'border-ant-primary/40 ring-1 ring-ant-primary/30 bg-ant-bg-tertiary/80 shadow-lg shadow-black/20'
+                    : 'border-white/5 bg-ant-bg hover:border-white/20 hover:bg-ant-bg-tertiary/40'}"
                   onclick={() => handleThemeChange('dark-high-contrast')}
                 >
                   <div class="flex items-center justify-between w-full">
@@ -738,7 +806,7 @@
                   </div>
 
                   <!-- Theme Swatches & Mini Window Mockup -->
-                  <div class="h-20 rounded-lg bg-[#000000] border border-[#3C3C43] p-2.5 flex flex-col justify-between shadow-inner w-full">
+                  <div class="h-20 rounded-lg bg-[#000000] border border-white/5 p-2.5 flex flex-col justify-between shadow-inner w-full">
                     <div class="flex items-center justify-between">
                       <div class="flex space-x-1.5">
                         <div class="w-2.5 h-2.5 rounded-full bg-[#F85149]"></div>
@@ -748,7 +816,7 @@
                       <span class="text-[9px] font-mono text-[#58A6FF]">#000000</span>
                     </div>
                     <div class="space-y-1.5">
-                      <div class="h-2 w-24 bg-[#1C1C1F] rounded border border-[#3C3C43]/60"></div>
+                      <div class="h-2 w-24 bg-[#1C1C1F] rounded border border-white/5"></div>
                       <div class="h-1.5 w-16 bg-[#388BFD]/50 rounded"></div>
                     </div>
                   </div>
@@ -762,8 +830,8 @@
                 <button
                   type="button"
                   class="group p-4 rounded-xl border text-left transition-all duration-150 flex flex-col justify-between space-y-3.5 relative overflow-hidden {editTheme === 'light-antd'
-                    ? 'border-ant-primary ring-2 ring-ant-primary/30 bg-ant-bg-tertiary/80 shadow-lg shadow-black/20'
-                    : 'border-ant-border bg-ant-bg hover:border-ant-primary/50 hover:bg-ant-bg-tertiary/40'}"
+                    ? 'border-ant-primary/40 ring-1 ring-ant-primary/30 bg-ant-bg-tertiary/80 shadow-lg shadow-black/20'
+                    : 'border-white/5 bg-ant-bg hover:border-white/20 hover:bg-ant-bg-tertiary/40'}"
                   onclick={() => handleThemeChange('light-antd')}
                 >
                   <div class="flex items-center justify-between w-full">
@@ -777,7 +845,7 @@
                   </div>
 
                   <!-- Theme Swatches & Mini Window Mockup -->
-                  <div class="h-20 rounded-lg bg-[#F5F5F5] border border-[#D9D9D9] p-2.5 flex flex-col justify-between shadow-inner w-full">
+                  <div class="h-20 rounded-lg bg-[#F5F5F5] border border-white/10 p-2.5 flex flex-col justify-between shadow-inner w-full">
                     <div class="flex items-center justify-between">
                       <div class="flex space-x-1.5">
                         <div class="w-2.5 h-2.5 rounded-full bg-[#FF4D4F]"></div>
@@ -787,7 +855,7 @@
                       <span class="text-[9px] font-mono text-[#0958D9]">#FFFFFF</span>
                     </div>
                     <div class="space-y-1.5">
-                      <div class="h-2 w-24 bg-[#FFFFFF] rounded border border-[#D9D9D9]"></div>
+                      <div class="h-2 w-24 bg-[#FFFFFF] rounded border border-white/10"></div>
                       <div class="h-1.5 w-16 bg-[#1677FF]/30 rounded"></div>
                     </div>
                   </div>
@@ -804,28 +872,28 @@
           {#if activeTab === 'shortcuts'}
             <div class="space-y-6 animate-in fade-in duration-100">
               <div>
-                <h3 class="text-sm font-semibold text-ant-text">Keyboard Shortcuts Reference</h3>
-                <p class="text-xs text-ant-text-secondary mt-0.5">
+                <h3 class="font-serif-display text-base font-semibold text-ant-text">Keyboard Shortcuts Reference</h3>
+                <p class="font-serif text-xs text-ant-text-secondary mt-0.5">
                   Accelerate your workflow with dedicated keystroke accelerators.
                 </p>
               </div>
 
-              <div class="border border-ant-border-secondary rounded-xl overflow-hidden bg-ant-bg">
+              <div class="border border-white/5 rounded-xl overflow-hidden bg-ant-bg">
                 <table class="w-full text-left border-collapse text-xs">
                   <thead>
-                    <tr class="border-b border-ant-border-secondary bg-ant-bg-tertiary/40">
+                    <tr class="border-b border-white/5 bg-ant-bg-tertiary/40">
                       <th class="px-4 py-2.5 font-semibold text-ant-text">Key Combination</th>
                       <th class="px-4 py-2.5 font-semibold text-ant-text">Action Trigger</th>
                       <th class="px-4 py-2.5 font-semibold text-ant-text-secondary">Scope</th>
                     </tr>
                   </thead>
-                  <tbody class="divide-y divide-ant-border-secondary/40">
+                  <tbody class="divide-y divide-white/5">
                     {#each keyboardShortcuts as shortcut}
                       <tr class="hover:bg-ant-bg-secondary/40 transition">
                         <td class="px-4 py-2.5 font-mono text-ant-primary font-medium">{shortcut.key}</td>
                         <td class="px-4 py-2.5 text-ant-text">{shortcut.action}</td>
                         <td class="px-4 py-2.5 text-ant-text-secondary">
-                          <span class="px-2 py-0.5 text-[10px] font-medium bg-ant-bg-tertiary rounded border border-ant-border-secondary">
+                          <span class="px-2 py-0.5 text-[10px] font-medium bg-ant-bg-tertiary rounded border border-white/5">
                             {shortcut.scope}
                           </span>
                         </td>
@@ -841,7 +909,7 @@
       </div>
 
       <!-- Footer Action Toolbar -->
-      <div class="px-6 py-3 border-t border-ant-border-secondary flex items-center justify-between bg-ant-bg-secondary flex-shrink-0">
+      <div class="px-6 py-3 border-t border-white/5 flex items-center justify-between bg-ant-bg-secondary flex-shrink-0">
         <button
           type="button"
           class="text-xs text-ant-text-secondary hover:text-ant-text flex items-center gap-1.5 transition"

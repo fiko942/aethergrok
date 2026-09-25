@@ -1,9 +1,12 @@
 package grokrunner
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -399,6 +402,160 @@ func DeleteGrokSessionDirectory(workspacePath, sessionID string) error {
 		return os.RemoveAll(targetDir)
 	}
 	return nil
+}
+
+// GetSessionUsage reads usage.json or calculates token metrics from chat_history.jsonl
+func GetSessionUsage(workspacePath, sessionID string) (*SessionUsageStats, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+
+	encodedPath := url.PathEscape(workspacePath)
+	sessionFolderPath := filepath.Join(home, ".grok", "sessions", encodedPath, sessionID)
+
+	stats := &SessionUsageStats{
+		SessionID: sessionID,
+		MaxTokens: 200000,
+	}
+
+	// 1. Try reading official signals.json (Grok's true active context window metrics)
+	signalsFilePath := filepath.Join(sessionFolderPath, "signals.json")
+	if data, err := os.ReadFile(signalsFilePath); err == nil {
+		var sigObj struct {
+			ContextTokensUsed   int64  `json:"contextTokensUsed"`
+			ContextWindowTokens int64  `json:"contextWindowTokens"`
+			TurnCount           int    `json:"turnCount"`
+			PrimaryModelID      string `json:"primaryModelId"`
+		}
+		if json.Unmarshal(data, &sigObj) == nil && sigObj.ContextTokensUsed > 0 {
+			stats.UsedTokens = sigObj.ContextTokensUsed
+			if sigObj.ContextWindowTokens > 0 {
+				stats.MaxTokens = sigObj.ContextWindowTokens
+			}
+			stats.TurnCount = sigObj.TurnCount
+			if sigObj.PrimaryModelID != "" {
+				stats.PrimaryModelID = sigObj.PrimaryModelID
+			}
+		}
+	}
+
+	// 2. Read usage.json for cumulative session metrics and breakdown
+	usageFilePath := filepath.Join(sessionFolderPath, "usage.json")
+	if data, err := os.ReadFile(usageFilePath); err == nil {
+		var rawUsage struct {
+			SessionID string `json:"sessionId"`
+			Session   struct {
+				InputTokens      int64  `json:"inputTokens"`
+				OutputTokens     int64  `json:"outputTokens"`
+				CachedReadTokens int64  `json:"cachedReadTokens"`
+				ReasoningTokens  int64  `json:"reasoningTokens"`
+				TotalTokens      int64  `json:"totalTokens"`
+				ModelCalls       int64  `json:"modelCalls"`
+				TurnCount        int    `json:"turnCount"`
+				PrimaryModelID   string `json:"primaryModelId"`
+			} `json:"session"`
+			Turns []struct {
+				TurnNumber       int    `json:"turnNumber"`
+				InputTokens      int64  `json:"inputTokens"`
+				OutputTokens     int64  `json:"outputTokens"`
+				CachedReadTokens int64  `json:"cachedReadTokens"`
+				ReasoningTokens  int64  `json:"reasoningTokens"`
+				TotalTokens      int64  `json:"totalTokens"`
+				ModelCalls       int64  `json:"modelCalls"`
+				PrimaryModelID   string `json:"primaryModelId"`
+			} `json:"turns"`
+		}
+
+		if json.Unmarshal(data, &rawUsage) == nil {
+			stats.TotalInput = rawUsage.Session.InputTokens
+			stats.TotalOutput = rawUsage.Session.OutputTokens
+			stats.TotalCacheRead = rawUsage.Session.CachedReadTokens
+			if stats.TurnCount == 0 {
+				stats.TurnCount = rawUsage.Session.TurnCount
+			}
+			if stats.PrimaryModelID == "" {
+				stats.PrimaryModelID = rawUsage.Session.PrimaryModelID
+			}
+
+			if len(rawUsage.Turns) > 0 {
+				lastTurn := rawUsage.Turns[len(rawUsage.Turns)-1]
+				stats.LastTurnInput = lastTurn.InputTokens
+				stats.LastTurnOutput = lastTurn.OutputTokens
+				stats.LastTurnCacheRead = lastTurn.CachedReadTokens
+				stats.LastTurnReasoning = lastTurn.ReasoningTokens
+				stats.LastTurnModelCalls = lastTurn.ModelCalls
+
+				// If signals.json was missing, fallback to last turn's context input
+				if stats.UsedTokens == 0 {
+					stats.UsedTokens = lastTurn.InputTokens + lastTurn.OutputTokens
+				}
+			} else if stats.UsedTokens == 0 {
+				stats.UsedTokens = rawUsage.Session.TotalTokens
+			}
+
+			if stats.MaxTokens <= 0 || stats.MaxTokens == 200000 {
+				if strings.Contains(strings.ToLower(stats.PrimaryModelID), "grok-4.6") {
+					stats.MaxTokens = 2000000
+				} else if strings.Contains(strings.ToLower(stats.PrimaryModelID), "128k") {
+					stats.MaxTokens = 128000
+				} else {
+					stats.MaxTokens = 200000
+				}
+			}
+
+			return stats, nil
+		}
+	}
+
+	// 2. Fallback: estimate from loaded messages
+	msgs, err := LoadGrokSessionMessages(workspacePath, sessionID)
+	if err == nil && len(msgs) > 0 {
+		var charCount int64
+		for _, m := range msgs {
+			charCount += int64(len(m.Content))
+		}
+		estimatedTokens := charCount / 4
+		stats.UsedTokens = estimatedTokens
+		stats.TotalInput = estimatedTokens
+		stats.TurnCount = len(msgs)
+	}
+
+	return stats, nil
+}
+
+// CompactSession triggers conversation compaction for the given session
+func CompactSession(ctx context.Context, grokBinaryPath, workspacePath, sessionID string) (*SessionUsageStats, error) {
+	if grokBinaryPath == "" {
+		grokBinaryPath = "grok"
+	}
+
+	// 1. Snapshot usage before compact
+	statsBefore, _ := GetSessionUsage(workspacePath, sessionID)
+
+	// 2. Execute /compact command via grok CLI with non-interactive single-turn -p flag
+	cmd := exec.CommandContext(ctx, grokBinaryPath, "--resume", sessionID, "-p", "/compact")
+	if workspacePath != "" {
+		cmd.Dir = workspacePath
+	}
+
+	// Capture command output
+	var outBuf bytes.Buffer
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &outBuf
+
+	err := cmd.Run()
+	if err != nil {
+		// Log or handle error if needed
+	}
+
+	// 3. Retrieve updated post-compaction usage stats
+	statsAfter, statErr := GetSessionUsage(workspacePath, sessionID)
+	if statErr != nil {
+		return statsBefore, nil
+	}
+
+	return statsAfter, nil
 }
 
 func min(a, b int) int {

@@ -75,8 +75,8 @@
       </div>
     </div>
 
-    <!-- Skill Name & Title -->
-    <h4 class="text-xs font-semibold text-white group-hover:text-ant-primary transition-colors flex items-center gap-1.5 truncate">
+    <!-- Skill Name & Title with Editorial Heading -->
+    <h4 class="font-serif-display text-[13px] font-semibold text-ant-text group-hover:text-ant-primary transition-colors flex items-center gap-1.5 truncate">
       <Sparkles size={12} class="text-ant-primary flex-shrink-0" />
       <span class="truncate">{skill.name}</span>
     </h4>

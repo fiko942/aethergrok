@@ -11,6 +11,8 @@
   import SettingsModal from '$lib/components/layout/SettingsModal.svelte';
   import WorkspaceSidebar from '$lib/components/layout/WorkspaceSidebar.svelte';
   import ScreenFlash from '$lib/components/snapshot/ScreenFlash.svelte';
+  import ModalConfirm from '$lib/antd/ModalConfirm.svelte';
+  import { dialogStore } from '$lib/stores/dialog.svelte';
   import { playCameraShutterSound } from '$lib/utils/audio';
   import { settingsStore } from '$lib/stores/settings.svelte';
   import type { SkillItem } from './app.d';
@@ -137,8 +139,8 @@
       composerRef.attachImage({
         id: 'snap_' + Date.now(),
         dataUrl: snapshotResult.dataUrl,
-        filePath: snapshotResult.filePath || `Screen Snapshot (${new Date().toLocaleTimeString()}).png`,
-        sizeBytes: Math.round(snapshotResult.dataUrl.length * 0.75),
+        filePath: snapshotResult.filePath || `Screen Snapshot (${new Date().toLocaleTimeString()}).jpg`,
+        sizeBytes: snapshotResult.sizeBytes || Math.round((snapshotResult.dataUrl.length - (snapshotResult.dataUrl.indexOf(',') + 1)) * 0.75),
         timestamp: Date.now()
       });
       composerRef.focusInput();
@@ -585,19 +587,19 @@
   });
 </script>
 
-<div class="flex flex-col h-screen w-screen bg-ant-bg text-ant-text select-none overflow-hidden font-sans">
+<div class="flex flex-col h-screen w-screen bg-ant-bg text-ant-text select-none overflow-hidden font-serif">
   <!-- Top Navigation Bar -->
   <header
-    class="flex items-center justify-between pl-20 pr-4 h-12 bg-ant-bg-secondary border-b border-ant-border-secondary flex-shrink-0"
+    class="flex items-center justify-between pl-20 pr-4 h-12 bg-ant-bg-secondary border-b border-white/5 flex-shrink-0"
     style="--wails-draggable:drag"
   >
     <div class="flex items-center space-x-3">
-      <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-ant-primary/10 border border-ant-primary/30 text-ant-primary shadow-sm">
+      <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-ant-primary/10 border border-ant-primary/20 text-ant-primary shadow-sm">
         <Sparkles size={16} />
       </div>
       <div class="flex items-center space-x-2">
-        <span class="font-bold text-sm tracking-tight text-ant-text">AetherGrok</span>
-        <span class="px-1.5 py-0.5 text-[10px] font-semibold bg-ant-primary/20 text-ant-primary rounded border border-ant-primary/30">v1.0.0</span>
+        <span class="font-serif-display font-bold text-base tracking-tight text-ant-text">AetherGrok</span>
+        <span class="px-1.5 py-0.2 text-[9.5px] font-mono font-medium bg-white/5 text-ant-text-muted rounded border border-transparent">v1.0.0</span>
       </div>
     </div>
 
@@ -608,7 +610,7 @@
       <Button size="small" type="default" onclick={() => skillsCatalogVisible = true}>
         <Sparkles size={13} class="mr-1 text-ant-primary" /> Skills Hub
       </Button>
-      <div class="flex items-center space-x-2 text-xs text-ant-text-secondary bg-ant-bg px-2.5 py-1 rounded-md border border-ant-border-secondary">
+      <div class="flex items-center space-x-2 text-xs text-ant-text-secondary bg-ant-bg px-2.5 py-1 rounded-md border border-white/5">
         <Badge status={isWorking ? 'processing' : 'success'} />
         <span>Model: <strong class="text-ant-text">{selectedModel}</strong></span>
       </div>
@@ -624,35 +626,27 @@
   <!-- Main Layout Grid -->
   <div class="flex flex-1 overflow-hidden">
     <!-- Left Sidebar: Workspace & Session Management -->
-    <aside class="w-72 bg-ant-bg-secondary border-r border-ant-border-secondary flex flex-col justify-between p-3 overflow-hidden">
+    <aside class="w-72 bg-ant-bg-secondary border-r border-white/5 flex flex-col justify-between p-3 overflow-hidden">
       <!-- Workspace Folders & Sessions List -->
       <div class="flex-1 overflow-hidden min-h-0">
         <WorkspaceSidebar />
       </div>
 
       <!-- Compact Engine Controls & Diff Status Footer -->
-      <div class="pt-3 mt-2 border-t border-ant-border-secondary/60 space-y-2 flex-shrink-0">
-        <div class="p-2.5 bg-ant-bg rounded-lg border border-ant-border-secondary/60 space-y-2 text-xs">
+      <div class="pt-3 mt-2 border-t border-white/5 space-y-2 flex-shrink-0">
+        <div class="p-2.5 bg-ant-bg rounded-lg border border-white/5 space-y-2 text-xs">
           <div class="flex items-center justify-between">
             <span class="text-ant-text-secondary flex items-center">
               <Camera size={13} class="mr-1.5 text-ant-text-muted" /> Auto-Hide
             </span>
             <Switch bind:checked={autoHideWindow} size="small" />
           </div>
-          <div class="flex items-center justify-between pt-1.5 border-t border-ant-border-secondary/40">
+          <div class="flex items-center justify-between pt-1.5 border-t border-white/5">
             <span class="text-ant-text-secondary flex items-center">
-              <Volume2 size={13} class="mr-1.5 text-ant-text-muted" /> Cekrek Sound
+              <Volume2 size={13} class="mr-1.5 text-ant-text-muted" /> Shutter Sound
             </span>
             <Switch bind:checked={settingsStore.snapshotSoundEnabled} size="small" />
           </div>
-        </div>
-
-        <div class="p-2 bg-ant-bg rounded-lg border border-ant-border-secondary/60 flex items-center justify-between text-xs">
-          <div class="flex items-center space-x-2">
-            <Code2 size={13} class="text-ant-primary" />
-            <span class="text-ant-text-secondary text-[11px]">Diff Previewer</span>
-          </div>
-          <Badge status="success" />
         </div>
       </div>
     </aside>
@@ -702,4 +696,16 @@
       onClose={() => sessionStore.setPendingPermission(sessionStore.activeSessionId || '', null)}
     />
   {/if}
+
+  <!-- Global Full-Window Confirmation Modal -->
+  <ModalConfirm
+    open={dialogStore.confirmState.open}
+    title={dialogStore.confirmState.title}
+    content={dialogStore.confirmState.content}
+    confirmText={dialogStore.confirmState.confirmText}
+    cancelText={dialogStore.confirmState.cancelText}
+    type={dialogStore.confirmState.type}
+    onConfirm={dialogStore.confirmState.onConfirm}
+    onCancel={dialogStore.confirmState.onCancel}
+  />
 </div>

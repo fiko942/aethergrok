@@ -61,7 +61,7 @@
 
           <!-- Image Info -->
           <div class="ml-2 flex flex-col justify-center min-w-[70px] max-w-[130px]">
-            <span class="text-[11px] font-medium text-white truncate" title={img.filePath}>
+            <span class="text-[11px] font-medium text-ant-text truncate" title={img.filePath}>
               {getFileName(img.filePath)}
             </span>
             <span class="text-[9px] text-ant-text-muted font-mono">
@@ -110,7 +110,7 @@
       role="presentation"
     >
       <div class="flex items-center justify-between px-4 py-2.5 border-b border-ant-border-secondary bg-ant-bg">
-        <div class="flex items-center space-x-2 text-xs font-semibold text-white">
+        <div class="flex items-center space-x-2 text-xs font-semibold text-ant-text">
           <ImageIcon size={14} class="text-ant-primary" />
           <span class="truncate">{getFileName(previewModalImage.filePath)}</span>
           <span class="text-ant-text-muted text-[10px] font-mono">({formatBytes(previewModalImage.sizeBytes)})</span>
@@ -118,7 +118,7 @@
         <button
           type="button"
           onclick={() => previewModalImage = null}
-          class="p-1 rounded-md text-ant-text-muted hover:text-white hover:bg-ant-bg-secondary transition"
+          class="p-1 rounded-md text-ant-text-muted hover:text-ant-text hover:bg-ant-bg-secondary transition"
         >
           <X size={15} />
         </button>

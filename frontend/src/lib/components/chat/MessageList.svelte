@@ -2,7 +2,7 @@
   import { onMount, tick } from 'svelte';
   import { sessionStore, type ChatMessage } from '$lib/stores/session.svelte';
   import MessageItem from './MessageItem.svelte';
-  import { ArrowUp, Loader2, Sparkles, Brain, Cpu, Compass } from 'lucide-svelte';
+  import { ArrowUp, Loader2, Sparkles, Brain, Cpu, Compass, CheckCircle2, AlertCircle } from 'lucide-svelte';
 
   let containerEl = $state<HTMLDivElement | null>(null);
   let topSentinelEl = $state<HTMLDivElement | null>(null);
@@ -42,26 +42,26 @@
   // Determine intelligent contextual thinking status text
   const thinkingContextText = $derived.by(() => {
     const session = sessionStore.activeSession;
-    if (!session || !isWorking) return 'Menganalisa dan berpikir...';
+    if (!session || !isWorking) return 'Thinking and analyzing...';
 
     const lastMsg = session.messages[session.messages.length - 1];
     if (lastMsg && lastMsg.toolCalls && lastMsg.toolCalls.length > 0) {
       const activeTool = lastMsg.toolCalls.find(tc => tc.status === 'running');
       if (activeTool) {
         const name = (activeTool.tool || '').toLowerCase();
-        if (name.includes('read')) return 'Membaca berkas sumber...';
-        if (name.includes('search') || name.includes('grep')) return 'Menjelajahi kode & pola pencarian...';
-        if (name.includes('edit') || name.includes('replace')) return 'Menerapkan modifikasi berkas...';
-        if (name.includes('terminal') || name.includes('bash')) return 'Mengeksekusi perintah shell...';
-        return `Menjalankan alat: ${activeTool.tool}...`;
+        if (name.includes('read')) return 'Reading workspace file...';
+        if (name.includes('search') || name.includes('grep')) return 'Searching codebase & patterns...';
+        if (name.includes('edit') || name.includes('replace')) return 'Applying file modifications...';
+        if (name.includes('terminal') || name.includes('bash')) return 'Executing shell command...';
+        return `Running tool: ${activeTool.tool}...`;
       }
-      return 'Mengevaluasi hasil eksekusi alat & merumuskan respon...';
+      return 'Evaluating tool outputs & preparing response...';
     }
 
     if (elapsedSeconds > 8) {
-      return 'Merumuskan solusi mendalam & menyusun respon...';
+      return 'Formulating comprehensive response...';
     }
-    return 'Grok sedang berpikir & menganalisa permintaan...';
+    return 'Grok is reasoning and planning actions...';
   });
 
   // Derive turn numbers for all messages in the active session
@@ -213,8 +213,8 @@
         <Sparkles size={24} />
       </div>
       <div>
-        <h3 class="text-sm font-semibold text-white">Start a new conversation</h3>
-        <p class="text-xs text-ant-text-secondary mt-1 max-w-sm">
+        <h3 class="font-serif-display text-lg font-semibold text-ant-text tracking-tight">Start a new conversation</h3>
+        <p class="font-serif text-[13px] text-ant-text-secondary mt-1 max-w-sm leading-relaxed">
           Ask Grok to inspect your code, execute terminal commands, or orchestrate autonomous agent tasks.
         </p>
       </div>
@@ -228,15 +228,61 @@
       />
     {/each}
 
+    <!-- Live In-Transcript Compaction Indicator Banner -->
+    {#if sessionStore.isCompacting}
+      <div class="my-2 p-3 rounded-lg border border-white/5 bg-ant-bg-secondary/70 backdrop-blur-md shadow-lg shadow-black/10 dark:shadow-black/40 flex items-center justify-between font-mono select-none animate-in fade-in duration-200">
+        <div class="flex items-center space-x-2.5 min-w-0">
+          <div class="w-6 h-6 rounded-md bg-ant-primary/15 border border-transparent flex items-center justify-center text-ant-primary flex-shrink-0 animate-spin">
+            <Loader2 size={13} />
+          </div>
+          <div class="flex flex-col min-w-0">
+            <span class="text-xs font-semibold text-ant-text truncate flex items-center gap-1.5">
+              <span>Compacting conversation context</span>
+              <span class="inline-flex space-x-0.5">
+                <span class="w-1 h-1 rounded-full bg-ant-primary animate-bounce"></span>
+                <span class="w-1 h-1 rounded-full bg-ant-primary animate-bounce [animation-delay:0.2s]"></span>
+                <span class="w-1 h-1 rounded-full bg-ant-primary animate-bounce [animation-delay:0.4s]"></span>
+              </span>
+            </span>
+            <span class="text-[10px] text-ant-text-secondary mt-0.5">
+              Executing compaction routine to summarize turns and reclaim context window
+            </span>
+          </div>
+        </div>
+
+        <div class="px-2 py-0.5 rounded bg-ant-primary/15 border border-transparent text-ant-primary text-[11px] font-mono flex-shrink-0 ml-3">
+          <span class="font-medium">Compacting...</span>
+        </div>
+      </div>
+    {:else if sessionStore.lastCompactNotice}
+      <div class="my-2 p-2.5 rounded-lg border flex items-center justify-between font-mono select-none text-xs transition-all duration-300 {sessionStore.lastCompactNotice.type === 'success' ? 'border-ant-success/20 bg-ant-success/10 text-ant-success' : 'border-ant-error/20 bg-ant-error/10 text-ant-error'}">
+        <div class="flex items-center space-x-2">
+          {#if sessionStore.lastCompactNotice.type === 'success'}
+            <CheckCircle2 size={14} class="flex-shrink-0 text-ant-success" />
+          {:else}
+            <AlertCircle size={14} class="flex-shrink-0 text-ant-error" />
+          {/if}
+          <span class="text-[11.5px] font-medium">{sessionStore.lastCompactNotice.message}</span>
+        </div>
+        <button
+          type="button"
+          onclick={() => sessionStore.lastCompactNotice = null}
+          class="text-[10px] opacity-70 hover:opacity-100 uppercase tracking-wider ml-2 hover:underline"
+        >
+          Dismiss
+        </button>
+      </div>
+    {/if}
+
     <!-- Live In-Transcript Activity & Thinking Indicator -->
     {#if isWorking}
-      <div class="my-2 p-3 rounded-lg border border-ant-primary/30 bg-ant-bg-secondary/70 backdrop-blur-md shadow-md flex items-center justify-between font-mono select-none">
+      <div class="my-2 p-3 rounded-lg border border-white/5 bg-ant-bg-secondary/70 backdrop-blur-md shadow-sm flex items-center justify-between font-mono select-none">
         <div class="flex items-center space-x-2.5 min-w-0">
-          <div class="w-6 h-6 rounded-md bg-ant-primary/20 border border-ant-primary/40 flex items-center justify-center text-ant-primary flex-shrink-0 animate-pulse">
+          <div class="w-6 h-6 rounded-md bg-ant-primary/10 text-ant-primary flex items-center justify-center flex-shrink-0 animate-pulse">
             <Brain size={14} />
           </div>
           <div class="flex flex-col min-w-0">
-            <span class="text-xs font-semibold text-white truncate flex items-center gap-1.5">
+            <span class="text-xs font-semibold text-ant-text truncate flex items-center gap-1.5">
               <span>{thinkingContextText}</span>
               <span class="inline-flex space-x-0.5">
                 <span class="w-1 h-1 rounded-full bg-ant-primary animate-bounce"></span>
@@ -245,13 +291,13 @@
               </span>
             </span>
             <span class="text-[10px] text-ant-text-secondary mt-0.5">
-              Memproses tindakan & menganalisa berkas proyek
+              Processing actions and analyzing workspace files
             </span>
           </div>
         </div>
 
         <!-- Right Side: Live Timer Pill -->
-        <div class="flex items-center space-x-1.5 px-2 py-0.5 rounded bg-ant-primary/15 border border-ant-primary/30 text-ant-primary text-[11px] font-mono flex-shrink-0 ml-3">
+        <div class="flex items-center space-x-1.5 px-2 py-0.5 rounded bg-ant-bg-tertiary/60 border border-white/5 text-ant-primary text-[11px] font-mono flex-shrink-0 ml-3">
           <Loader2 size={11} class="animate-spin text-ant-primary" />
           <span class="font-medium">{elapsedSeconds}s</span>
         </div>

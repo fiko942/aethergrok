@@ -205,14 +205,14 @@
   }
 </script>
 
-<div class="my-1 rounded-md border border-ant-border-secondary/40 bg-ant-bg-secondary/30 overflow-hidden text-xs transition-colors hover:border-ant-border-secondary/70">
+<div class="my-1 rounded-md border border-white/5 bg-ant-bg-secondary/20 overflow-hidden text-xs transition-colors hover:border-white/10">
   <!-- Minimalist Tool Header (Anti Gravity / VSCode Style) -->
   <div
     role="button"
     tabindex="0"
     onclick={toggleExpand}
     onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); isExpanded = !isExpanded; } }}
-    class="flex items-center justify-between px-2.5 py-1.5 cursor-pointer select-none hover:bg-ant-bg-secondary/80 transition-colors"
+    class="flex items-center justify-between px-2.5 py-1.5 cursor-pointer select-none hover:bg-ant-bg-secondary/50 transition-colors"
   >
     <!-- Left: Chevron, Icon, Clean Verb & Target -->
     <div class="flex items-center space-x-2 min-w-0 flex-1 mr-2 font-mono">
@@ -241,7 +241,7 @@
         {:else}
           <FileText size={13} class="text-ant-primary" />
         {/if}
-        <span class="ml-1 text-white">{toolParsed.verb}</span>
+        <span class="ml-1 text-ant-text font-medium">{toolParsed.verb}</span>
       </span>
 
       <!-- Clean Single-Line Target -->
@@ -283,7 +283,7 @@
 
   <!-- Collapsible Details Container (Zero Redundancy) -->
   {#if isExpanded}
-    <div class="px-2.5 pb-2 pt-1 bg-ant-bg border-t border-ant-border-secondary/60 space-y-1.5 select-text font-mono">
+    <div class="px-2.5 pb-2 pt-1 bg-ant-bg border-t border-white/5 space-y-1.5 select-text font-mono">
       <!-- 1. Dedicated Diff Card for Edit -->
       {#if toolCall.diff}
         <div class="pt-0.5">
@@ -291,7 +291,7 @@
         </div>
       {:else if toolParsed.type === 'edit' && (toolParsed.oldStr || toolParsed.newStr)}
         <!-- Inline Diff Fallback -->
-        <div class="p-2 rounded bg-ant-bg-secondary/70 border border-ant-border-secondary/60 text-[11px] space-y-0.5">
+        <div class="p-2 rounded bg-ant-bg-secondary/70 border border-white/5 text-[11px] space-y-0.5">
           {#if toolParsed.oldStr}
             <div class="text-rose-400 break-all flex items-start gap-1">
               <span class="select-none font-bold min-w-[10px] text-rose-500">-</span>
@@ -307,8 +307,8 @@
         </div>
       {:else if toolParsed.type === 'read' && readLines.length > 0}
         <!-- 2. Clean Numbered Code Reader for Read File -->
-        <div class="rounded border border-ant-border-secondary/70 bg-ant-bg-secondary/30 overflow-hidden text-[11px]">
-          <div class="flex items-center justify-between px-2.5 py-1 bg-ant-bg-tertiary/50 border-b border-ant-border-secondary/60 text-[10px] select-none text-ant-text-muted">
+        <div class="rounded border border-white/5 bg-ant-bg-secondary/30 overflow-hidden text-[11px]">
+          <div class="flex items-center justify-between px-2.5 py-1 bg-ant-bg-tertiary/50 border-b border-white/5 text-[10px] select-none text-ant-text-muted">
             <span class="font-mono text-ant-text-secondary">
               {readLines.length} {readLines.length === 1 ? 'line' : 'lines'}
             </span>
@@ -332,7 +332,7 @@
               <tbody>
                 {#each readLines as row (row.lineNo)}
                   <tr class="hover:bg-ant-bg-secondary/40 text-ant-text">
-                    <td class="w-7 px-1.5 py-0.5 text-right text-ant-text-muted/60 border-r border-ant-border-secondary/40 select-none bg-ant-bg-secondary/20 text-[10px]">
+                    <td class="w-7 px-1.5 py-0.5 text-right text-ant-text-muted/60 border-r border-white/5 select-none bg-ant-bg-secondary/20 text-[10px]">
                       {row.lineNo}
                     </td>
                     <td class="px-2.5 py-0.5 whitespace-pre font-mono">
@@ -346,8 +346,8 @@
         </div>
       {:else if toolCall.result !== undefined && (!toolCall.diff || !isGenericEditAck || toolCall.status === 'error')}
         <!-- 3. General Output Block (Terminal / Search / Write) -->
-        <div class="rounded border border-ant-border-secondary/60 bg-ant-bg-secondary/50 overflow-hidden text-[11px]">
-          <div class="flex items-center justify-between px-2 py-1 bg-ant-bg-tertiary/60 border-b border-ant-border-secondary/60 text-[10px] select-none text-ant-text-muted">
+        <div class="rounded border border-white/5 bg-ant-bg-secondary/50 overflow-hidden text-[11px]">
+          <div class="flex items-center justify-between px-2 py-1 bg-ant-bg-tertiary/60 border-b border-white/5 text-[10px] select-none text-ant-text-muted">
             <span class="uppercase tracking-wider font-semibold {toolCall.status === 'error' ? 'text-ant-error' : 'text-ant-text-secondary'}">
               {toolCall.status === 'error' ? 'Error Output' : 'Output'}
             </span>

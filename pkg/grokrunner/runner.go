@@ -45,6 +45,13 @@ func (r *Runner) SetBinaryPath(path string) {
 	r.grokBinaryPath = path
 }
 
+// GetBinaryPath returns the configured grok binary path
+func (r *Runner) GetBinaryPath() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.grokBinaryPath
+}
+
 // StartSession launches a grok subprocess for a prompt request and streams events via callbacks
 func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks StreamCallbacks) error {
 	r.mu.Lock()

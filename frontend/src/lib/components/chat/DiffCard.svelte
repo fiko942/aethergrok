@@ -172,9 +172,9 @@
   }
 </script>
 
-<div class="rounded-md border border-ant-border-secondary/40 bg-ant-bg-secondary/30 overflow-hidden my-0.5 select-text font-mono text-xs">
+<div class="rounded-md border border-white/5 bg-ant-bg-secondary/30 overflow-hidden my-0.5 select-text font-mono text-xs">
   <!-- Diff Card Header (Clean, Non-Redundant) -->
-  <div class="flex items-center justify-between px-2.5 py-1 bg-ant-bg-tertiary/40 border-b border-ant-border-secondary/40 select-none">
+  <div class="flex items-center justify-between px-2.5 py-1 bg-ant-bg-tertiary/40 border-b border-white/5 select-none">
     <div class="flex items-center space-x-2 min-w-0">
       {#if showHeaderTitle}
         <span class="font-medium text-ant-text truncate max-w-xs">{displayNewPath}</span>
@@ -195,11 +195,11 @@
 
     <!-- Actions: View Mode toggle & Copy -->
     <div class="flex items-center space-x-1.5 flex-shrink-0">
-      <div class="flex items-center bg-ant-bg border border-ant-border-secondary rounded p-0.5">
+      <div class="flex items-center bg-ant-bg border border-white/5 rounded p-0.5">
         <button
           type="button"
           onclick={() => viewMode = 'unified'}
-          class="px-1.5 py-0.5 rounded text-[10px] font-sans transition flex items-center {viewMode === 'unified' ? 'bg-ant-primary text-white font-medium' : 'text-ant-text-muted hover:text-ant-text'}"
+          class="px-1.5 py-0.5 rounded text-[10px] font-serif transition flex items-center {viewMode === 'unified' ? 'bg-ant-primary text-white font-medium' : 'text-ant-text-muted hover:text-ant-text'}"
           title="Unified Diff View"
         >
           <AlignJustify size={11} class="mr-1" /> Unified
@@ -207,7 +207,7 @@
         <button
           type="button"
           onclick={() => viewMode = 'split'}
-          class="px-1.5 py-0.5 rounded text-[10px] font-sans transition flex items-center {viewMode === 'split' ? 'bg-ant-primary text-white font-medium' : 'text-ant-text-muted hover:text-ant-text'}"
+          class="px-1.5 py-0.5 rounded text-[10px] font-serif transition flex items-center {viewMode === 'split' ? 'bg-ant-primary text-white font-medium' : 'text-ant-text-muted hover:text-ant-text'}"
           title="Side-by-Side Split View"
         >
           <Columns size={11} class="mr-1" /> Split
@@ -217,7 +217,7 @@
       <button
         type="button"
         onclick={handleCopyDiff}
-        class="p-1 rounded text-ant-text-muted hover:text-white hover:bg-ant-bg-secondary transition"
+        class="p-1 rounded text-ant-text-muted hover:text-ant-text hover:bg-ant-bg-secondary transition"
         title="Copy raw diff"
       >
         {#if copied}
@@ -237,18 +237,18 @@
         <tbody>
           {#each parsedDiff.lines as line, idx (idx)}
             {#if line.type === 'add'}
-              <tr class="bg-emerald-500/10 hover:bg-emerald-500/15 text-emerald-300 border-l-2 border-emerald-500">
-                <td class="w-7 px-1.5 text-right text-ant-text-muted/30 border-r border-ant-border-secondary/40 select-none text-[10px]"></td>
-                <td class="w-7 px-1.5 text-right text-emerald-400 font-semibold border-r border-ant-border-secondary/40 select-none text-[10px]">{line.newLineNo}</td>
+              <tr class="bg-emerald-500/10 hover:bg-emerald-500/15 text-emerald-300 border-l-2 border-emerald-500/50">
+                <td class="w-7 px-1.5 text-right text-ant-text-muted/30 border-r border-white/5 select-none text-[10px]"></td>
+                <td class="w-7 px-1.5 text-right text-emerald-400 font-semibold border-r border-white/5 select-none text-[10px]">{line.newLineNo}</td>
                 <td class="px-2.5 py-0.5 whitespace-pre font-mono flex items-start">
                   <span class="text-emerald-400 font-bold mr-2 select-none">+</span>
                   <span>{line.content}</span>
                 </td>
               </tr>
             {:else if line.type === 'del'}
-              <tr class="bg-rose-500/10 hover:bg-rose-500/15 text-rose-300 border-l-2 border-rose-500">
-                <td class="w-7 px-1.5 text-right text-rose-400 font-semibold border-r border-ant-border-secondary/40 select-none text-[10px]">{line.oldLineNo}</td>
-                <td class="w-7 px-1.5 text-right text-ant-text-muted/30 border-r border-ant-border-secondary/40 select-none text-[10px]"></td>
+              <tr class="bg-rose-500/10 hover:bg-rose-500/15 text-rose-300 border-l-2 border-rose-500/50">
+                <td class="w-7 px-1.5 text-right text-rose-400 font-semibold border-r border-white/5 select-none text-[10px]">{line.oldLineNo}</td>
+                <td class="w-7 px-1.5 text-right text-ant-text-muted/30 border-r border-white/5 select-none text-[10px]"></td>
                 <td class="px-2.5 py-0.5 whitespace-pre font-mono flex items-start">
                   <span class="text-rose-400 font-bold mr-2 select-none">-</span>
                   <span>{line.content}</span>
@@ -256,8 +256,8 @@
               </tr>
             {:else}
               <tr class="hover:bg-ant-bg-secondary/30 text-ant-text">
-                <td class="w-7 px-1.5 text-right text-ant-text-muted/70 border-r border-ant-border-secondary/40 select-none text-[10px]">{line.oldLineNo}</td>
-                <td class="w-7 px-1.5 text-right text-ant-text-muted/70 border-r border-ant-border-secondary/40 select-none text-[10px]">{line.newLineNo}</td>
+                <td class="w-7 px-1.5 text-right text-ant-text-muted/70 border-r border-white/5 select-none text-[10px]">{line.oldLineNo}</td>
+                <td class="w-7 px-1.5 text-right text-ant-text-muted/70 border-r border-white/5 select-none text-[10px]">{line.newLineNo}</td>
                 <td class="px-2.5 py-0.5 whitespace-pre font-mono flex items-start">
                   <span class="text-ant-text-muted mr-2 select-none opacity-0"> </span>
                   <span>{line.content}</span>
@@ -272,14 +272,14 @@
       <table class="w-full border-collapse font-mono text-[11px] leading-relaxed">
         <tbody>
           {#each sideBySideRows as row, idx (idx)}
-            <tr class="border-b border-ant-border-secondary/15">
+            <tr class="border-b border-white/5">
               <!-- Left Side (Original / Deletions) -->
-              <td class="w-7 px-1.5 text-right text-ant-text-muted border-r border-ant-border-secondary/40 select-none bg-ant-bg-secondary/20 text-[10px]">
+              <td class="w-7 px-1.5 text-right text-ant-text-muted border-r border-white/5 select-none bg-ant-bg-secondary/20 text-[10px]">
                 {row.left?.lineNo ?? ''}
               </td>
               <td
-                class="w-1/2 px-2.5 py-0.5 whitespace-pre font-mono border-r border-ant-border-secondary/40 {row.left?.type === 'del'
-                  ? 'bg-rose-500/10 text-rose-300 border-l-2 border-rose-500'
+                class="w-1/2 px-2.5 py-0.5 whitespace-pre font-mono border-r border-white/5 {row.left?.type === 'del'
+                  ? 'bg-rose-500/10 text-rose-300 border-l-2 border-rose-500/50'
                   : 'text-ant-text'}"
               >
                 {#if row.left?.type === 'del'}
@@ -289,12 +289,12 @@
               </td>
 
               <!-- Right Side (Modified / Additions) -->
-              <td class="w-7 px-1.5 text-right text-ant-text-muted border-r border-ant-border-secondary/40 select-none bg-ant-bg-secondary/20 text-[10px]">
+              <td class="w-7 px-1.5 text-right text-ant-text-muted border-r border-white/5 select-none bg-ant-bg-secondary/20 text-[10px]">
                 {row.right?.lineNo ?? ''}
               </td>
               <td
                 class="w-1/2 px-2.5 py-0.5 whitespace-pre font-mono {row.right?.type === 'add'
-                  ? 'bg-emerald-500/10 text-emerald-300 border-l-2 border-emerald-500'
+                  ? 'bg-emerald-500/10 text-emerald-300 border-l-2 border-emerald-500/50'
                   : 'text-ant-text'}"
               >
                 {#if row.right?.type === 'add'}

@@ -40,13 +40,13 @@
 
       const res = await downloadOrSaveMarkdown(filename, mdContent);
       if (res.success) {
-        showFeedback(`Exported ${selectedCount} session(s) successfully!`);
+        showFeedback(`Exported ${selectedCount} session(s) successfully.`);
         sessionStore.toggleSelectionMode(false);
       } else if (res.error) {
-        alert('Gagal mengekspor: ' + res.error);
+        alert('Failed to export: ' + res.error);
       }
     } catch (err) {
-      alert('Terjadi kesalahan saat batch export: ' + String(err));
+      alert('Error during batch export: ' + String(err));
     } finally {
       isExporting = false;
     }
@@ -54,10 +54,10 @@
 
   function handleBatchDelete() {
     if (selectedCount === 0) return;
-    const confirmText = `Yakin ingin menghapus ${selectedCount} session yang terpilih? Tindakan ini tidak dapat dibatalkan.`;
+    const confirmText = `Are you sure you want to delete ${selectedCount} selected session(s)? This action cannot be undone.`;
     if (window.confirm(confirmText)) {
       sessionStore.deleteSelectedSessions();
-      showFeedback(`Berhasil menghapus session.`);
+      showFeedback(`Successfully deleted session(s).`);
     }
   }
 
@@ -67,32 +67,32 @@
 </script>
 
 {#if sessionStore.isSelectionMode}
-  <div class="p-2.5 bg-ant-bg border border-ant-primary/40 rounded-lg shadow-xl shadow-black/40 space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
+  <div class="p-2.5 bg-ant-bg border border-ant-primary/25 rounded-lg shadow-xl shadow-black/40 space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
     <div class="flex items-center justify-between">
       <div class="flex items-center space-x-2">
         <button
           onclick={handleToggleSelectAll}
           class="flex items-center space-x-1.5 text-xs text-ant-primary hover:text-ant-primary-hover font-medium transition"
-          title={isAllSelected ? 'Batalkan pilihan semua' : 'Tandai semua session di workspace'}
+          title={isAllSelected ? 'Deselect all sessions' : 'Select all sessions in workspace'}
         >
           {#if isAllSelected}
             <CheckSquare size={14} class="text-ant-primary" />
-            <span>Batalkan Semua</span>
+            <span>Deselect All</span>
           {:else}
             <Square size={14} class="text-ant-text-secondary" />
-            <span>Tandai Semua</span>
+            <span>Select All</span>
           {/if}
         </button>
       </div>
 
       <div class="flex items-center space-x-1.5">
         <span class="px-2 py-0.5 text-[11px] font-semibold bg-ant-primary/20 text-ant-primary rounded-full border border-ant-primary/30">
-          {selectedCount} Terpilih
+          {selectedCount} selected
         </span>
         <button
           onclick={handleCancelSelection}
           class="p-1 text-ant-text-muted hover:text-white rounded hover:bg-ant-bg-tertiary transition"
-          title="Tutup Mode Seleksi"
+          title="Close Selection Mode"
         >
           <X size={14} />
         </button>
@@ -100,23 +100,23 @@
     </div>
 
     <!-- Batch action buttons -->
-    <div class="grid grid-cols-2 gap-2 pt-1 border-t border-ant-border-secondary">
+    <div class="grid grid-cols-2 gap-2 pt-1 border-t border-white/5">
       <button
         onclick={handleBatchExport}
         disabled={selectedCount === 0 || isExporting}
-        class="flex items-center justify-center space-x-1.5 px-2 py-1.5 rounded-md text-xs font-medium bg-ant-primary/20 hover:bg-ant-primary/30 text-ant-primary border border-ant-primary/30 transition disabled:opacity-40 disabled:pointer-events-none"
+        class="flex items-center justify-center space-x-1.5 px-2 py-1.5 rounded-md text-xs font-medium bg-ant-primary/20 hover:bg-ant-primary/30 text-ant-primary border border-ant-primary/25 transition disabled:opacity-40 disabled:pointer-events-none"
       >
         <Download size={13} />
-        <span>{isExporting ? 'Mengekspor...' : 'Ekspor (.md)'}</span>
+        <span>{isExporting ? 'Exporting...' : 'Export (.md)'}</span>
       </button>
 
       <button
         onclick={handleBatchDelete}
         disabled={selectedCount === 0}
-        class="flex items-center justify-center space-x-1.5 px-2 py-1.5 rounded-md text-xs font-medium bg-ant-error/15 hover:bg-ant-error/25 text-ant-error border border-ant-error/30 transition disabled:opacity-40 disabled:pointer-events-none"
+        class="flex items-center justify-center space-x-1.5 px-2 py-1.5 rounded-md text-xs font-medium bg-ant-error/15 hover:bg-ant-error/25 text-ant-error border border-ant-error/25 transition disabled:opacity-40 disabled:pointer-events-none"
       >
         <Trash2 size={13} />
-        <span>Hapus</span>
+        <span>Delete</span>
       </button>
     </div>
 

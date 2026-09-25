@@ -88,7 +88,7 @@
     type="button"
     onclick={toggleOpen}
     {disabled}
-    class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-ant-bg-secondary hover:bg-ant-bg-tertiary text-ant-text transition-colors border border-ant-border-secondary/60 {isOpen ? 'border-ant-primary/50 text-ant-primary' : ''} {disabled ? 'opacity-50 cursor-not-allowed' : ''}"
+    class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-ant-bg-secondary/40 hover:bg-ant-bg-tertiary text-ant-text transition-colors border border-transparent hover:border-white/5 {isOpen ? '!bg-ant-primary/10 text-ant-primary' : ''} {disabled ? 'opacity-50 cursor-not-allowed' : ''}"
     title="Choose Grok Agent Execution Mode"
   >
     <Bot size={13} class="text-ant-text-secondary" />
@@ -98,7 +98,7 @@
   <!-- Dropdown Menu (Matching screenshot) -->
   {#if isOpen}
     <div
-      class="absolute bottom-full right-0 mb-2.5 w-72 bg-ant-bg border border-ant-border-secondary rounded-xl shadow-2xl z-50 p-1.5 select-none text-xs animate-in fade-in zoom-in-95 duration-100 divide-y divide-ant-border-secondary/40"
+      class="absolute bottom-full right-0 mb-2.5 w-72 bg-ant-bg border border-white/10 rounded-xl shadow-2xl z-50 p-1.5 select-none text-xs animate-in fade-in zoom-in-95 duration-100 divide-y divide-white/5 backdrop-blur-md"
       role="menu"
       aria-label="Agent Mode Options"
     >

@@ -100,7 +100,7 @@
   }
 </script>
 
-<div class="relative inline-block font-sans select-none text-left" bind:this={dropdownRef}>
+<div class="relative inline-block font-serif select-none text-left" bind:this={dropdownRef}>
   <!-- Trigger Pill Button -->
   <button
     type="button"

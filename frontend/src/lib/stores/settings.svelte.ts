@@ -15,6 +15,7 @@ export interface AppSettings {
   snapshotFlashEnabled: boolean;
   snapshotAutoAttach: boolean;
   activeWindowTurnCount: number;
+  maxContextTokens: number;
 }
 
 const STORAGE_KEY = 'aethergrok_settings_v1';
@@ -30,7 +31,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   snapshotSoundEnabled: true,
   snapshotFlashEnabled: true,
   snapshotAutoAttach: true,
-  activeWindowTurnCount: 10
+  activeWindowTurnCount: 10,
+  maxContextTokens: 200000
 };
 
 export class SettingsStore {
@@ -45,6 +47,7 @@ export class SettingsStore {
   snapshotFlashEnabled = $state<boolean>(DEFAULT_SETTINGS.snapshotFlashEnabled);
   snapshotAutoAttach = $state<boolean>(DEFAULT_SETTINGS.snapshotAutoAttach);
   activeWindowTurnCount = $state<number>(DEFAULT_SETTINGS.activeWindowTurnCount);
+  maxContextTokens = $state<number>(DEFAULT_SETTINGS.maxContextTokens);
 
   constructor() {
     this.loadFromStorage();
@@ -90,6 +93,9 @@ export class SettingsStore {
       if (typeof parsed.activeWindowTurnCount === 'number' && Number.isFinite(parsed.activeWindowTurnCount)) {
         this.activeWindowTurnCount = parsed.activeWindowTurnCount;
       }
+      if (typeof parsed.maxContextTokens === 'number' && Number.isFinite(parsed.maxContextTokens)) {
+        this.maxContextTokens = parsed.maxContextTokens;
+      }
     } catch (err) {
       console.warn('Failed to load settings from localStorage:', err);
     }
@@ -109,7 +115,8 @@ export class SettingsStore {
         snapshotSoundEnabled: this.snapshotSoundEnabled,
         snapshotFlashEnabled: this.snapshotFlashEnabled,
         snapshotAutoAttach: this.snapshotAutoAttach,
-        activeWindowTurnCount: this.activeWindowTurnCount
+        activeWindowTurnCount: this.activeWindowTurnCount,
+        maxContextTokens: this.maxContextTokens
       };
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (err) {

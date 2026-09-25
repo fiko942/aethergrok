@@ -75,7 +75,7 @@
   }
 </script>
 
-<div class="flex items-center w-full bg-ant-bg-secondary border-b border-ant-border-secondary px-2 h-10 select-none overflow-x-auto no-scrollbar gap-1.5">
+<div class="flex items-center w-full bg-ant-bg-secondary border-b border-white/5 px-2 h-10 select-none overflow-x-auto no-scrollbar gap-1.5 font-serif">
   <div class="flex items-center space-x-1 flex-1 min-w-0 overflow-x-auto">
     {#each sessionStore.openWorkspaceTabs as session, index (session.id)}
       {@const isActive = sessionStore.activeSessionId === session.id}
@@ -95,7 +95,7 @@
         onclick={() => sessionStore.switchSession(session.id)}
         onkeydown={(e) => e.key === 'Enter' && sessionStore.switchSession(session.id)}
         class="group relative flex items-center h-8 pl-2.5 pr-2 rounded-md text-xs font-medium cursor-pointer transition-all duration-150 border max-w-[200px] min-w-[120px] flex-shrink-0 {isActive
-          ? 'bg-ant-bg text-ant-primary border-ant-border-secondary shadow-sm font-semibold'
+          ? 'bg-ant-bg text-ant-primary border-white/10 shadow-sm font-semibold'
           : 'bg-ant-bg-tertiary/40 text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'} {isDragging ? 'opacity-40 scale-95' : ''} {isOver ? 'border-r-2 border-r-ant-primary' : ''}"
       >
         <!-- Status Indicator Dot (Ant Design palette) -->
@@ -112,7 +112,7 @@
               bind:value={editTitleInput}
               onkeydown={(e) => handleKeyDown(e, session)}
               onblur={() => saveEditing(session)}
-              class="w-full bg-ant-bg-secondary text-white px-1 py-0.5 rounded text-xs outline-none border border-ant-primary"
+              class="w-full bg-ant-bg-secondary text-white px-1 py-0.5 rounded text-xs outline-none border border-ant-primary/40"
             />
             <button
               type="button"
@@ -126,7 +126,7 @@
           <span
             role="button"
             tabindex="0"
-            class="truncate flex-1 min-w-0 font-sans"
+            class="truncate flex-1 min-w-0 font-serif text-[12px]"
             ondblclick={(e) => startEditing(session, e)}
             onkeydown={(e) => e.key === 'F2' && startEditing(session, e as unknown as MouseEvent)}
             title={`${session.title} (Double click to rename)`}
@@ -150,7 +150,7 @@
               type="button"
               onclick={(e) => handleFork(session, e)}
               class="p-0.5 rounded text-ant-text-muted hover:text-ant-primary hover:bg-ant-bg-secondary transition"
-              title="Fork session ke tab baru (duplikasi riwayat percakapan)"
+              title="Fork session to new tab (duplicate conversation history)"
             >
               <GitFork size={11} />
             </button>
@@ -160,7 +160,7 @@
             type="button"
             onclick={(e) => handleClose(session, e)}
             class="p-0.5 rounded text-ant-text-muted hover:text-ant-error hover:bg-ant-bg-secondary transition"
-            title="Tutup session tab"
+            title="Close session tab"
           >
             <X size={12} />
           </button>

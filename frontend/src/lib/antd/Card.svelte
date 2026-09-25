@@ -25,11 +25,11 @@
 </script>
 
 <div
-  class="bg-ant-bg-secondary text-ant-text rounded-lg transition-all duration-200 {bordered ? 'border border-ant-border' : ''} {hoverable ? 'hover:border-ant-primary/50 hover:shadow-lg hover:-translate-y-0.5' : ''} {className}"
+  class="bg-ant-bg-secondary text-ant-text rounded-lg transition-all duration-200 {bordered ? 'border border-white/5' : ''} {hoverable ? 'hover:border-ant-primary/40 hover:shadow-lg hover:-translate-y-0.5' : ''} {className}"
 >
   {#if title || extra}
     <div
-      class="flex items-center justify-between border-b border-ant-border-secondary {size === 'small' ? 'px-3 py-2 text-xs font-semibold' : 'px-4 py-3 text-sm font-semibold'}"
+      class="flex items-center justify-between border-b border-white/5 {size === 'small' ? 'px-3 py-2 text-xs font-semibold' : 'px-4 py-3 text-sm font-semibold'}"
     >
       <div class="flex items-center space-x-2">
         <span>{title}</span>

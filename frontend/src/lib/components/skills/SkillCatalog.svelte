@@ -204,8 +204,8 @@
           </div>
           <div>
             <div class="flex items-center space-x-2">
-              <h2 class="text-sm font-bold text-ant-text tracking-tight">Skills & MCP Discovery Catalog</h2>
-              <span class="px-2 py-0.5 text-[10px] font-semibold bg-ant-primary/20 text-ant-primary rounded-full border border-ant-primary/30">
+              <h2 class="font-serif-display text-base font-semibold text-ant-text tracking-tight">Skills & MCP Discovery Catalog</h2>
+              <span class="px-2 py-0.5 text-[10px] font-serif font-semibold bg-ant-primary/20 text-ant-primary rounded-full border border-ant-primary/30">
                 {skills.length} Installed
               </span>
             </div>

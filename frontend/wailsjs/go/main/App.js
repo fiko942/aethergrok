@@ -10,6 +10,14 @@ export function CaptureScreenExcludingSelf(arg1) {
   return window['go']['main']['App']['CaptureScreenExcludingSelf'](arg1);
 }
 
+export function CheckDirectoryExists(arg1) {
+  return window['go']['main']['App']['CheckDirectoryExists'](arg1);
+}
+
+export function CompactSession(arg1, arg2) {
+  return window['go']['main']['App']['CompactSession'](arg1, arg2);
+}
+
 export function DeleteGrokSession(arg1, arg2) {
   return window['go']['main']['App']['DeleteGrokSession'](arg1, arg2);
 }
@@ -24,6 +32,10 @@ export function GetAvailableModels() {
 
 export function GetInstalledSkills() {
   return window['go']['main']['App']['GetInstalledSkills']();
+}
+
+export function GetSessionUsage(arg1, arg2) {
+  return window['go']['main']['App']['GetSessionUsage'](arg1, arg2);
 }
 
 export function Greet(arg1) {

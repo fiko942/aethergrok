@@ -2,26 +2,224 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ========================================================================= */
+/* Anthropic Serif Typography Embedding (Display & Text Cuts)               */
+/* ========================================================================= */
+
+/* Anthropic Serif Display */
+@font-face {
+  font-family: 'Anthropic Serif Display';
+  src: url('/fonts/anthropic/AnthropicSerif-Display-Light-Static.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Serif Display';
+  src: url('/fonts/anthropic/AnthropicSerif-Display-LightItalic-Static.otf') format('opentype');
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Serif Display';
+  src: url('/fonts/anthropic/AnthropicSerif-Display-Regular-Static.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Serif Display';
+  src: url('/fonts/anthropic/AnthropicSerif-Display-RegularItalic-Static.otf') format('opentype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Serif Display';
+  src: url('/fonts/anthropic/AnthropicSerif-Display-Medium-Static.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Serif Display';
+  src: url('/fonts/anthropic/AnthropicSerif-Display-MediumItalic-Static.otf') format('opentype');
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Serif Display';
+  src: url('/fonts/anthropic/AnthropicSerif-Display-Semibold-Static.otf') format('opentype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Serif Display';
+  src: url('/fonts/anthropic/AnthropicSerif-Display-SemiboldItalic-Static.otf') format('opentype');
+  font-weight: 600;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Serif Display';
+  src: url('/fonts/anthropic/AnthropicSerif-Display-Bold-Static.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Serif Display';
+  src: url('/fonts/anthropic/AnthropicSerif-Display-BoldItalic-Static.otf') format('opentype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Serif Display';
+  src: url('/fonts/anthropic/AnthropicSerif-Display-Extrabold-Static.otf') format('opentype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Serif Display';
+  src: url('/fonts/anthropic/AnthropicSerif-Display-ExtraboldItalic-Static.otf') format('opentype');
+  font-weight: 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Anthropic Serif Text */
+@font-face {
+  font-family: 'Anthropic Serif Text';
+  src: url('/fonts/anthropic/AnthropicSerif-Text-Light-Static.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Serif Text';
+  src: url('/fonts/anthropic/AnthropicSerif-Text-LightItalic-Static.otf') format('opentype');
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Serif Text';
+  src: url('/fonts/anthropic/AnthropicSerif-Text-Regular-Static.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Serif Text';
+  src: url('/fonts/anthropic/AnthropicSerif-Text-RegularItalic-Static.otf') format('opentype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Serif Text';
+  src: url('/fonts/anthropic/AnthropicSerif-Text-Medium-Static.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Serif Text';
+  src: url('/fonts/anthropic/AnthropicSerif-Text-MediumItalic-Static.otf') format('opentype');
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Serif Text';
+  src: url('/fonts/anthropic/AnthropicSerif-Text-Semibold-Static.otf') format('opentype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Serif Text';
+  src: url('/fonts/anthropic/AnthropicSerif-Text-SemiboldItalic-Static.otf') format('opentype');
+  font-weight: 600;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Serif Text';
+  src: url('/fonts/anthropic/AnthropicSerif-Text-Bold-Static.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Serif Text';
+  src: url('/fonts/anthropic/AnthropicSerif-Text-BoldItalic-Static.otf') format('opentype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Serif Text';
+  src: url('/fonts/anthropic/AnthropicSerif-Text-Extrabold-Static.otf') format('opentype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Serif Text';
+  src: url('/fonts/anthropic/AnthropicSerif-Text-ExtraboldItalic-Static.otf') format('opentype');
+  font-weight: 800;
+  font-style: italic;
+  font-display: swap;
+}
+
 :root,
 [data-theme='dark-studio'] {
   color-scheme: dark;
-  --ant-primary: #1677ff;
+  --ant-primary: #177ddc;
   --ant-primary-hover: #4096ff;
   --ant-primary-active: #0958d9;
   --ant-primary-bg: #111a2c;
-  --ant-primary-border: #15325b;
+  --ant-primary-border: rgba(23, 125, 220, 0.25);
 
-  --ant-bg-layout: #0b0d13;
-  --ant-bg: #0f1117;
-  --ant-bg-secondary: #161922;
-  --ant-bg-tertiary: #1e222d;
+  --ant-bg-layout: #000000;
+  --ant-bg: #141414;
+  --ant-bg-secondary: #1a1a1a;
+  --ant-bg-tertiary: #222222;
 
-  --ant-border: #232733;
-  --ant-border-secondary: #1a1d27;
+  --ant-border: rgba(255, 255, 255, 0.06);
+  --ant-border-secondary: rgba(255, 255, 255, 0.03);
 
-  --ant-text: #f3f4f6;
-  --ant-text-secondary: #9ca3af;
-  --ant-text-muted: #6b7280;
+  --ant-text: rgba(255, 255, 255, 0.85);
+  --ant-text-secondary: rgba(255, 255, 255, 0.45);
+  --ant-text-muted: rgba(255, 255, 255, 0.30);
 
   --ant-success: #52c41a;
   --ant-warning: #faad14;
@@ -38,15 +236,15 @@
   --ant-primary-hover: #58a6ff;
   --ant-primary-active: #1f6feb;
   --ant-primary-bg: #0d1d30;
-  --ant-primary-border: #388bfd;
+  --ant-primary-border: rgba(56, 139, 253, 0.45);
 
   --ant-bg-layout: #000000;
   --ant-bg: #050505;
   --ant-bg-secondary: #0c0c0e;
   --ant-bg-tertiary: #161619;
 
-  --ant-border: #26262b;
-  --ant-border-secondary: #1a1a1e;
+  --ant-border: rgba(255, 255, 255, 0.14);
+  --ant-border-secondary: rgba(255, 255, 255, 0.08);
 
   --ant-text: #ffffff;
   --ant-text-secondary: #c0c0c8;
@@ -74,8 +272,8 @@
   --ant-bg-secondary: #fcfcfd;
   --ant-bg-tertiary: #f0f2f5;
 
-  --ant-border: #d9d9d9;
-  --ant-border-secondary: #e8e8e8;
+  --ant-border: #e5e7eb;
+  --ant-border-secondary: #f3f4f6;
 
   --ant-text: #1f1f1f;
   --ant-text-secondary: #595959;
@@ -93,12 +291,30 @@
 body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
-    'Noto Color Emoji';
+  font-family: 'Anthropic Serif Text', 'Anthropic Serif', Newsreader, 'Source Serif 4', Charter, Georgia, serif;
   background-color: var(--ant-bg, #0f1117);
   color: var(--ant-text, #f3f4f6);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Force global default typography to Anthropic Serif */
+button, input, textarea, select, optgroup {
+  font-family: inherit;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Anthropic Serif Display', 'Anthropic Serif', Newsreader, 'Source Serif 4', Georgia, serif;
+}
+
+/* Explicit hairline markdown divider for dark mode */
+hr {
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  margin: 1rem 0;
+}
+
+[data-theme='light-antd'] hr {
+  border-top: 1px solid #e5e7eb;
 }
 
 /* Custom scrollbar matching active theme tokens */

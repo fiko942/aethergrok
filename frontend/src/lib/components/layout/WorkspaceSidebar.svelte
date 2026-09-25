@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { sessionStore, STATUS_META, type Session, type WorkspaceFolder } from '$lib/stores/session.svelte';
+  import { dialogStore } from '$lib/stores/dialog.svelte';
   import { formatSessionAsMarkdown, downloadOrSaveMarkdown } from '$lib/utils/markdownExport';
   import BatchActionBar from './BatchActionBar.svelte';
   import {
@@ -21,14 +22,75 @@
     Edit2,
     Pin,
     Search,
-    RefreshCw
+    RefreshCw,
+    MessageSquare,
+    Loader2,
+    AlertCircle,
+    CheckCircle2
   } from 'lucide-svelte';
 
   let activeDropdownId = $state<string | null>(null);
+  let activeDropdownCoords = $state<{ top: number; right: number } | null>(null);
   let editingSessionId = $state<string | null>(null);
   let editTitleText = $state('');
   let copiedToast = $state<string | null>(null);
   let searchQuery = $state('');
+
+  // Track pagination count per workspace (defaults to 8 items, loads +8 each click)
+  const PAGE_SIZE = 8;
+  let workspaceVisibleCounts = $state<Record<string, number>>({});
+
+  function getVisibleLimit(wsId: string): number {
+    return workspaceVisibleCounts[wsId] ?? PAGE_SIZE;
+  }
+
+  function handleShowMore(wsId: string) {
+    const current = getVisibleLimit(wsId);
+    workspaceVisibleCounts = {
+      ...workspaceVisibleCounts,
+      [wsId]: current + PAGE_SIZE
+    };
+  }
+
+  function handleShowLess(wsId: string) {
+    workspaceVisibleCounts = {
+      ...workspaceVisibleCounts,
+      [wsId]: PAGE_SIZE
+    };
+  }
+
+  function handleToggleWorkspace(wsId: string) {
+    // When closing or reopening an accordion folder, reset pagination view count back to 8
+    workspaceVisibleCounts = {
+      ...workspaceVisibleCounts,
+      [wsId]: PAGE_SIZE
+    };
+    sessionStore.toggleWorkspaceExpanded(wsId);
+  }
+
+  function toggleDropdown(sessionId: string, e: MouseEvent) {
+    e.stopPropagation();
+    if (activeDropdownId === sessionId) {
+      activeDropdownId = null;
+      activeDropdownCoords = null;
+    } else {
+      activeDropdownId = sessionId;
+      const target = (e.currentTarget as HTMLElement) || (e.target as HTMLElement);
+      const rect = target.getBoundingClientRect();
+      const menuHeight = 220; // approximate menu height
+      const windowHeight = window.innerHeight;
+
+      // Flip upwards if near bottom
+      let top = rect.bottom + 4;
+      if (top + menuHeight > windowHeight) {
+        top = Math.max(10, rect.top - menuHeight - 4);
+      }
+      activeDropdownCoords = {
+        top,
+        right: window.innerWidth - rect.right
+      };
+    }
+  }
 
   function showToast(text: string) {
     copiedToast = text;
@@ -43,6 +105,7 @@
       const target = e.target as HTMLElement | null;
       if (target && !target.closest('.session-dropdown-menu') && !target.closest('.session-more-btn')) {
         activeDropdownId = null;
+        activeDropdownCoords = null;
       }
     }
   }
@@ -50,14 +113,18 @@
   function handleWindowKeyDown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
       activeDropdownId = null;
+      activeDropdownCoords = null;
       editingSessionId = null;
     }
   }
 
   // Auto-sync sessions on mount for all known workspaces & register click-outside handlers
-  onMount(() => {
+  onMount(async () => {
+    await sessionStore.verifyAllWorkspaces();
     for (const ws of sessionStore.workspaces) {
-      syncGrokSessionsForWorkspace(ws.id, ws.path);
+      if (ws.existsOnDisk !== false) {
+        syncGrokSessionsForWorkspace(ws.id, ws.path);
+      }
     }
     window.addEventListener('pointerdown', handleWindowPointerDown);
     window.addEventListener('keydown', handleWindowKeyDown);
@@ -132,34 +199,38 @@
     e.stopPropagation();
     sessionStore.togglePinSession(session.id);
     activeDropdownId = null;
-    showToast(session.isPinned ? 'Pin dilepas' : 'Percakapan disematkan (Pinned)!');
+    activeDropdownCoords = null;
+    showToast(session.isPinned ? 'Session unpinned' : 'Session pinned');
   }
 
   async function handleCopySessionId(session: Session, e: MouseEvent) {
     e.stopPropagation();
     try {
       await navigator.clipboard.writeText(session.id);
-      showToast('Session ID copied!');
+      showToast('Session ID copied');
     } catch {
       showToast(session.id);
     }
     activeDropdownId = null;
+    activeDropdownCoords = null;
   }
 
   async function handleCopySessionName(session: Session, e: MouseEvent) {
     e.stopPropagation();
     try {
       await navigator.clipboard.writeText(session.title);
-      showToast('Session Name copied!');
+      showToast('Session title copied');
     } catch {
       showToast(session.title);
     }
     activeDropdownId = null;
+    activeDropdownCoords = null;
   }
 
   async function handleExportMarkdown(session: Session, e: MouseEvent) {
     e.stopPropagation();
     activeDropdownId = null;
+    activeDropdownCoords = null;
     try {
       const ws = sessionStore.workspaces.find(w => w.id === session.workspaceId) || sessionStore.activeWorkspace;
       const mdContent = formatSessionAsMarkdown(session, ws);
@@ -169,26 +240,50 @@
 
       const res = await downloadOrSaveMarkdown(filename, mdContent);
       if (res.success) {
-        showToast('Berhasil diekspor ke Markdown (.md)!');
+        showToast('Exported to Markdown (.md)');
       } else if (res.error) {
-        alert('Gagal mengekspor: ' + res.error);
+        alert('Failed to export: ' + res.error);
       }
     } catch (err) {
-      alert('Error ekspor Markdown: ' + String(err));
+      alert('Markdown export error: ' + String(err));
     }
   }
 
   function handleDeleteSession(session: Session, e: MouseEvent) {
     e.stopPropagation();
     activeDropdownId = null;
+    activeDropdownCoords = null;
     const ws = sessionStore.workspaces.find(w => w.id === session.workspaceId);
-    if (confirm(`Hapus sesi "${session.title}"?`)) {
-      sessionStore.closeSession(session.id);
-      if (ws && window.go?.main?.App?.DeleteGrokSession) {
-        window.go.main.App.DeleteGrokSession(ws.path, session.id).catch(console.error);
+    
+    dialogStore.openConfirm({
+      title: 'Delete Chat Session',
+      content: `Are you sure you want to delete "${session.title}"?`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      type: 'danger',
+      onConfirm: () => {
+        sessionStore.closeSession(session.id);
+        if (ws && window.go?.main?.App?.DeleteGrokSession) {
+          window.go.main.App.DeleteGrokSession(ws.path, session.id).catch(console.error);
+        }
+        showToast('Session deleted');
       }
-      showToast('Sesi berhasil dihapus');
-    }
+    });
+  }
+
+  function handleRemoveWorkspace(ws: WorkspaceFolder, e: MouseEvent) {
+    e.stopPropagation();
+    dialogStore.openConfirm({
+      title: 'Remove Workspace',
+      content: `Remove "${ws.name}" from your workspace list? Files on disk (${ws.path}) will not be modified or deleted.`,
+      confirmText: 'Remove',
+      cancelText: 'Cancel',
+      type: 'danger',
+      onConfirm: () => {
+        sessionStore.removeWorkspace(ws.id);
+        showToast(`Workspace "${ws.name}" removed`);
+      }
+    });
   }
 
   // Filter workspaces and sessions based on search query
@@ -216,15 +311,43 @@
     return pinned.sort((a, b) => (b.pinnedAt || 0) - (a.pinnedAt || 0));
   });
 
-  function getWorkspaceSessions(wsId: string): { recent: Session[] } {
+  function getWorkspaceSessions(wsId: string): { visible: Session[]; totalCount: number; hasMore: boolean; hiddenCount: number; isExpanded: boolean } {
     const q = searchQuery.toLowerCase().trim();
     let wsSessions = sessionStore.sessions.filter(s => s.workspaceId === wsId && !s.isPinned);
+
+    // Sort newest first based on updatedAt or createdAt
+    const sorted = wsSessions.sort((a, b) => {
+      const timeA = a.updatedAt || a.createdAt || 0;
+      const timeB = b.updatedAt || b.createdAt || 0;
+      return timeB - timeA;
+    });
+
     if (q) {
-      wsSessions = wsSessions.filter(s => s.title.toLowerCase().includes(q));
+      // When searching, match across all sessions (including ones normally hidden under Show More)
+      const filtered = sorted.filter(s => s.title.toLowerCase().includes(q));
+      return {
+        visible: filtered,
+        totalCount: filtered.length,
+        hasMore: false,
+        hiddenCount: 0,
+        isExpanded: false
+      };
     }
 
-    const recent = wsSessions.sort((a, b) => b.updatedAt - a.updatedAt);
-    return { recent };
+    const totalCount = sorted.length;
+    const currentLimit = getVisibleLimit(wsId);
+    const visible = sorted.slice(0, currentLimit);
+    const hasMore = totalCount > currentLimit;
+    const hiddenCount = totalCount - currentLimit;
+    const isExpanded = currentLimit > PAGE_SIZE;
+
+    return {
+      visible,
+      totalCount,
+      hasMore,
+      hiddenCount,
+      isExpanded
+    };
   }
 
   function getWorkspaceForSession(sessionId: string): WorkspaceFolder | undefined {
@@ -234,9 +357,9 @@
   }
 </script>
 
-<aside class="flex flex-col w-64 h-full bg-ant-bg-secondary border-r border-ant-border-secondary select-none relative z-20">
+<aside class="flex flex-col w-64 h-full bg-ant-bg-secondary border-r border-white/5 select-none relative z-20 font-serif">
   <!-- 1. Search Bar & Action Controls -->
-  <div class="p-2.5 border-b border-ant-border-secondary space-y-2">
+  <div class="p-2.5 border-b border-white/5 space-y-2">
     <!-- Search Bar -->
     <div class="relative flex items-center">
       <Search size={13} class="absolute left-2.5 text-ant-text-muted" />
@@ -244,7 +367,7 @@
         type="text"
         bind:value={searchQuery}
         placeholder="Filter project & session..."
-        class="w-full bg-ant-bg border border-ant-border-secondary rounded-md pl-8 pr-2.5 py-1 text-xs text-ant-text placeholder-ant-text-muted focus:border-ant-primary focus:outline-none transition-colors"
+        class="w-full bg-ant-bg-secondary/80 border border-transparent rounded-md pl-8 pr-2.5 py-1 text-xs text-ant-text placeholder-ant-text-muted focus:border-ant-primary/30 focus:bg-ant-bg focus:outline-none transition-colors"
       />
     </div>
 
@@ -253,18 +376,18 @@
       <button
         onclick={handleOpenWorkspaceFolder}
         class="flex items-center space-x-1.5 text-xs text-ant-primary hover:text-ant-primary-hover font-medium transition"
-        title="Buka Folder Workspace Baru"
+        title="Open Workspace Folder"
       >
         <FolderPlus size={14} />
-        <span>Buka Folder</span>
+        <span>Open Folder</span>
       </button>
 
       <button
         onclick={() => sessionStore.toggleSelectionMode()}
         class="text-[11px] font-medium px-2 py-0.5 rounded transition {sessionStore.isSelectionMode ? 'bg-ant-primary text-white' : 'text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary'}"
-        title="Mode Multi-select"
+        title="Toggle Multi-Select"
       >
-        {sessionStore.isSelectionMode ? 'Batal' : 'Tandai'}
+        {sessionStore.isSelectionMode ? 'Cancel' : 'Select'}
       </button>
     </div>
   </div>
@@ -273,16 +396,16 @@
   <div class="flex-1 overflow-y-auto p-2 space-y-2.5 custom-scrollbar">
     <!-- GLOBAL PINNED SESSIONS SECTION -->
     {#if globalPinnedSessions.length > 0}
-      <div class="rounded-lg bg-amber-500/5 border border-amber-500/20 overflow-hidden pb-1">
+      <div class="rounded-lg bg-amber-500/5 border border-amber-500/15 overflow-hidden pb-1">
         <div class="flex items-center justify-between px-2.5 py-1.5 bg-amber-500/10 border-b border-amber-500/15">
           <div class="flex items-center space-x-1.5">
             <Pin size={12} class="text-amber-400 fill-current" />
-            <span class="text-[11px] font-semibold text-amber-300 uppercase tracking-wider">Disematkan (Pinned)</span>
+            <span class="text-[11px] font-semibold text-amber-300 uppercase tracking-wider">Pinned</span>
             <span class="text-[10px] text-amber-400/80 font-mono">({globalPinnedSessions.length})</span>
           </div>
         </div>
 
-        <div class="p-1 space-y-1">
+        <div class="px-0.5 py-0.5 space-y-0.5">
           {#each globalPinnedSessions as session (session.id)}
             {@const isActive = sessionStore.activeSessionId === session.id}
             {@const isChecked = sessionStore.selectedSessionIds.has(session.id)}
@@ -300,13 +423,13 @@
                 }
               }}
               onkeydown={(e) => e.key === 'Enter' && sessionStore.openSessionInTab(session.id)}
-              class="group relative flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-medium cursor-pointer transition border {isActive
-                ? 'bg-ant-primary/15 text-ant-primary border-ant-primary/40 shadow-none font-semibold'
-                : 'bg-ant-bg-secondary/70 text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'}"
+              class="group relative flex items-center justify-between px-2.5 py-1.5 rounded-md text-[13px] font-sans cursor-pointer transition-colors duration-150 {isActive
+                ? 'bg-ant-primary/15 text-ant-primary font-medium'
+                : 'bg-ant-bg-secondary/40 text-ant-text/80 hover:text-ant-text hover:bg-ant-bg-tertiary/70'}"
             >
               <!-- Left: Title & Folder Badge -->
               <div class="flex flex-col min-w-0 flex-1 pr-1">
-                <div class="flex items-center space-x-1.5 min-w-0">
+                <div class="flex items-center space-x-2.5 min-w-0">
                   {#if sessionStore.isSelectionMode}
                     <button
                       type="button"
@@ -314,13 +437,13 @@
                       class="flex-shrink-0 text-ant-primary"
                     >
                       {#if isChecked}
-                        <CheckSquare size={13} class="text-ant-primary" />
+                        <CheckSquare size={14} class="text-ant-primary" />
                       {:else}
-                        <Square size={13} class="text-ant-text-muted" />
+                        <Square size={14} class="text-ant-text-muted" />
                       {/if}
                     </button>
                   {:else}
-                    <Pin size={11} class="text-amber-400 fill-current flex-shrink-0" />
+                    <Pin size={13} class="text-amber-400 fill-current flex-shrink-0" />
                   {/if}
 
                   {#if isEditing}
@@ -335,15 +458,15 @@
                       class="w-full bg-ant-bg border border-ant-primary rounded px-1.5 py-0.5 text-xs text-ant-text focus:outline-none"
                     />
                   {:else}
-                    <span class="truncate text-[11px] {isActive ? 'font-semibold text-ant-primary' : 'text-ant-text'}" title={session.title}>{session.title}</span>
+                    <span class="truncate leading-normal tracking-tight {isActive ? 'font-semibold text-ant-primary' : 'text-ant-text'}" title={session.title}>{session.title}</span>
                   {/if}
                 </div>
 
                 <!-- Workspace Badge Tag -->
                 {#if ws}
-                  <div class="flex items-center space-x-1 pl-4 pt-0.5">
-                    <Folder size={10} class="text-ant-primary flex-shrink-0" />
-                    <span class="text-[9.5px] text-ant-text-secondary font-medium truncate max-w-[140px]" title={ws.path}>{ws.name}</span>
+                  <div class="flex items-center space-x-1 pl-5 pt-0.5">
+                    <Folder size={10.5} class="text-ant-primary flex-shrink-0" />
+                    <span class="text-[10px] text-ant-text-secondary font-medium truncate max-w-[140px]" title={ws.path}>{ws.name}</span>
                   </div>
                 {/if}
               </div>
@@ -352,71 +475,13 @@
               <div class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                 <button
                   type="button"
-                  onclick={(e) => {
-                    e.stopPropagation();
-                    activeDropdownId = activeDropdownId === session.id ? null : session.id;
-                  }}
-                  class="session-more-btn p-1 text-ant-text-secondary hover:text-ant-text rounded hover:bg-ant-bg-tertiary transition"
-                  title="Opsi Sesi"
+                  onclick={(e) => toggleDropdown(session.id, e)}
+                  class="session-more-btn p-0.5 text-ant-text-secondary hover:text-ant-text rounded hover:bg-ant-bg-tertiary transition"
+                  title="Session Options"
                 >
-                  <MoreVertical size={14} />
+                  <MoreVertical size={13.5} />
                 </button>
               </div>
-
-              <!-- Dropdown Menu with click-outside protection -->
-              {#if activeDropdownId === session.id}
-                <div
-                  role="menu"
-                  tabindex="-1"
-                  onclick={(e) => e.stopPropagation()}
-                  onkeydown={(e) => { if (e.key === 'Escape') activeDropdownId = null; }}
-                  class="session-dropdown-menu absolute right-2 top-8 w-44 bg-ant-bg border border-ant-border rounded-lg shadow-2xl z-50 py-1 text-xs select-none"
-                >
-                  <button
-                    onclick={(e) => handleTogglePin(session, e)}
-                    class="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-ant-bg-tertiary text-amber-300 transition text-left"
-                  >
-                    <Pin size={12} />
-                    <span>Unpin Conversation</span>
-                  </button>
-                  <button
-                    onclick={(e) => handleStartRename(session, e)}
-                    class="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-ant-bg-tertiary text-ant-text transition text-left"
-                  >
-                    <Edit2 size={12} />
-                    <span>Ganti Nama (Rename)</span>
-                  </button>
-                  <button
-                    onclick={(e) => handleExportMarkdown(session, e)}
-                    class="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-ant-bg-tertiary text-ant-text transition text-left"
-                  >
-                    <FileText size={12} />
-                    <span>Export as .md</span>
-                  </button>
-                  <button
-                    onclick={(e) => handleCopySessionId(session, e)}
-                    class="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-ant-bg-tertiary text-ant-text transition text-left"
-                  >
-                    <Copy size={12} />
-                    <span>Salin Session ID</span>
-                  </button>
-                  <button
-                    onclick={(e) => handleCopySessionName(session, e)}
-                    class="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-ant-bg-tertiary text-ant-text transition text-left"
-                  >
-                    <Tag size={12} />
-                    <span>Salin Nama Sesi</span>
-                  </button>
-                  <div class="border-t border-ant-border my-1"></div>
-                  <button
-                    onclick={(e) => handleDeleteSession(session, e)}
-                    class="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-ant-error/10 text-ant-error transition text-left"
-                  >
-                    <Trash2 size={12} />
-                    <span>Hapus Sesi</span>
-                  </button>
-                </div>
-              {/if}
             </div>
           {/each}
         </div>
@@ -425,60 +490,91 @@
 
     <!-- WORKSPACE TREES -->
     {#each filteredWorkspaces as ws (ws.id)}
-      {@const isExpanded = ws.isExpanded !== false}
-      {@const { recent } = getWorkspaceSessions(ws.id)}
-      {@const totalCount = recent.length}
+      {@const isExpanded = ws.isExpanded === true}
+      {@const { visible, totalCount, hasMore, hiddenCount } = getWorkspaceSessions(ws.id)}
+      {@const isMissing = ws.existsOnDisk === false}
+      {@const isListExpanded = expandedWorkspaceSessionIds.has(ws.id)}
 
-      <div class="rounded-lg bg-ant-bg/60 border border-ant-border-secondary/60 overflow-hidden">
+      <div class="rounded-lg {isMissing ? 'bg-rose-500/5 border border-rose-500/20' : 'bg-ant-bg-tertiary/20 border border-white/5'} overflow-hidden">
         <!-- Workspace Folder Header -->
         <div
           role="button"
           tabindex="0"
-          onclick={() => sessionStore.toggleWorkspaceExpanded(ws.id)}
-          onkeydown={(e) => e.key === 'Enter' && sessionStore.toggleWorkspaceExpanded(ws.id)}
-          class="flex items-center justify-between px-2.5 py-1.5 bg-ant-bg-tertiary/60 hover:bg-ant-bg-tertiary cursor-pointer transition select-none group"
+          onclick={() => {
+            if (!isMissing) {
+              handleToggleWorkspace(ws.id);
+            }
+          }}
+          onkeydown={(e) => {
+            if (e.key === 'Enter' && !isMissing) handleToggleWorkspace(ws.id);
+          }}
+          class="flex items-center justify-between px-2.5 py-1.5 {isMissing ? 'bg-rose-500/10 cursor-not-allowed opacity-90' : 'bg-ant-bg-secondary/60 hover:bg-ant-bg-tertiary/60 cursor-pointer'} transition select-none group"
+          title={isMissing ? `Folder ini sudah tidak ada lagi di disk: ${ws.path}` : ws.path}
         >
           <div class="flex items-center space-x-1.5 min-w-0 flex-1">
-            <span class="text-ant-text-muted transition-transform">
-              {#if isExpanded}
+            <span class="{isMissing ? 'text-rose-400' : 'text-ant-text-muted'} transition-transform">
+              {#if isExpanded && !isMissing}
                 <ChevronDown size={13} />
               {:else}
                 <ChevronRight size={13} />
               {/if}
             </span>
-            <Folder size={14} class="text-ant-primary flex-shrink-0" />
-            <span class="text-xs font-semibold text-ant-text truncate max-w-[110px]" title={ws.path}>{ws.name}</span>
-            <span class="text-[10px] text-ant-text-muted font-mono">({totalCount})</span>
+            <Folder size={14} class="{isMissing ? 'text-rose-400' : 'text-ant-primary'} flex-shrink-0" />
+            <span class="text-xs font-semibold {isMissing ? 'text-rose-300 line-through' : 'text-ant-text'} truncate max-w-[110px]" title={ws.path}>{ws.name}</span>
+            {#if isMissing}
+              <span class="text-[9px] bg-rose-500/20 text-rose-300 px-1 py-0.2 rounded font-medium ml-1">Missing</span>
+            {:else}
+              <span class="text-[10px] text-ant-text-muted font-mono">({totalCount})</span>
+            {/if}
           </div>
 
           <!-- Workspace Actions -->
-          <div class="flex items-center space-x-1 opacity-80 group-hover:opacity-100">
-            <button
-              type="button"
-              onclick={(e) => { e.stopPropagation(); syncGrokSessionsForWorkspace(ws.id, ws.path); showToast('Memperbarui session Grok...'); }}
-              class="p-1 rounded text-ant-text-muted hover:text-ant-text hover:bg-ant-bg transition"
-              title="Refresh / Sync Grok Sessions"
-            >
-              <RefreshCw size={11} />
-            </button>
-            <button
-              type="button"
-              onclick={(e) => { e.stopPropagation(); handleCreateNewSession(ws.id); }}
-              class="p-1 rounded text-ant-primary hover:bg-ant-primary/15 transition flex items-center"
-              title="Buat Sesi Baru di Folder ini"
-            >
-              <Plus size={13} />
-            </button>
+          <div class="flex items-center space-x-0.5 opacity-80 group-hover:opacity-100">
+            {#if isMissing}
+              <button
+                type="button"
+                onclick={(e) => handleRemoveWorkspace(ws, e)}
+                class="p-1 rounded text-rose-400 hover:bg-rose-500/20 transition flex items-center"
+                title="Hapus workspace yang hilang dari daftar"
+              >
+                <Trash2 size={12} />
+              </button>
+            {:else}
+              <button
+                type="button"
+                onclick={(e) => { e.stopPropagation(); syncGrokSessionsForWorkspace(ws.id, ws.path); showToast('Memperbarui session Grok...'); }}
+                class="p-1 rounded text-ant-text-muted hover:text-ant-text hover:bg-ant-bg transition"
+                title="Refresh / Sync Grok Sessions"
+              >
+                <RefreshCw size={11} />
+              </button>
+              <button
+                type="button"
+                onclick={(e) => { e.stopPropagation(); handleCreateNewSession(ws.id); }}
+                class="p-1 rounded text-ant-primary hover:bg-ant-primary/15 transition flex items-center"
+                title="Buat Sesi Baru di Folder ini"
+              >
+                <Plus size={13} />
+              </button>
+              <button
+                type="button"
+                onclick={(e) => handleRemoveWorkspace(ws, e)}
+                class="p-1 rounded text-ant-text-muted hover:text-ant-error hover:bg-ant-error/15 transition flex items-center"
+                title="Hapus Folder Workspace dari Daftar"
+              >
+                <Trash2 size={12} />
+              </button>
+            {/if}
           </div>
         </div>
 
         <!-- Collapsible Sessions under this Workspace -->
-        {#if isExpanded}
-          <div class="p-1.5 space-y-1">
+        {#if isExpanded && !isMissing}
+          <div class="px-0.5 py-0.5 space-y-0.5">
             <!-- Recent Sessions List -->
-            {#if recent.length > 0}
-              <div class="space-y-1">
-                {#each recent as session (session.id)}
+            {#if visible.length > 0}
+              <div class="space-y-0.5">
+                {#each visible as session (session.id)}
                   {@const isActive = sessionStore.activeSessionId === session.id}
                   {@const isChecked = sessionStore.selectedSessionIds.has(session.id)}
                   {@const meta = STATUS_META[session.status]}
@@ -495,12 +591,12 @@
                       }
                     }}
                     onkeydown={(e) => e.key === 'Enter' && sessionStore.openSessionInTab(session.id)}
-                    class="group relative flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-medium cursor-pointer transition border {isActive
-                      ? 'bg-ant-primary/15 text-ant-primary border-ant-primary/40 shadow-none font-semibold'
-                      : 'bg-ant-bg-secondary/40 text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'}"
+                    class="group relative flex items-center justify-between px-2.5 py-1.5 rounded-md text-[13px] font-sans cursor-pointer transition-colors duration-150 {isActive
+                      ? 'bg-ant-primary/15 text-ant-primary font-medium'
+                      : 'bg-transparent text-ant-text/80 hover:text-ant-text hover:bg-ant-bg-tertiary/70'}"
                   >
-                    <!-- Left: Checkbox/Dot & Title -->
-                    <div class="flex items-center space-x-1.5 min-w-0 flex-1">
+                    <!-- Left: Checkbox/Icon Status & Title -->
+                    <div class="flex items-center space-x-2.5 min-w-0 flex-1">
                       {#if sessionStore.isSelectionMode}
                         <button
                           type="button"
@@ -508,16 +604,28 @@
                           class="flex-shrink-0 text-ant-primary"
                         >
                           {#if isChecked}
-                            <CheckSquare size={13} class="text-ant-primary" />
+                            <CheckSquare size={14} class="text-ant-primary" />
                           {:else}
-                            <Square size={13} class="text-ant-text-muted" />
+                            <Square size={14} class="text-ant-text-muted" />
                           {/if}
                         </button>
+                      {:else if session.status === 'working'}
+                        <span class="flex items-center justify-center flex-shrink-0 text-ant-primary" title="Status: Working / Generating...">
+                          <Loader2 size={13.5} class="animate-spin" />
+                        </span>
+                      {:else if session.status === 'waiting_permission'}
+                        <span class="flex items-center justify-center flex-shrink-0 text-amber-400" title="Status: Waiting Permission">
+                          <AlertCircle size={13.5} class="animate-bounce" />
+                        </span>
+                      {:else if session.status === 'finished'}
+                        <span class="flex items-center justify-center flex-shrink-0 text-ant-success/70 group-hover:text-ant-success transition" title="Status: Completed">
+                          <CheckCircle2 size={13.5} />
+                        </span>
                       {:else}
-                        <span
-                          class="w-1.5 h-1.5 rounded-full flex-shrink-0 {meta.dotClass}"
-                          title="Status: {meta.label}"
-                        ></span>
+                        <!-- Idle / Normal Session Icon -->
+                        <span class="flex items-center justify-center flex-shrink-0 {isActive ? 'text-ant-primary' : 'text-ant-text-muted/70 group-hover:text-ant-text-secondary'} transition" title="Chat Session">
+                          <MessageSquare size={13.5} />
+                        </span>
                       {/if}
 
                       {#if isEditing}
@@ -532,7 +640,7 @@
                           class="w-full bg-ant-bg border border-ant-primary rounded px-1.5 py-0.5 text-xs text-ant-text focus:outline-none"
                         />
                       {:else}
-                        <span class="truncate text-[11px] {isActive ? 'font-semibold text-ant-primary' : 'text-ant-text'}" title={session.title}>{session.title}</span>
+                        <span class="truncate leading-normal tracking-tight {isActive ? 'font-semibold text-ant-primary' : 'text-ant-text'}" title={session.title}>{session.title}</span>
                       {/if}
                     </div>
 
@@ -540,77 +648,45 @@
                     <div class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         type="button"
-                        onclick={(e) => {
-                          e.stopPropagation();
-                          activeDropdownId = activeDropdownId === session.id ? null : session.id;
-                        }}
-                        class="session-more-btn p-1 text-ant-text-secondary hover:text-ant-text rounded hover:bg-ant-bg-tertiary transition"
-                        title="Opsi Sesi"
+                        onclick={(e) => toggleDropdown(session.id, e)}
+                        class="session-more-btn p-0.5 text-ant-text-secondary hover:text-ant-text rounded hover:bg-ant-bg-tertiary transition"
+                        title="Session Options"
                       >
-                        <MoreVertical size={14} />
+                        <MoreVertical size={13.5} />
                       </button>
                     </div>
-
-                    <!-- Dropdown Menu -->
-                    {#if activeDropdownId === session.id}
-                      <div
-                        role="menu"
-                        tabindex="-1"
-                        onclick={(e) => e.stopPropagation()}
-                        onkeydown={(e) => { if (e.key === 'Escape') activeDropdownId = null; }}
-                        class="session-dropdown-menu absolute right-2 top-8 w-44 bg-ant-bg border border-ant-border rounded-lg shadow-2xl z-50 py-1 text-xs select-none"
-                      >
-                        <button
-                          onclick={(e) => handleTogglePin(session, e)}
-                          class="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-ant-bg-tertiary text-amber-300 transition text-left"
-                        >
-                          <Pin size={12} />
-                          <span>Pin Conversation</span>
-                        </button>
-                        <button
-                          onclick={(e) => handleStartRename(session, e)}
-                          class="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-ant-bg-tertiary text-ant-text transition text-left"
-                        >
-                          <Edit2 size={12} />
-                          <span>Ganti Nama (Rename)</span>
-                        </button>
-                        <button
-                          onclick={(e) => handleExportMarkdown(session, e)}
-                          class="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-ant-bg-tertiary text-ant-text transition text-left"
-                        >
-                          <FileText size={12} />
-                          <span>Export as .md</span>
-                        </button>
-                        <button
-                          onclick={(e) => handleCopySessionId(session, e)}
-                          class="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-ant-bg-tertiary text-ant-text transition text-left"
-                        >
-                          <Copy size={12} />
-                          <span>Salin Session ID</span>
-                        </button>
-                        <button
-                          onclick={(e) => handleCopySessionName(session, e)}
-                          class="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-ant-bg-tertiary text-ant-text transition text-left"
-                        >
-                          <Tag size={12} />
-                          <span>Salin Nama Sesi</span>
-                        </button>
-                        <div class="border-t border-ant-border my-1"></div>
-                        <button
-                          onclick={(e) => handleDeleteSession(session, e)}
-                          class="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-ant-error/10 text-ant-error transition text-left"
-                        >
-                          <Trash2 size={12} />
-                          <span>Hapus Sesi</span>
-                        </button>
-                      </div>
-                    {/if}
                   </div>
                 {/each}
               </div>
+
+              <!-- Show More / Show Less Toggle Button -->
+              {#if hasMore || isExpanded}
+                <div class="pt-0.5 pb-1 px-1 flex items-center space-x-1">
+                  {#if hasMore}
+                    <button
+                      type="button"
+                      onclick={(e) => { e.stopPropagation(); handleShowMore(ws.id); }}
+                      class="flex-1 flex items-center justify-center space-x-1 py-1 px-2 rounded text-[11px] font-medium text-ant-primary hover:bg-ant-primary/10 transition-colors"
+                    >
+                      <span>Show More (+{Math.min(PAGE_SIZE, hiddenCount)})</span>
+                      <span class="text-xs">▾</span>
+                    </button>
+                  {/if}
+                  {#if isExpanded}
+                    <button
+                      type="button"
+                      onclick={(e) => { e.stopPropagation(); handleShowLess(ws.id); }}
+                      class="{hasMore ? 'px-2' : 'w-full'} flex items-center justify-center space-x-1 py-1 px-2 rounded text-[11px] font-medium text-ant-text-muted hover:text-ant-text hover:bg-ant-bg-tertiary transition-colors"
+                    >
+                      <span>Show Less</span>
+                      <span class="text-xs">▴</span>
+                    </button>
+                  {/if}
+                </div>
+              {/if}
             {:else}
               <div class="px-3 py-2 text-[11px] text-ant-text-muted italic text-center">
-                Belum ada sesi di folder ini
+                No sessions in this folder yet
               </div>
             {/if}
           </div>
@@ -618,6 +694,65 @@
       </div>
     {/each}
   </div>
+
+  <!-- Global Fixed Dropdown Menu (Portal) to prevent parent overflow clipping -->
+  {#if activeDropdownId && activeDropdownCoords}
+    {@const activeSession = sessionStore.sessions.find(s => s.id === activeDropdownId)}
+    {#if activeSession}
+      <div
+        role="menu"
+        tabindex="-1"
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => { if (e.key === 'Escape') activeDropdownId = null; }}
+        style="top: {activeDropdownCoords.top}px; right: {activeDropdownCoords.right}px;"
+        class="session-dropdown-menu fixed w-48 bg-ant-bg-secondary/95 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl z-[9999] py-1 text-xs select-none font-serif animate-fade-in"
+      >
+        <button
+          onclick={(e) => handleTogglePin(activeSession, e)}
+          class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-bg-tertiary text-amber-300 transition text-left"
+        >
+          <Pin size={12.5} />
+          <span>{activeSession.isPinned ? 'Unpin Conversation' : 'Pin Conversation'}</span>
+        </button>
+        <button
+          onclick={(e) => handleStartRename(activeSession, e)}
+          class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-bg-tertiary text-ant-text transition text-left"
+        >
+          <Edit2 size={12.5} />
+          <span>Rename</span>
+        </button>
+        <button
+          onclick={(e) => handleExportMarkdown(activeSession, e)}
+          class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-bg-tertiary text-ant-text transition text-left"
+        >
+          <FileText size={12.5} />
+          <span>Export as .md</span>
+        </button>
+        <button
+          onclick={(e) => handleCopySessionId(activeSession, e)}
+          class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-bg-tertiary text-ant-text transition text-left"
+        >
+          <Copy size={12.5} />
+          <span>Copy Session ID</span>
+        </button>
+        <button
+          onclick={(e) => handleCopySessionName(activeSession, e)}
+          class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-bg-tertiary text-ant-text transition text-left"
+        >
+          <Tag size={12.5} />
+          <span>Copy Session Title</span>
+        </button>
+        <div class="border-t border-white/5 my-1"></div>
+        <button
+          onclick={(e) => handleDeleteSession(activeSession, e)}
+          class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-error/15 text-ant-error transition text-left"
+        >
+          <Trash2 size={12.5} />
+          <span>Delete Session</span>
+        </button>
+      </div>
+    {/if}
+  {/if}
 
   <!-- 3. Multi-Select Batch Actions Footer Bar -->
   <BatchActionBar />

@@ -189,6 +189,43 @@ export namespace grokrunner {
 		    return a;
 		}
 	}
+	
+	export class SessionUsageStats {
+	    sessionId: string;
+	    usedTokens: number;
+	    maxTokens: number;
+	    lastTurnInput: number;
+	    lastTurnOutput: number;
+	    lastTurnCacheRead: number;
+	    lastTurnReasoning: number;
+	    lastTurnModelCalls: number;
+	    totalInput: number;
+	    totalOutput: number;
+	    totalCacheRead: number;
+	    turnCount: number;
+	    primaryModelId: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SessionUsageStats(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessionId = source["sessionId"];
+	        this.usedTokens = source["usedTokens"];
+	        this.maxTokens = source["maxTokens"];
+	        this.lastTurnInput = source["lastTurnInput"];
+	        this.lastTurnOutput = source["lastTurnOutput"];
+	        this.lastTurnCacheRead = source["lastTurnCacheRead"];
+	        this.lastTurnReasoning = source["lastTurnReasoning"];
+	        this.lastTurnModelCalls = source["lastTurnModelCalls"];
+	        this.totalInput = source["totalInput"];
+	        this.totalOutput = source["totalOutput"];
+	        this.totalCacheRead = source["totalCacheRead"];
+	        this.turnCount = source["turnCount"];
+	        this.primaryModelId = source["primaryModelId"];
+	    }
+	}
 
 }
 
@@ -200,6 +237,7 @@ export namespace screen {
 	    base64: string;
 	    width: number;
 	    height: number;
+	    sizeBytes: number;
 	    timestamp: number;
 	
 	    static createFrom(source: any = {}) {
@@ -213,6 +251,7 @@ export namespace screen {
 	        this.base64 = source["base64"];
 	        this.width = source["width"];
 	        this.height = source["height"];
+	        this.sizeBytes = source["sizeBytes"];
 	        this.timestamp = source["timestamp"];
 	    }
 	}

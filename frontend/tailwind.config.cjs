@@ -4,6 +4,49 @@ module.exports = {
   darkMode: 'class',
   theme: {
     extend: {
+      fontFamily: {
+        sans: [
+          '"Anthropic Serif Text"',
+          '"Anthropic Serif"',
+          'Newsreader',
+          'Source Serif 4',
+          'Charter',
+          'Iowan Old Style',
+          'Palatino',
+          'Georgia',
+          'serif'
+        ],
+        serif: [
+          '"Anthropic Serif Text"',
+          '"Anthropic Serif"',
+          'Newsreader',
+          'Source Serif 4',
+          'Charter',
+          'Iowan Old Style',
+          'Palatino',
+          'Georgia',
+          'serif'
+        ],
+        'serif-display': [
+          '"Anthropic Serif Display"',
+          '"Anthropic Serif"',
+          'Newsreader',
+          'Source Serif 4',
+          'Charter',
+          'Georgia',
+          'serif'
+        ],
+        mono: [
+          'Fira Code',
+          'JetBrains Mono',
+          'ui-monospace',
+          'SFMono-Regular',
+          'Menlo',
+          'Monaco',
+          'Consolas',
+          'monospace'
+        ]
+      },
       colors: {
         ant: {
           primary: 'var(--ant-primary, #1677ff)',

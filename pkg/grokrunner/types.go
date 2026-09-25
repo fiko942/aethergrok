@@ -95,6 +95,23 @@ type DiscoveredToolCall struct {
 	EndTime   int64                  `json:"endTime,omitempty"`
 }
 
+// SessionUsageStats holds comprehensive token breakdown for a session
+type SessionUsageStats struct {
+	SessionID          string `json:"sessionId"`
+	UsedTokens         int64  `json:"usedTokens"`
+	MaxTokens          int64  `json:"maxTokens"`
+	LastTurnInput      int64  `json:"lastTurnInput"`
+	LastTurnOutput     int64  `json:"lastTurnOutput"`
+	LastTurnCacheRead  int64  `json:"lastTurnCacheRead"`
+	LastTurnReasoning  int64  `json:"lastTurnReasoning"`
+	LastTurnModelCalls int64  `json:"lastTurnModelCalls"`
+	TotalInput         int64  `json:"totalInput"`
+	TotalOutput        int64  `json:"totalOutput"`
+	TotalCacheRead     int64  `json:"totalCacheRead"`
+	TurnCount          int    `json:"turnCount"`
+	PrimaryModelID     string `json:"primaryModelId"`
+}
+
 // TurnCompleteEvent signals that the turn has completed
 type TurnCompleteEvent struct {
 	SessionID     string `json:"sessionId"`

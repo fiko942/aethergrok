@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { ChevronRight, ChevronDown } from 'lucide-svelte';
+  import { ChevronRight, ChevronDown, Loader2, Sparkles } from 'lucide-svelte';
 
   interface Props {
     usedTokens?: number;
@@ -13,6 +13,7 @@
     totalInput?: number;
     totalOutput?: number;
     totalCacheRead?: number;
+    isCompacting?: boolean;
     onCompact?: () => void;
   }
 
@@ -27,6 +28,7 @@
     totalInput = 133089013,
     totalOutput = 621193,
     totalCacheRead = 69119302,
+    isCompacting = false,
     onCompact
   }: Props = $props();
 
@@ -107,68 +109,84 @@
   <button
     type="button"
     onclick={toggleOpen}
-    class="flex items-center space-x-1.5 px-2 py-1 rounded-lg text-xs font-mono text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary transition-colors {isOpen ? 'bg-ant-bg-tertiary text-ant-text' : ''}"
-    title="View context window and token usage"
+    class="flex items-center space-x-1.5 px-2 py-1 rounded-lg text-xs font-mono text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary transition-colors {isOpen ? 'bg-ant-bg-tertiary text-ant-text' : ''} {isCompacting ? 'ring-1 ring-ant-primary/40 bg-ant-primary/10' : ''}"
+    title={isCompacting ? "Compacting conversation context..." : "View context window & token usage"}
   >
-    <!-- SVG Circular Donut Chart -->
-    <svg width="15" height="15" viewBox="0 0 16 16" class="flex-shrink-0 -rotate-90">
-      <circle
-        cx="8"
-        cy="8"
-        r={radius}
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2.5"
-        class={donutTrackClass}
-      />
-      <circle
-        cx="8"
-        cy="8"
-        r={radius}
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2.5"
-        stroke-dasharray={circumference}
-        stroke-dashoffset={strokeDashoffset}
-        stroke-linecap="round"
-        class="{donutColorClass} transition-all duration-300"
-      />
-    </svg>
+    {#if isCompacting}
+      <!-- Loading Spinning Indicator -->
+      <Loader2 size={13} class="animate-spin text-ant-primary flex-shrink-0" />
+      <span class="text-[11px] font-medium text-ant-primary tracking-tight animate-pulse">Compacting...</span>
+    {:else}
+      <!-- SVG Circular Donut Chart -->
+      <svg width="15" height="15" viewBox="0 0 16 16" class="flex-shrink-0 -rotate-90">
+        <circle
+          cx="8"
+          cy="8"
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          class={donutTrackClass}
+        />
+        <circle
+          cx="8"
+          cy="8"
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-dasharray={circumference}
+          stroke-dashoffset={strokeDashoffset}
+          stroke-linecap="round"
+          class="{donutColorClass} transition-all duration-300"
+        />
+      </svg>
 
-    <span class="text-[11px] font-mono tracking-tight">{formattedShortUsed}/{formattedShortMax}</span>
+      <span class="text-[11px] font-mono tracking-tight">{formattedShortUsed}/{formattedShortMax}</span>
+    {/if}
   </button>
 
   <!-- Detailed Usage Popover (Matching screenshot) -->
   {#if isOpen}
     <div
-      class="absolute bottom-full left-0 mb-2.5 w-80 bg-ant-bg border border-ant-border-secondary rounded-xl shadow-2xl z-50 p-4 select-none text-xs animate-in fade-in zoom-in-95 duration-100"
+      class="absolute bottom-full left-0 mb-2.5 w-80 bg-ant-bg border border-white/5 rounded-xl shadow-2xl shadow-black/80 z-50 p-4 select-none text-xs animate-in fade-in zoom-in-95 duration-100"
       role="dialog"
       aria-label="Context usage"
     >
       <!-- Header Row: Context used & Compact link -->
-      <div class="flex items-center justify-between pb-2 border-b border-ant-border-secondary/60">
+      <div class="flex items-center justify-between pb-2 border-b border-white/5">
         <span class="font-medium text-ant-text">Context used</span>
         <span class="font-mono text-ant-text-secondary text-[11px]">
           {usedTokens.toLocaleString()} / {maxTokens.toLocaleString()} ({percentage}%)
         </span>
       </div>
 
-      <!-- Action: Compact Conversation Link -->
-      <div class="py-2">
-        <button
-          type="button"
-          onclick={() => {
-            onCompact?.();
-            isOpen = false;
-          }}
-          class="text-ant-primary hover:underline text-xs font-medium transition"
-        >
-          Compact conversation
-        </button>
+      <!-- Action: Compact Conversation Link / Loading state -->
+      <div class="py-2.5">
+        {#if isCompacting}
+          <div class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg bg-ant-primary/10 border border-transparent text-ant-primary">
+            <Loader2 size={13} class="animate-spin flex-shrink-0" />
+            <div class="flex flex-col">
+              <span class="text-xs font-medium">Compacting conversation...</span>
+              <span class="text-[10px] text-ant-text-muted">Summarizing turns & reclaiming context tokens</span>
+            </div>
+          </div>
+        {:else}
+          <button
+            type="button"
+            onclick={() => {
+              onCompact?.();
+            }}
+            class="flex items-center space-x-1.5 text-ant-primary hover:text-ant-primary-hover hover:underline text-xs font-medium transition"
+          >
+            <Sparkles size={13} class="text-ant-primary" />
+            <span>Compact conversation</span>
+          </button>
+        {/if}
       </div>
 
       <!-- Breakdown: SESSION TOTAL Section -->
-      <div class="border-t border-ant-border-secondary/60 pt-2 space-y-1.5">
+      <div class="border-t border-white/5 pt-2 space-y-1.5">
         <button
           type="button"
           onclick={() => isSessionTotalExpanded = !isSessionTotalExpanded}
@@ -201,7 +219,7 @@
       </div>
 
       <!-- Breakdown: LAST TURN Section -->
-      <div class="border-t border-ant-border-secondary/60 pt-2 mt-2 space-y-1.5">
+      <div class="border-t border-white/5 pt-2 mt-2 space-y-1.5">
         <button
           type="button"
           onclick={() => isLastTurnExpanded = !isLastTurnExpanded}
@@ -233,7 +251,7 @@
               <span>↳ reasoning</span>
               <span>{lastTurnReasoning.toLocaleString()}</span>
             </div>
-            <div class="flex items-center justify-between pt-1 border-t border-ant-border-secondary/30">
+            <div class="flex items-center justify-between pt-1 border-t border-white/5">
               <span>Model calls</span>
               <span class="text-ant-text">{lastTurnModelCalls}</span>
             </div>
@@ -242,7 +260,7 @@
       </div>
 
       <!-- Footer Note (Matching screenshot copy verbatim) -->
-      <div class="mt-3 pt-2 border-t border-ant-border-secondary/60 text-[10px] text-ant-text-muted leading-relaxed">
+      <div class="mt-3 pt-2 border-t border-white/5 text-[10px] text-ant-text-muted leading-relaxed">
         Context is how full the window is. Token counts are billed usage tracked here — each model call re-sends the conversation, so a turn bills far more than the context it holds.
       </div>
     </div>

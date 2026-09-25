@@ -57,6 +57,21 @@ export interface ChatMessage {
   isSteer?: boolean;
 }
 
+export interface SessionUsage {
+  usedTokens: number;
+  maxTokens: number;
+  lastTurnInput: number;
+  lastTurnOutput: number;
+  lastTurnCacheRead: number;
+  lastTurnReasoning: number;
+  lastTurnModelCalls: number;
+  totalInput: number;
+  totalOutput: number;
+  totalCacheRead: number;
+  turnCount: number;
+  primaryModelId: string;
+}
+
 export interface Session {
   id: string;
   grokSessionId?: string; // Real UUID discovered from Grok CLI execution
@@ -72,6 +87,7 @@ export interface Session {
   pendingPermission?: PermissionRequest | null;
   isPinned?: boolean;
   pinnedAt?: number;
+  usage?: SessionUsage;
 }
 
 export interface WorkspaceFolder {
@@ -80,6 +96,7 @@ export interface WorkspaceFolder {
   path: string; // e.g. "/Users/fiko942/Desktop/affilia"
   createdAt: number;
   isExpanded?: boolean;
+  existsOnDisk?: boolean;
 }
 
 export const STATUS_META: Record<SessionStatus, { label: string; dotClass: string; hex: string; icon: string }> = {
@@ -118,6 +135,8 @@ export const STATUS_META: Record<SessionStatus, { label: string; dotClass: strin
 export const DEFAULT_WINDOW_TURNS = 10;
 export const PREPEND_CHUNK_TURNS = 10;
 
+const WORKSPACES_STORAGE_KEY = 'aethergrok_workspaces_v1';
+
 class SessionStore {
   workspaces = $state<WorkspaceFolder[]>([]);
   activeWorkspaceId = $state<string>('');
@@ -129,22 +148,93 @@ class SessionStore {
   isSelectionMode = $state<boolean>(false);
   selectedSessionIds = $state<Set<string>>(new Set());
 
+  // Compaction state
+  isCompacting = $state<boolean>(false);
+  lastCompactNotice = $state<{ type: 'in_progress' | 'success' | 'error'; message: string; tokensBefore?: number; tokensAfter?: number } | null>(null);
+
   constructor() {
-    // Initialize default workspace
-    const defaultWs: WorkspaceFolder = {
-      id: 'ws_affilia_root',
-      name: 'affilia',
-      path: '/Users/fiko942/Desktop/affilia',
-      createdAt: Date.now()
-    };
-    this.workspaces = [defaultWs];
-    this.activeWorkspaceId = defaultWs.id;
+    this.loadWorkspacesFromStorage();
+
+    // Ensure we have at least one workspace
+    if (this.workspaces.length === 0) {
+      const defaultWs: WorkspaceFolder = {
+        id: 'ws_affilia_root',
+        name: 'affilia',
+        path: '/Users/fiko942/Desktop/affilia',
+        createdAt: Date.now(),
+        existsOnDisk: true,
+        isExpanded: false
+      };
+      this.workspaces = [defaultWs];
+      this.activeWorkspaceId = defaultWs.id;
+    }
+
+    // Workspaces default to collapsed unless explicitly expanded by user
+    for (const ws of this.workspaces) {
+      if (ws.isExpanded === undefined) {
+        ws.isExpanded = false;
+      }
+    }
+
+    if (!this.activeWorkspaceId || !this.workspaces.some(w => w.id === this.activeWorkspaceId)) {
+      this.activeWorkspaceId = this.workspaces[0].id;
+    }
 
     // Initialize with a default session linked to default workspace
-    const initialSession = this.createNewSessionModel('Log Audit & Automation', defaultWs.id);
+    const initialSession = this.createNewSessionModel('Log Audit & Automation', this.activeWorkspaceId);
     this.sessions = [initialSession];
     this.activeSessionId = initialSession.id;
     this.openTabSessionIds = [initialSession.id];
+
+    // Trigger verification of workspaces on disk
+    if (typeof window !== 'undefined') {
+      setTimeout(() => {
+        this.verifyAllWorkspaces();
+      }, 100);
+    }
+  }
+
+  private loadWorkspacesFromStorage() {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    try {
+      const raw = window.localStorage.getItem(WORKSPACES_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          this.workspaces = parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load workspaces from storage:', e);
+    }
+  }
+
+  private saveWorkspacesToStorage() {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    try {
+      window.localStorage.setItem(WORKSPACES_STORAGE_KEY, JSON.stringify(this.workspaces));
+    } catch (e) {
+      console.warn('Failed to save workspaces to storage:', e);
+    }
+  }
+
+  async verifyAllWorkspaces(): Promise<void> {
+    if (typeof window === 'undefined') return;
+
+    for (const ws of this.workspaces) {
+      if (window.go?.main?.App?.CheckDirectoryExists) {
+        try {
+          const exists = await window.go.main.App.CheckDirectoryExists(ws.path);
+          ws.existsOnDisk = exists;
+        } catch {
+          ws.existsOnDisk = true;
+        }
+      } else {
+        // Fallback for browser preview
+        ws.existsOnDisk = true;
+      }
+    }
+    this.saveWorkspacesToStorage();
   }
 
   private createNewSessionModel(title?: string, wsId?: string): Session {
@@ -239,7 +329,9 @@ class SessionStore {
   addWorkspace(name: string, path: string): WorkspaceFolder {
     const existing = this.workspaces.find((w) => w.path === path);
     if (existing) {
+      existing.existsOnDisk = true;
       this.activeWorkspaceId = existing.id;
+      this.saveWorkspacesToStorage();
       return existing;
     }
 
@@ -248,14 +340,25 @@ class SessionStore {
       id,
       name,
       path,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      existsOnDisk: true,
+      isExpanded: false
     };
     this.workspaces.push(newWs);
     this.activeWorkspaceId = id;
+    this.saveWorkspacesToStorage();
 
     // Create a starter session for the newly added workspace
     this.createSession(`New ${name} Task`, id);
     return newWs;
+  }
+
+  toggleWorkspaceExpanded(wsId: string): void {
+    const ws = this.workspaces.find((w) => w.id === wsId);
+    if (ws) {
+      ws.isExpanded = ws.isExpanded === false ? true : false;
+      this.saveWorkspacesToStorage();
+    }
   }
 
   switchWorkspace(id: string): void {
@@ -279,6 +382,7 @@ class SessionStore {
     this.workspaces.splice(index, 1);
     // Remove associated sessions
     this.sessions = this.sessions.filter((s) => s.workspaceId !== id);
+    this.saveWorkspacesToStorage();
 
     if (this.workspaces.length === 0) {
       const fallback = this.addWorkspace('default', '/');
@@ -368,6 +472,130 @@ class SessionStore {
     if (target.messages.length === 0) {
       await this.loadSessionHistoryFromDisk(target);
     }
+
+    // Load or update token usage stats for this session
+    await this.loadSessionUsage(target);
+  }
+
+  // Load token usage stats from Go backend
+  async loadSessionUsage(session: Session): Promise<void> {
+    const ws = this.workspaces.find((w) => w.id === session.workspaceId);
+    if (!ws || !ws.path) return;
+
+    if (window.go?.main?.App?.GetSessionUsage) {
+      try {
+        const stats = await window.go.main.App.GetSessionUsage(ws.path, session.id);
+        if (stats) {
+          session.usage = {
+            usedTokens: stats.usedTokens || 0,
+            maxTokens: stats.maxTokens || 200000,
+            lastTurnInput: stats.lastTurnInput || 0,
+            lastTurnOutput: stats.lastTurnOutput || 0,
+            lastTurnCacheRead: stats.lastTurnCacheRead || 0,
+            lastTurnReasoning: stats.lastTurnReasoning || 0,
+            lastTurnModelCalls: stats.lastTurnModelCalls || 0,
+            totalInput: stats.totalInput || 0,
+            totalOutput: stats.totalOutput || 0,
+            totalCacheRead: stats.totalCacheRead || 0,
+            turnCount: stats.turnCount || 0,
+            primaryModelId: stats.primaryModelId || ''
+          };
+        }
+      } catch (err) {
+        console.error('Failed to load session usage for', session.id, err);
+      }
+    }
+  }
+
+  // Compact conversation via Go backend with rich loading state and notifications
+  async compactActiveSession(): Promise<{ success: boolean; before: number; after: number; error?: string }> {
+    const session = this.activeSession;
+    if (!session) return { success: false, before: 0, after: 0, error: 'No active session' };
+    const ws = this.workspaces.find((w) => w.id === session.workspaceId);
+    if (!ws || !ws.path) return { success: false, before: 0, after: 0, error: 'Workspace path not found' };
+
+    if (this.isCompacting) {
+      return { success: false, before: session.usage?.usedTokens || 0, after: session.usage?.usedTokens || 0, error: 'Compaction already in progress' };
+    }
+
+    const tokensBefore = session.usage?.usedTokens || 0;
+    this.isCompacting = true;
+    this.lastCompactNotice = {
+      type: 'in_progress',
+      message: `Compacting session conversation (${Math.round(tokensBefore / 1000)}K tokens)...`,
+      tokensBefore
+    };
+
+    try {
+      if (window.go?.main?.App?.CompactSession) {
+        const stats = await window.go.main.App.CompactSession(ws.path, session.id);
+        if (stats) {
+          session.usage = {
+            usedTokens: stats.usedTokens || 0,
+            maxTokens: stats.maxTokens || 200000,
+            lastTurnInput: stats.lastTurnInput || 0,
+            lastTurnOutput: stats.lastTurnOutput || 0,
+            lastTurnCacheRead: stats.lastTurnCacheRead || 0,
+            lastTurnReasoning: stats.lastTurnReasoning || 0,
+            lastTurnModelCalls: stats.lastTurnModelCalls || 0,
+            totalInput: stats.totalInput || 0,
+            totalOutput: stats.totalOutput || 0,
+            totalCacheRead: stats.totalCacheRead || 0,
+            turnCount: stats.turnCount || 0,
+            primaryModelId: stats.primaryModelId || ''
+          };
+        }
+        // Refresh session history from disk
+        await this.loadSessionHistoryFromDisk(session);
+
+        const tokensAfter = session.usage?.usedTokens || tokensBefore;
+        this.lastCompactNotice = {
+          type: 'success',
+          message: `Conversation compacted successfully! Context reduced to ${Math.round(tokensAfter / 1000)}K tokens.`,
+          tokensBefore,
+          tokensAfter
+        };
+
+        // Auto clear notice after 5 seconds
+        setTimeout(() => {
+          if (this.lastCompactNotice?.type === 'success') {
+            this.lastCompactNotice = null;
+          }
+        }, 5000);
+
+        return { success: true, before: tokensBefore, after: tokensAfter };
+      } else {
+        // Fallback preview mode simulation
+        await new Promise((r) => setTimeout(r, 1200));
+        const tokensAfter = Math.max(12000, Math.round(tokensBefore * 0.25));
+        if (session.usage) {
+          session.usage.usedTokens = tokensAfter;
+        }
+        this.lastCompactNotice = {
+          type: 'success',
+          message: `Conversation compacted successfully (Preview Mode)! Reduced from ${Math.round(tokensBefore / 1000)}K to ${Math.round(tokensAfter / 1000)}K tokens.`,
+          tokensBefore,
+          tokensAfter
+        };
+        setTimeout(() => {
+          if (this.lastCompactNotice?.type === 'success') {
+            this.lastCompactNotice = null;
+          }
+        }, 5000);
+        return { success: true, before: tokensBefore, after: tokensAfter };
+      }
+    } catch (err) {
+      console.error('Failed to compact session:', err);
+      const errMsg = String(err);
+      this.lastCompactNotice = {
+        type: 'error',
+        message: `Failed to compact conversation: ${errMsg}`,
+        tokensBefore
+      };
+      return { success: false, before: tokensBefore, after: tokensBefore, error: errMsg };
+    } finally {
+      this.isCompacting = false;
+    }
   }
 
   // Load chat history from disk via Go backend
@@ -454,13 +682,6 @@ class SessionStore {
     if (session) {
       session.isPinned = !session.isPinned;
       session.pinnedAt = session.isPinned ? Date.now() : undefined;
-    }
-  }
-
-  toggleWorkspaceExpanded(wsId: string): void {
-    const ws = this.workspaces.find((w) => w.id === wsId);
-    if (ws) {
-      ws.isExpanded = ws.isExpanded === undefined ? false : !ws.isExpanded;
     }
   }
 

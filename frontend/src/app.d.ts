@@ -78,6 +78,8 @@ declare global {
           DiscoverGrokSessions: (workspacePath: string) => Promise<Array<{ id: string; title: string; createdAt: number; updatedAt: number }>>;
           LoadGrokSessionHistory: (workspacePath: string, sessionID: string) => Promise<Array<any>>;
           DeleteGrokSession: (workspacePath: string, sessionId: string) => Promise<void>;
+          GetSessionUsage: (workspacePath: string, sessionID: string) => Promise<any>;
+          CompactSession: (workspacePath: string, sessionID: string) => Promise<any>;
         };
       };
     };

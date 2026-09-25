@@ -246,8 +246,11 @@ func TestScreenCapture_RealNativeCapturer(t *testing.T) {
 	if len(res.Base64) == 0 {
 		t.Errorf("expected non-empty Base64 data")
 	}
-	if !strings.HasPrefix(res.DataURL, "data:image/png;base64,") {
-		t.Errorf("expected valid data URL prefix")
+	if !strings.HasPrefix(res.DataURL, "data:image/png;base64,") && !strings.HasPrefix(res.DataURL, "data:image/jpeg;base64,") {
+		t.Errorf("expected valid data URL prefix, got %s", res.DataURL[:min(30, len(res.DataURL))])
+	}
+	if res.Size > 650*1024 {
+		t.Errorf("expected snapshot size <= 650KB, got %d bytes", res.Size)
 	}
 	if res.FilePath != "" {
 		_ = os.Remove(res.FilePath)

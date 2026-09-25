@@ -52,15 +52,15 @@
           <ShieldAlert size={18} />
         </div>
         <div>
-          <h3 class="text-sm font-semibold text-white">Tool Execution Permission</h3>
-          <p class="text-[11px] text-ant-text-muted">AetherGrok Agent requires approval to proceed</p>
+          <h3 class="font-serif-display text-sm font-semibold text-ant-text">Tool Execution Permission</h3>
+          <p class="font-serif text-[11px] text-ant-text-muted">AetherGrok Agent requires approval to proceed</p>
         </div>
       </div>
       {#if onClose}
         <button
           type="button"
           onclick={onClose}
-          class="p-1 rounded-md text-ant-text-muted hover:text-white hover:bg-ant-bg-tertiary transition"
+          class="p-1 rounded-md text-ant-text-muted hover:text-ant-text hover:bg-ant-bg-tertiary transition"
         >
           <X size={16} />
         </button>
@@ -68,7 +68,7 @@
     </div>
 
     <!-- Modal Content -->
-    <div class="p-5 space-y-4 text-xs">
+    <div class="p-5 space-y-4 text-xs font-serif">
       <!-- Tool identification chip & description -->
       <div class="space-y-1.5">
         <div class="flex items-center space-x-2">
@@ -88,7 +88,7 @@
           <span class="text-ant-text-muted text-[11px] uppercase font-semibold flex items-center gap-1">
             <Terminal size={12} class="text-ant-warning" /> Command / Target Path:
           </span>
-          <div class="p-2.5 rounded-lg bg-ant-bg border border-ant-border text-[11px] font-mono text-white overflow-x-auto max-h-32 scrollbar-thin">
+          <div class="p-2.5 rounded-lg bg-ant-bg border border-ant-border text-[11px] font-mono text-ant-text overflow-x-auto max-h-32 scrollbar-thin">
             <code>{commandOrPath}</code>
           </div>
         </div>

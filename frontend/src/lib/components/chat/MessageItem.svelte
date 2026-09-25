@@ -67,27 +67,27 @@
       <!-- User Info Header -->
       <div class="flex items-center space-x-1.5 mb-1 text-[11px] text-ant-text-muted font-mono select-none">
         {#if turnNumber !== undefined}
-          <span class="text-[9.5px] px-1 py-0.5 rounded bg-ant-bg-tertiary text-ant-text-secondary border border-ant-border-secondary">
+          <span class="text-[9.5px] px-1 py-0.5 rounded bg-ant-bg-tertiary text-ant-text-secondary border border-white/5">
             #{turnNumber}
           </span>
         {/if}
         <span>{formatTime(message.timestamp)}</span>
-        <div class="w-4 h-4 rounded-full bg-ant-primary/20 text-ant-primary flex items-center justify-center border border-ant-primary/40 ml-1">
+        <div class="w-4 h-4 rounded-full bg-ant-primary/15 text-ant-primary flex items-center justify-center border border-ant-primary/20 ml-1">
           <User size={10} />
         </div>
       </div>
 
       <!-- User Bubble Card -->
-      <div class="relative bg-ant-primary/10 border border-ant-primary/30 text-white rounded-2xl rounded-tr-sm px-4 py-2.5 text-xs shadow-sm hover:border-ant-primary/60 transition">
-        <div class="whitespace-pre-wrap leading-relaxed select-text font-sans">
+      <div class="relative bg-ant-bg-secondary border border-white/5 text-ant-text rounded-2xl rounded-tr-sm px-4 py-2.5 text-xs shadow-sm hover:border-white/10 transition">
+        <div class="whitespace-pre-wrap leading-relaxed select-text font-serif text-[13.5px]">
           {message.content}
         </div>
 
         <!-- Vision Images (if user attached images) -->
         {#if message.images && message.images.length > 0}
-          <div class="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-ant-primary/20">
+          <div class="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-white/5">
             {#each message.images as img}
-              <div class="relative rounded overflow-hidden border border-ant-border-secondary group/img">
+              <div class="relative rounded overflow-hidden border border-white/5 group/img">
                 {#if img.dataUrl}
                   <img src={img.dataUrl} alt={img.filePath || "Attachment"} class="w-20 h-14 object-cover" />
                 {:else}
@@ -105,7 +105,7 @@
           type="button"
           onclick={copyContent}
           class="absolute -left-7 top-2 opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-ant-bg-secondary text-ant-text-muted hover:text-ant-text transition"
-          title="Salin pesan"
+          title="Copy message"
         >
           {#if copied}
             <Check size={12} class="text-ant-success" />
@@ -123,11 +123,11 @@
       <!-- Assistant Avatar -->
       <div class="flex-shrink-0 mt-0.5">
         {#if message.role === 'assistant'}
-          <div class="w-6 h-6 rounded-lg bg-ant-bg-secondary border border-ant-border-secondary flex items-center justify-center text-ant-primary shadow-sm">
+          <div class="w-6 h-6 rounded-lg bg-ant-bg-secondary border border-white/5 flex items-center justify-center text-ant-primary shadow-sm">
             <Bot size={13} />
           </div>
         {:else}
-          <div class="w-6 h-6 rounded-lg bg-ant-warning/10 border border-ant-warning/30 flex items-center justify-center text-ant-warning shadow-sm">
+          <div class="w-6 h-6 rounded-lg bg-ant-warning/10 border border-ant-warning/20 flex items-center justify-center text-ant-warning shadow-sm">
             <Terminal size={13} />
           </div>
         {/if}
@@ -143,7 +143,7 @@
             </span>
             <span>{formatTime(message.timestamp)}</span>
             {#if message.tokens?.total}
-              <span class="text-[9.5px] px-1 py-0.5 rounded bg-ant-bg-tertiary text-ant-text-secondary border border-ant-border-secondary">
+              <span class="text-[9.5px] px-1 py-0.5 rounded bg-ant-bg-tertiary text-ant-text-secondary border border-white/5">
                 {message.tokens.total.toLocaleString()} tokens
               </span>
             {/if}
@@ -154,7 +154,7 @@
               type="button"
               onclick={copyContent}
               class="p-1 rounded text-ant-text-muted hover:text-ant-text hover:bg-ant-bg-secondary transition"
-              title="Salin jawaban"
+              title="Copy response"
             >
               {#if copied}
                 <Check size={12} class="text-ant-success" />
@@ -220,10 +220,10 @@
           </div>
         {/if}
 
-        <!-- Message Markdown Content -->
+        <!-- Message Markdown Content with Anthropic Serif Editorial Typography -->
         {#if message.content}
           <div
-            class="prose prose-invert max-w-none text-xs text-ant-text leading-relaxed select-text space-y-2 prose-headings:font-semibold prose-headings:text-white prose-h1:text-sm prose-h2:text-xs prose-h3:text-xs prose-p:my-1.5 prose-ul:my-1.5 prose-ul:list-disc prose-ul:pl-4 prose-ol:my-1.5 prose-ol:list-decimal prose-ol:pl-4 prose-li:my-0.5 prose-code:text-[11px] prose-code:font-mono prose-code:bg-ant-bg-tertiary prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-ant-primary prose-pre:my-2 prose-pre:bg-ant-bg-secondary prose-pre:border prose-pre:border-ant-border-secondary prose-pre:rounded-lg prose-pre:p-3 prose-blockquote:border-l-2 prose-blockquote:border-ant-primary prose-blockquote:pl-3 prose-blockquote:text-ant-text-secondary prose-hr:my-3 prose-hr:border-ant-border-secondary/60 prose-strong:text-white prose-table:my-2 prose-table:border-collapse prose-th:border prose-th:border-ant-border-secondary prose-th:p-1.5 prose-th:bg-ant-bg-secondary prose-td:border prose-td:border-ant-border-secondary prose-td:p-1.5"
+            class="font-serif text-[14px] text-ant-text leading-[1.7] tracking-normal select-text space-y-3 prose dark:prose-invert max-w-none prose-headings:font-serif-display prose-headings:font-semibold prose-headings:text-ant-text prose-headings:tracking-tight prose-h1:text-[18px] prose-h2:text-[16px] prose-h3:text-[14.5px] prose-p:my-2.5 prose-ul:my-2 prose-ul:list-disc prose-ul:pl-5 prose-ol:my-2 prose-ol:list-decimal prose-ol:pl-5 prose-li:my-1 prose-code:font-mono prose-code:text-[11.5px] prose-code:bg-ant-bg-tertiary prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-ant-primary prose-pre:my-2.5 prose-pre:bg-ant-bg-secondary prose-pre:border prose-pre:border-white/5 prose-pre:rounded-lg prose-pre:p-3 prose-pre:font-mono prose-blockquote:font-serif prose-blockquote:italic prose-blockquote:border-l-2 prose-blockquote:border-ant-primary/60 prose-blockquote:pl-3.5 prose-blockquote:text-ant-text-secondary prose-hr:my-4 prose-hr:border-white/5 dark:prose-hr:border-white/5 prose-strong:text-ant-text prose-strong:font-semibold prose-table:my-2.5 prose-table:border-collapse prose-table:font-sans prose-th:border prose-th:border-white/5 prose-th:p-1.5 prose-th:bg-ant-bg-secondary prose-th:text-xs prose-td:border prose-td:border-white/5 prose-td:p-1.5 prose-td:text-xs"
           >
             {@html renderedHtml}
           </div>

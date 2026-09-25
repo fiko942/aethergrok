@@ -31,7 +31,7 @@
     large: 'px-4 py-2 text-base h-10 rounded-lg'
   };
 
-  const baseClasses = 'inline-flex items-center justify-center font-medium transition-all duration-150 select-none outline-none focus-visible:ring-2 focus-visible:ring-ant-primary/50 disabled:opacity-45 disabled:cursor-not-allowed cursor-pointer';
+  const baseClasses = 'inline-flex items-center justify-center font-serif font-medium transition-all duration-150 select-none outline-none focus-visible:ring-2 focus-visible:ring-ant-primary/50 disabled:opacity-45 disabled:cursor-not-allowed cursor-pointer';
 
   function getTypeClasses(): string {
     if (danger) {
@@ -52,7 +52,7 @@
         return 'bg-transparent hover:underline text-ant-primary hover:text-ant-primary-hover p-0 h-auto border-transparent';
       case 'default':
       default:
-        return 'bg-ant-bg-secondary hover:bg-ant-bg-tertiary active:bg-[#2a3042] text-ant-text hover:text-ant-primary-hover border border-ant-border hover:border-ant-primary';
+        return 'bg-ant-bg-secondary hover:bg-ant-bg-tertiary active:bg-ant-bg-tertiary text-ant-text hover:text-ant-primary-hover border border-ant-border-secondary hover:border-ant-border';
     }
   }
 </script>

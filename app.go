@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"aethergrok/pkg/grokrunner"
 	"aethergrok/pkg/screen"
@@ -159,6 +160,18 @@ func (a *App) SelectWorkspaceDirectory() (string, error) {
 	return dir, nil
 }
 
+// CheckDirectoryExists checks if a directory exists and is accessible on disk
+func (a *App) CheckDirectoryExists(dirPath string) bool {
+	if strings.TrimSpace(dirPath) == "" {
+		return false
+	}
+	info, err := os.Stat(dirPath)
+	if err != nil {
+		return false
+	}
+	return info.IsDir()
+}
+
 // SaveMarkdownExport opens a native save file dialog and writes markdown content to the selected path
 func (a *App) SaveMarkdownExport(defaultFilename string, content string) (string, error) {
 	if a.ctx == nil {
@@ -210,6 +223,16 @@ func (a *App) LoadGrokSessionHistory(workspacePath, sessionID string) ([]grokrun
 // DeleteGrokSession removes a session folder from ~/.grok/sessions/
 func (a *App) DeleteGrokSession(workspacePath, sessionID string) error {
 	return grokrunner.DeleteGrokSessionDirectory(workspacePath, sessionID)
+}
+
+// GetSessionUsage returns the token consumption statistics for a session
+func (a *App) GetSessionUsage(workspacePath, sessionID string) (*grokrunner.SessionUsageStats, error) {
+	return grokrunner.GetSessionUsage(workspacePath, sessionID)
+}
+
+// CompactSession executes context compaction on a session
+func (a *App) CompactSession(workspacePath, sessionID string) (*grokrunner.SessionUsageStats, error) {
+	return grokrunner.CompactSession(a.ctx, a.runner.GetBinaryPath(), workspacePath, sessionID)
 }
 
 // SearchSkills queries skills by text query and category

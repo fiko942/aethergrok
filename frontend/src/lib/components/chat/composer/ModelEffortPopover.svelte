@@ -126,7 +126,7 @@
   <!-- Popover Panel -->
   {#if isOpen}
     <div
-      class="absolute bottom-full left-0 mb-2.5 w-72 bg-ant-bg border border-ant-border-secondary rounded-xl shadow-2xl z-50 p-3 select-none text-xs animate-in fade-in zoom-in-95 duration-100"
+      class="absolute bottom-full left-0 mb-2.5 w-72 bg-ant-bg border border-white/10 rounded-xl shadow-2xl z-50 p-3 select-none text-xs animate-in fade-in zoom-in-95 duration-100 backdrop-blur-md"
       role="dialog"
       aria-label="Model and Effort"
     >
@@ -136,7 +136,7 @@
       </div>
 
       <!-- Main Row: Model Switcher on Left + Effort Dots on Right -->
-      <div class="flex items-center justify-between bg-ant-bg-secondary/70 border border-ant-border-secondary/60 rounded-lg p-2 relative">
+      <div class="flex items-center justify-between bg-ant-bg-secondary/70 border border-white/5 rounded-lg p-2 relative">
         <!-- Model Selector Button -->
         <button
           type="button"
@@ -173,7 +173,7 @@
 
       <!-- Nested Model Picker Dropdown -->
       {#if isModelPickerOpen}
-        <div class="mt-2 pt-2 border-t border-ant-border-secondary/60 space-y-1 animate-in fade-in duration-100">
+        <div class="mt-2 pt-2 border-t border-white/5 space-y-1 animate-in fade-in duration-100">
           <div class="text-[10px] text-ant-text-muted px-1 pb-1">Select Architecture</div>
           {#each availableModels as m}
             {@const isSelected = model === m.id}

@@ -49,7 +49,7 @@ This document serves as the master planning, architectural state, completed mile
 ## 3. In-Progress & Pending Tasks
 
 ### Task 1: Complete Dark Theme & Ant Design Polish (Highest Priority)
-- **Status**: `In Progress`
+- **Status**: `Completed`
 - **Objective**: Standardize all UI components to Ant Design Dark specifications, eliminating harsh white borders (`border-white/20`, `border-white/40`) and saturated neon glow.
 - **Action Items**:
   - Refactor `frontend/src/app.css` dark tokens:
@@ -61,22 +61,22 @@ This document serves as the master planning, architectural state, completed mile
     - Primary Accent: `#177ddc` (Ant Design Blue)
     - Primary Text: `rgba(255, 255, 255, 0.85)`
     - Secondary Text: `rgba(255, 255, 255, 0.45)`
-  - Update `WorkspaceSidebar.svelte`, `Composer.svelte`, `MessageItem.svelte`, `SessionTabs.svelte`, and modal overlays.
+  - Update `tokens.ts`, `WorkspaceSidebar.svelte`, `Composer.svelte`, `MessageItem.svelte`, `SessionTabs.svelte`, and modal overlays.
 
 ### Task 2: Dynamic Per-Session Context Usage & Max Limits
-- **Status**: `Pending`
+- **Status**: `Completed`
 - **Objective**: Ensure the context token indicator and popover dynamically reflect the active session and its specific model context limits.
 - **Action Items**:
-  - Calculate context token consumption per session in `session_scanner.go` and expose via Wails binding.
-  - Bind reactive state in `session.svelte.ts` so switching tabs immediately updates token count, percentage, and limit.
-  - Dynamically set max limit (e.g. 128k, 256k, 1M) based on the session's active model.
+  - Calculate context token consumption per session in `session_scanner.go` (`GetSessionUsage`) and expose via Wails binding in `app.go`.
+  - Bind reactive state in `session.svelte.ts` (`loadSessionUsage`) so switching tabs immediately updates token count, percentage, and limit.
+  - Dynamically set max limit (e.g. 128k, 200k, 2M) based on the session's active model.
 
 ### Task 3: Native Context Compaction Routine
-- **Status**: `Pending`
-- **Objective**: Research and implement Grok CLI compaction mechanism (`compaction/segment_*.md`, `compaction/INDEX.md`) and wire to the "Compact conversation" button.
+- **Status**: `Completed`
+- **Objective**: Implement Grok CLI compaction mechanism (`CompactSession`) and wire to the "Compact conversation" button.
 - **Action Items**:
   - Implement compaction runner in Go (`app.go` / `session_scanner.go`).
-  - Wire compaction trigger in `ContextUsagePopover.svelte`.
+  - Wire compaction trigger in `ContextUsagePopover.svelte` through `sessionStore.compactActiveSession()`.
   - Reload session transcript and update token usage upon completion.
 
 ### Task 4: Visual & Operational Verification
