@@ -541,8 +541,8 @@ func GetSessionUsage(workspacePath, sessionID string) (*SessionUsageStats, error
 
 // CompactSession triggers conversation compaction for the given session
 func CompactSession(ctx context.Context, grokBinaryPath, workspacePath, sessionID string) (*SessionUsageStats, error) {
-	if grokBinaryPath == "" {
-		grokBinaryPath = "grok"
+	if grokBinaryPath == "" || grokBinaryPath == "grok" {
+		grokBinaryPath = ResolveGrokBinary()
 	}
 
 	// 1. Snapshot usage before compact
@@ -550,6 +550,7 @@ func CompactSession(ctx context.Context, grokBinaryPath, workspacePath, sessionI
 
 	// 2. Execute /compact command via grok CLI with non-interactive single-turn -p flag
 	cmd := exec.CommandContext(ctx, grokBinaryPath, "--resume", sessionID, "-p", "/compact")
+	cmd.Env = EnsureExecEnvironment()
 	if workspacePath != "" {
 		cmd.Dir = workspacePath
 	}

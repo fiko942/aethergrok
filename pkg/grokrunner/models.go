@@ -22,7 +22,14 @@ func (r *Runner) DiscoverAvailableModels() []ModelInfo {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, r.grokBinaryPath, "models")
+	binPath := r.grokBinaryPath
+	if binPath == "" || binPath == "grok" {
+		binPath = ResolveGrokBinary()
+		r.grokBinaryPath = binPath
+	}
+
+	cmd := exec.CommandContext(ctx, binPath, "models")
+	cmd.Env = EnsureExecEnvironment()
 	var outBuf bytes.Buffer
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &outBuf

@@ -7,6 +7,9 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"sync"
 )
 
@@ -26,15 +29,130 @@ type Runner struct {
 	grokBinaryPath string
 }
 
+// ResolveGrokBinary searches for the grok CLI binary across standard paths and environment
+func ResolveGrokBinary() string {
+	// 1. Explicit environment override
+	if binPath := os.Getenv("GROK_BIN_PATH"); binPath != "" {
+		if _, err := os.Stat(binPath); err == nil {
+			return binPath
+		}
+	}
+
+	// 2. Standard LookPath via active PATH
+	if p, err := exec.LookPath("grok"); err == nil {
+		return p
+	}
+
+	// 3. User home directory locations (common when launched from macOS Finder / GUI app without shell PATH)
+	homeDir, err := os.UserHomeDir()
+	if err == nil && homeDir != "" {
+		candidates := []string{
+			filepath.Join(homeDir, ".local", "bin", "grok"),
+			filepath.Join(homeDir, ".grok", "bin", "grok"),
+			filepath.Join(homeDir, "bin", "grok"),
+			filepath.Join(homeDir, "go", "bin", "grok"),
+		}
+		if runtime.GOOS == "windows" {
+			candidates = append(candidates,
+				filepath.Join(homeDir, "AppData", "Local", "Programs", "grok", "grok.exe"),
+				filepath.Join(homeDir, ".grok", "bin", "grok.exe"),
+				filepath.Join(homeDir, ".grok", "bin", "grok.cmd"),
+			)
+		}
+		for _, c := range candidates {
+			if info, err := os.Stat(c); err == nil && !info.IsDir() {
+				return c
+			}
+		}
+	}
+
+	// 4. System-wide locations
+	systemCandidates := []string{
+		"/opt/homebrew/bin/grok",
+		"/usr/local/bin/grok",
+		"/usr/bin/grok",
+		"/bin/grok",
+	}
+	for _, sc := range systemCandidates {
+		if info, err := os.Stat(sc); err == nil && !info.IsDir() {
+			return sc
+		}
+	}
+
+	return "grok"
+}
+
+// EnsureExecEnvironment returns a copy of the environment containing standard PATH entries
+func EnsureExecEnvironment() []string {
+	env := os.Environ()
+	homeDir, _ := os.UserHomeDir()
+
+	var extraPaths []string
+	if homeDir != "" {
+		extraPaths = append(extraPaths,
+			filepath.Join(homeDir, ".local", "bin"),
+			filepath.Join(homeDir, ".grok", "bin"),
+			filepath.Join(homeDir, "bin"),
+			filepath.Join(homeDir, "go", "bin"),
+		)
+	}
+	extraPaths = append(extraPaths,
+		"/opt/homebrew/bin",
+		"/opt/homebrew/sbin",
+		"/usr/local/bin",
+		"/usr/bin",
+		"/bin",
+		"/usr/sbin",
+		"/sbin",
+	)
+
+	currentPath := os.Getenv("PATH")
+	existingParts := strings.Split(currentPath, string(os.PathListSeparator))
+	seen := make(map[string]bool)
+	for _, p := range existingParts {
+		if p != "" {
+			seen[p] = true
+		}
+	}
+
+	merged := existingParts
+	for _, ep := range extraPaths {
+		if !seen[ep] {
+			merged = append(merged, ep)
+			seen[ep] = true
+		}
+	}
+
+	newPath := strings.Join(merged, string(os.PathListSeparator))
+
+	// Rebuild env with updated PATH
+	pathKey := "PATH="
+	if runtime.GOOS == "windows" {
+		pathKey = "Path="
+	}
+
+	var newEnv []string
+	found := false
+	for _, e := range env {
+		if strings.HasPrefix(strings.ToUpper(e), "PATH=") {
+			newEnv = append(newEnv, pathKey+newPath)
+			found = true
+		} else {
+			newEnv = append(newEnv, e)
+		}
+	}
+	if !found {
+		newEnv = append(newEnv, pathKey+newPath)
+	}
+
+	return newEnv
+}
+
 // NewRunner creates a new Runner instance
 func NewRunner() *Runner {
-	binPath := os.Getenv("GROK_BIN_PATH")
-	if binPath == "" {
-		binPath = "grok"
-	}
 	return &Runner{
 		sessions:       make(map[string]*ActiveSession),
-		grokBinaryPath: binPath,
+		grokBinaryPath: ResolveGrokBinary(),
 	}
 }
 
@@ -49,6 +167,9 @@ func (r *Runner) SetBinaryPath(path string) {
 func (r *Runner) GetBinaryPath() string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.grokBinaryPath == "" || r.grokBinaryPath == "grok" {
+		r.grokBinaryPath = ResolveGrokBinary()
+	}
 	return r.grokBinaryPath
 }
 
@@ -92,7 +213,14 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 	// Non-interactive prompt turn
 	args = append(args, "-p", req.Prompt)
 
-	cmd := exec.CommandContext(sessionCtx, r.grokBinaryPath, args...)
+	binPath := r.grokBinaryPath
+	if binPath == "" || binPath == "grok" {
+		binPath = ResolveGrokBinary()
+		r.grokBinaryPath = binPath
+	}
+
+	cmd := exec.CommandContext(sessionCtx, binPath, args...)
+	cmd.Env = EnsureExecEnvironment()
 	if req.Options.WorkingDir != "" {
 		cmd.Dir = req.Options.WorkingDir
 	}
