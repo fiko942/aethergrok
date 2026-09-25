@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { ChatMessage } from '$lib/stores/session.svelte';
   import ToolCallCard from './ToolCallCard.svelte';
+  import TurnDiffSummary from './TurnDiffSummary.svelte';
+  import PlanReviewCard from './PlanReviewCard.svelte';
   import { marked } from 'marked';
   import {
     User,
@@ -22,13 +24,23 @@
     isLastUserTurn?: boolean;
     onEditLastTurn?: () => void;
     onOpenImage?: (src: string, title?: string) => void;
+    onPlanAction?: (action: 'approve' | 'reject' | 'custom', feedback?: string) => void;
   }
 
-  let { message, turnNumber, isLastUserTurn = false, onEditLastTurn, onOpenImage }: Props = $props();
+  let { message, turnNumber, isLastUserTurn = false, onEditLastTurn, onOpenImage, onPlanAction }: Props = $props();
 
   let showReasoning = $state(false);
   let showToolDetails = $state(true);
   let copied = $state(false);
+
+  // Check if this assistant message is presenting a pending execution plan
+  const isPlanProposal = $derived.by(() => {
+    if (message.role !== 'assistant') return false;
+    const lower = (message.content || '').toLowerCase();
+    const hasPlanHeading = lower.includes('### execution plan') || lower.includes('## plan') || lower.includes('### plan') || lower.includes('rancangan perencanaan') || lower.includes('implementation plan');
+    const hasExitPlanTool = message.toolCalls?.some(tc => tc.tool.includes('exit_plan_mode') || tc.tool.includes('plan'));
+    return (hasPlanHeading || hasExitPlanTool) && message.status === 'done';
+  });
 
   function formatTime(timestamp: number): string {
     const d = new Date(timestamp);
@@ -242,6 +254,11 @@
           </div>
         {/if}
 
+        <!-- Multi-File Turn Diff Summary Rollup -->
+        {#if message.toolCalls && message.toolCalls.some(tc => tc.diff)}
+          <TurnDiffSummary toolCalls={message.toolCalls} />
+        {/if}
+
         <!-- Message Markdown Content with Anthropic Serif Editorial Typography -->
         {#if message.content}
           <div
@@ -249,6 +266,13 @@
           >
             {@html renderedHtml}
           </div>
+        {/if}
+
+        <!-- Interactive Plan Review Card -->
+        {#if isPlanProposal && onPlanAction}
+          <PlanReviewCard
+            onAction={onPlanAction}
+          />
         {/if}
       </div>
     </div>

@@ -3,18 +3,21 @@
   import { sessionStore, type ChatMessage } from '$lib/stores/session.svelte';
   import MessageItem from './MessageItem.svelte';
   import ImageLightboxModal from './ImageLightboxModal.svelte';
-  import { ArrowUp, Loader2, Sparkles, Brain, Cpu, Compass, CheckCircle2, AlertCircle } from 'lucide-svelte';
+  import { ArrowUp, ArrowDown, Loader2, Sparkles, Brain, Cpu, Compass, CheckCircle2, AlertCircle } from 'lucide-svelte';
 
   interface Props {
     onEditLastTurn?: () => void;
+    onPlanAction?: (action: 'approve' | 'reject' | 'custom', feedback?: string) => void;
   }
 
-  let { onEditLastTurn }: Props = $props();
+  let { onEditLastTurn, onPlanAction }: Props = $props();
 
   let containerEl = $state<HTMLDivElement | null>(null);
   let topSentinelEl = $state<HTMLDivElement | null>(null);
   let isHydrating = $state(false);
   let autoScrollToBottom = $state(true);
+  let showScrollToBottom = $state(false);
+  let unreadActivityBelow = $state(false);
 
   // Lightbox modal state
   let lightboxVisible = $state(false);
@@ -162,6 +165,11 @@
     // Check if user is near bottom to maintain stick-to-bottom
     const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
     autoScrollToBottom = distanceFromBottom < 80;
+    showScrollToBottom = distanceFromBottom > 160;
+
+    if (autoScrollToBottom) {
+      unreadActivityBelow = false;
+    }
 
     // Acknowledge finished turn when viewing the bottom of conversation
     if (distanceFromBottom < 100) {
@@ -177,15 +185,31 @@
     }
   }
 
+  // Smooth scroll to bottom function
+  function scrollToBottom() {
+    if (!containerEl) return;
+    autoScrollToBottom = true;
+    unreadActivityBelow = false;
+    containerEl.scrollTo({
+      top: containerEl.scrollHeight,
+      behavior: 'smooth'
+    });
+  }
+
   // Auto-scroll on new streaming messages if locked to bottom
   $effect(() => {
     const msgs = sessionStore.visibleMessages;
-    if (msgs.length > 0 && autoScrollToBottom) {
-      tick().then(() => {
-        if (containerEl && autoScrollToBottom) {
-          containerEl.scrollTop = containerEl.scrollHeight;
-        }
-      });
+    if (msgs.length > 0) {
+      if (autoScrollToBottom) {
+        tick().then(() => {
+          if (containerEl && autoScrollToBottom) {
+            containerEl.scrollTop = containerEl.scrollHeight;
+          }
+        });
+      } else {
+        // User is scrolled up and new message/content arrived
+        unreadActivityBelow = true;
+      }
     }
   });
 
@@ -270,6 +294,7 @@
         isLastUserTurn={message.id === lastUserMessageId}
         onEditLastTurn={onEditLastTurn}
         onOpenImage={handleOpenImage}
+        onPlanAction={onPlanAction}
       />
     {/each}
 
@@ -348,6 +373,29 @@
         </div>
       </div>
     {/if}
+  {/if}
+
+  <!-- Floating Scroll To Bottom Button -->
+  {#if showScrollToBottom}
+    <div class="sticky bottom-3 right-4 flex justify-end pointer-events-none z-30 mr-2">
+      <button
+        type="button"
+        onclick={scrollToBottom}
+        class="pointer-events-auto flex items-center space-x-2 px-3 py-1.5 rounded-full bg-ant-bg-secondary/95 hover:bg-ant-bg-tertiary text-ant-text border border-white/10 shadow-xl backdrop-blur-md transition-all duration-200 hover:scale-105 active:scale-95 group"
+        title="Scroll to bottom"
+      >
+        {#if unreadActivityBelow}
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-ant-primary opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-ant-primary"></span>
+          </span>
+          <span class="text-xs font-serif font-medium text-ant-primary">New activity</span>
+        {:else}
+          <span class="text-xs font-serif text-ant-text-secondary group-hover:text-ant-text transition-colors">Scroll to bottom</span>
+        {/if}
+        <ArrowDown size={13} class="text-ant-primary transition-transform group-hover:translate-y-0.5" />
+      </button>
+    </div>
   {/if}
 
   <!-- Fullscreen Image Lightbox Modal -->

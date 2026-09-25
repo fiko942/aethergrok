@@ -325,6 +325,38 @@
     }
   }
 
+  // Handle plan review card actions (Approve, Reject, Custom Feedback)
+  async function handlePlanAction(action: 'approve' | 'reject' | 'custom', feedback?: string) {
+    const activeSession = sessionStore.activeSession;
+    if (!activeSession) return;
+
+    if (action === 'approve') {
+      // Send prompt to implement the proposed plan
+      await handleSendMessage({
+        text: 'The plan is approved. Please implement the changes step by step now.',
+        images: [],
+        model: selectedModel,
+        reasoningEffort: reasoningEffort as 'low' | 'medium' | 'high'
+      });
+    } else if (action === 'reject') {
+      // Send prompt to cancel or rethink
+      await handleSendMessage({
+        text: 'I reject the proposed plan. Please stop or suggest an alternative approach.',
+        images: [],
+        model: selectedModel,
+        reasoningEffort: reasoningEffort as 'low' | 'medium' | 'high'
+      });
+    } else if (action === 'custom' && feedback) {
+      // Send user's specific feedback for plan revision
+      await handleSendMessage({
+        text: `Regarding the plan: ${feedback}\nPlease update and revise the plan accordingly.`,
+        images: [],
+        model: selectedModel,
+        reasoningEffort: reasoningEffort as 'low' | 'medium' | 'high'
+      });
+    }
+  }
+
   // Steer: cancel current turn and immediately run the chosen prompt
   async function handleSteerPrompt(promptItem: QueuedPrompt) {
     const activeSession = sessionStore.activeSession;
@@ -736,6 +768,21 @@
 
       unsubPerm = window.runtime.EventsOn('grok:permission_request', (event: PermissionRequest) => {
         if (event.sessionId) {
+          // If permission mode is bypass/unrestricted or auto, auto-approve immediately
+          const permMode = settingsStore.permissionMode;
+          if (permMode === 'bypassPermissions') {
+            handlePermissionDecision('allow_always');
+            return;
+          } else if (permMode === 'auto') {
+            handlePermissionDecision('allow_once');
+            return;
+          } else if (permMode === 'acceptEdits') {
+            const isFileEdit = event.toolName === 'write' || event.toolName === 'search_replace' || event.toolName === 'edit';
+            if (isFileEdit) {
+              handlePermissionDecision('allow_once');
+              return;
+            }
+          }
           sessionStore.setPendingPermission(event.sessionId, event);
         }
       });
@@ -964,7 +1011,7 @@
 
       <!-- Chat Feed Viewport (10-Turn Windowing) -->
       <div class="flex-1 overflow-hidden relative">
-        <MessageList onEditLastTurn={handleEditLastTurn} />
+        <MessageList onEditLastTurn={handleEditLastTurn} onPlanAction={handlePlanAction} />
       </div>
 
       <!-- Rich Prompt Composer with Snapshot & Model Selectors -->

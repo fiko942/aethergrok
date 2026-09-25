@@ -601,6 +601,23 @@
     const trimmed = text.trim();
     if ((!trimmed && attachedImages.length === 0 && attachedFiles.length === 0) || disabled) return;
 
+    // Intelligent auto-detection of plan mode from prompt keywords
+    let effectiveMode: AgentModeType = agentMode;
+    const lower = trimmed.toLowerCase();
+    if (
+      lower.startsWith('coba bikin plan') ||
+      lower.startsWith('bikin plan') ||
+      lower.startsWith('buat plan') ||
+      lower.startsWith('buat perencanaan') ||
+      lower.startsWith('create a plan') ||
+      lower.startsWith('plan for') ||
+      lower.startsWith('/plan') ||
+      lower.includes('mode plan') ||
+      lower.includes('planning dulu')
+    ) {
+      effectiveMode = 'plan';
+    }
+
     const mappedEffort: 'low' | 'medium' | 'high' = 
       reasoningEffort === 'none' ? 'low' : reasoningEffort === 'max' ? 'high' : reasoningEffort;
 
@@ -610,7 +627,7 @@
       attachments: [...attachedFiles],
       model: selectedModel,
       reasoningEffort: mappedEffort,
-      agentMode
+      agentMode: effectiveMode
     });
 
     text = '';
