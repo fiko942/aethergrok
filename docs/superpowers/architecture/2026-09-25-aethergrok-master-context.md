@@ -29,14 +29,17 @@ AetherGrok is an ultra-performant, native desktop GUI companion for Grok Build C
 
 ## 2. Left Sidebar: Workspace & Session Explorer
 - **Collapsible & Resizable**: Left sidebar width clamped between 220px and 480px with a default of 288px. Double-click reset to 288px.
-- **Fluid Child Expansion**: Elemen `WorkspaceSidebar.svelte` uses `w-full h-full` and `flex-1 min-w-0` to eliminate horizontal clipping and empty gaps during resize.
+- **Fluid Child Expansion**: Element `WorkspaceSidebar.svelte` uses `w-full h-full` and `flex-1 min-w-0` to eliminate horizontal clipping and empty gaps during resize.
 - **Workspace Folder Pagination**: Default display of 8 sessions per workspace folder with "+8 Show More" progressive loading and "Show Less" reset.
 
 ---
 
-## 3. Navigation Bar & Branding
-- **Branding**: "AetherGrok" typography styled with `font-serif-display` and dynamic version badge `v{__APP_VERSION__}` synced with build environment.
-- **Author Credits**: "Made with love by Wiji Fiko Teren" with external links to developer portfolio (`wijifikoteren.streampeg.com`) and GitHub open-source repository.
+## 3. Production Build Pipeline & macOS DMG Packaging
+- **Builder Script (`build-macos.sh`)**:
+  - Automatically compiles Vite frontend production bundle.
+  - Uses Wails v2 with stripped ldflags (`-s -w`) targeting `darwin/arm64`, `darwin/amd64`, or `darwin/universal`.
+  - Packages native `.app` bundle into a compressed drag-and-drop `.dmg` installer with symlink to `/Applications`.
+  - Generates SHA256 checksums automatically for release verification.
 
 ---
 
