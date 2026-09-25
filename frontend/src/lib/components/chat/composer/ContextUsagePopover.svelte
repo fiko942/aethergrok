@@ -65,13 +65,13 @@
     if (percentage >= 85) {
       return 'text-rose-500';
     } else if (percentage >= 60) {
-      return 'text-amber-400';
+      return 'text-amber-500';
     }
-    return 'text-emerald-400';
+    return 'text-emerald-500 dark:text-emerald-400';
   });
 
   const donutTrackClass = $derived.by(() => {
-    return 'text-white/10 dark:text-white/10';
+    return 'text-zinc-300 dark:text-white/10';
   });
 
   function toggleOpen(e: MouseEvent) {

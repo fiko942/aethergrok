@@ -116,24 +116,24 @@
   }
 </script>
 
-<div class="flex flex-col h-full bg-[#18181b] text-zinc-300 font-sans text-xs select-none">
+<div class="flex flex-col h-full bg-ant-bg text-ant-text font-sans text-xs select-none">
   <!-- Search & Toolbar -->
-  <div class="p-2 border-b border-[#27272a] flex items-center gap-1.5 shrink-0 bg-[#141416]">
+  <div class="p-2 border-b border-ant-border flex items-center gap-1.5 shrink-0 bg-ant-bg-secondary">
     <div class="relative flex-1">
-      <Search class="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
+      <Search class="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-ant-text-muted pointer-events-none" />
       <input
         type="text"
         placeholder="Filter files & folders..."
         value={searchQuery}
         oninput={handleSearchInput}
-        class="w-full bg-[#1e1e22] text-zinc-200 placeholder-zinc-500 rounded px-2.5 py-1 pl-7 text-xs border border-transparent focus:border-zinc-700 focus:outline-none transition-colors"
+        class="w-full bg-ant-bg-tertiary text-ant-text placeholder-ant-text-muted rounded px-2.5 py-1 pl-7 text-xs border border-transparent focus:border-ant-primary/40 focus:outline-none transition-colors"
       />
     </div>
 
     <button
       onclick={() => loadRoot()}
       title="Refresh Workspace"
-      class="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors shrink-0"
+      class="p-1 rounded text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary transition-colors shrink-0"
     >
       <RefreshCw class="w-3.5 h-3.5 {isLoadingRoot ? 'animate-spin' : ''}" />
     </button>
@@ -161,13 +161,13 @@
                 onclick={() => toggleNode(node)}
                 onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleNode(node)}
                 style="padding-left: {depth * 14 + 6}px"
-                class="flex items-center gap-1.5 py-1 px-1.5 rounded hover:bg-zinc-800/60 cursor-pointer group text-zinc-300 hover:text-zinc-100 transition-colors"
+                class="flex items-center gap-1.5 py-1 px-1.5 rounded hover:bg-ant-bg-tertiary cursor-pointer group text-ant-text transition-colors"
               >
                 <!-- Chevron or Indent -->
                 {#if node.isDir}
-                  <div class="w-3.5 h-3.5 flex items-center justify-center text-zinc-500 group-hover:text-zinc-300">
+                  <div class="w-3.5 h-3.5 flex items-center justify-center text-ant-text-muted group-hover:text-ant-text">
                     {#if node.isLoading}
-                      <Loader2 class="w-3 h-3 animate-spin text-amber-400" />
+                      <Loader2 class="w-3 h-3 animate-spin text-amber-500" />
                     {:else if node.isExpanded}
                       <ChevronDown class="w-3 h-3" />
                     {:else}

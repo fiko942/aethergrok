@@ -161,20 +161,20 @@
   }
 </script>
 
-<div class="flex flex-col h-full bg-[#18181b] text-zinc-300 font-sans text-xs select-none">
+<div class="flex flex-col h-full bg-ant-bg text-ant-text font-sans text-xs select-none">
   <!-- Header: Branch & Actions -->
-  <div class="p-2.5 border-b border-[#27272a] bg-[#141416] flex items-center justify-between shrink-0">
+  <div class="p-2.5 border-b border-ant-border bg-ant-bg-secondary flex items-center justify-between shrink-0">
     <div class="flex items-center gap-2 min-w-0">
-      <GitBranch class="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-      <span class="font-mono font-medium text-zinc-200 truncate">
+      <GitBranch class="w-3.5 h-3.5 text-ant-primary shrink-0" />
+      <span class="font-mono font-medium text-ant-text truncate">
         {gitStatus?.branch || 'main'}
       </span>
       {#if gitStatus?.isClean}
-        <span class="px-1.5 py-0.2 text-[10px] rounded bg-emerald-950/60 text-emerald-400 border border-emerald-800/40">
+        <span class="px-1.5 py-0.2 text-[10px] rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
           Clean
         </span>
       {:else}
-        <span class="px-1.5 py-0.2 text-[10px] rounded bg-amber-950/60 text-amber-400 border border-amber-800/40">
+        <span class="px-1.5 py-0.2 text-[10px] rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">
           Dirty ({gitStatus?.changedFiles?.length || 0})
         </span>
       {/if}
@@ -185,9 +185,9 @@
         onclick={handlePull}
         disabled={isPulling}
         title="Pull latest changes from remote (git pull)"
-        class="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-[#1e1e22] text-zinc-300 hover:text-white hover:bg-zinc-800 border border-[#27272a] hover:border-zinc-700 transition-colors disabled:opacity-50"
+        class="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-ant-bg-tertiary text-ant-text hover:bg-ant-primary/10 hover:text-ant-primary border border-ant-border transition-colors disabled:opacity-50"
       >
-        <ArrowDown class="w-3 h-3 {isPulling ? 'animate-bounce text-indigo-400' : 'text-zinc-400'}" />
+        <ArrowDown class="w-3.5 h-3.5 {isPulling ? 'animate-bounce text-ant-primary' : 'text-ant-text-muted'}" />
         <span>{isPulling ? 'Pulling...' : 'Pull'}</span>
       </button>
 
@@ -195,9 +195,9 @@
         onclick={() => refreshStatus(false)}
         disabled={isLoading}
         title="Refresh Git status and changes"
-        class="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-[#1e1e22] text-zinc-300 hover:text-white hover:bg-zinc-800 border border-[#27272a] hover:border-zinc-700 transition-colors disabled:opacity-50"
+        class="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-ant-bg-tertiary text-ant-text hover:bg-ant-primary/10 hover:text-ant-primary border border-ant-border transition-colors disabled:opacity-50"
       >
-        <RefreshCw class="w-3 h-3 {isLoading ? 'animate-spin text-indigo-400' : 'text-zinc-400'}" />
+        <RefreshCw class="w-3.5 h-3.5 {isLoading ? 'animate-spin text-ant-primary' : 'text-ant-text-muted'}" />
         <span>{isLoading ? 'Checking...' : 'Refresh'}</span>
       </button>
     </div>
@@ -206,21 +206,21 @@
   <!-- Changes List -->
   <div class="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
     {#if isLoading && !gitStatus}
-      <div class="flex items-center justify-center py-8 text-zinc-500 gap-2">
-        <Loader2 class="w-4 h-4 animate-spin text-zinc-400" />
+      <div class="flex items-center justify-center py-8 text-ant-text-muted gap-2">
+        <Loader2 class="w-4 h-4 animate-spin text-ant-primary" />
         <span>Inspecting repository...</span>
       </div>
     {:else if gitStatus?.isClean || !gitStatus?.changedFiles || gitStatus.changedFiles.length === 0}
-      <div class="text-center py-8 text-zinc-500 italic space-y-1">
+      <div class="text-center py-8 text-ant-text-muted italic space-y-1">
         <div>No uncommitted changes</div>
-        <div class="text-[11px] text-zinc-600">Working tree clean</div>
+        <div class="text-[11px] text-ant-text-muted/70">Working tree clean</div>
       </div>
     {:else}
-      <div class="text-[11px] font-medium text-zinc-400 px-1 py-0.5 flex items-center justify-between">
+      <div class="text-[11px] font-medium text-ant-text-secondary px-1 py-0.5 flex items-center justify-between">
         <span>CHANGED FILES ({gitStatus.changedFiles.length})</span>
         <div class="flex items-center gap-1.5 font-mono">
-          <span class="text-emerald-400">+{gitStatus.totalAdditions}</span>
-          <span class="text-rose-400">-{gitStatus.totalDeletions}</span>
+          <span class="text-emerald-500">+{gitStatus.totalAdditions}</span>
+          <span class="text-rose-500">-{gitStatus.totalDeletions}</span>
         </div>
       </div>
 
@@ -231,23 +231,23 @@
           tabindex="0"
           onclick={() => (selectedDiffFile = change.path)}
           onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (selectedDiffFile = change.path)}
-          class="flex items-center justify-between gap-2 p-1.5 rounded-lg bg-[#1a1a1d] hover:bg-zinc-800/80 border border-[#27272a] hover:border-zinc-700 cursor-pointer group transition-all"
+          class="flex items-center justify-between gap-2 p-1.5 rounded-lg bg-ant-bg-secondary hover:bg-ant-bg-tertiary border border-ant-border cursor-pointer group transition-all"
         >
           <div class="flex items-center gap-2 min-w-0 flex-1">
             <span class="font-mono text-[10px] px-1 py-0.2 rounded border font-semibold {badge.bg}">
               {badge.text}
             </span>
-            <span class="truncate font-mono text-[11px] text-zinc-300 group-hover:text-zinc-100">
+            <span class="truncate font-mono text-[11px] text-ant-text">
               {change.path}
             </span>
           </div>
 
           <div class="flex items-center gap-1.5 shrink-0 font-mono text-[10px]">
             {#if change.addedLines > 0}
-              <span class="text-emerald-400">+{change.addedLines}</span>
+              <span class="text-emerald-500">+{change.addedLines}</span>
             {/if}
             {#if change.removedLines > 0}
-              <span class="text-rose-400">-{change.removedLines}</span>
+              <span class="text-rose-500">-{change.removedLines}</span>
             {/if}
           </div>
         </div>
@@ -257,9 +257,9 @@
 
   <!-- Commit & Push Section -->
   {#if !gitStatus?.isClean && gitStatus?.changedFiles && gitStatus.changedFiles.length > 0}
-    <div class="p-2.5 border-t border-[#27272a] bg-[#141416] space-y-2 shrink-0">
+    <div class="p-2.5 border-t border-ant-border bg-ant-bg-secondary space-y-2 shrink-0">
       {#if actionMessage}
-        <div class="text-[11px] px-2 py-1 rounded {actionMessage.type === 'success' ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-800/40' : 'bg-rose-950/60 text-rose-300 border border-rose-800/40'}">
+        <div class="text-[11px] px-2 py-1 rounded {actionMessage.type === 'success' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'}">
           {actionMessage.text}
         </div>
       {/if}
@@ -269,20 +269,20 @@
           bind:value={commitMessage}
           placeholder="Commit message..."
           rows="2"
-          class="w-full bg-[#1e1e22] text-zinc-200 placeholder-zinc-500 rounded-lg p-2 text-xs border border-[#27272a] focus:border-zinc-600 focus:outline-none resize-none transition-colors"
+          class="w-full bg-ant-bg-tertiary text-ant-text placeholder-ant-text-muted rounded-lg p-2 text-xs border border-ant-border focus:border-ant-primary/40 focus:outline-none resize-none transition-colors"
         ></textarea>
 
         <div class="flex items-center gap-1.5">
           <button
             onclick={handleCommit}
             disabled={isCommitting || !commitMessage.trim()}
-            class="flex-1 py-1.5 px-3 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+            class="flex-1 py-1.5 px-3 rounded-lg bg-ant-bg-tertiary hover:bg-ant-primary/15 text-ant-text hover:text-ant-primary text-xs font-medium border border-ant-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
           >
             {#if isCommitting && !isPushing}
               <Loader2 class="w-3.5 h-3.5 animate-spin" />
               <span>Committing...</span>
             {:else}
-              <Check class="w-3.5 h-3.5 text-zinc-400" />
+              <Check class="w-3.5 h-3.5 text-ant-text-muted" />
               <span>Commit</span>
             {/if}
           </button>
@@ -290,7 +290,7 @@
           <button
             onclick={handleCommitAndPush}
             disabled={isCommitting || isPushing || !commitMessage.trim()}
-            class="flex-1 py-1.5 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+            class="flex-1 py-1.5 px-3 rounded-lg bg-ant-primary hover:bg-ant-primary-hover text-white text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-sm"
           >
             {#if isPushing}
               <Loader2 class="w-3.5 h-3.5 animate-spin" />

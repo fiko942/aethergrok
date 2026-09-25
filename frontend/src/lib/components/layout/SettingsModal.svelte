@@ -747,19 +747,19 @@
 
               <!-- Open Config File Card -->
               <Card>
-                <div class="flex items-center justify-between">
-                  <div class="space-y-0.5">
+                <div class="flex items-center justify-between gap-4">
+                  <div class="space-y-0.5 min-w-0">
                     <div class="text-xs font-semibold text-ant-text flex items-center gap-1.5">
-                      <FolderOpen size={14} class="text-ant-primary" />
-                      Grok Configuration File
+                      <FolderOpen size={14} class="text-ant-primary shrink-0" />
+                      <span>Grok Config File</span>
                     </div>
-                    <div class="text-[11px] text-ant-text-secondary">
-                      Open ~/.grok/config.toml in your system file manager (Finder / Explorer) with the file focused.
+                    <div class="text-[11px] text-ant-text-secondary truncate">
+                      Open ~/.grok/config.toml in file manager
                     </div>
                   </div>
                   <button
                     type="button"
-                    class="px-3 py-1.5 rounded-lg bg-ant-primary/10 hover:bg-ant-primary/20 text-ant-primary text-xs font-medium border border-ant-primary/20 hover:border-ant-primary/40 transition flex items-center gap-1.5 cursor-pointer"
+                    class="px-3 py-1.5 rounded-lg bg-ant-bg-tertiary hover:bg-ant-primary/15 text-ant-text hover:text-ant-primary text-xs font-medium border border-ant-border transition flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap shadow-sm"
                     onclick={async () => {
                       try {
                         if (window.go?.main?.App?.RevealGrokConfigFile) {
@@ -770,8 +770,8 @@
                       }
                     }}
                   >
-                    <FileCode2 size={13} />
-                    <span>Open Config File</span>
+                    <FileCode2 size={13} class="shrink-0" />
+                    <span>Open Config</span>
                   </button>
                 </div>
               </Card>
@@ -791,17 +791,17 @@
               <!-- Plan Gate Mode Configuration -->
               <Card>
                 <div class="space-y-3">
-                  <div class="flex items-center justify-between">
-                    <div>
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="min-w-0">
                       <div class="text-xs font-semibold text-ant-text flex items-center gap-1.5">
-                        <ShieldCheck size={14} class="text-ant-primary" />
-                        Plan Gate Mode
+                        <ShieldCheck size={14} class="text-ant-primary shrink-0" />
+                        <span>Plan Gate Mode</span>
                       </div>
                       <div class="text-[11px] text-ant-text-secondary">
                         Choose whether plan proposals require manual approval or are automatically approved and executed.
                       </div>
                     </div>
-                    <span class="text-xs font-mono font-bold {editPlanGateMode === 'bypass' ? 'text-amber-400 bg-amber-400/10' : 'text-ant-primary bg-ant-primary/10'} px-2 py-0.5 rounded capitalize">
+                    <span class="text-xs font-mono font-bold {editPlanGateMode === 'bypass' ? 'text-amber-500 bg-amber-500/10' : 'text-ant-primary bg-ant-primary/10'} px-2.5 py-0.5 rounded capitalize whitespace-nowrap shrink-0">
                       {editPlanGateMode === 'bypass' ? 'Bypass (Auto)' : 'Active (Manual)'}
                     </span>
                   </div>

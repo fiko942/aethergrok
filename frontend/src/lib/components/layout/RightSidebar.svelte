@@ -89,7 +89,7 @@
 {#if isOpen}
   <aside
     style="width: {width}px;"
-    class="relative h-full flex flex-col border-l border-[#27272a] bg-[#18181b] z-20 shrink-0 select-none {isDragging ? 'select-none pointer-events-none' : ''} {settingsStore.animationsEnabled ? 'transition-all duration-300 ease-out' : ''}"
+    class="relative h-full flex flex-col border-l border-ant-border bg-ant-bg z-20 shrink-0 select-none {isDragging ? 'select-none pointer-events-none' : ''} {settingsStore.animationsEnabled ? 'transition-all duration-300 ease-out' : ''}"
   >
     <!-- Left Drag Divider Handle -->
     <div
@@ -98,27 +98,27 @@
       onmousedown={startResize}
       ondblclick={resetWidth}
       title="Drag to resize, double click to reset"
-      class="absolute left-0 top-0 bottom-0 w-1.5 -translate-x-1/2 cursor-col-resize hover:bg-indigo-500/50 group z-30 transition-colors {isDragging ? 'bg-indigo-500' : ''}"
+      class="absolute left-0 top-0 bottom-0 w-1.5 -translate-x-1/2 cursor-col-resize hover:bg-ant-primary/50 group z-30 transition-colors {isDragging ? 'bg-ant-primary' : ''}"
     >
       <div class="h-full w-full"></div>
     </div>
 
     <!-- Sidebar Header Tabs -->
-    <div class="h-10 px-2 border-b border-[#27272a] bg-[#141416] flex items-center justify-between shrink-0">
-      <div class="flex items-center gap-1 bg-[#1e1e22] border border-[#27272a] p-0.5 rounded-lg text-xs">
+    <div class="h-10 px-2 border-b border-ant-border bg-ant-bg-secondary flex items-center justify-between shrink-0">
+      <div class="flex items-center gap-1 bg-ant-bg-tertiary border border-ant-border p-0.5 rounded-lg text-xs">
         <button
           onclick={() => setTab('files')}
-          class="flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-colors {activeTab === 'files' ? 'bg-zinc-800 text-zinc-100 shadow-sm font-medium' : 'text-zinc-400 hover:text-zinc-200'}"
+          class="flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-colors {activeTab === 'files' ? 'bg-ant-bg text-ant-text shadow-sm font-medium' : 'text-ant-text-secondary hover:text-ant-text'}"
         >
-          <Folder class="w-3.5 h-3.5 text-amber-400" />
+          <Folder class="w-3.5 h-3.5 text-amber-500" />
           <span>Explorer</span>
         </button>
 
         <button
           onclick={() => setTab('changes')}
-          class="flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-colors {activeTab === 'changes' ? 'bg-zinc-800 text-zinc-100 shadow-sm font-medium' : 'text-zinc-400 hover:text-zinc-200'}"
+          class="flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-colors {activeTab === 'changes' ? 'bg-ant-bg text-ant-text shadow-sm font-medium' : 'text-ant-text-secondary hover:text-ant-text'}"
         >
-          <GitBranch class="w-3.5 h-3.5 text-indigo-400" />
+          <GitBranch class="w-3.5 h-3.5 text-ant-primary" />
           <span>Changes</span>
         </button>
       </div>
@@ -126,7 +126,7 @@
       <button
         onclick={handleClose}
         title="Close Inspector (⌘⌥B)"
-        class="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors"
+        class="p-1.5 rounded-lg text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary transition-colors"
       >
         <PanelRightClose class="w-4 h-4" />
       </button>
