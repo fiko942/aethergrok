@@ -180,23 +180,25 @@
       {/if}
     </div>
 
-    <div class="flex items-center gap-1">
+    <div class="flex items-center gap-1.5 shrink-0">
       <button
         onclick={handlePull}
         disabled={isPulling}
-        title="Pull Changes (git pull)"
-        class="p-1 rounded text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors disabled:opacity-50"
+        title="Pull latest changes from remote (git pull)"
+        class="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-[#1e1e22] text-zinc-300 hover:text-white hover:bg-zinc-800 border border-[#27272a] hover:border-zinc-700 transition-colors disabled:opacity-50"
       >
-        <ArrowDown class="w-3.5 h-3.5 {isPulling ? 'animate-bounce' : ''}" />
+        <ArrowDown class="w-3 h-3 {isPulling ? 'animate-bounce text-indigo-400' : 'text-zinc-400'}" />
+        <span>{isPulling ? 'Pulling...' : 'Pull'}</span>
       </button>
 
       <button
-        onclick={refreshStatus}
+        onclick={() => refreshStatus(false)}
         disabled={isLoading}
-        title="Refresh Status"
-        class="p-1 rounded text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors"
+        title="Refresh Git status and changes"
+        class="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-[#1e1e22] text-zinc-300 hover:text-white hover:bg-zinc-800 border border-[#27272a] hover:border-zinc-700 transition-colors disabled:opacity-50"
       >
-        <RefreshCw class="w-3.5 h-3.5 {isLoading ? 'animate-spin' : ''}" />
+        <RefreshCw class="w-3 h-3 {isLoading ? 'animate-spin text-indigo-400' : 'text-zinc-400'}" />
+        <span>{isLoading ? 'Checking...' : 'Refresh'}</span>
       </button>
     </div>
   </div>
