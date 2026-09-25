@@ -193,17 +193,25 @@ func GetGitStatus(workspacePath string) (*GitStatusResult, error) {
 
 			numParts := strings.Fields(string(numstatOut))
 			if len(numParts) >= 2 {
-				fmt.Sscanf(numParts[0], "%d", &addCount)
-				fmt.Sscanf(numParts[1], "%d", &delCount)
+				// git diff --numstat outputs "-" for binary files
+				if numParts[0] != "-" {
+					fmt.Sscanf(numParts[0], "%d", &addCount)
+				}
+				if numParts[1] != "-" {
+					fmt.Sscanf(numParts[1], "%d", &delCount)
+				}
 			}
 		} else {
-			// For untracked new files, count total lines in file as additions
+			// For untracked new files, count total lines in file as additions (only for text files)
 			fullPath := filepath.Join(workspacePath, filePath)
 			if data, err := os.ReadFile(fullPath); err == nil {
-				if len(data) > 0 {
-					addCount = bytes.Count(data, []byte("\n"))
-					if !bytes.HasSuffix(data, []byte("\n")) {
-						addCount++
+				// Check if binary file (contains null byte)
+				if bytes.IndexByte(data, 0) == -1 {
+					if len(data) > 0 {
+						addCount = bytes.Count(data, []byte("\n"))
+						if !bytes.HasSuffix(data, []byte("\n")) {
+							addCount++
+						}
 					}
 				}
 			}

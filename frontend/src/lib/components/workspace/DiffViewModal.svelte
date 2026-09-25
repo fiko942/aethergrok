@@ -60,7 +60,7 @@
   }
 
   interface DiffLine {
-    type: 'add' | 'del' | 'header' | 'hunk' | 'normal';
+    type: 'add' | 'del' | 'header' | 'hunk' | 'normal' | 'binary';
     content: string;
     oldLine?: number;
     newLine?: number;
@@ -74,8 +74,20 @@
     let newNum = 0;
 
     for (const line of rawLines) {
-      if (line.startsWith('diff --git') || line.startsWith('index ') || line.startsWith('--- ') || line.startsWith('+++ ')) {
+      if (
+        line.startsWith('diff --git') ||
+        line.startsWith('index ') ||
+        line.startsWith('--- ') ||
+        line.startsWith('+++ ') ||
+        line.startsWith('new file mode') ||
+        line.startsWith('deleted file mode') ||
+        line.startsWith('similarity index') ||
+        line.startsWith('rename from') ||
+        line.startsWith('rename to')
+      ) {
         result.push({ type: 'header', content: line });
+      } else if (line.startsWith('Binary files ') || line.includes('differ')) {
+        result.push({ type: 'binary', content: line });
       } else if (line.startsWith('@@')) {
         result.push({ type: 'hunk', content: line });
         const match = line.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
@@ -88,7 +100,9 @@
       } else if (line.startsWith('-')) {
         result.push({ type: 'del', content: line, oldLine: oldNum++ });
       } else {
-        result.push({ type: 'normal', content: line, oldLine: oldNum++, newLine: newNum++ });
+        if (line.length > 0) {
+          result.push({ type: 'normal', content: line, oldLine: oldNum++, newLine: newNum++ });
+        }
       }
     }
     return result;
@@ -172,6 +186,15 @@
                 {:else if line.type === 'hunk'}
                   <tr class="bg-sky-950/40 text-sky-300 select-none border-y border-sky-900/30">
                     <td colspan="3" class="px-3 py-1 font-mono text-[11px] font-semibold">{line.content}</td>
+                  </tr>
+                {:else if line.type === 'binary'}
+                  <tr class="bg-amber-950/20 text-amber-300/90 select-none border-y border-amber-900/30">
+                    <td colspan="3" class="px-4 py-3 font-mono text-xs">
+                      <div class="flex items-center gap-2">
+                        <span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-semibold text-[10px]">BINARY</span>
+                        <span>{line.content}</span>
+                      </div>
+                    </td>
                   </tr>
                 {:else if line.type === 'add'}
                   <tr class="bg-emerald-950/30 text-emerald-200 hover:bg-emerald-950/50 transition-colors">
