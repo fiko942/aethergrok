@@ -1,5 +1,6 @@
 <script lang="ts">
   import { X, Code, Eye, Copy, Check, FileText, AlertTriangle, FileWarning, ArrowRight } from 'lucide-svelte';
+  import { marked } from 'marked';
   import FileIcon from './FileIcon.svelte';
 
   let {
@@ -25,6 +26,21 @@
   const isMarkdown = $derived(filePath.toLowerCase().endsWith('.md') || filePath.toLowerCase().endsWith('.markdown'));
   const fileName = $derived(filePath ? filePath.split('/').pop() || filePath : '');
   const ext = $derived(fileName.includes('.') ? '.' + fileName.split('.').pop() : '');
+
+  // Configure marked for full GitHub Flavored Markdown (tables, lists, breaks, codeblocks, checklists)
+  marked.setOptions({
+    gfm: true,
+    breaks: true,
+  });
+
+  const renderedMarkdownHtml = $derived.by(() => {
+    if (!content) return '';
+    try {
+      return marked.parse(content) as string;
+    } catch {
+      return content;
+    }
+  });
 
   function formatBytes(bytes: number): string {
     if (bytes === 0) return '0 B';
@@ -231,24 +247,8 @@
             {errorMsg}
           </div>
         {:else if isMarkdown && viewMode === 'preview'}
-          <div class="p-6 max-w-3xl mx-auto prose prose-invert font-serif text-zinc-300 leading-relaxed">
-            {#each content.split('\n\n') as block}
-              {#if block.startsWith('# ')}
-                <h1 class="text-2xl font-bold text-zinc-100 mt-4 mb-2">{block.replace('# ', '')}</h1>
-              {:else if block.startsWith('## ')}
-                <h2 class="text-xl font-semibold text-zinc-100 mt-3 mb-1.5">{block.replace('## ', '')}</h2>
-              {:else if block.startsWith('### ')}
-                <h3 class="text-lg font-medium text-zinc-200 mt-2 mb-1">{block.replace('### ', '')}</h3>
-              {:else if block.startsWith('- ') || block.startsWith('* ')}
-                <ul class="list-disc list-inside space-y-1 my-2">
-                  {#each block.split('\n') as li}
-                    <li>{li.replace(/^[-*]\s+/, '')}</li>
-                  {/each}
-                </ul>
-              {:else}
-                <p class="my-2">{block}</p>
-              {/if}
-            {/each}
+          <div class="p-6 md:p-8 max-w-4xl mx-auto markdown-rendered-body select-text">
+            {@html renderedMarkdownHtml}
           </div>
         {:else}
           <!-- Code View with Line Numbers -->
@@ -296,5 +296,176 @@
   .custom-scrollbar::-webkit-scrollbar-thumb {
     background: #27272a;
     border-radius: 3px;
+  }
+
+  /* Full GitHub-Flavored Markdown Typography Styling */
+  :global(.markdown-rendered-body) {
+    color: #e4e4e7;
+    font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+    font-size: 14px;
+    line-height: 1.75;
+  }
+
+  :global(.markdown-rendered-body h1) {
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #fafafa;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  :global(.markdown-rendered-body h2) {
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: #fafafa;
+    margin-top: 1.35rem;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  }
+
+  :global(.markdown-rendered-body h3) {
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #f4f4f5;
+    margin-top: 1.15rem;
+    margin-bottom: 0.4rem;
+  }
+
+  :global(.markdown-rendered-body h4),
+  :global(.markdown-rendered-body h5),
+  :global(.markdown-rendered-body h6) {
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #e4e4e7;
+    margin-top: 1rem;
+    margin-bottom: 0.3rem;
+  }
+
+  :global(.markdown-rendered-body p) {
+    margin-top: 0.6rem;
+    margin-bottom: 0.85rem;
+  }
+
+  :global(.markdown-rendered-body strong) {
+    color: #ffffff;
+    font-weight: 600;
+  }
+
+  :global(.markdown-rendered-body em) {
+    color: #d4d4d8;
+  }
+
+  :global(.markdown-rendered-body ul) {
+    list-style-type: disc;
+    padding-left: 1.5rem;
+    margin-top: 0.4rem;
+    margin-bottom: 0.85rem;
+  }
+
+  :global(.markdown-rendered-body ol) {
+    list-style-type: decimal;
+    padding-left: 1.5rem;
+    margin-top: 0.4rem;
+    margin-bottom: 0.85rem;
+  }
+
+  :global(.markdown-rendered-body li) {
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+  }
+
+  :global(.markdown-rendered-body hr) {
+    border: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  :global(.markdown-rendered-body blockquote) {
+    border-left: 3px solid #6366f1;
+    padding-left: 1rem;
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 0.75rem;
+    margin-bottom: 0.75rem;
+    color: #a1a1aa;
+    background: rgba(99, 102, 241, 0.05);
+    border-radius: 0 0.5rem 0.5rem 0;
+    padding-top: 0.35rem;
+    padding-bottom: 0.35rem;
+  }
+
+  :global(.markdown-rendered-body code) {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.85em;
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #38bdf8;
+    padding: 0.15rem 0.35rem;
+    border-radius: 0.35rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  :global(.markdown-rendered-body pre) {
+    background-color: #121215;
+    border: 1px solid #27272a;
+    border-radius: 0.5rem;
+    padding: 0.85rem 1rem;
+    overflow-x: auto;
+    margin-top: 0.85rem;
+    margin-bottom: 1rem;
+  }
+
+  :global(.markdown-rendered-body pre code) {
+    background-color: transparent;
+    border: none;
+    padding: 0;
+    color: #e4e4e7;
+    font-size: 0.825rem;
+    line-height: 1.6;
+  }
+
+  :global(.markdown-rendered-body table) {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    margin-bottom: 1.25rem;
+    font-size: 0.85rem;
+    font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  }
+
+  :global(.markdown-rendered-body th) {
+    background-color: #18181c;
+    border: 1px solid #27272a;
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    color: #f4f4f5;
+  }
+
+  :global(.markdown-rendered-body td) {
+    border: 1px solid #27272a;
+    padding: 0.45rem 0.75rem;
+    color: #d4d4d8;
+  }
+
+  :global(.markdown-rendered-body tr:nth-child(even)) {
+    background-color: rgba(255, 255, 255, 0.02);
+  }
+
+  :global(.markdown-rendered-body a) {
+    color: #60a5fa;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  :global(.markdown-rendered-body a:hover) {
+    color: #93c5fd;
   }
 </style>
