@@ -245,13 +245,13 @@
       <!-- Header -->
       <div class="px-6 py-4 border-b border-white/5 flex items-center justify-between bg-ant-bg-secondary flex-shrink-0">
         <div class="flex items-center space-x-3">
-          <div class="w-8 h-8 rounded-lg bg-ant-primary/10 border border-ant-primary/20 flex items-center justify-center text-ant-primary shadow-sm">
+          <div class="w-8 h-8 rounded-lg bg-ant-primary/10 flex items-center justify-center text-ant-primary shadow-sm">
             <Settings size={18} />
           </div>
           <div>
             <h2 id="settings-modal-title" class="font-serif-display text-base font-semibold text-ant-text tracking-tight flex items-center gap-2">
               Settings & Workspace Preferences
-              <span class="px-2 py-0.5 text-[10px] font-serif font-semibold bg-ant-primary/15 text-ant-primary rounded-full border border-ant-primary/20">
+              <span class="px-2 py-0.5 text-[10px] font-serif font-medium bg-ant-primary/15 text-ant-primary rounded-full">
                 AetherGrok Studio
               </span>
             </h2>
@@ -287,8 +287,8 @@
             <button
               type="button"
               class="w-full flex items-center space-x-2.5 px-3 py-2 rounded-lg text-xs font-medium text-left transition {activeTab === tab.id
-                ? 'bg-ant-primary/15 text-ant-primary border border-ant-primary/25 font-semibold'
-                : 'text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border border-transparent'}"
+                ? 'bg-ant-primary/15 text-ant-primary font-semibold'
+                : 'text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary'}"
               onclick={() => activeTab = tab.id}
             >
               <IconComponent size={15} class="flex-shrink-0 {activeTab === tab.id ? 'text-ant-primary' : 'text-ant-text-secondary'}" />
@@ -367,7 +367,7 @@
                           Custom keybinding to trigger native screen capture instantly.
                         </div>
                       </div>
-                      <span class="text-xs font-mono font-bold text-ant-primary bg-ant-primary/10 px-2.5 py-1 rounded border border-ant-primary/20">
+                      <span class="text-xs font-mono font-bold text-ant-primary bg-ant-primary/10 px-2.5 py-1 rounded">
                         {editSnapshotShortcut}
                       </span>
                     </div>
@@ -449,7 +449,7 @@
                           Delay between window hide and screen capture to prevent window ghost frames.
                         </div>
                       </div>
-                      <span class="text-xs font-mono font-bold text-ant-primary bg-ant-primary/10 px-2 py-0.5 rounded border border-ant-primary/30">
+                      <span class="text-xs font-mono font-bold text-ant-primary bg-ant-primary/10 px-2 py-0.5 rounded">
                         {editSnapshotDelayMs} ms
                       </span>
                     </div>
@@ -481,7 +481,7 @@
                         Limits active DOM messages to preserve low memory usage (&lt;60MB RAM).
                       </div>
                     </div>
-                    <span class="text-xs font-mono font-bold text-ant-primary bg-ant-primary/10 px-2 py-0.5 rounded border border-ant-primary/30">
+                    <span class="text-xs font-mono font-bold text-ant-primary bg-ant-primary/10 px-2 py-0.5 rounded">
                       {editActiveWindowTurnCount} turns
                     </span>
                   </div>
@@ -635,7 +635,7 @@
                         Maximum token capacity for conversation history and active reasoning context (Default: 200k).
                       </div>
                     </div>
-                    <span class="text-xs font-mono font-bold text-ant-primary bg-ant-primary/10 px-2.5 py-1 rounded-lg border border-ant-primary/20">
+                    <span class="text-xs font-mono font-bold text-ant-primary bg-ant-primary/10 px-2.5 py-1 rounded-lg">
                       {editMaxContextTokens >= 1000000 ? `${(editMaxContextTokens / 1000000).toFixed(0)}M` : `${Math.round(editMaxContextTokens / 1000)}k`} tokens
                     </span>
                   </div>
