@@ -1015,8 +1015,13 @@
         </button>
       </Tooltip>
 
-      <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-ant-primary/10 border border-ant-primary/20 text-ant-primary shadow-sm">
-        <Sparkles size={16} />
+      <div class="flex items-center justify-center w-7 h-7 rounded-lg overflow-hidden bg-ant-bg-elevated border border-ant-border-subtle shadow-sm select-none pointer-events-none group">
+        <img
+          src="/app-icon-64.png"
+          alt="AetherGrok Logo"
+          class="w-5.5 h-5.5 object-contain"
+          draggable="false"
+        />
       </div>
       <div class="flex items-center space-x-2">
         <span class="font-serif-display font-bold text-base tracking-tight text-ant-text">AetherGrok</span>
@@ -1190,8 +1195,13 @@
       {:else}
         <!-- Zero-Tab Empty Workspace State -->
         <div class="flex-1 flex flex-col items-center justify-center p-8 select-none text-center bg-radial from-ant-bg-secondary/40 via-ant-bg to-ant-bg">
-          <div class="w-16 h-16 rounded-2xl bg-ant-primary/10 border border-ant-primary/20 text-ant-primary flex items-center justify-center mb-5 shadow-lg shadow-ant-primary/5">
-            <Sparkles size={32} />
+          <div class="w-16 h-16 rounded-2xl bg-ant-bg-elevated border border-ant-border-subtle flex items-center justify-center mb-5 shadow-xl shadow-black/40 overflow-hidden group">
+            <img
+              src="/app-icon-128.png"
+              alt="AetherGrok Logo"
+              class="w-12 h-12 object-contain"
+              draggable="false"
+            />
           </div>
           <h2 class="text-xl font-serif font-bold text-ant-text tracking-tight mb-2">No Active Session</h2>
           <p class="text-sm font-serif text-ant-text-secondary max-w-md mb-6 leading-relaxed">
