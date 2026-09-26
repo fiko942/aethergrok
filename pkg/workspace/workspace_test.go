@@ -55,7 +55,7 @@ func TestReadFileContent(t *testing.T) {
 		t.Fatalf("failed to create file: %v", err)
 	}
 
-	read, err := ReadFileContent(tempDir, "hello.txt")
+	read, err := ReadFileContent(tempDir, "hello.txt", false)
 	if err != nil {
 		t.Fatalf("ReadFileContent failed: %v", err)
 	}

@@ -394,6 +394,16 @@ func (a *App) ReadWorkspaceFileContent(workspacePath, relativePath string, allow
 	return workspace.ReadFileContent(workspacePath, relativePath, allowLarge)
 }
 
+// CheckFileExists checks if a file exists on disk (workspace-relative, home-relative, or absolute)
+func (a *App) CheckFileExists(workspacePath, candidatePath string) *workspace.FileCheckResult {
+	return workspace.CheckFileExists(workspacePath, candidatePath)
+}
+
+// CheckMultipleFilesExists batches file existence checks
+func (a *App) CheckMultipleFilesExists(workspacePath string, candidates []string) map[string]workspace.FileCheckResult {
+	return workspace.CheckMultipleFilesExists(workspacePath, candidates)
+}
+
 // GetWorkspaceGitStatus returns the branch, modified files, and diff stat
 func (a *App) GetWorkspaceGitStatus(workspacePath string) (*workspace.GitStatusResult, error) {
 	return workspace.GetGitStatus(workspacePath)

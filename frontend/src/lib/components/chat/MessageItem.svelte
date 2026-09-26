@@ -3,7 +3,13 @@
   import ToolCallCard from './ToolCallCard.svelte';
   import TurnDiffSummary from './TurnDiffSummary.svelte';
   import PlanReviewCard from './PlanReviewCard.svelte';
-  import { renderMarkdown } from '$lib/utils/markdownRenderer';
+  import { sessionStore } from '$lib/stores/session.svelte';
+  import { dialogStore } from '$lib/stores/dialog.svelte';
+  import {
+    renderMarkdown,
+    extractCandidateFilePaths,
+    type FilePathInfo
+  } from '$lib/utils/markdownRenderer';
   import {
     User,
     Bot,
@@ -33,6 +39,44 @@
   let showToolDetails = $state(true);
   let copied = $state(false);
 
+  // Map of candidate file paths that actually exist on disk
+  let existingFilesMap = $state<Record<string, FilePathInfo>>({});
+
+  // Active workspace directory for path resolution
+  const currentWorkspacePath = $derived.by(() => {
+    const activeWs = sessionStore.activeWorkspace;
+    return activeWs?.path || '';
+  });
+
+  // Query backend bridge whenever message content or workspace changes
+  $effect(() => {
+    const content = message.content;
+    const wsPath = currentWorkspacePath;
+    if (!content) {
+      existingFilesMap = {};
+      return;
+    }
+
+    const candidates = extractCandidateFilePaths(content);
+    if (candidates.length === 0) {
+      existingFilesMap = {};
+      return;
+    }
+
+    const win = window as any;
+    if (win.go?.main?.App?.CheckMultipleFilesExists) {
+      win.go.main.App.CheckMultipleFilesExists(wsPath, candidates)
+        .then((res: Record<string, FilePathInfo>) => {
+          if (res) {
+            existingFilesMap = res;
+          }
+        })
+        .catch(() => {
+          // Fallback or ignore error
+        });
+    }
+  });
+
   // Check if this assistant message is presenting a pending execution plan
   const isPlanProposal = $derived.by(() => {
     if (message.role !== 'assistant') return false;
@@ -61,6 +105,20 @@
 
   function handleMessageClick(e: MouseEvent) {
     const target = e.target as HTMLElement;
+
+    // 1. Handle clicking on verified file chip/link
+    const fileChip = target.closest('.inline-file-chip') as HTMLElement;
+    if (fileChip) {
+      e.preventDefault();
+      e.stopPropagation();
+      const rawPath = decodeURIComponent(fileChip.dataset.filePath || '');
+      if (rawPath) {
+        dialogStore.openFileViewer(rawPath, currentWorkspacePath);
+      }
+      return;
+    }
+
+    // 2. Handle clicking copy code block button
     const copyBtn = target.closest('.copy-code-btn') as HTMLElement;
     if (copyBtn) {
       const rawCode = decodeURIComponent(copyBtn.dataset.rawCode || '');
@@ -81,10 +139,10 @@
     }
   }
 
-  // Render comprehensive Markdown formatted text with syntax highlighting and diagram detection
+  // Render comprehensive Markdown formatted text with syntax highlighting, diagram detection, and dynamic file chips
   const renderedHtml = $derived.by(() => {
     if (!message.content) return '';
-    return renderMarkdown(message.content);
+    return renderMarkdown(message.content, existingFilesMap);
   });
 </script>
 

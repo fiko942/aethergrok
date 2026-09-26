@@ -10,6 +10,7 @@
   import PermissionModal from '$lib/components/chat/PermissionModal.svelte';
   import SkillCatalog from '$lib/components/skills/SkillCatalog.svelte';
   import SettingsModal from '$lib/components/layout/SettingsModal.svelte';
+  import FileViewerModal from '$lib/components/workspace/FileViewerModal.svelte';
   import WorkspaceSidebar from '$lib/components/layout/WorkspaceSidebar.svelte';
   import RightSidebar from '$lib/components/layout/RightSidebar.svelte';
   import ScreenFlash from '$lib/components/snapshot/ScreenFlash.svelte';
@@ -1282,4 +1283,14 @@
     onConfirm={dialogStore.confirmState.onConfirm}
     onCancel={dialogStore.confirmState.onCancel}
   />
+
+  <!-- Global File Viewer Modal (Opens any clicked file from chat or workspace) -->
+  {#if dialogStore.fileViewerState.open}
+    <FileViewerModal
+      isOpen={true}
+      filePath={dialogStore.fileViewerState.filePath}
+      workspacePath={dialogStore.fileViewerState.workspacePath || currentSessionWorkspace?.path || ''}
+      onClose={() => dialogStore.closeFileViewer()}
+    />
+  {/if}
 </div>

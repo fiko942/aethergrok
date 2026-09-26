@@ -105,8 +105,20 @@ func ReadDirectory(workspacePath, relativeDir string) ([]FileItem, error) {
 }
 
 // ReadFileContent reads file content as text. If maxBytes > 0 it caps, if 0 it reads up to 50MB
-func ReadFileContent(workspacePath, relativePath string, allowLarge bool) (string, error) {
-	fullPath := filepath.Join(workspacePath, relativePath)
+// Supports both relative workspace paths and absolute filesystem paths.
+func ReadFileContent(workspacePath, targetPath string, allowLarge bool) (string, error) {
+	fullPath := targetPath
+	if !filepath.IsAbs(targetPath) {
+		fullPath = filepath.Join(workspacePath, targetPath)
+	}
+
+	// Expand ~ if present
+	if strings.HasPrefix(fullPath, "~") {
+		if homeDir, err := os.UserHomeDir(); err == nil {
+			fullPath = filepath.Join(homeDir, fullPath[1:])
+		}
+	}
+
 	info, err := os.Stat(fullPath)
 	if err != nil {
 		return "", err
@@ -131,10 +143,77 @@ func ReadFileContent(workspacePath, relativePath string, allowLarge bool) (strin
 
 	// If file contains binary null byte, return notice instead of scrambled text
 	if bytes.IndexByte(data, 0) != -1 {
-		return fmt.Sprintf("[Binary File Notice]\nFile '%s' is a binary file (%d bytes). Text preview is not supported.", filepath.Base(relativePath), len(data)), nil
+		return fmt.Sprintf("[Binary File Notice]\nFile '%s' is a binary file (%d bytes). Text preview is not supported.", filepath.Base(targetPath), len(data)), nil
 	}
 
 	return string(data), nil
+}
+
+// FileCheckResult holds file existence and path resolution information
+type FileCheckResult struct {
+	Exists    bool   `json:"exists"`
+	FullPath  string `json:"fullPath"`
+	RelPath   string `json:"relPath"`
+	IsDir     bool   `json:"isDir"`
+	SizeBytes int64  `json:"sizeBytes"`
+}
+
+// CheckFileExists checks if a file exists either in workspacePath or absolute/home filesystem path
+func CheckFileExists(workspacePath, candidatePath string) *FileCheckResult {
+	if strings.TrimSpace(candidatePath) == "" {
+		return &FileCheckResult{Exists: false}
+	}
+
+	cleanCandidate := strings.TrimSpace(candidatePath)
+
+	// Expand ~ if present
+	resolvedPath := cleanCandidate
+	if strings.HasPrefix(cleanCandidate, "~") {
+		if homeDir, err := os.UserHomeDir(); err == nil {
+			resolvedPath = filepath.Join(homeDir, cleanCandidate[1:])
+		}
+	}
+
+	// 1. Try as absolute path
+	if filepath.IsAbs(resolvedPath) {
+		if info, err := os.Stat(resolvedPath); err == nil {
+			return &FileCheckResult{
+				Exists:    true,
+				FullPath:  resolvedPath,
+				RelPath:   filepath.Base(resolvedPath),
+				IsDir:     info.IsDir(),
+				SizeBytes: info.Size(),
+			}
+		}
+	}
+
+	// 2. Try relative to workspacePath
+	if workspacePath != "" {
+		fullWsPath := filepath.Join(workspacePath, cleanCandidate)
+		if info, err := os.Stat(fullWsPath); err == nil {
+			return &FileCheckResult{
+				Exists:    true,
+				FullPath:  fullWsPath,
+				RelPath:   cleanCandidate,
+				IsDir:     info.IsDir(),
+				SizeBytes: info.Size(),
+			}
+		}
+	}
+
+	return &FileCheckResult{Exists: false}
+}
+
+// CheckMultipleFilesExists batches multiple candidate paths for performance
+func CheckMultipleFilesExists(workspacePath string, candidates []string) map[string]FileCheckResult {
+	results := make(map[string]FileCheckResult)
+	for _, cand := range candidates {
+		res := CheckFileExists(workspacePath, cand)
+		if res != nil && res.Exists {
+			results[cand] = *res
+		}
+	}
+	return results
 }
 
 // GetGitStatus runs git commands to extract branch and uncommitted changes

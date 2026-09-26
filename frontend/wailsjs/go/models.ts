@@ -416,6 +416,26 @@ export namespace skills {
 
 export namespace workspace {
 	
+	export class FileCheckResult {
+	    exists: boolean;
+	    fullPath: string;
+	    relPath: string;
+	    isDir: boolean;
+	    sizeBytes: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new FileCheckResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.exists = source["exists"];
+	        this.fullPath = source["fullPath"];
+	        this.relPath = source["relPath"];
+	        this.isDir = source["isDir"];
+	        this.sizeBytes = source["sizeBytes"];
+	    }
+	}
 	export class FileItem {
 	    name: string;
 	    path: string;

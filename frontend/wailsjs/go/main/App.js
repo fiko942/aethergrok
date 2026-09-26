@@ -18,6 +18,14 @@ export function CheckDirectoryExists(arg1) {
   return window['go']['main']['App']['CheckDirectoryExists'](arg1);
 }
 
+export function CheckFileExists(arg1, arg2) {
+  return window['go']['main']['App']['CheckFileExists'](arg1, arg2);
+}
+
+export function CheckMultipleFilesExists(arg1, arg2) {
+  return window['go']['main']['App']['CheckMultipleFilesExists'](arg1, arg2);
+}
+
 export function CleanupSkillImportTemp(arg1) {
   return window['go']['main']['App']['CleanupSkillImportTemp'](arg1);
 }

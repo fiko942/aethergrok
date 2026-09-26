@@ -51,7 +51,7 @@
   }
 
   async function loadFileContent(allowLarge: boolean = false) {
-    if (!filePath || !workspacePath) return;
+    if (!filePath) return;
     isLoading = true;
     errorMsg = '';
     if (!allowLarge) {
@@ -63,7 +63,7 @@
     try {
       const win = window as any;
       if (win.go?.main?.App?.ReadWorkspaceFileContent) {
-        const text = await win.go.main.App.ReadWorkspaceFileContent(workspacePath, filePath, allowLarge);
+        const text = await win.go.main.App.ReadWorkspaceFileContent(workspacePath || '', filePath, allowLarge);
         content = text;
         isLargeFilePending = false;
       } else {

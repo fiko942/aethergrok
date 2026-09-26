@@ -11,6 +11,28 @@ export interface ConfirmDialogOptions {
 }
 
 export class DialogStore {
+  fileViewerState = $state<{
+    open: boolean;
+    filePath: string;
+    workspacePath: string;
+  }>({
+    open: false,
+    filePath: '',
+    workspacePath: ''
+  });
+
+  openFileViewer(filePath: string, workspacePath: string = ''): void {
+    this.fileViewerState = {
+      open: true,
+      filePath,
+      workspacePath
+    };
+  }
+
+  closeFileViewer(): void {
+    this.fileViewerState.open = false;
+  }
+
   confirmState = $state<{
     open: boolean;
     title: string;
