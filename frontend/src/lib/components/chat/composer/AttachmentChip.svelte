@@ -27,28 +27,26 @@
   class="group relative inline-flex items-center gap-2 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] hover:border-white/[0.14] rounded-lg pl-1.5 pr-2 py-1.5 text-xs text-ant-text transition-colors duration-150 select-none max-w-[220px]"
 >
   {#if attachment.isImage && attachment.dataUrl}
-    <!-- Thumbnail for Image -->
+    <!-- Thumbnail for Image with Clickable Preview -->
     <button
       type="button"
       onclick={() => onPreview?.(attachment)}
-      class="relative w-7 h-7 rounded overflow-hidden bg-black/40 flex-shrink-0 cursor-pointer flex items-center justify-center border border-white/5 transition hover:opacity-90"
-      title="View Image"
+      class="relative w-7 h-7 rounded overflow-hidden bg-black/40 flex-shrink-0 cursor-pointer flex items-center justify-center border border-white/5 transition hover:opacity-90 group/thumb"
+      title="Preview image"
     >
       <img src={attachment.dataUrl} alt={attachment.name} class="w-full h-full object-cover" />
-      <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-        <ZoomIn size={11} class="text-white drop-shadow" />
+      <div class="absolute inset-0 bg-black/40 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition-opacity">
+        <ZoomIn size={12} class="text-white drop-shadow" />
       </div>
     </button>
   {:else}
-    <!-- Dynamic Typed File Icon Badge -->
-    <button
-      type="button"
-      onclick={() => onPreview?.(attachment)}
-      class="w-7 h-7 rounded {iconMeta.bgClass} flex items-center justify-center {iconMeta.colorClass} flex-shrink-0 cursor-pointer transition-transform group-hover:scale-105"
-      title="Inspect File"
+    <!-- Static Typed File Icon Badge (Non-Image) -->
+    <div
+      class="w-7 h-7 rounded {iconMeta.bgClass} flex items-center justify-center {iconMeta.colorClass} flex-shrink-0 select-none"
+      title={attachment.name}
     >
       <IconComponent size={14} />
-    </button>
+    </div>
   {/if}
 
   <div class="flex flex-col justify-center min-w-0 flex-1 pr-0.5">
