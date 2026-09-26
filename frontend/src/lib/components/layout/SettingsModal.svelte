@@ -969,17 +969,17 @@
                 <button
                   type="button"
                   class="group p-4 rounded-xl border text-left transition-all duration-150 flex flex-col justify-between space-y-3.5 relative overflow-hidden {editTheme === 'dark-studio'
-                    ? 'border-ant-primary/40 ring-1 ring-ant-primary/30 bg-ant-bg-tertiary/80 shadow-lg shadow-black/20'
+                    ? 'border-blue-500 bg-blue-500/10 shadow-sm'
                     : 'border-white/5 bg-ant-bg hover:border-white/20 hover:bg-ant-bg-tertiary/40'}"
                   onclick={() => handleThemeChange('dark-studio')}
                 >
                   <div class="flex items-center justify-between w-full">
                     <div class="flex items-center space-x-2">
                       <span class="w-2.5 h-2.5 rounded-full bg-[#1677FF]"></span>
-                      <span class="text-xs font-bold text-ant-text">Dark Studio</span>
+                      <span class="text-xs font-bold {editTheme === 'dark-studio' ? 'text-blue-400' : 'text-ant-text'}">Dark Studio</span>
                     </div>
                     {#if editTheme === 'dark-studio'}
-                      <CheckCircle2 size={16} class="text-ant-primary" />
+                      <CheckCircle2 size={16} class="text-blue-400" />
                     {/if}
                   </div>
 
@@ -999,7 +999,7 @@
                     </div>
                   </div>
 
-                  <p class="text-[11px] text-ant-text-secondary leading-relaxed">
+                  <p class="text-[11px] {editTheme === 'dark-studio' ? 'text-blue-200/80' : 'text-ant-text-secondary'} leading-relaxed">
                     Deep slate canvas with neon cyan & vibrant blue accents. Ideal for long coding sessions.
                   </p>
                 </button>
@@ -1008,17 +1008,17 @@
                 <button
                   type="button"
                   class="group p-4 rounded-xl border text-left transition-all duration-150 flex flex-col justify-between space-y-3.5 relative overflow-hidden {editTheme === 'dark-high-contrast'
-                    ? 'border-ant-primary/40 ring-1 ring-ant-primary/30 bg-ant-bg-tertiary/80 shadow-lg shadow-black/20'
+                    ? 'border-blue-500 bg-blue-500/10 shadow-sm'
                     : 'border-white/5 bg-ant-bg hover:border-white/20 hover:bg-ant-bg-tertiary/40'}"
                   onclick={() => handleThemeChange('dark-high-contrast')}
                 >
                   <div class="flex items-center justify-between w-full">
                     <div class="flex items-center space-x-2">
                       <span class="w-2.5 h-2.5 rounded-full bg-[#388BFD]"></span>
-                      <span class="text-xs font-bold text-ant-text">High Contrast OLED</span>
+                      <span class="text-xs font-bold {editTheme === 'dark-high-contrast' ? 'text-blue-400' : 'text-ant-text'}">High Contrast OLED</span>
                     </div>
                     {#if editTheme === 'dark-high-contrast'}
-                      <CheckCircle2 size={16} class="text-ant-primary" />
+                      <CheckCircle2 size={16} class="text-blue-400" />
                     {/if}
                   </div>
 
@@ -1038,7 +1038,7 @@
                     </div>
                   </div>
 
-                  <p class="text-[11px] text-ant-text-secondary leading-relaxed">
+                  <p class="text-[11px] {editTheme === 'dark-high-contrast' ? 'text-blue-200/80' : 'text-ant-text-secondary'} leading-relaxed">
                     True black OLED background with stark high-contrast typography for maximum clarity.
                   </p>
                 </button>
@@ -1047,17 +1047,17 @@
                 <button
                   type="button"
                   class="group p-4 rounded-xl border text-left transition-all duration-150 flex flex-col justify-between space-y-3.5 relative overflow-hidden {editTheme === 'light-antd'
-                    ? 'border-ant-primary/40 ring-1 ring-ant-primary/30 bg-ant-bg-tertiary/80 shadow-lg shadow-black/20'
+                    ? 'border-blue-500 bg-blue-500/10 shadow-sm'
                     : 'border-white/5 bg-ant-bg hover:border-white/20 hover:bg-ant-bg-tertiary/40'}"
                   onclick={() => handleThemeChange('light-antd')}
                 >
                   <div class="flex items-center justify-between w-full">
                     <div class="flex items-center space-x-2">
                       <span class="w-2.5 h-2.5 rounded-full bg-[#1677FF]"></span>
-                      <span class="text-xs font-bold text-ant-text">Clean Light</span>
+                      <span class="text-xs font-bold {editTheme === 'light-antd' ? 'text-blue-400' : 'text-ant-text'}">Clean Light</span>
                     </div>
                     {#if editTheme === 'light-antd'}
-                      <CheckCircle2 size={16} class="text-ant-primary" />
+                      <CheckCircle2 size={16} class="text-blue-400" />
                     {/if}
                   </div>
 
