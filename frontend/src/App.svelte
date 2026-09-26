@@ -725,6 +725,15 @@
       return;
     }
 
+    // Cmd/Ctrl + W: Close active session tab (allows 0 tabs in view)
+    if (isMetaOrCtrl && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'w') {
+      e.preventDefault();
+      if (sessionStore.activeSessionId) {
+        sessionStore.closeSessionTab(sessionStore.activeSessionId);
+      }
+      return;
+    }
+
     // Cmd/Ctrl + Alt + B: Toggle right sidebar (workspace explorer / git inspector)
     if (isMetaOrCtrl && e.altKey && e.key.toLowerCase() === 'b') {
       e.preventDefault();
@@ -1140,24 +1149,56 @@
       <!-- Session Tabs Bar (Drag & Drop + Badges) -->
       <SessionTabs />
 
-      <!-- Chat Feed Viewport (10-Turn Windowing) -->
-      <div class="flex-1 overflow-hidden relative">
-        <MessageList
-          bind:this={messageListRef}
-          onEditLastTurn={handleEditLastTurn}
-          onPlanAction={handlePlanAction}
-        />
-      </div>
+      {#if sessionStore.activeSession}
+        <!-- Chat Feed Viewport (10-Turn Windowing) -->
+        <div class="flex-1 overflow-hidden relative">
+          <MessageList
+            bind:this={messageListRef}
+            onEditLastTurn={handleEditLastTurn}
+            onPlanAction={handlePlanAction}
+          />
+        </div>
 
-      <!-- Rich Prompt Composer with Snapshot & Model Selectors -->
-      <Composer
-        bind:this={composerRef}
-        {isWorking}
-        onSend={handleSendMessage}
-        onSteer={handleSteerPrompt}
-        onCancel={handleCancelSession}
-        onOpenSkillsCatalog={() => skillsCatalogVisible = true}
-      />
+        <!-- Rich Prompt Composer with Snapshot & Model Selectors -->
+        <Composer
+          bind:this={composerRef}
+          {isWorking}
+          onSend={handleSendMessage}
+          onSteer={handleSteerPrompt}
+          onCancel={handleCancelSession}
+          onOpenSkillsCatalog={() => skillsCatalogVisible = true}
+        />
+      {:else}
+        <!-- Zero-Tab Empty Workspace State -->
+        <div class="flex-1 flex flex-col items-center justify-center p-8 select-none text-center bg-radial from-ant-bg-secondary/40 via-ant-bg to-ant-bg">
+          <div class="w-16 h-16 rounded-2xl bg-ant-primary/10 border border-ant-primary/20 text-ant-primary flex items-center justify-center mb-5 shadow-lg shadow-ant-primary/5">
+            <Sparkles size={32} />
+          </div>
+          <h2 class="text-xl font-serif font-bold text-ant-text tracking-tight mb-2">No Active Session</h2>
+          <p class="text-sm font-serif text-ant-text-secondary max-w-md mb-6 leading-relaxed">
+            All conversation tabs are closed. Any background tasks or queued runs continue working automatically.
+          </p>
+          <div class="flex items-center space-x-3">
+            <button
+              type="button"
+              onclick={() => sessionStore.createSession()}
+              class="flex items-center space-x-2 px-4 py-2 rounded-lg bg-ant-primary hover:bg-ant-primary/90 text-white font-serif text-xs font-semibold shadow-md shadow-ant-primary/20 transition cursor-pointer"
+            >
+              <span>New Conversation</span>
+              <kbd class="px-1.5 py-0.5 text-[10px] font-mono bg-white/20 rounded text-white">{isMac ? '⌘T' : 'Ctrl+T'}</kbd>
+            </button>
+            <button
+              type="button"
+              onclick={performGlobalSnapshot}
+              class="flex items-center space-x-2 px-4 py-2 rounded-lg bg-ant-bg-tertiary hover:bg-white/10 text-ant-text font-serif text-xs font-medium border border-white/5 transition cursor-pointer"
+            >
+              <Camera size={13} class="text-ant-primary" />
+              <span>Take Snapshot</span>
+              <kbd class="px-1.5 py-0.5 text-[10px] font-mono bg-white/10 rounded text-ant-text-secondary">{isMac ? '⌘⇧S' : 'Ctrl+⇧S'}</kbd>
+            </button>
+          </div>
+        </div>
+      {/if}
     </main>
 
     <!-- Right Sidebar: Workspace Explorer & Git Changes Inspector (Session-Isolated) -->

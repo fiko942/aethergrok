@@ -128,6 +128,7 @@ declare global {
           RevertWorkspaceFiles: (workspacePath: string, filePaths: string[]) => Promise<void>;
           CheckAndRequestAccessibilityPermissions: () => Promise<{ granted: boolean; message: string; platform: string }>;
           OpenAccessibilitySettings: () => Promise<void>;
+          RevealGrokConfigFile?: () => Promise<void>;
         };
       };
     };

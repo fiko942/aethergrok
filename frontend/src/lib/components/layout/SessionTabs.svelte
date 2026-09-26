@@ -188,7 +188,7 @@
               type="button"
               onclick={(e) => handleClose(session, e)}
               class="p-0.5 rounded text-ant-text-muted hover:text-ant-error hover:bg-ant-bg-secondary transition"
-              title="Close session tab"
+              title="Close tab (⌘W / Ctrl+W)"
             >
               <X size={12} />
             </button>

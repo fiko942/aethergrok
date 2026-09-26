@@ -713,13 +713,8 @@ class SessionStore {
 
     const currentOpenInWs = this.openWorkspaceTabs;
     if (currentOpenInWs.length === 0) {
-      // If no tabs remain open in this workspace, open the first available session or create a new one
-      const available = this.activeWorkspaceSessions;
-      if (available.length > 0) {
-        this.openSessionInTab(available[0].id);
-      } else {
-        this.createSession();
-      }
+      // Allow closing down to 0 tabs without auto-creating a new session
+      this.activeSessionId = null;
       return;
     }
 

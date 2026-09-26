@@ -36,10 +36,10 @@
       return { code: 'MetaRight', displayParts: [isMac ? '⌘ Right' : 'Win Right'] };
     }
     if (e.code === 'ShiftLeft') {
-      return { code: 'ShiftLeft', displayParts: ['Shift Left'] };
+      return { code: 'ShiftLeft', displayParts: ['Left Shift'] };
     }
     if (e.code === 'ShiftRight') {
-      return { code: 'ShiftRight', displayParts: ['Shift Right'] };
+      return { code: 'ShiftRight', displayParts: ['Right Shift'] };
     }
     if (e.code === 'ControlLeft') {
       return { code: 'ControlLeft', displayParts: ['Ctrl Left'] };
