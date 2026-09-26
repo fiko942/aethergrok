@@ -37,9 +37,16 @@
 
   function startResize(e: MouseEvent) {
     e.preventDefault();
+    e.stopPropagation();
     isDragging = true;
     startX = e.clientX;
     startWidth = width;
+    document.body.style.userSelect = 'none';
+    document.body.style.webkitUserSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+    if (window.getSelection) {
+      window.getSelection()?.removeAllRanges();
+    }
 
     window.addEventListener('mousemove', handleResizeMove);
     window.addEventListener('mouseup', handleResizeEnd);
@@ -47,6 +54,7 @@
 
   function handleResizeMove(e: MouseEvent) {
     if (!isDragging) return;
+    e.preventDefault();
     // Moving mouse left increases right sidebar width
     const delta = startX - e.clientX;
     const newWidth = startWidth + delta;
@@ -64,9 +72,14 @@
   }
 
   function handleResizeEnd() {
-    isDragging = false;
-    window.removeEventListener('mousemove', handleResizeMove);
-    window.removeEventListener('mouseup', handleResizeEnd);
+    if (isDragging) {
+      isDragging = false;
+      document.body.style.userSelect = '';
+      document.body.style.webkitUserSelect = '';
+      document.body.style.cursor = '';
+      window.removeEventListener('mousemove', handleResizeMove);
+      window.removeEventListener('mouseup', handleResizeEnd);
+    }
   }
 
   function resetWidth() {
@@ -89,7 +102,7 @@
 {#if isOpen}
   <aside
     style="width: {width}px;"
-    class="relative h-full flex flex-col border-l border-ant-border bg-ant-bg z-20 shrink-0 select-none {isDragging ? 'select-none pointer-events-none' : ''} {settingsStore.animationsEnabled ? 'transition-all duration-300 ease-out' : ''}"
+    class="relative h-full flex flex-col border-l border-ant-border bg-ant-bg z-20 shrink-0 select-none {isDragging ? 'select-none pointer-events-none transition-none' : (settingsStore.animationsEnabled ? 'transition-all duration-300 ease-out' : '')}"
   >
     <!-- Left Drag Divider Handle -->
     <div

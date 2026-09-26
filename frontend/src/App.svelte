@@ -100,17 +100,24 @@
 
   function handleResizeStart(e: MouseEvent) {
     if (isCompact || settingsStore.sidebarCollapsed) return;
+    e.preventDefault();
+    e.stopPropagation();
     isDraggingSidebar = true;
     dragStartX = e.clientX;
     dragStartWidth = settingsStore.sidebarWidth || 288;
     document.body.style.userSelect = 'none';
+    document.body.style.webkitUserSelect = 'none';
     document.body.style.cursor = 'col-resize';
+    if (window.getSelection) {
+      window.getSelection()?.removeAllRanges();
+    }
     window.addEventListener('mousemove', handleResizeMove);
     window.addEventListener('mouseup', handleResizeEnd);
   }
 
   function handleResizeMove(e: MouseEvent) {
     if (!isDraggingSidebar) return;
+    e.preventDefault();
     const delta = e.clientX - dragStartX;
     const newWidth = dragStartWidth + delta;
     if (newWidth < 160) {
@@ -125,6 +132,7 @@
     if (isDraggingSidebar) {
       isDraggingSidebar = false;
       document.body.style.userSelect = '';
+      document.body.style.webkitUserSelect = '';
       document.body.style.cursor = '';
       settingsStore.saveToStorage();
       window.removeEventListener('mousemove', handleResizeMove);
@@ -1046,7 +1054,7 @@
 
     <!-- Left Sidebar: Workspace & Session Management (Resizable & Collapsible) -->
     <aside
-      class="{isCompact ? 'fixed top-12 bottom-0 left-0 z-40 shadow-2xl transition-transform duration-200 ease-out' : 'relative transition-[width] duration-200 ease-out'} bg-ant-bg-secondary border-r border-white/5 flex flex-col justify-between p-3 overflow-hidden flex-shrink-0"
+      class="{isCompact ? 'fixed top-12 bottom-0 left-0 z-40 shadow-2xl transition-transform duration-200 ease-out' : `relative ${isDraggingSidebar ? 'transition-none' : 'transition-[width] duration-200 ease-out'}`} bg-ant-bg-secondary border-r border-white/5 flex flex-col justify-between p-3 overflow-hidden flex-shrink-0 {isDraggingSidebar ? 'select-none pointer-events-none' : ''}"
       style="{isCompact ? (settingsStore.sidebarCollapsed ? 'transform: translateX(-100%); width: 288px;' : 'transform: translateX(0); width: 288px;') : (settingsStore.sidebarCollapsed ? 'width: 0px; padding: 0px; border-right: none;' : `width: ${settingsStore.sidebarWidth || 288}px;`)}"
     >
       <!-- Workspace Folders & Sessions List -->
