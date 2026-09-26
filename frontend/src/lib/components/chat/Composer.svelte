@@ -7,6 +7,7 @@
   import AgentModeDropdown, { type AgentModeType } from '$lib/components/chat/composer/AgentModeDropdown.svelte';
   import AttachmentChip from '$lib/components/chat/composer/AttachmentChip.svelte';
   import QueueStackBar from '$lib/components/chat/composer/QueueStackBar.svelte';
+  import ImageLightboxModal from '$lib/components/chat/ImageLightboxModal.svelte';
   import type { SkillItem } from '../../../app.d';
   import { playCameraShutterSound } from '$lib/utils/audio';
   import { settingsStore, type ReasoningEffort } from '$lib/stores/settings.svelte';
@@ -65,6 +66,19 @@
   // Full file and preview modal state
   let attachedFiles = $state<AttachedFile[]>([]);
   let previewModalItem = $state<AttachedFile | null>(null);
+
+  // Lightbox modal state for image attachments
+  let lightboxVisible = $state(false);
+  let lightboxSrc = $state('');
+  let lightboxTitle = $state('');
+
+  function handleAttachmentPreview(att: AttachedFile) {
+    if (att.isImage && att.dataUrl) {
+      lightboxSrc = att.dataUrl;
+      lightboxTitle = att.name;
+      lightboxVisible = true;
+    }
+  }
 
   // Active session queue
   const currentQueue = $derived(sessionStore.activeSession?.queuedPrompts || []);
@@ -740,7 +754,7 @@
             <AttachmentChip
               attachment={att}
               onRemove={removeAttachment}
-              onPreview={(item) => previewModalItem = item}
+              onPreview={handleAttachmentPreview}
             />
           {/each}
 
@@ -912,5 +926,13 @@
       </div>
     </div>
   </div>
+
+  <!-- Fullscreen Image Lightbox Modal for Attachments -->
+  <ImageLightboxModal
+    visible={lightboxVisible}
+    imageSrc={lightboxSrc}
+    imageTitle={lightboxTitle}
+    onClose={() => { lightboxVisible = false; }}
+  />
 </div>
 
