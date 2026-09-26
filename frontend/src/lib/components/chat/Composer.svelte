@@ -538,6 +538,7 @@
   function handleContainerDragEnter(e: DragEvent) {
     if (e.dataTransfer?.types?.includes('Files')) {
       e.preventDefault();
+      e.stopPropagation();
       dragCounter++;
       isDragOver = true;
     }
@@ -550,6 +551,7 @@
   function handleContainerDragOver(e: DragEvent) {
     if (e.dataTransfer?.types?.includes('Files')) {
       e.preventDefault();
+      e.stopPropagation();
       if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
       isDragOver = true;
     }
@@ -557,6 +559,7 @@
 
   function handleContainerDragLeave(e: DragEvent) {
     e.preventDefault();
+    e.stopPropagation();
     dragCounter--;
     if (dragCounter <= 0) {
       dragCounter = 0;
@@ -566,6 +569,7 @@
 
   function handleContainerDrop(e: DragEvent) {
     e.preventDefault();
+    e.stopPropagation();
     dragCounter = 0;
     isDragOver = false;
     if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
