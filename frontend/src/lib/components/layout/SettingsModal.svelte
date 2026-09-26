@@ -5,7 +5,8 @@
     type ThemeMode,
     type DefaultModel,
     type ReasoningEffort,
-    type PermissionMode
+    type PermissionMode,
+    type PlanGateMode
   } from '$lib/stores/settings.svelte';
   import {
     Settings,
@@ -55,6 +56,7 @@
   let editGrokBinaryPath = $state(settingsStore.grokBinaryPath);
   let editSnapshotShortcut = $state(settingsStore.snapshotShortcut);
   let editSnapshotDelayMs = $state(settingsStore.snapshotDelayMs);
+  let editSnapshotAutoHide = $state(settingsStore.snapshotAutoHideWindow);
   let editSnapshotSoundEnabled = $state(settingsStore.snapshotSoundEnabled);
   let editSnapshotFlashEnabled = $state(settingsStore.snapshotFlashEnabled);
   let editSnapshotAutoAttach = $state(settingsStore.snapshotAutoAttach);
@@ -86,6 +88,7 @@
       editGrokBinaryPath = settingsStore.grokBinaryPath;
       editSnapshotShortcut = settingsStore.snapshotShortcut;
       editSnapshotDelayMs = settingsStore.snapshotDelayMs;
+      editSnapshotAutoHide = settingsStore.snapshotAutoHideWindow;
       editSnapshotSoundEnabled = settingsStore.snapshotSoundEnabled;
       editSnapshotFlashEnabled = settingsStore.snapshotFlashEnabled;
       editSnapshotAutoAttach = settingsStore.snapshotAutoAttach;
@@ -192,7 +195,54 @@
     scope: string;
   }
 
-  const keyboardShortcuts: ShortcutItem[] = [
+  function formatShortcutKeys(shortcutStr: string, isMacPlatform: boolean): string[] {
+    if (!shortcutStr) return [isMacPlatform ? '⌘' : 'Ctrl', 'Shift', 'S'];
+
+    const lower = shortcutStr.toLowerCase().trim().replace(/[\s_-]/g, '');
+    if (lower === 'shiftright' || lower === 'rightshift') {
+      return ['Right Shift'];
+    }
+    if (lower === 'shiftleft' || lower === 'leftshift') {
+      return ['Left Shift'];
+    }
+    if (lower === 'controlright' || lower === 'ctrlright' || lower === 'rightctrl') {
+      return ['Right Ctrl'];
+    }
+    if (lower === 'controlleft' || lower === 'ctrlleft' || lower === 'leftctrl') {
+      return ['Left Ctrl'];
+    }
+    if (lower === 'metaright' || lower === 'cmdright' || lower === 'rightcmd' || lower === 'rightmeta') {
+      return [isMacPlatform ? 'Right ⌘' : 'Right Win'];
+    }
+    if (lower === 'metaleft' || lower === 'cmdleft' || lower === 'leftcmd' || lower === 'leftmeta') {
+      return [isMacPlatform ? 'Left ⌘' : 'Left Win'];
+    }
+    if (lower === 'altright' || lower === 'optright' || lower === 'rightalt' || lower === 'rightoption') {
+      return [isMacPlatform ? 'Right ⌥' : 'Right Alt'];
+    }
+    if (lower === 'altleft' || lower === 'optleft' || lower === 'leftalt' || lower === 'leftoption') {
+      return [isMacPlatform ? 'Left ⌥' : 'Left Alt'];
+    }
+
+    const segments = shortcutStr.split('+').map(s => s.trim());
+    return segments.map(seg => {
+      const sLower = seg.toLowerCase().replace(/[\s_-]/g, '');
+      if (sLower === 'cmdorctrl' || sLower === 'cmd/ctrl') return isMacPlatform ? '⌘' : 'Ctrl';
+      if (sLower === 'cmd' || sLower === 'meta') return isMacPlatform ? '⌘' : 'Win';
+      if (sLower === 'ctrl' || sLower === 'control') return 'Ctrl';
+      if (sLower === 'shift') return 'Shift';
+      if (sLower === 'shiftright' || sLower === 'rightshift') return 'Right Shift';
+      if (sLower === 'shiftleft' || sLower === 'leftshift') return 'Left Shift';
+      if (sLower === 'alt' || sLower === 'option' || sLower === 'opt') return isMacPlatform ? '⌥' : 'Alt';
+      return seg.toUpperCase();
+    });
+  }
+
+  let currentSnapshotKeys = $derived(
+    formatShortcutKeys(editSnapshotShortcut || settingsStore.snapshotShortcut, isMac)
+  );
+
+  let keyboardShortcuts = $derived<ShortcutItem[]>([
     { keys: [isMac ? '⌘' : 'Ctrl', 'Enter'], action: 'Send message / Submit turn in composer', scope: 'Composer' },
     { keys: ['Esc'], action: 'Dismiss modal / Clear active overlay dialog', scope: 'Global' },
     { keys: [isMac ? '⌘' : 'Ctrl', 'K'], action: 'Open Skills & MCP discovery catalog', scope: 'Global' },
@@ -202,9 +252,9 @@
     { keys: [isMac ? '⌘' : 'Ctrl', 'B'], action: 'Toggle left sidebar collapse & expand', scope: 'Navigation' },
     { keys: [isMac ? '⌘' : 'Ctrl', '1-8'], action: 'Switch to session tab 1 through 8', scope: 'Tabs' },
     { keys: [isMac ? '⌘' : 'Ctrl', '9'], action: 'Switch to the last open session tab', scope: 'Tabs' },
-    { keys: [isMac ? '⌘' : 'Ctrl', 'Shift', 'S'], action: 'Trigger instantaneous smart screen snapshot', scope: 'Screen' },
+    { keys: currentSnapshotKeys, action: 'Trigger instantaneous smart screen snapshot', scope: 'Screen' },
     { keys: [isMac ? '⌘' : 'Ctrl', 'R'], action: 'Re-run or retry last agent turn', scope: 'Conversation' }
-  ];
+  ]);
 
   function handleThemeChange(t: ThemeMode) {
     editTheme = t;
@@ -220,6 +270,7 @@
       grokBinaryPath: editGrokBinaryPath.trim() || '/Users/fiko942/.local/bin/grok',
       snapshotShortcut: editSnapshotShortcut.trim() || 'CmdOrCtrl+Shift+S',
       snapshotDelayMs: Math.max(10, Math.min(2000, Number(editSnapshotDelayMs) || 50)),
+      snapshotAutoHideWindow: editSnapshotAutoHide,
       snapshotSoundEnabled: editSnapshotSoundEnabled,
       snapshotFlashEnabled: editSnapshotFlashEnabled,
       snapshotAutoAttach: editSnapshotAutoAttach,
@@ -245,6 +296,7 @@
     editGrokBinaryPath = settingsStore.grokBinaryPath;
     editSnapshotShortcut = settingsStore.snapshotShortcut;
     editSnapshotDelayMs = settingsStore.snapshotDelayMs;
+    editSnapshotAutoHide = settingsStore.snapshotAutoHideWindow;
     editSnapshotSoundEnabled = settingsStore.snapshotSoundEnabled;
     editSnapshotFlashEnabled = settingsStore.snapshotFlashEnabled;
     editSnapshotAutoAttach = settingsStore.snapshotAutoAttach;
@@ -420,10 +472,10 @@
                           Custom keybinding to trigger native screen capture instantly.
                         </div>
                       </div>
-                      <div class="flex items-center gap-1.5">
-                        {#each (editSnapshotShortcut ? editSnapshotShortcut.split('+') : ['CmdOrCtrl', 'Shift', 'S']) as keySegment}
+                      <div class="flex items-center gap-1.5 flex-wrap">
+                        {#each currentSnapshotKeys as keySegment}
                           <kbd class="px-2 py-0.5 text-xs font-mono font-medium text-ant-primary bg-ant-primary/10 rounded">
-                            {keySegment.trim()}
+                            {keySegment}
                           </kbd>
                         {/each}
                       </div>
@@ -448,8 +500,25 @@
                     </div>
                   </div>
 
-                  <!-- Audio Shutter Sound Toggle -->
+                  <!-- Auto-Hide Window during Snapshot Toggle -->
                   <div class="flex items-center justify-between pt-1">
+                    <div class="space-y-0.5">
+                      <div class="text-xs font-medium text-ant-text flex items-center gap-1.5">
+                        <Camera size={13} class="text-ant-primary" />
+                        Auto-Hide Application Window
+                      </div>
+                      <div class="text-[11px] text-ant-text-secondary">
+                        Temporarily conceals AetherGrok window during native snapshot so only background apps/desktop are captured.
+                      </div>
+                    </div>
+                    <Switch
+                      bind:checked={editSnapshotAutoHide}
+                      size="small"
+                    />
+                  </div>
+
+                  <!-- Audio Shutter Sound Toggle -->
+                  <div class="flex items-center justify-between pt-2 border-t border-white/5">
                     <div class="space-y-0.5">
                       <div class="text-xs font-medium text-ant-text flex items-center gap-1.5">
                         <Volume2 size={13} class="text-ant-primary" />
@@ -747,19 +816,19 @@
 
               <!-- Open Config File Card -->
               <Card>
-                <div class="flex items-center justify-between gap-4">
-                  <div class="space-y-0.5 min-w-0">
+                <div class="flex items-center justify-between gap-4 w-full">
+                  <div class="space-y-0.5 min-w-0 flex-1">
                     <div class="text-xs font-semibold text-ant-text flex items-center gap-1.5">
                       <FolderOpen size={14} class="text-ant-primary shrink-0" />
-                      <span>Grok Config File</span>
+                      <span>Grok Config</span>
                     </div>
-                    <div class="text-[11px] text-ant-text-secondary truncate">
-                      Open ~/.grok/config.toml in file manager
+                    <div class="text-[11px] text-ant-text-secondary font-mono truncate">
+                      ~/.grok/config.toml
                     </div>
                   </div>
                   <button
                     type="button"
-                    class="px-3 py-1.5 rounded-lg bg-ant-bg-tertiary hover:bg-ant-primary/15 text-ant-text hover:text-ant-primary text-xs font-medium border border-ant-border transition flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap shadow-sm"
+                    class="px-3 py-1.5 rounded-lg bg-ant-bg hover:bg-ant-primary/10 text-ant-text hover:text-ant-primary text-xs font-medium border border-ant-border-secondary/80 hover:border-ant-primary/40 transition-all flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap shadow-sm active:scale-[0.98]"
                     onclick={async () => {
                       try {
                         if (window.go?.main?.App?.RevealGrokConfigFile) {
@@ -770,8 +839,8 @@
                       }
                     }}
                   >
-                    <FileCode2 size={13} class="shrink-0" />
-                    <span>Open Config</span>
+                    <FileCode2 size={13} class="text-ant-primary shrink-0" />
+                    <span class="whitespace-nowrap">Open Config</span>
                   </button>
                 </div>
               </Card>

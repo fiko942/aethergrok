@@ -14,6 +14,7 @@ export interface AppSettings {
   grokBinaryPath: string;
   snapshotShortcut: string;
   snapshotDelayMs: number;
+  snapshotAutoHideWindow: boolean;
   snapshotSoundEnabled: boolean;
   snapshotFlashEnabled: boolean;
   snapshotAutoAttach: boolean;
@@ -35,6 +36,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   grokBinaryPath: '/Users/fiko942/.local/bin/grok',
   snapshotShortcut: 'CmdOrCtrl+Shift+S',
   snapshotDelayMs: 50,
+  snapshotAutoHideWindow: true,
   snapshotSoundEnabled: true,
   snapshotFlashEnabled: true,
   snapshotAutoAttach: true,
@@ -54,6 +56,7 @@ export class SettingsStore {
   grokBinaryPath = $state<string>(DEFAULT_SETTINGS.grokBinaryPath);
   snapshotShortcut = $state<string>(DEFAULT_SETTINGS.snapshotShortcut);
   snapshotDelayMs = $state<number>(DEFAULT_SETTINGS.snapshotDelayMs);
+  snapshotAutoHideWindow = $state<boolean>(DEFAULT_SETTINGS.snapshotAutoHideWindow);
   snapshotSoundEnabled = $state<boolean>(DEFAULT_SETTINGS.snapshotSoundEnabled);
   snapshotFlashEnabled = $state<boolean>(DEFAULT_SETTINGS.snapshotFlashEnabled);
   snapshotAutoAttach = $state<boolean>(DEFAULT_SETTINGS.snapshotAutoAttach);
@@ -100,6 +103,9 @@ export class SettingsStore {
       if (typeof parsed.snapshotDelayMs === 'number' && Number.isFinite(parsed.snapshotDelayMs)) {
         this.snapshotDelayMs = parsed.snapshotDelayMs;
       }
+      if (typeof parsed.snapshotAutoHideWindow === 'boolean') {
+        this.snapshotAutoHideWindow = parsed.snapshotAutoHideWindow;
+      }
       if (typeof parsed.snapshotSoundEnabled === 'boolean') {
         this.snapshotSoundEnabled = parsed.snapshotSoundEnabled;
       }
@@ -139,6 +145,7 @@ export class SettingsStore {
         grokBinaryPath: this.grokBinaryPath,
         snapshotShortcut: this.snapshotShortcut,
         snapshotDelayMs: this.snapshotDelayMs,
+        snapshotAutoHideWindow: this.snapshotAutoHideWindow,
         snapshotSoundEnabled: this.snapshotSoundEnabled,
         snapshotFlashEnabled: this.snapshotFlashEnabled,
         snapshotAutoAttach: this.snapshotAutoAttach,
@@ -161,6 +168,7 @@ export class SettingsStore {
     if (partial.grokBinaryPath !== undefined) this.grokBinaryPath = partial.grokBinaryPath;
     if (partial.snapshotShortcut !== undefined) this.snapshotShortcut = partial.snapshotShortcut;
     if (partial.snapshotDelayMs !== undefined) this.snapshotDelayMs = partial.snapshotDelayMs;
+    if (partial.snapshotAutoHideWindow !== undefined) this.snapshotAutoHideWindow = partial.snapshotAutoHideWindow;
     if (partial.snapshotSoundEnabled !== undefined) this.snapshotSoundEnabled = partial.snapshotSoundEnabled;
     if (partial.snapshotFlashEnabled !== undefined) this.snapshotFlashEnabled = partial.snapshotFlashEnabled;
     if (partial.snapshotAutoAttach !== undefined) this.snapshotAutoAttach = partial.snapshotAutoAttach;
@@ -179,6 +187,7 @@ export class SettingsStore {
     this.grokBinaryPath = DEFAULT_SETTINGS.grokBinaryPath;
     this.snapshotShortcut = DEFAULT_SETTINGS.snapshotShortcut;
     this.snapshotDelayMs = DEFAULT_SETTINGS.snapshotDelayMs;
+    this.snapshotAutoHideWindow = DEFAULT_SETTINGS.snapshotAutoHideWindow;
     this.snapshotSoundEnabled = DEFAULT_SETTINGS.snapshotSoundEnabled;
     this.snapshotFlashEnabled = DEFAULT_SETTINGS.snapshotFlashEnabled;
     this.snapshotAutoAttach = DEFAULT_SETTINGS.snapshotAutoAttach;
