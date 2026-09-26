@@ -994,7 +994,7 @@
     class="flex items-center justify-between pl-20 pr-4 h-12 bg-ant-bg-secondary border-b border-white/5 flex-shrink-0"
     style="--wails-draggable:drag"
   >
-    <div class="flex items-center space-x-2.5">
+    <div class="flex items-center space-x-2.5 shrink-0">
       <!-- Sidebar Toggle Button in Header -->
       <Tooltip
         title={settingsStore.sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
@@ -1004,7 +1004,7 @@
         <button
           type="button"
           onclick={toggleSidebar}
-          class="p-1.5 rounded-md text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg transition-colors cursor-pointer"
+          class="p-1.5 rounded-md text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg transition-colors cursor-pointer shrink-0"
           style="--wails-draggable:no-drag"
         >
           {#if settingsStore.sidebarCollapsed}
@@ -1023,22 +1023,22 @@
           draggable="false"
         />
       </div>
-      <div class="flex items-center space-x-2">
-        <span class="font-serif-display font-bold text-base tracking-tight text-ant-text">AetherGrok</span>
-        <span class="px-1.5 py-0.2 text-[9.5px] font-mono font-medium bg-white/5 text-ant-text-muted rounded border border-transparent">v{__APP_VERSION__}</span>
+      <div class="flex items-center space-x-2 shrink-0">
+        <span class="font-serif-display font-bold text-base tracking-tight text-ant-text leading-none">AetherGrok</span>
+        <span class="px-1.5 py-0.5 text-[9.5px] font-mono font-medium bg-white/5 text-ant-text-muted rounded border border-transparent leading-none">v{__APP_VERSION__}</span>
       </div>
     </div>
 
-    <div class="flex items-center space-x-3" style="--wails-draggable:no-drag">
+    <div class="flex items-center space-x-2 shrink-0" style="--wails-draggable:no-drag">
       <Button size="small" type="primary" onclick={performGlobalSnapshot}>
         <Camera size={13} class="mr-1" /> Snapshot
       </Button>
       <Button size="small" type="default" onclick={() => skillsCatalogVisible = true}>
         <Sparkles size={13} class="mr-1 text-ant-primary" /> Skills Hub
       </Button>
-      <div class="flex items-center space-x-2 text-xs text-ant-text-secondary bg-ant-bg px-2.5 py-1 rounded-md border border-white/5">
+      <div class="h-7 flex items-center space-x-2 text-xs text-ant-text-secondary bg-ant-bg px-2.5 rounded-md border border-white/5 shrink-0 whitespace-nowrap">
         <Badge status={isWorking ? 'processing' : 'success'} />
-        <span>Model: <strong class="text-ant-text">{selectedModel}</strong></span>
+        <span class="whitespace-nowrap">Model: <strong class="text-ant-text font-medium">{selectedModel}</strong></span>
       </div>
       <Button size="small" type="default" onclick={() => settingsModalVisible = true} class="!px-2">
         <Settings size={14} class="text-ant-text-secondary hover:text-ant-primary transition-colors" />
@@ -1053,7 +1053,7 @@
         <button
           type="button"
           onclick={() => sessionStore.toggleRightSidebar()}
-          class="p-1.5 rounded-md text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg transition-colors cursor-pointer"
+          class="p-1.5 rounded-md text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg transition-colors cursor-pointer shrink-0"
         >
           {#if currentSession?.rightSidebarOpen}
             <PanelRightClose size={16} class="text-indigo-400" />

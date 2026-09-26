@@ -31,7 +31,7 @@
     large: 'px-4 py-2 text-base h-10 rounded-lg'
   };
 
-  const baseClasses = 'inline-flex items-center justify-center font-serif font-medium transition-all duration-150 select-none outline-none focus-visible:ring-2 focus-visible:ring-ant-primary/50 disabled:opacity-45 disabled:cursor-not-allowed cursor-pointer';
+  const baseClasses = 'inline-flex items-center justify-center font-serif font-medium transition-all duration-150 select-none outline-none focus-visible:ring-2 focus-visible:ring-ant-primary/50 disabled:opacity-45 disabled:cursor-not-allowed cursor-pointer whitespace-nowrap shrink-0';
 
   function getTypeClasses(): string {
     if (danger) {
