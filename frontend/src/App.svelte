@@ -996,19 +996,24 @@
   >
     <div class="flex items-center space-x-2.5">
       <!-- Sidebar Toggle Button in Header -->
-      <button
-        type="button"
-        onclick={toggleSidebar}
-        class="p-1.5 rounded-md text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg transition-colors"
-        title="Sidebar (⌘B)"
-        style="--wails-draggable:no-drag"
+      <Tooltip
+        title={settingsStore.sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+        shortcut={isMac ? "⌘B" : "Ctrl+B"}
+        placement="bottom"
       >
-        {#if settingsStore.sidebarCollapsed}
-          <PanelLeftOpen size={16} />
-        {:else}
-          <PanelLeftClose size={16} />
-        {/if}
-      </button>
+        <button
+          type="button"
+          onclick={toggleSidebar}
+          class="p-1.5 rounded-md text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg transition-colors cursor-pointer"
+          style="--wails-draggable:no-drag"
+        >
+          {#if settingsStore.sidebarCollapsed}
+            <PanelLeftOpen size={16} />
+          {:else}
+            <PanelLeftClose size={16} />
+          {/if}
+        </button>
+      </Tooltip>
 
       <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-ant-primary/10 border border-ant-primary/20 text-ant-primary shadow-sm">
         <Sparkles size={16} />
@@ -1035,18 +1040,23 @@
       </Button>
 
       <!-- Right Sidebar (Inspector) Toggle in Header -->
-      <button
-        type="button"
-        onclick={() => sessionStore.toggleRightSidebar()}
-        class="p-1.5 rounded-md text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg transition-colors"
-        title="Toggle Workspace Inspector (⌘⌥B)"
+      <Tooltip
+        title={currentSession?.rightSidebarOpen ? "Close Inspector" : "Open Inspector"}
+        shortcut={isMac ? "⌘⌥B" : "Ctrl+Alt+B"}
+        placement="bottom"
       >
-        {#if currentSession?.rightSidebarOpen}
-          <PanelRightClose size={16} class="text-indigo-400" />
-        {:else}
-          <PanelRightOpen size={16} />
-        {/if}
-      </button>
+        <button
+          type="button"
+          onclick={() => sessionStore.toggleRightSidebar()}
+          class="p-1.5 rounded-md text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg transition-colors cursor-pointer"
+        >
+          {#if currentSession?.rightSidebarOpen}
+            <PanelRightClose size={16} class="text-indigo-400" />
+          {:else}
+            <PanelRightOpen size={16} />
+          {/if}
+        </button>
+      </Tooltip>
     </div>
   </header>
 
@@ -1112,14 +1122,21 @@
 
     <!-- Collapsed Floating Edge Indicator Button -->
     {#if settingsStore.sidebarCollapsed}
-      <button
-        type="button"
-        onclick={toggleSidebar}
-        class="absolute top-3 left-2 z-20 flex items-center justify-center w-7 h-7 rounded-md bg-ant-bg-secondary/90 hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-primary border border-white/5 shadow-md backdrop-blur-sm transition-all"
-        title="Expand Sidebar (⌘B)"
-      >
-        <ChevronRight size={15} />
-      </button>
+      <div class="absolute top-3 left-2 z-20">
+        <Tooltip
+          title="Expand Sidebar"
+          shortcut={isMac ? "⌘B" : "Ctrl+B"}
+          placement="right"
+        >
+          <button
+            type="button"
+            onclick={toggleSidebar}
+            class="flex items-center justify-center w-7 h-7 rounded-md bg-ant-bg-secondary/90 hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-primary border border-white/5 shadow-md backdrop-blur-sm transition-all cursor-pointer"
+          >
+            <ChevronRight size={15} />
+          </button>
+        </Tooltip>
+      </div>
     {/if}
 
     <!-- Center Workspace: Tabs & Chat Engine -->

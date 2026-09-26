@@ -2,6 +2,7 @@
   import { sessionStore } from '$lib/stores/session.svelte';
   import { settingsStore } from '$lib/stores/settings.svelte';
   import { Folder, GitBranch, X, PanelRightClose } from 'lucide-svelte';
+  import Tooltip from '$lib/antd/Tooltip.svelte';
   import FileExplorerTree from '../workspace/FileExplorerTree.svelte';
   import FileViewerModal from '../workspace/FileViewerModal.svelte';
   import GitChangesPanel from '../workspace/GitChangesPanel.svelte';
@@ -136,13 +137,18 @@
         </button>
       </div>
 
-      <button
-        onclick={handleClose}
-        title="Close Inspector (⌘⌥B)"
-        class="p-1.5 rounded-lg text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary transition-colors"
+      <Tooltip
+        title="Close Inspector"
+        shortcut={typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? '⌘⌥B' : 'Ctrl+Alt+B'}
+        placement="left"
       >
-        <PanelRightClose class="w-4 h-4" />
-      </button>
+        <button
+          onclick={handleClose}
+          class="p-1.5 rounded-lg text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary transition-colors cursor-pointer"
+        >
+          <PanelRightClose class="w-4 h-4" />
+        </button>
+      </Tooltip>
     </div>
 
     <!-- Active Tab Body with Build / Peel Animation -->
