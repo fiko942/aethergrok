@@ -1063,22 +1063,17 @@
       </div>
 
       <!-- Compact Engine Controls & Quick Settings Footer -->
-      <div class="pt-3 mt-2 border-t border-white/5 space-y-2 flex-shrink-0">
+      <div class="pt-2 mt-1 border-t border-white/5 flex-shrink-0">
         <button
           type="button"
           onclick={() => settingsModalVisible = true}
-          class="w-full flex items-center justify-between p-2.5 bg-ant-bg hover:bg-ant-bg-tertiary border border-white/5 hover:border-white/10 rounded-lg text-xs text-ant-text transition group cursor-pointer"
-          title="Open Settings & Preferences (⌘,)"
+          class="w-full flex items-center space-x-2 px-2 py-1.5 bg-ant-bg/60 hover:bg-ant-bg-tertiary border border-white/5 hover:border-white/10 rounded-md text-xs text-ant-text transition group cursor-pointer"
+          title="Open Settings & Preferences ({isMac ? '⌘,' : 'Ctrl+,'})"
         >
-          <div class="flex items-center space-x-2 min-w-0">
-            <div class="w-6 h-6 rounded-md bg-ant-primary/10 flex items-center justify-center text-ant-primary group-hover:scale-105 transition-transform flex-shrink-0">
-              <Settings size={13} />
-            </div>
-            <span class="font-serif font-medium text-ant-text truncate">Settings</span>
+          <div class="w-5 h-5 rounded bg-ant-primary/10 flex items-center justify-center text-ant-primary group-hover:scale-105 transition-transform flex-shrink-0">
+            <Settings size={12} />
           </div>
-          <span class="text-[10px] font-mono text-ant-text-muted px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/5">
-            {isMac ? '⌘,' : 'Ctrl+,'}
-          </span>
+          <span class="font-serif text-xs font-medium text-ant-text truncate">Settings</span>
         </button>
       </div>
     </aside>
