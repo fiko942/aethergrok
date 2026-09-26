@@ -22,6 +22,10 @@ export function CheckFileExists(arg1, arg2) {
   return window['go']['main']['App']['CheckFileExists'](arg1, arg2);
 }
 
+export function CheckMicrophonePermission() {
+  return window['go']['main']['App']['CheckMicrophonePermission']();
+}
+
 export function CheckMultipleFilesExists(arg1, arg2) {
   return window['go']['main']['App']['CheckMultipleFilesExists'](arg1, arg2);
 }
@@ -48,6 +52,10 @@ export function DeleteGrokSession(arg1, arg2) {
 
 export function DeleteSessionTempFiles(arg1) {
   return window['go']['main']['App']['DeleteSessionTempFiles'](arg1);
+}
+
+export function DeleteVoiceAudioRecording(arg1) {
+  return window['go']['main']['App']['DeleteVoiceAudioRecording'](arg1);
 }
 
 export function DiscoverGrokSessions(arg1) {
@@ -102,6 +110,10 @@ export function OpenExternalURL(arg1) {
   return window['go']['main']['App']['OpenExternalURL'](arg1);
 }
 
+export function OpenMicrophoneSettings() {
+  return window['go']['main']['App']['OpenMicrophoneSettings']();
+}
+
 export function OpenPathInSystem(arg1) {
   return window['go']['main']['App']['OpenPathInSystem'](arg1);
 }
@@ -120,6 +132,10 @@ export function ReadWorkspaceDirectory(arg1, arg2) {
 
 export function ReadWorkspaceFileContent(arg1, arg2, arg3) {
   return window['go']['main']['App']['ReadWorkspaceFileContent'](arg1, arg2, arg3);
+}
+
+export function RequestMicrophonePermission() {
+  return window['go']['main']['App']['RequestMicrophonePermission']();
 }
 
 export function RespondPermission(arg1) {
@@ -142,6 +158,10 @@ export function SaveMarkdownExport(arg1, arg2) {
   return window['go']['main']['App']['SaveMarkdownExport'](arg1, arg2);
 }
 
+export function SaveVoiceAudioRecording(arg1, arg2) {
+  return window['go']['main']['App']['SaveVoiceAudioRecording'](arg1, arg2);
+}
+
 export function ScanGitHubSkills(arg1) {
   return window['go']['main']['App']['ScanGitHubSkills'](arg1);
 }
@@ -156,4 +176,8 @@ export function SelectWorkspaceDirectory() {
 
 export function SetGrokBinaryPath(arg1) {
   return window['go']['main']['App']['SetGrokBinaryPath'](arg1);
+}
+
+export function TranscribeAudioWithGrok(arg1, arg2) {
+  return window['go']['main']['App']['TranscribeAudioWithGrok'](arg1, arg2);
 }

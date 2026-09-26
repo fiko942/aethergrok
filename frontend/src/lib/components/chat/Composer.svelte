@@ -8,10 +8,12 @@
   import AttachmentChip from '$lib/components/chat/composer/AttachmentChip.svelte';
   import QueueStackBar from '$lib/components/chat/composer/QueueStackBar.svelte';
   import ImageLightboxModal from '$lib/components/chat/ImageLightboxModal.svelte';
+  import VoiceErrorModal from '$lib/components/chat/VoiceErrorModal.svelte';
   import type { SkillItem } from '../../../app.d';
   import { playCameraShutterSound } from '$lib/utils/audio';
   import { settingsStore, type ReasoningEffort } from '$lib/stores/settings.svelte';
   import { sessionStore } from '$lib/stores/session.svelte';
+  import { voiceRecorder, type VoiceRecorderState } from '$lib/utils/voiceRecorder';
   import {
     Plus,
     ArrowUp,
@@ -26,7 +28,10 @@
     Timer,
     X,
     Eye,
-    Upload
+    Upload,
+    Mic,
+    MicOff,
+    WifiOff
   } from 'lucide-svelte';
 
   interface Props {
@@ -82,6 +87,115 @@
 
   // Active session queue
   const currentQueue = $derived(sessionStore.activeSession?.queuedPrompts || []);
+
+  // Voice Dictation (Microphone to Grok Transcription) State
+  let voiceState = $state<VoiceRecorderState>('idle');
+  let voiceSeconds = $state(0);
+  let voiceStatusText = $state('');
+  let voiceError = $state<string | null>(null);
+  let voiceErrorModalVisible = $state(false);
+  let voiceErrorMessage = $state('');
+  let voiceErrorDetails = $state('');
+
+  async function handleToggleVoiceRecording() {
+    if (voiceState === 'recording') {
+      await handleStopVoiceRecording();
+      return;
+    }
+
+    if (voiceState === 'transcribing' || voiceState === 'checking_permission' || voiceState === 'waiting_network') {
+      return;
+    }
+
+    voiceError = null;
+    voiceState = 'checking_permission';
+    voiceStatusText = 'Checking microphone...';
+
+    try {
+      await voiceRecorder.startRecording(settingsStore.selectedMicrophoneDeviceId, (progress) => {
+        voiceState = progress.state;
+        if (progress.elapsedSeconds !== undefined) {
+          voiceSeconds = progress.elapsedSeconds;
+        }
+        if (progress.message) {
+          voiceStatusText = progress.message;
+        }
+      });
+    } catch (err: any) {
+      voiceState = 'error';
+      voiceError = err?.message || 'Failed to start microphone recording';
+      setTimeout(() => {
+        if (voiceState === 'error') {
+          voiceState = 'idle';
+          voiceError = null;
+        }
+      }, 4000);
+    }
+  }
+
+  async function handleStopVoiceRecording() {
+    try {
+      const { blob, ext } = await voiceRecorder.stopRecording();
+      voiceState = 'transcribing';
+      voiceStatusText = 'Transcribing voice with Grok...';
+
+      const activeWorkspacePath = sessionStore.activeWorkspace?.path || '';
+      const transcript = await voiceRecorder.transcribeAudioBlob(
+        blob,
+        ext,
+        activeWorkspacePath,
+        (progress) => {
+          voiceState = progress.state;
+          if (progress.message) {
+            voiceStatusText = progress.message;
+          }
+        }
+      );
+
+      if (transcript) {
+        // Insert transcribed text into textarea at cursor or append
+        if (textareaEl) {
+          const start = textareaEl.selectionStart || text.length;
+          const end = textareaEl.selectionEnd || text.length;
+          const before = text.substring(0, start);
+          const after = text.substring(end);
+          const separator = before && !before.endsWith(' ') && !before.endsWith('\n') ? ' ' : '';
+          text = `${before}${separator}${transcript}${after}`;
+          await tick();
+          adjustTextareaHeight();
+          textareaEl.focus();
+          const newPos = start + separator.length + transcript.length;
+          textareaEl.setSelectionRange(newPos, newPos);
+        } else {
+          text = text ? `${text} ${transcript}` : transcript;
+          await tick();
+          adjustTextareaHeight();
+        }
+      }
+      voiceState = 'idle';
+      voiceStatusText = '';
+    } catch (err: any) {
+      const errMsg = err?.message || 'Failed to transcribe audio';
+      voiceState = 'error';
+      voiceError = errMsg;
+      voiceErrorMessage = 'Voice transcription could not be completed.';
+      voiceErrorDetails = errMsg;
+      voiceErrorModalVisible = true;
+      setTimeout(() => {
+        if (voiceState === 'error') {
+          voiceState = 'idle';
+          voiceError = null;
+        }
+      }, 5000);
+    }
+  }
+
+  function handleCancelVoiceRecording() {
+    voiceRecorder.cancelRecording();
+    voiceState = 'idle';
+    voiceStatusText = '';
+    voiceError = null;
+  }
 
   // Click outside listener for plus menu
   function handleWindowClick(e: MouseEvent) {
@@ -856,6 +970,58 @@
             onchange={handleFileSelect}
           />
 
+          <!-- Microphone / Voice Dictation Button -->
+          {#if voiceState === 'idle'}
+            <button
+              type="button"
+              class="w-6 h-6 rounded-md flex items-center justify-center text-ant-text-muted hover:text-ant-text hover:bg-ant-bg-secondary transition border border-transparent hover:border-white/5"
+              onclick={handleToggleVoiceRecording}
+              title="Voice Dictation (Talk to type via Grok)"
+            >
+              <Mic size={14} />
+            </button>
+          {:else if voiceState === 'recording'}
+            <div class="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/25 text-rose-400 text-[11px] font-mono animate-in fade-in duration-150">
+              <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+              <span>{Math.floor(voiceSeconds / 60)}:{String(voiceSeconds % 60).padStart(2, '0')}</span>
+              <button
+                type="button"
+                onclick={handleStopVoiceRecording}
+                class="w-4 h-4 rounded bg-rose-500 hover:bg-rose-600 transition flex items-center justify-center cursor-pointer shadow-sm ml-0.5"
+                title="Stop recording and transcribe"
+                aria-label="Stop recording"
+              >
+                <Square size={8} class="fill-white text-white" />
+              </button>
+            </div>
+          {:else if voiceState === 'transcribing' || voiceState === 'checking_permission'}
+            <!-- Compact Single Spinner Button without white/prominent border -->
+            <div
+              class="w-6 h-6 rounded-md flex items-center justify-center text-ant-primary bg-transparent transition animate-in fade-in duration-150"
+              title={voiceStatusText || 'Transcribing voice with Grok...'}
+            >
+              <Loader2 size={14} class="animate-spin text-ant-primary" />
+            </div>
+          {:else if voiceState === 'waiting_network'}
+            <!-- Compact Single Offline Icon Button without white/prominent border -->
+            <div
+              class="w-6 h-6 rounded-md flex items-center justify-center text-amber-400 bg-transparent transition animate-in fade-in duration-150"
+              title="Waiting for internet connection..."
+            >
+              <WifiOff size={14} class="animate-pulse text-amber-400" />
+            </div>
+          {:else if voiceState === 'error'}
+            <!-- Compact Error Button without white/prominent border -->
+            <button
+              type="button"
+              class="w-6 h-6 rounded-md flex items-center justify-center text-rose-400 bg-transparent hover:bg-white/5 transition animate-in fade-in duration-150 cursor-pointer"
+              onclick={() => voiceErrorModalVisible = true}
+              title={voiceError ? `${voiceError} (Click to see error log)` : 'Voice error (Click to view details)'}
+            >
+              <MicOff size={14} />
+            </button>
+          {/if}
+
           <!-- Model & Effort Popover (Sliders icon) -->
           <ModelEffortPopover
             bind:model={selectedModel}
@@ -937,6 +1103,14 @@
     imageSrc={lightboxSrc}
     imageTitle={lightboxTitle}
     onClose={() => { lightboxVisible = false; }}
+  />
+
+  <!-- Voice Transcription Error Details Modal -->
+  <VoiceErrorModal
+    visible={voiceErrorModalVisible}
+    errorMessage={voiceErrorMessage}
+    errorDetails={voiceErrorDetails}
+    onClose={() => { voiceErrorModalVisible = false; }}
   />
 </div>
 

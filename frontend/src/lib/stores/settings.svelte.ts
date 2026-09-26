@@ -22,6 +22,7 @@ export interface AppSettings {
   maxContextTokens: number;
   sidebarWidth: number;
   sidebarCollapsed: boolean;
+  selectedMicrophoneDeviceId: string;
 }
 
 const STORAGE_KEY = 'aethergrok_settings_v1';
@@ -43,7 +44,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   activeWindowTurnCount: 10,
   maxContextTokens: 200000,
   sidebarWidth: 288,
-  sidebarCollapsed: false
+  sidebarCollapsed: false,
+  selectedMicrophoneDeviceId: ''
 };
 
 export class SettingsStore {
@@ -64,6 +66,7 @@ export class SettingsStore {
   maxContextTokens = $state<number>(DEFAULT_SETTINGS.maxContextTokens);
   sidebarWidth = $state<number>(DEFAULT_SETTINGS.sidebarWidth);
   sidebarCollapsed = $state<boolean>(DEFAULT_SETTINGS.sidebarCollapsed);
+  selectedMicrophoneDeviceId = $state<string>(DEFAULT_SETTINGS.selectedMicrophoneDeviceId);
 
   constructor() {
     this.loadFromStorage();
@@ -127,6 +130,9 @@ export class SettingsStore {
       if (typeof parsed.sidebarCollapsed === 'boolean') {
         this.sidebarCollapsed = parsed.sidebarCollapsed;
       }
+      if (typeof parsed.selectedMicrophoneDeviceId === 'string') {
+        this.selectedMicrophoneDeviceId = parsed.selectedMicrophoneDeviceId;
+      }
     } catch (err) {
       console.warn('Failed to load settings from localStorage:', err);
     }
@@ -152,7 +158,8 @@ export class SettingsStore {
         activeWindowTurnCount: this.activeWindowTurnCount,
         maxContextTokens: this.maxContextTokens,
         sidebarWidth: this.sidebarWidth,
-        sidebarCollapsed: this.sidebarCollapsed
+        sidebarCollapsed: this.sidebarCollapsed,
+        selectedMicrophoneDeviceId: this.selectedMicrophoneDeviceId
       };
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (err) {

@@ -16,6 +16,8 @@ export function CheckDirectoryExists(arg1:string):Promise<boolean>;
 
 export function CheckFileExists(arg1:string,arg2:string):Promise<workspace.FileCheckResult>;
 
+export function CheckMicrophonePermission():Promise<permissions.Status>;
+
 export function CheckMultipleFilesExists(arg1:string,arg2:Array<string>):Promise<Record<string, workspace.FileCheckResult>>;
 
 export function CleanupSkillImportTemp(arg1:string):Promise<void>;
@@ -29,6 +31,8 @@ export function CompactSession(arg1:string,arg2:string):Promise<grokrunner.Sessi
 export function DeleteGrokSession(arg1:string,arg2:string):Promise<void>;
 
 export function DeleteSessionTempFiles(arg1:Array<string>):Promise<void>;
+
+export function DeleteVoiceAudioRecording(arg1:string):Promise<void>;
 
 export function DiscoverGrokSessions(arg1:string):Promise<Array<grokrunner.GrokSessionMetadata>>;
 
@@ -56,6 +60,8 @@ export function OpenAccessibilitySettings():Promise<void>;
 
 export function OpenExternalURL(arg1:string):Promise<void>;
 
+export function OpenMicrophoneSettings():Promise<void>;
+
 export function OpenPathInSystem(arg1:string):Promise<void>;
 
 export function PullWorkspaceChanges(arg1:string):Promise<string>;
@@ -65,6 +71,8 @@ export function PushWorkspaceChanges(arg1:string):Promise<string>;
 export function ReadWorkspaceDirectory(arg1:string,arg2:string):Promise<Array<workspace.FileItem>>;
 
 export function ReadWorkspaceFileContent(arg1:string,arg2:string,arg3:boolean):Promise<string>;
+
+export function RequestMicrophonePermission():Promise<permissions.Status>;
 
 export function RespondPermission(arg1:grokrunner.PermissionResponse):Promise<void>;
 
@@ -76,6 +84,8 @@ export function RunPromptStream(arg1:grokrunner.PromptRequest):Promise<void>;
 
 export function SaveMarkdownExport(arg1:string,arg2:string):Promise<string>;
 
+export function SaveVoiceAudioRecording(arg1:string,arg2:string):Promise<string>;
+
 export function ScanGitHubSkills(arg1:string):Promise<skills.SkillAnalysisResult>;
 
 export function SearchSkills(arg1:string,arg2:string):Promise<Array<skills.Skill>>;
@@ -83,3 +93,5 @@ export function SearchSkills(arg1:string,arg2:string):Promise<Array<skills.Skill
 export function SelectWorkspaceDirectory():Promise<string>;
 
 export function SetGrokBinaryPath(arg1:string):Promise<void>;
+
+export function TranscribeAudioWithGrok(arg1:string,arg2:string):Promise<string>;

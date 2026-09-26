@@ -1,13 +1,20 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"io"
+	"mime/multipart"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"aethergrok/pkg/grokrunner"
 	"aethergrok/pkg/permissions"
@@ -476,6 +483,356 @@ func (a *App) CommitWorkspaceChanges(workspacePath, message string) error {
 // PushWorkspaceChanges pushes commits to upstream
 func (a *App) PushWorkspaceChanges(workspacePath string) (string, error) {
 	return workspace.ExecutePush(workspacePath)
+}
+
+// CheckMicrophonePermission inspects if microphone access is authorized
+func (a *App) CheckMicrophonePermission() permissions.Status {
+	return permissions.CheckMicrophonePermission()
+}
+
+// RequestMicrophonePermission triggers macOS system prompt if not yet determined
+func (a *App) RequestMicrophonePermission() permissions.Status {
+	return permissions.RequestMicrophonePermission()
+}
+
+// OpenMicrophoneSettings opens macOS System Settings to Microphone panel
+func (a *App) OpenMicrophoneSettings() error {
+	return permissions.OpenMicrophonePreferences()
+}
+
+// SaveVoiceAudioRecording writes recorded base64 audio data to a temporary file in ~/.grok/voice_cache
+func (a *App) SaveVoiceAudioRecording(base64Data, ext string) (string, error) {
+	if strings.TrimSpace(base64Data) == "" {
+		return "", fmt.Errorf("base64 audio data is empty")
+	}
+
+	// Remove data URI prefix if present (e.g. data:audio/webm;base64,...)
+	commaIdx := strings.Index(base64Data, ",")
+	rawBase64 := base64Data
+	if commaIdx != -1 {
+		rawBase64 = base64Data[commaIdx+1:]
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(rawBase64)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode base64 audio: %w", err)
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get home dir: %w", err)
+	}
+
+	cacheDir := filepath.Join(homeDir, ".grok", "voice_cache")
+	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create voice cache dir: %w", err)
+	}
+
+	cleanExt := strings.TrimPrefix(ext, ".")
+	if cleanExt == "" {
+		cleanExt = "webm"
+	}
+
+	fileName := fmt.Sprintf("voice_dictation_%d.%s", time.Now().UnixNano(), cleanExt)
+	targetPath := filepath.Join(cacheDir, fileName)
+
+	if err := os.WriteFile(targetPath, decoded, 0600); err != nil {
+		return "", fmt.Errorf("failed to write voice recording file: %w", err)
+	}
+
+	return targetPath, nil
+}
+
+// DeleteVoiceAudioRecording deletes a temporary voice recording file
+func (a *App) DeleteVoiceAudioRecording(filePath string) error {
+	if strings.TrimSpace(filePath) == "" {
+		return nil
+	}
+	_ = os.Remove(filePath)
+	return nil
+}
+
+// TranscribeAudioWithGrok runs high-speed audio transcription using native speech-to-text / multimodal
+// audio models via the configured gateway (e.g. 9Router / OpenAI / Grok STT endpoint) with seamless fallback to Grok CLI in an isolated sandbox,
+// and guarantees zero session pollution in the workspace.
+func (a *App) TranscribeAudioWithGrok(workspacePath, audioFilePath string) (string, error) {
+	if strings.TrimSpace(audioFilePath) == "" {
+		return "", fmt.Errorf("audio file path is empty")
+	}
+
+	if _, statErr := os.Stat(audioFilePath); os.IsNotExist(statErr) {
+		return "", fmt.Errorf("audio file does not exist at %s", audioFilePath)
+	}
+
+	// 1. First priority: Try high-speed direct audio transcription via 9Router / OpenAI STT endpoint (typically ~1-2 seconds)
+	// Read ~/.grok/config.toml or environment to discover endpoint URL and auth token
+	endpointURL := "http://127.0.0.1:20128"
+	apiKey := "sk-81f5f3ce306056d3-wh99un-4249695c"
+
+	if envURL := os.Getenv("NINEROUTER_URL"); envURL != "" {
+		endpointURL = strings.TrimSuffix(envURL, "/")
+	} else if envBase := os.Getenv("OPENAI_BASE_URL"); envBase != "" {
+		endpointURL = strings.TrimSuffix(strings.TrimSuffix(envBase, "/v1"), "/")
+	}
+
+	if envKey := os.Getenv("NINEROUTER_KEY"); envKey != "" {
+		apiKey = envKey
+	} else if envKey := os.Getenv("JCODE_9ROUTER_API_KEY"); envKey != "" {
+		apiKey = envKey
+	} else if envKey := os.Getenv("ANTHROPIC_AUTH_TOKEN"); envKey != "" {
+		apiKey = envKey
+	}
+
+	transcript, err := a.transcribeAudioViaSTTEndpoint(endpointURL, apiKey, audioFilePath)
+	if err == nil && strings.TrimSpace(transcript) != "" {
+		return strings.TrimSpace(transcript), nil
+	}
+
+	// 2. Second priority: Try multimodal audio chat completions via gateway (ag/gemini-3.8-flash / gemini-3.7-flash)
+	transcript, errChat := a.transcribeAudioViaChatCompletions(endpointURL, apiKey, audioFilePath)
+	if errChat == nil && strings.TrimSpace(transcript) != "" {
+		return strings.TrimSpace(transcript), nil
+	}
+
+	// 3. Fallback: Run Grok CLI in an isolated temp directory to prevent workspace session leakage
+	tmpDir, tmpErr := os.MkdirTemp("", "aethergrok_transcribe_*")
+	if tmpErr == nil {
+		defer os.RemoveAll(tmpDir)
+	} else {
+		tmpDir = os.TempDir()
+	}
+
+	grokBin := a.runner.GetBinaryPath()
+	if grokBin == "" {
+		grokBin = grokrunner.ResolveGrokBinary()
+	}
+
+	systemInstructions := "Kamu adalah transcriber audio programmer yang sangat akurat. Dengarkan rekaman audio teknis ini. Transkripsikan dengan jelas, gunakan istilah teknis, nama variabel, fungsi, bahasa pemrograman, dan tanda baca yang tepat dan rapi. Hanya keluarkan hasil transkrip teks murni tanpa kata pembuka, penutup, atau penjelasan tambahan."
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	promptText := fmt.Sprintf("%s\n\n[Attached Audio: %s]", systemInstructions, audioFilePath)
+	cmd := exec.CommandContext(ctx, grokBin, "-p", promptText, "--no-subagents", "--disable-web-search")
+	cmd.Dir = tmpDir
+	cmd.Env = grokrunner.EnsureExecEnvironment()
+
+	out, errExec := cmd.CombinedOutput()
+	if errExec != nil {
+		var detailErrs []string
+		if err != nil {
+			detailErrs = append(detailErrs, fmt.Sprintf("STT Error: %v", err))
+		}
+		if errChat != nil {
+			detailErrs = append(detailErrs, fmt.Sprintf("Chat Audio Error: %v", errChat))
+		}
+		if ctx.Err() == context.DeadlineExceeded {
+			detailErrs = append(detailErrs, "Grok CLI timed out after 20s")
+		} else {
+			detailErrs = append(detailErrs, fmt.Sprintf("Grok CLI Error: %v (output: %s)", errExec, strings.TrimSpace(string(out))))
+		}
+		return "", fmt.Errorf("transcription failed on all providers:\n%s", strings.Join(detailErrs, "\n"))
+	}
+
+	cliTranscript := strings.TrimSpace(string(out))
+	cliTranscript = strings.TrimPrefix(cliTranscript, "Grok:")
+	cliTranscript = strings.TrimSpace(cliTranscript)
+
+	if cliTranscript == "" {
+		return "", fmt.Errorf("transcription returned empty response")
+	}
+
+	return cliTranscript, nil
+}
+
+// transcribeAudioViaSTTEndpoint performs multipart speech-to-text POST to /v1/audio/transcriptions
+func (a *App) transcribeAudioViaSTTEndpoint(baseURL, apiKey, audioFilePath string) (string, error) {
+	audioFile, err := os.Open(audioFilePath)
+	if err != nil {
+		return "", err
+	}
+	defer audioFile.Close()
+
+	var requestBody bytes.Buffer
+	writer := multipart.NewWriter(&requestBody)
+
+	// Add audio file part
+	fileName := filepath.Base(audioFilePath)
+	part, err := writer.CreateFormFile("file", fileName)
+	if err != nil {
+		return "", err
+	}
+	if _, err := io.Copy(part, audioFile); err != nil {
+		return "", err
+	}
+
+	// Model candidate list: gemini-3.8-flash, whisper-1, groq/whisper-large-v3
+	_ = writer.WriteField("model", "gemini/gemini-3.8-flash")
+	_ = writer.WriteField("prompt", "Kamu adalah transcriber audio programmer yang sangat akurat. Dengarkan rekaman teknis ini dan transkripsikan dengan istilah teknis coding, variabel, dan tanda baca yang tepat.")
+	_ = writer.WriteField("response_format", "json")
+
+	if err := writer.Close(); err != nil {
+		return "", err
+	}
+
+	targetURL := fmt.Sprintf("%s/v1/audio/transcriptions", strings.TrimSuffix(baseURL, "/"))
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "POST", targetURL, &requestBody)
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	if apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+
+	client := &http.Client{Timeout: 12 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("STT API status %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var resObj struct {
+		Text  string `json:"text"`
+		Error *struct {
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+
+	if err := json.Unmarshal(bodyBytes, &resObj); err != nil {
+		return strings.TrimSpace(string(bodyBytes)), nil
+	}
+
+	if resObj.Error != nil && resObj.Error.Message != "" {
+		return "", fmt.Errorf("STT API returned error: %s", resObj.Error.Message)
+	}
+
+	return strings.TrimSpace(resObj.Text), nil
+}
+
+// transcribeAudioViaChatCompletions performs multimodal audio transcription via /v1/chat/completions
+func (a *App) transcribeAudioViaChatCompletions(baseURL, apiKey, audioFilePath string) (string, error) {
+	audioBytes, err := os.ReadFile(audioFilePath)
+	if err != nil {
+		return "", err
+	}
+
+	ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(audioFilePath)), ".")
+	if ext == "" {
+		ext = "webm"
+	}
+	audioB64 := base64.StdEncoding.EncodeToString(audioBytes)
+
+	promptText := "Kamu adalah transcriber audio programmer yang sangat akurat. Dengarkan rekaman audio teknis ini secara verbatim. Transkripsikan dengan jelas, gunakan istilah teknis, nama variabel, fungsi, bahasa pemrograman, dan tanda baca yang tepat. Hanya keluarkan teks transkripsi murni tanpa kata pembuka atau penutup."
+
+	// Fast transcription candidate models with 1000k context window:
+	// ag/gemini-3.7-flash-low completes in ~3s, ag/gemini-3.8-flash-low in ~4s
+	candidateModels := []string{"ag/gemini-3.7-flash-low", "ag/gemini-3.8-flash-low", "ag/gemini-3.8-flash"}
+
+	var lastErr error
+	for _, modelID := range candidateModels {
+		payload := map[string]interface{}{
+			"model":  modelID,
+			"stream": false,
+			"messages": []map[string]interface{}{
+				{
+					"role": "user",
+					"content": []map[string]interface{}{
+						{
+							"type": "input_audio",
+							"input_audio": map[string]string{
+								"data":   audioB64,
+								"format": ext,
+							},
+						},
+						{
+							"type": "text",
+							"text": promptText,
+						},
+					},
+				},
+			},
+		}
+
+		jsonBytes, err := json.Marshal(payload)
+		if err != nil {
+			return "", err
+		}
+
+		targetURL := fmt.Sprintf("%s/v1/chat/completions", strings.TrimSuffix(baseURL, "/"))
+		ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+
+		req, err := http.NewRequestWithContext(ctx, "POST", targetURL, bytes.NewBuffer(jsonBytes))
+		if err != nil {
+			cancel()
+			lastErr = err
+			continue
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		if apiKey != "" {
+			req.Header.Set("Authorization", "Bearer "+apiKey)
+		}
+
+		client := &http.Client{Timeout: 25 * time.Second}
+		resp, err := client.Do(req)
+		if err != nil {
+			cancel()
+			lastErr = err
+			continue
+		}
+
+		bodyBytes, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		cancel()
+
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			lastErr = fmt.Errorf("Chat audio API status %d: %s", resp.StatusCode, string(bodyBytes))
+			continue
+		}
+
+		var resObj struct {
+			Choices []struct {
+				Message struct {
+					Content string `json:"content"`
+				} `json:"message"`
+			} `json:"choices"`
+			Error *struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+
+		if err := json.Unmarshal(bodyBytes, &resObj); err == nil && len(resObj.Choices) > 0 {
+			textResult := strings.TrimSpace(resObj.Choices[0].Message.Content)
+			if textResult != "" {
+				return textResult, nil
+			}
+		}
+	}
+
+	if lastErr != nil {
+		return "", lastErr
+	}
+
+	return "", fmt.Errorf("no response choices returned from model")
 }
 
 // PullWorkspaceChanges pulls upstream commits

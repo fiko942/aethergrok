@@ -21,3 +21,28 @@ func CheckAndRequestAccessibility() Status {
 	}
 	return checkDarwinAccessibility()
 }
+
+// CheckMicrophonePermission inspects if microphone access is authorized
+func CheckMicrophonePermission() Status {
+	if runtime.GOOS != "darwin" {
+		return Status{
+			Granted:  true,
+			Message:  "Microphone permission not restricted on this platform",
+			Platform: runtime.GOOS,
+		}
+	}
+	return checkDarwinMicrophone()
+}
+
+// RequestMicrophonePermission triggers macOS system prompt if not yet determined
+func RequestMicrophonePermission() Status {
+	if runtime.GOOS != "darwin" {
+		return Status{
+			Granted:  true,
+			Message:  "Microphone permission granted",
+			Platform: runtime.GOOS,
+		}
+	}
+	return requestDarwinMicrophone()
+}
+

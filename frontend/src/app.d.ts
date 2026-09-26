@@ -131,6 +131,12 @@ declare global {
           RevertWorkspaceFiles: (workspacePath: string, filePaths: string[]) => Promise<void>;
           CheckAndRequestAccessibilityPermissions: () => Promise<{ granted: boolean; message: string; platform: string }>;
           OpenAccessibilitySettings: () => Promise<void>;
+          CheckMicrophonePermission: () => Promise<{ granted: boolean; message: string; platform: string }>;
+          RequestMicrophonePermission: () => Promise<{ granted: boolean; message: string; platform: string }>;
+          OpenMicrophoneSettings: () => Promise<void>;
+          SaveVoiceAudioRecording: (base64Data: string, ext: string) => Promise<string>;
+          DeleteVoiceAudioRecording: (filePath: string) => Promise<void>;
+          TranscribeAudioWithGrok: (workspacePath: string, audioFilePath: string) => Promise<string>;
           RevealGrokConfigFile?: () => Promise<void>;
           GetSnapshotCacheStats?: () => Promise<{ totalBytes: number; fileCount: number; formattedSize: string }>;
           ClearSnapshotCache?: () => Promise<{ freedBytes: number; deletedCount: number; formattedSize: string }>;

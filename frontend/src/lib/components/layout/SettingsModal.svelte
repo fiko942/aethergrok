@@ -36,13 +36,15 @@
     ZapOff,
     Trash2,
     HardDrive,
-    RefreshCw
+    RefreshCw,
+    Mic
   } from 'lucide-svelte';
   import Button from '$lib/antd/Button.svelte';
   import Card from '$lib/antd/Card.svelte';
   import Switch from '$lib/antd/Switch.svelte';
   import Badge from '$lib/antd/Badge.svelte';
   import KeyRecorderModal from '$lib/components/ui/KeyRecorderModal.svelte';
+  import { voiceRecorder, type AudioInputDevice } from '$lib/utils/voiceRecorder';
 
   let {
     visible = false,
@@ -52,7 +54,7 @@
     onClose: () => void;
   } = $props();
 
-  type TabKey = 'general' | 'models' | 'permissions' | 'theme' | 'shortcuts' | 'about';
+  type TabKey = 'general' | 'models' | 'permissions' | 'voice' | 'theme' | 'shortcuts' | 'about';
   let activeTab = $state<TabKey>('general');
 
   // Local draft state for edits
@@ -72,6 +74,41 @@
   let editPlanGateMode = $state<PlanGateMode>(settingsStore.planGateMode);
   let editAnimationsEnabled = $state<boolean>(settingsStore.animationsEnabled);
   let editTheme = $state<ThemeMode>(settingsStore.theme);
+  let editSelectedMicrophoneDeviceId = $state(settingsStore.selectedMicrophoneDeviceId);
+
+  // Microphone & Voice State
+  let micPermissionStatus = $state<{ granted: boolean; message: string }>({ granted: false, message: 'Checking...' });
+  let audioInputDevices = $state<AudioInputDevice[]>([]);
+  let isCheckingMic = $state(false);
+
+  async function checkMicPermissionAndDevices() {
+    isCheckingMic = true;
+    try {
+      micPermissionStatus = await voiceRecorder.checkPermission();
+      audioInputDevices = await voiceRecorder.getAudioInputDevices();
+    } catch (err: any) {
+      micPermissionStatus = { granted: false, message: err?.message || 'Failed to check microphone' };
+    } finally {
+      isCheckingMic = false;
+    }
+  }
+
+  async function handleRequestMicPermission() {
+    isCheckingMic = true;
+    try {
+      const granted = await voiceRecorder.requestPermission();
+      await checkMicPermissionAndDevices();
+    } finally {
+      isCheckingMic = false;
+    }
+  }
+
+  function handleOpenMicSystemSettings() {
+    const win = window as any;
+    if (win.go?.main?.App?.OpenMicrophoneSettings) {
+      win.go.main.App.OpenMicrophoneSettings();
+    }
+  }
 
   let isRecordingShortcut = $state(false);
   let saveSuccessNotice = $state(false);
@@ -155,9 +192,11 @@
       editPlanGateMode = settingsStore.planGateMode;
       editAnimationsEnabled = settingsStore.animationsEnabled;
       editTheme = settingsStore.theme;
+      editSelectedMicrophoneDeviceId = settingsStore.selectedMicrophoneDeviceId;
       isRecordingShortcut = false;
       saveSuccessNotice = false;
       refreshCacheStats();
+      checkMicPermissionAndDevices();
     }
   });
 
@@ -165,6 +204,7 @@
     { id: 'general', label: 'General & Snapshot', icon: Sliders, description: 'Engine path, smart screenshot audio/flash, and DOM turn windowing' },
     { id: 'models', label: 'Models & Reasoning', icon: Brain, description: 'Default inference model and reasoning token budget' },
     { id: 'permissions', label: 'Permissions', icon: Shield, description: 'Security boundaries for filesystem, bash, and tool execution' },
+    { id: 'voice', label: 'Voice & Dictation', icon: Mic, description: 'Microphone permissions, input device selection, and Grok transcription engine' },
     { id: 'theme', label: 'Theme & Appearance', icon: Palette, description: 'High-contrast, Ant Design light, and dark studio styles' },
     { id: 'shortcuts', label: 'Shortcuts', icon: Keyboard, description: 'Quick access keyboard bindings and interaction triggers' },
     { id: 'about', label: 'About AetherGrok', icon: Info, description: 'Mission, target audience, open-source repository, and developer portfolio' }
@@ -334,7 +374,8 @@
       permissionMode: editPermissionMode,
       planGateMode: editPlanGateMode,
       animationsEnabled: editAnimationsEnabled,
-      theme: editTheme
+      theme: editTheme,
+      selectedMicrophoneDeviceId: editSelectedMicrophoneDeviceId
     });
 
     saveSuccessNotice = true;
@@ -1060,6 +1101,109 @@
                   </button>
                 {/each}
               </div>
+            </div>
+          {/if}
+
+          <!-- TAB: VOICE & DICTATION -->
+          {#if activeTab === 'voice'}
+            <div class="space-y-6 animate-in fade-in duration-100">
+              <div>
+                <h3 class="font-serif-display text-base font-semibold text-ant-text">Voice & Dictation</h3>
+                <p class="font-serif text-xs text-ant-text-secondary mt-0.5">
+                  Configure microphone access, input devices, and AI voice-to-text dictation with Grok.
+                </p>
+              </div>
+
+              <!-- macOS Permission Status Card -->
+              <Card title="Microphone Permission">
+                <div class="space-y-4">
+                  <div class="flex items-center justify-between p-3.5 rounded-xl border border-white/5 bg-ant-bg">
+                    <div class="flex items-center space-x-3">
+                      <div class="w-8 h-8 rounded-lg flex items-center justify-center {micPermissionStatus.granted ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}">
+                        <Mic size={16} />
+                      </div>
+                      <div>
+                        <div class="flex items-center space-x-2">
+                          <span class="text-xs font-semibold text-ant-text">System Microphone Access</span>
+                          <span class="text-[10px] px-2 py-0.5 rounded-full font-mono font-medium {micPermissionStatus.granted ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/15 text-amber-400 border border-amber-500/20'}">
+                            {micPermissionStatus.granted ? 'GRANTED' : 'RESTRICTED / DENIED'}
+                          </span>
+                        </div>
+                        <p class="text-[11px] text-ant-text-secondary mt-0.5">
+                          {micPermissionStatus.message}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                      <button
+                        type="button"
+                        class="px-3 py-1.5 rounded-lg border border-white/10 bg-ant-bg-secondary text-xs font-serif text-ant-text hover:bg-white/5 hover:border-white/20 transition flex items-center space-x-1.5"
+                        onclick={checkMicPermissionAndDevices}
+                        disabled={isCheckingMic}
+                      >
+                        <RefreshCw size={12} class={isCheckingMic ? 'animate-spin' : ''} />
+                        <span>Recheck</span>
+                      </button>
+
+                      {#if !micPermissionStatus.granted}
+                        <button
+                          type="button"
+                          class="px-3 py-1.5 rounded-lg bg-ant-primary text-white text-xs font-serif hover:bg-ant-primary-hover transition"
+                          onclick={handleRequestMicPermission}
+                        >
+                          Request Permission
+                        </button>
+                        <button
+                          type="button"
+                          class="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-serif text-ant-text-secondary hover:text-ant-text hover:bg-white/5 transition"
+                          onclick={handleOpenMicSystemSettings}
+                        >
+                          Open System Settings
+                        </button>
+                      {/if}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              <!-- Audio Input Device Selector Card -->
+              <Card title="Input Microphone Device">
+                <div class="space-y-4">
+                  <p class="text-xs text-ant-text-secondary">
+                    Select which microphone hardware to capture audio from when recording prompts in the composer.
+                  </p>
+
+                  <div class="space-y-2">
+                    <label for="mic-device-select" class="block text-xs font-medium text-ant-text">
+                      Active Microphone
+                    </label>
+                    <select
+                      id="mic-device-select"
+                      bind:value={editSelectedMicrophoneDeviceId}
+                      class="w-full bg-ant-bg text-ant-text border border-white/10 rounded-xl px-3.5 py-2 text-xs outline-none focus:border-ant-primary transition font-serif cursor-pointer"
+                    >
+                      <option value="">Default System Microphone</option>
+                      {#each audioInputDevices as device}
+                        <option value={device.deviceId}>{device.label}</option>
+                      {/each}
+                    </select>
+                  </div>
+                </div>
+              </Card>
+
+              <!-- Voice Dictation Engine Info -->
+              <Card title="Voice Transcription Engine">
+                <div class="p-3.5 rounded-xl border border-white/5 bg-ant-bg space-y-2 text-xs">
+                  <div class="flex items-center space-x-2 text-ant-text font-medium">
+                    <Sparkles size={14} class="text-ant-warning" />
+                    <span>Programmer-Optimized Grok Voice Transcriber</span>
+                  </div>
+                  <p class="text-ant-text-secondary text-[11px] leading-relaxed">
+                    Voice recordings are automatically transcribed in the active workspace with specialized programmer prompts (technical code terms, variable names, functions, and symbols) and clean markdown formatting. Temporary audio files and Grok sessions are guaranteed to be cleaned up automatically after injection.
+                  </p>
+                </div>
+              </Card>
             </div>
           {/if}
 
