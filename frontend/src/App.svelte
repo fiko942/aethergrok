@@ -43,13 +43,13 @@
     ChevronRight
   } from 'lucide-svelte';
 
-  let autoHideWindow = $state(true);
   let reasoningEffort = $state<'low' | 'medium' | 'high'>('medium');
   let selectedModel = $state('9router');
   let pingResult = $state<string>('');
   let skillsCatalogVisible = $state(false);
   let settingsModalVisible = $state(false);
   let flashActive = $state(false);
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
   // Sidebar Resizing & Responsive State
   const COMPACT_BREAKPOINT = 840;
@@ -119,6 +119,7 @@
     attachImage: (img: VisionImage) => void;
     focusInput: () => void;
     restorePrompt: (payload: { text: string; images?: VisionImage[]; attachments?: AttachedFile[] }) => void;
+    handleExternalFiles?: (files: FileList | File[]) => void;
   } | null>(null);
   let messageListRef = $state<{ forceScrollBottom: () => void } | null>(null);
 
@@ -587,8 +588,24 @@
       target.isContentEditable
     );
 
+    const normCode = e.code ? e.code.toLowerCase().replace(/[\s_-]/g, '') : '';
+    const normShortcut = shortcutStr.toLowerCase().replace(/[\s_-]/g, '');
+
     // 1. Direct code check (e.g. ShiftLeft, ShiftRight, MetaLeft, MetaRight, AltLeft, AltRight, ControlLeft, ControlRight)
-    if (e.code && shortcutStr.toLowerCase() === e.code.toLowerCase()) {
+    const isDirectMatch = normCode && (
+      normCode === normShortcut ||
+      (normCode === 'shiftright' && (normShortcut === 'rightshift' || normShortcut === 'shiftright')) ||
+      (normCode === 'shiftleft' && (normShortcut === 'leftshift' || normShortcut === 'shiftleft')) ||
+      (normCode === 'controlright' && (normShortcut === 'rightctrl' || normShortcut === 'controlright' || normShortcut === 'rightcontrol')) ||
+      (normCode === 'controlleft' && (normShortcut === 'leftctrl' || normShortcut === 'controlleft' || normShortcut === 'leftcontrol')) ||
+      (normCode === 'altright' && (normShortcut === 'rightalt' || normShortcut === 'altright' || normShortcut === 'rightoption' || normShortcut === 'rightopt')) ||
+      (normCode === 'altleft' && (normShortcut === 'leftalt' || normShortcut === 'altleft' || normShortcut === 'leftoption' || normShortcut === 'leftopt')) ||
+      (normCode === 'metaright' && (normShortcut === 'rightcmd' || normShortcut === 'metaright' || normShortcut === 'rightwin' || normShortcut === 'rightmeta')) ||
+      (normCode === 'metaleft' && (normShortcut === 'leftcmd' || normShortcut === 'metaleft' || normShortcut === 'leftwin' || normShortcut === 'leftmeta'))
+    );
+
+    if (isDirectMatch) {
+      if (isEditingText) return false;
       return true;
     }
 
@@ -998,22 +1015,24 @@
         <WorkspaceSidebar />
       </div>
 
-      <!-- Compact Engine Controls & Diff Status Footer -->
+      <!-- Compact Engine Controls & Quick Settings Footer -->
       <div class="pt-3 mt-2 border-t border-white/5 space-y-2 flex-shrink-0">
-        <div class="p-2.5 bg-ant-bg rounded-lg border border-white/5 space-y-2 text-xs">
-          <div class="flex items-center justify-between">
-            <span class="text-ant-text-secondary flex items-center">
-              <Camera size={13} class="mr-1.5 text-ant-text-muted" /> Auto-Hide
-            </span>
-            <Switch bind:checked={autoHideWindow} size="small" />
+        <button
+          type="button"
+          onclick={() => settingsModalVisible = true}
+          class="w-full flex items-center justify-between p-2.5 bg-ant-bg hover:bg-ant-bg-tertiary border border-white/5 hover:border-white/10 rounded-lg text-xs text-ant-text transition group cursor-pointer"
+          title="Open Settings & Preferences (⌘,)"
+        >
+          <div class="flex items-center space-x-2 min-w-0">
+            <div class="w-6 h-6 rounded-md bg-ant-primary/10 flex items-center justify-center text-ant-primary group-hover:scale-105 transition-transform flex-shrink-0">
+              <Settings size={13} />
+            </div>
+            <span class="font-serif font-medium text-ant-text truncate">Settings</span>
           </div>
-          <div class="flex items-center justify-between pt-1.5 border-t border-white/5">
-            <span class="text-ant-text-secondary flex items-center">
-              <Volume2 size={13} class="mr-1.5 text-ant-text-muted" /> Shutter Sound
-            </span>
-            <Switch bind:checked={settingsStore.snapshotSoundEnabled} size="small" />
-          </div>
-        </div>
+          <span class="text-[10px] font-mono text-ant-text-muted px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/5">
+            {isMac ? '⌘,' : 'Ctrl+,'}
+          </span>
+        </button>
       </div>
     </aside>
 
