@@ -3,7 +3,7 @@
   import ToolCallCard from './ToolCallCard.svelte';
   import TurnDiffSummary from './TurnDiffSummary.svelte';
   import PlanReviewCard from './PlanReviewCard.svelte';
-  import { marked } from 'marked';
+  import { renderMarkdown } from '$lib/utils/markdownRenderer';
   import {
     User,
     Bot,
@@ -59,20 +59,32 @@
     }
   }
 
-  // Configure marked for GitHub Flavored Markdown (tables, lists, breaks, headings)
-  marked.setOptions({
-    gfm: true,
-    breaks: true
-  });
+  function handleMessageClick(e: MouseEvent) {
+    const target = e.target as HTMLElement;
+    const copyBtn = target.closest('.copy-code-btn') as HTMLElement;
+    if (copyBtn) {
+      const rawCode = decodeURIComponent(copyBtn.dataset.rawCode || '');
+      if (rawCode) {
+        navigator.clipboard.writeText(rawCode).then(() => {
+          const label = copyBtn.querySelector('.copy-label');
+          if (label) {
+            const orig = label.textContent;
+            label.textContent = 'Copied!';
+            copyBtn.classList.add('text-ant-success');
+            setTimeout(() => {
+              label.textContent = orig;
+              copyBtn.classList.remove('text-ant-success');
+            }, 1800);
+          }
+        });
+      }
+    }
+  }
 
-  // Render comprehensive Markdown formatted text
+  // Render comprehensive Markdown formatted text with syntax highlighting and diagram detection
   const renderedHtml = $derived.by(() => {
     if (!message.content) return '';
-    try {
-      return marked.parse(message.content) as string;
-    } catch {
-      return message.content;
-    }
+    return renderMarkdown(message.content);
   });
 </script>
 
@@ -261,8 +273,11 @@
 
         <!-- Message Markdown Content with Anthropic Serif Editorial Typography -->
         {#if message.content}
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
-            class="font-serif text-[14px] text-ant-text leading-[1.7] tracking-normal select-text space-y-3 prose dark:prose-invert max-w-none prose-headings:font-serif-display prose-headings:font-semibold prose-headings:text-ant-text prose-headings:tracking-tight prose-h1:text-[18px] prose-h2:text-[16px] prose-h3:text-[14.5px] prose-p:my-2.5 prose-ul:my-2 prose-ul:list-disc prose-ul:pl-5 prose-ol:my-2 prose-ol:list-decimal prose-ol:pl-5 prose-li:my-1 prose-code:font-mono prose-code:text-[11.5px] prose-code:bg-ant-bg-tertiary prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-ant-primary prose-pre:my-2.5 prose-pre:bg-ant-bg-secondary prose-pre:border prose-pre:border-white/5 prose-pre:rounded-lg prose-pre:p-3 prose-pre:font-mono prose-blockquote:font-serif prose-blockquote:italic prose-blockquote:border-l-2 prose-blockquote:border-ant-primary/60 prose-blockquote:pl-3.5 prose-blockquote:text-ant-text-secondary prose-hr:my-4 prose-hr:border-white/5 dark:prose-hr:border-white/5 prose-strong:text-ant-text prose-strong:font-semibold prose-table:my-2.5 prose-table:border-collapse prose-table:font-sans prose-th:border prose-th:border-white/5 prose-th:p-1.5 prose-th:bg-ant-bg-secondary prose-th:text-xs prose-td:border prose-td:border-white/5 prose-td:p-1.5 prose-td:text-xs"
+            onclick={handleMessageClick}
+            class="font-serif text-[14px] text-ant-text leading-[1.7] tracking-normal select-text space-y-3 prose dark:prose-invert max-w-none prose-headings:font-serif-display prose-headings:font-semibold prose-headings:text-ant-text prose-headings:tracking-tight prose-h1:text-[18px] prose-h2:text-[16px] prose-h3:text-[14.5px] prose-p:my-2.5 prose-ul:my-2 prose-ul:list-disc prose-ul:pl-5 prose-ol:my-2 prose-ol:list-decimal prose-ol:pl-5 prose-li:my-1 prose-code:font-mono prose-code:text-[11.5px] prose-code:bg-ant-bg-tertiary prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-ant-primary prose-pre:my-2.5 prose-pre:bg-transparent prose-pre:border-0 prose-pre:p-0 prose-blockquote:font-serif prose-blockquote:italic prose-blockquote:border-l-2 prose-blockquote:border-ant-primary/60 prose-blockquote:pl-3.5 prose-blockquote:text-ant-text-secondary prose-hr:my-4 prose-hr:border-white/5 dark:prose-hr:border-white/5 prose-strong:text-ant-text prose-strong:font-semibold prose-table:my-2.5 prose-table:border-collapse prose-table:font-sans prose-th:border prose-th:border-white/5 prose-th:p-1.5 prose-th:bg-ant-bg-secondary prose-th:text-xs prose-td:border prose-td:border-white/5 prose-td:p-1.5 prose-td:text-xs"
           >
             {@html renderedHtml}
           </div>
