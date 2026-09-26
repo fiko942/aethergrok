@@ -828,7 +828,7 @@
                   </div>
                   <button
                     type="button"
-                    class="px-3 py-1.5 rounded-lg bg-ant-bg hover:bg-ant-primary/10 text-ant-text hover:text-ant-primary text-xs font-medium border border-ant-border-secondary/80 hover:border-ant-primary/40 transition-all flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap shadow-sm active:scale-[0.98]"
+                    class="px-3 py-1.5 rounded-lg bg-ant-bg-tertiary hover:bg-ant-primary/15 text-ant-text hover:text-ant-primary text-xs font-medium border border-white/5 hover:border-ant-primary/30 transition-all flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap shadow-xs active:scale-[0.98]"
                     onclick={async () => {
                       try {
                         if (window.go?.main?.App?.RevealGrokConfigFile) {
