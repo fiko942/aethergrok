@@ -991,10 +991,10 @@
 <div class="flex flex-col h-screen w-screen bg-ant-bg text-ant-text select-none overflow-hidden font-serif">
   <!-- Top Navigation Bar -->
   <header
-    class="flex items-center justify-between pl-20 pr-4 h-10 bg-ant-bg-secondary border-b border-white/5 flex-shrink-0"
+    class="flex items-center justify-between pl-20 pr-4 h-[38px] bg-ant-bg-secondary border-b border-white/5 flex-shrink-0"
     style="--wails-draggable:drag"
   >
-    <div class="flex items-center space-x-2.5 shrink-0">
+    <div class="flex items-center space-x-2 shrink-0">
       <!-- Sidebar Toggle Button in Header -->
       <Tooltip
         title={settingsStore.sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
@@ -1004,28 +1004,26 @@
         <button
           type="button"
           onclick={toggleSidebar}
-          class="p-1.5 rounded-md text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg transition-colors cursor-pointer shrink-0"
+          class="w-6 h-6 flex items-center justify-center rounded-md text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg transition-colors cursor-pointer shrink-0"
           style="--wails-draggable:no-drag"
         >
           {#if settingsStore.sidebarCollapsed}
-            <PanelLeftOpen size={16} />
+            <PanelLeftOpen size={15} />
           {:else}
-            <PanelLeftClose size={16} />
+            <PanelLeftClose size={15} />
           {/if}
         </button>
       </Tooltip>
 
-      <div class="flex items-center justify-center w-7 h-7 shrink-0 rounded-lg overflow-hidden bg-ant-bg-tertiary border border-white/10 shadow-sm select-none pointer-events-none group">
-        <img
-          src="/app-icon-64.png"
-          alt="AetherGrok Logo"
-          class="w-5 h-5 shrink-0 object-contain"
-          draggable="false"
-        />
-      </div>
-      <div class="flex items-center space-x-2 shrink-0 -translate-y-0.5">
-        <span class="font-serif-display font-bold text-base tracking-tight text-ant-text leading-none select-none">AetherGrok</span>
-        <span class="px-1.5 py-0.5 text-[9.5px] font-mono font-medium bg-white/5 text-ant-text-muted rounded border border-transparent leading-none select-none">v{__APP_VERSION__}</span>
+      <img
+        src="/app-icon-64.png"
+        alt="AetherGrok Logo"
+        class="w-5 h-5 shrink-0 object-contain drop-shadow-sm select-none pointer-events-none"
+        draggable="false"
+      />
+      <div class="flex items-center space-x-2 shrink-0">
+        <span class="font-serif-display font-bold text-sm tracking-tight text-ant-text leading-none select-none">AetherGrok</span>
+        <span class="px-1.5 py-0.5 text-[9px] font-mono font-medium bg-white/5 text-ant-text-muted rounded border border-transparent leading-none select-none">v{__APP_VERSION__}</span>
       </div>
     </div>
 
@@ -1036,11 +1034,11 @@
       <Button size="small" type="default" onclick={() => skillsCatalogVisible = true}>
         <Sparkles size={13} class="mr-1 text-ant-primary" /> Skills Hub
       </Button>
-      <div class="h-7 flex items-center space-x-2 text-xs text-ant-text-secondary bg-ant-bg px-2.5 rounded-md border border-white/5 shrink-0 whitespace-nowrap">
+      <div class="h-6.5 flex items-center space-x-2 text-xs text-ant-text-secondary bg-ant-bg px-2 rounded-md border border-white/5 shrink-0 whitespace-nowrap">
         <Badge status={isWorking ? 'processing' : 'success'} />
         <span class="whitespace-nowrap">Model: <strong class="text-ant-text font-medium">{selectedModel}</strong></span>
       </div>
-      <Button size="small" type="default" onclick={() => settingsModalVisible = true} class="!px-2">
+      <Button size="small" type="default" onclick={() => settingsModalVisible = true} class="!px-2 !h-6.5">
         <Settings size={14} class="text-ant-text-secondary hover:text-ant-primary transition-colors" />
       </Button>
 
@@ -1053,12 +1051,12 @@
         <button
           type="button"
           onclick={() => sessionStore.toggleRightSidebar()}
-          class="p-1.5 rounded-md text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg transition-colors cursor-pointer shrink-0"
+          class="w-6 h-6 flex items-center justify-center rounded-md text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg transition-colors cursor-pointer shrink-0"
         >
           {#if currentSession?.rightSidebarOpen}
-            <PanelRightClose size={16} class="text-indigo-400" />
+            <PanelRightClose size={15} class="text-indigo-400" />
           {:else}
-            <PanelRightOpen size={16} />
+            <PanelRightOpen size={15} />
           {/if}
         </button>
       </Tooltip>
