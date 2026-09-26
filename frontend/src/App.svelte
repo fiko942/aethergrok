@@ -1015,11 +1015,11 @@
         </button>
       </Tooltip>
 
-      <div class="flex items-center justify-center w-7 h-7 rounded-lg overflow-hidden bg-ant-bg-elevated border border-ant-border-subtle shadow-sm select-none pointer-events-none group">
+      <div class="flex items-center justify-center w-7 h-7 shrink-0 rounded-lg overflow-hidden bg-ant-bg-tertiary border border-white/10 shadow-sm select-none pointer-events-none group">
         <img
           src="/app-icon-64.png"
           alt="AetherGrok Logo"
-          class="w-5.5 h-5.5 object-contain"
+          class="w-5 h-5 shrink-0 object-contain"
           draggable="false"
         />
       </div>
