@@ -3,6 +3,7 @@
   import Button from '$lib/antd/Button.svelte';
   import Badge from '$lib/antd/Badge.svelte';
   import Switch from '$lib/antd/Switch.svelte';
+  import Tooltip from '$lib/antd/Tooltip.svelte';
   import SessionTabs from '$lib/components/layout/SessionTabs.svelte';
   import MessageList from '$lib/components/chat/MessageList.svelte';
   import Composer from '$lib/components/chat/Composer.svelte';
@@ -1064,17 +1065,22 @@
 
       <!-- Compact Engine Controls & Quick Settings Footer -->
       <div class="pt-2 mt-1 border-t border-white/5 flex-shrink-0">
-        <button
-          type="button"
-          onclick={() => settingsModalVisible = true}
-          class="w-full flex items-center space-x-2 px-2 py-1.5 bg-ant-bg/60 hover:bg-ant-bg-tertiary border border-white/5 hover:border-white/10 rounded-md text-xs text-ant-text transition group cursor-pointer"
-          title="Open Settings & Preferences ({isMac ? '⌘,' : 'Ctrl+,'})"
+        <Tooltip
+          title="Settings"
+          shortcut={isMac ? '⌘,' : 'Ctrl+,'}
+          placement="top"
         >
-          <div class="w-5 h-5 rounded bg-ant-primary/10 flex items-center justify-center text-ant-primary group-hover:scale-105 transition-transform flex-shrink-0">
-            <Settings size={12} />
-          </div>
-          <span class="font-serif text-xs font-medium text-ant-text truncate">Settings</span>
-        </button>
+          <button
+            type="button"
+            onclick={() => settingsModalVisible = true}
+            class="w-full flex items-center space-x-2 px-2 py-1.5 bg-ant-bg/60 hover:bg-ant-bg-tertiary border border-white/5 hover:border-white/10 rounded-md text-xs text-ant-text transition group cursor-pointer"
+          >
+            <div class="w-5 h-5 rounded bg-ant-primary/10 flex items-center justify-center text-ant-primary group-hover:scale-105 transition-transform flex-shrink-0">
+              <Settings size={12} />
+            </div>
+            <span class="font-serif text-xs font-medium text-ant-text truncate">Settings</span>
+          </button>
+        </Tooltip>
       </div>
     </aside>
 
