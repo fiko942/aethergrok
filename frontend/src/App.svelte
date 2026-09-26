@@ -40,7 +40,8 @@
     PanelLeftOpen,
     PanelRightClose,
     PanelRightOpen,
-    ChevronRight
+    ChevronRight,
+    Upload
   } from 'lucide-svelte';
 
   let reasoningEffort = $state<'low' | 'medium' | 'high'>('medium');
@@ -50,6 +51,44 @@
   let settingsModalVisible = $state(false);
   let flashActive = $state(false);
   const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
+  // Global Session Drag and Drop Overlay State
+  let isSessionDragOver = $state(false);
+  let sessionDragCounter = 0;
+
+  function handleMainDragEnter(e: DragEvent) {
+    if (e.dataTransfer?.types?.includes('Files')) {
+      e.preventDefault();
+      sessionDragCounter++;
+      isSessionDragOver = true;
+    }
+  }
+
+  function handleMainDragOver(e: DragEvent) {
+    if (e.dataTransfer?.types?.includes('Files')) {
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+      isSessionDragOver = true;
+    }
+  }
+
+  function handleMainDragLeave(e: DragEvent) {
+    e.preventDefault();
+    sessionDragCounter--;
+    if (sessionDragCounter <= 0) {
+      sessionDragCounter = 0;
+      isSessionDragOver = false;
+    }
+  }
+
+  function handleMainDrop(e: DragEvent) {
+    e.preventDefault();
+    sessionDragCounter = 0;
+    isSessionDragOver = false;
+    if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+      composerRef?.handleExternalFiles?.(e.dataTransfer.files);
+    }
+  }
 
   // Sidebar Resizing & Responsive State
   const COMPACT_BREAKPOINT = 840;
@@ -1067,24 +1106,28 @@
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <main
       class="flex-1 flex flex-col min-w-0 bg-ant-bg overflow-hidden relative"
-      ondragenter={(e) => {
-        if (e.dataTransfer?.types?.includes('Files')) {
-          e.preventDefault();
-        }
-      }}
-      ondragover={(e) => {
-        if (e.dataTransfer?.types?.includes('Files')) {
-          e.preventDefault();
-          if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
-        }
-      }}
-      ondrop={(e) => {
-        if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-          e.preventDefault();
-          composerRef?.handleExternalFiles?.(e.dataTransfer.files);
-        }
-      }}
+      ondragenter={handleMainDragEnter}
+      ondragover={handleMainDragOver}
+      ondragleave={handleMainDragLeave}
+      ondrop={handleMainDrop}
     >
+      <!-- Visual Drag-and-Drop Active Overlay across entire Chat Session -->
+      {#if isSessionDragOver}
+        <div class="absolute inset-0 z-50 bg-[#121316]/95 border-2 border-dashed border-ant-primary/60 rounded-xl m-2 flex flex-col items-center justify-center space-y-3 backdrop-blur-md pointer-events-none animate-in fade-in zoom-in-95 duration-150 select-none shadow-2xl">
+          <div class="w-14 h-14 rounded-2xl bg-ant-primary/15 text-ant-primary flex items-center justify-center shadow-lg border border-ant-primary/25">
+            <Upload size={28} />
+          </div>
+          <div class="text-center space-y-1">
+            <p class="text-base font-serif font-semibold text-ant-text">
+              Drop files or images anywhere to attach
+            </p>
+            <p class="text-xs font-mono text-ant-text-secondary">
+              Images, Markdown, PDF, or code files will be attached to prompt
+            </p>
+          </div>
+        </div>
+      {/if}
+
       <!-- Session Tabs Bar (Drag & Drop + Badges) -->
       <SessionTabs />
 
