@@ -1023,9 +1023,9 @@
           draggable="false"
         />
       </div>
-      <div class="flex items-center space-x-2 shrink-0">
-        <span class="font-serif-display font-bold text-base tracking-tight text-ant-text leading-none">AetherGrok</span>
-        <span class="px-1.5 py-0.5 text-[9.5px] font-mono font-medium bg-white/5 text-ant-text-muted rounded border border-transparent leading-none">v{__APP_VERSION__}</span>
+      <div class="flex items-center space-x-2 shrink-0 -translate-y-0.5">
+        <span class="font-serif-display font-bold text-base tracking-tight text-ant-text leading-none select-none">AetherGrok</span>
+        <span class="px-1.5 py-0.5 text-[9.5px] font-mono font-medium bg-white/5 text-ant-text-muted rounded border border-transparent leading-none select-none">v{__APP_VERSION__}</span>
       </div>
     </div>
 
