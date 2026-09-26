@@ -991,7 +991,7 @@
 <div class="flex flex-col h-screen w-screen bg-ant-bg text-ant-text select-none overflow-hidden font-serif">
   <!-- Top Navigation Bar -->
   <header
-    class="flex items-center justify-between pl-20 pr-4 h-12 bg-ant-bg-secondary border-b border-white/5 flex-shrink-0"
+    class="flex items-center justify-between pl-20 pr-4 h-10 bg-ant-bg-secondary border-b border-white/5 flex-shrink-0"
     style="--wails-draggable:drag"
   >
     <div class="flex items-center space-x-2.5 shrink-0">
