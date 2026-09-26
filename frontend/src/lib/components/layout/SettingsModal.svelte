@@ -921,13 +921,13 @@
                   <button
                     type="button"
                     class="w-full p-4 rounded-xl border text-left transition {editPermissionMode === modeKey
-                      ? 'border-ant-primary/40 bg-ant-primary/10 shadow-sm'
+                      ? 'border-blue-500 bg-blue-500/10 shadow-sm'
                       : 'border-white/5 bg-ant-bg hover:border-white/20'}"
                     onclick={() => editPermissionMode = modeKey}
                   >
                     <div class="flex items-center justify-between mb-2">
                       <div class="flex items-center space-x-2">
-                        <span class="text-xs font-bold text-ant-text">{mode.title}</span>
+                        <span class="text-xs font-bold {editPermissionMode === modeKey ? 'text-blue-400' : 'text-ant-text'}">{mode.title}</span>
                         <Badge
                           status={mode.badge === 'safe' ? 'success' : mode.badge === 'balanced' ? 'processing' : mode.badge === 'autonomous' ? 'warning' : 'error'}
                         >
@@ -935,15 +935,15 @@
                         </Badge>
                       </div>
                       {#if editPermissionMode === modeKey}
-                        <CheckCircle2 size={16} class="text-ant-primary" />
+                        <CheckCircle2 size={16} class="text-blue-400" />
                       {/if}
                     </div>
 
-                    <p class="text-[11px] text-ant-text-secondary mb-2">
+                    <p class="text-[11px] {editPermissionMode === modeKey ? 'text-blue-200/80' : 'text-ant-text-secondary'} mb-2">
                       {mode.summary}
                     </p>
 
-                    <ul class="space-y-1 pl-4 border-l-2 border-white/10 text-[10px] text-ant-text-secondary">
+                    <ul class="space-y-1 pl-4 border-l-2 {editPermissionMode === modeKey ? 'border-blue-500/30 text-blue-200/70' : 'border-white/10 text-ant-text-secondary'} text-[10px]">
                       {#each mode.details as detail}
                         <li>• {detail}</li>
                       {/each}
