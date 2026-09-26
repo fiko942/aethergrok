@@ -646,19 +646,19 @@
                 <button
                   type="button"
                   class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router'
-                    ? 'border-ant-primary bg-ant-primary/10 shadow-sm'
+                    ? 'border-blue-500 bg-blue-500/10 shadow-sm'
                     : 'border-white/5 bg-ant-bg hover:border-white/20'}"
                   onclick={() => editDefaultModel = '9router'}
                 >
                   <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold flex items-center gap-1.5 {editDefaultModel === '9router' ? 'text-ant-primary' : 'text-ant-text'}">
-                      <Sparkles size={14} class="text-ant-primary" /> 9router (Default)
+                    <span class="text-xs font-bold flex items-center gap-1.5 {editDefaultModel === '9router' ? 'text-blue-400' : 'text-ant-text'}">
+                      <Sparkles size={14} class={editDefaultModel === '9router' ? 'text-blue-400' : 'text-ant-primary'} /> 9router (Default)
                     </span>
                     {#if editDefaultModel === '9router'}
-                      <CheckCircle2 size={15} class="text-ant-primary" />
+                      <CheckCircle2 size={15} class="text-blue-400" />
                     {/if}
                   </div>
-                  <p class="text-[11px] text-ant-text-secondary leading-relaxed">
+                  <p class="text-[11px] {editDefaultModel === '9router' ? 'text-blue-200/80' : 'text-ant-text-secondary'} leading-relaxed">
                     Primary multi-provider gateway supporting ultra-fast streaming, reasoning synthesis, and vision multimodal inputs.
                   </p>
                 </button>
@@ -666,19 +666,19 @@
                 <button
                   type="button"
                   class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router-general-purpose'
-                    ? 'border-ant-primary bg-ant-primary/10 shadow-sm'
+                    ? 'border-blue-500 bg-blue-500/10 shadow-sm'
                     : 'border-white/5 bg-ant-bg hover:border-white/20'}"
                   onclick={() => editDefaultModel = '9router-general-purpose'}
                 >
                   <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold flex items-center gap-1.5 {editDefaultModel === '9router-general-purpose' ? 'text-ant-primary' : 'text-ant-text'}">
-                      <Brain size={14} class="text-ant-primary" /> 9router General Purpose
+                    <span class="text-xs font-bold flex items-center gap-1.5 {editDefaultModel === '9router-general-purpose' ? 'text-blue-400' : 'text-ant-text'}">
+                      <Brain size={14} class={editDefaultModel === '9router-general-purpose' ? 'text-blue-400' : 'text-ant-primary'} /> 9router General Purpose
                     </span>
                     {#if editDefaultModel === '9router-general-purpose'}
-                      <CheckCircle2 size={15} class="text-ant-primary" />
+                      <CheckCircle2 size={15} class="text-blue-400" />
                     {/if}
                   </div>
-                  <p class="text-[11px] text-ant-text-secondary leading-relaxed">
+                  <p class="text-[11px] {editDefaultModel === '9router-general-purpose' ? 'text-blue-200/80' : 'text-ant-text-secondary'} leading-relaxed">
                     Balanced configuration for broad tasks, planning, refactoring, and general desktop workflows.
                   </p>
                 </button>
@@ -686,19 +686,19 @@
                 <button
                   type="button"
                   class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router-explore'
-                    ? 'border-ant-primary bg-ant-primary/10 shadow-sm'
+                    ? 'border-blue-500 bg-blue-500/10 shadow-sm'
                     : 'border-white/5 bg-ant-bg hover:border-white/20'}"
                   onclick={() => editDefaultModel = '9router-explore'}
                 >
                   <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold flex items-center gap-1.5 {editDefaultModel === '9router-explore' ? 'text-ant-primary' : 'text-ant-text'}">
-                      <Sparkles size={14} class="text-ant-primary" /> 9router Explore
+                    <span class="text-xs font-bold flex items-center gap-1.5 {editDefaultModel === '9router-explore' ? 'text-blue-400' : 'text-ant-text'}">
+                      <Sparkles size={14} class={editDefaultModel === '9router-explore' ? 'text-blue-400' : 'text-ant-primary'} /> 9router Explore
                     </span>
                     {#if editDefaultModel === '9router-explore'}
-                      <CheckCircle2 size={15} class="text-ant-primary" />
+                      <CheckCircle2 size={15} class="text-blue-400" />
                     {/if}
                   </div>
-                  <p class="text-[11px] text-ant-text-secondary leading-relaxed">
+                  <p class="text-[11px] {editDefaultModel === '9router-explore' ? 'text-blue-200/80' : 'text-ant-text-secondary'} leading-relaxed">
                     Fast exploratory model for rapid codebase search, syntax checks, and file discovery.
                   </p>
                 </button>
@@ -706,19 +706,19 @@
                 <button
                   type="button"
                   class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router-plan'
-                    ? 'border-ant-primary bg-ant-primary/10 shadow-sm'
+                    ? 'border-blue-500 bg-blue-500/10 shadow-sm'
                     : 'border-white/5 bg-ant-bg hover:border-white/20'}"
                   onclick={() => editDefaultModel = '9router-plan'}
                 >
                   <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold flex items-center gap-1.5 {editDefaultModel === '9router-plan' ? 'text-ant-primary' : 'text-ant-text'}">
-                      <Brain size={14} class="text-ant-primary" /> 9router Plan
+                    <span class="text-xs font-bold flex items-center gap-1.5 {editDefaultModel === '9router-plan' ? 'text-blue-400' : 'text-ant-text'}">
+                      <Brain size={14} class={editDefaultModel === '9router-plan' ? 'text-blue-400' : 'text-ant-primary'} /> 9router Plan
                     </span>
                     {#if editDefaultModel === '9router-plan'}
-                      <CheckCircle2 size={15} class="text-ant-primary" />
+                      <CheckCircle2 size={15} class="text-blue-400" />
                     {/if}
                   </div>
-                  <p class="text-[11px] text-ant-text-secondary leading-relaxed">
+                  <p class="text-[11px] {editDefaultModel === '9router-plan' ? 'text-blue-200/80' : 'text-ant-text-secondary'} leading-relaxed">
                     Architectural planning model dedicated to breaking down complex engineering requirements.
                   </p>
                 </button>
