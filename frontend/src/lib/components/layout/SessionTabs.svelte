@@ -2,11 +2,13 @@
   import { sessionStore, STATUS_META, type Session } from '$lib/stores/session.svelte';
   import { settingsStore } from '$lib/stores/settings.svelte';
   import { Plus, X, GitFork, Edit2, Check, Loader2, AlertCircle, CheckCircle2, MessageSquare } from 'lucide-svelte';
+  import NewSessionDropdown from './NewSessionDropdown.svelte';
 
   let draggedIndex = $state<number | null>(null);
   let dragOverIndex = $state<number | null>(null);
   let editingId = $state<string | null>(null);
   let editTitleInput = $state<string>('');
+  let isDropdownOpen = $state<boolean>(false);
 
   function handleDragStart(e: DragEvent, index: number) {
     draggedIndex = index;
@@ -71,8 +73,9 @@
     sessionStore.closeSessionTab(session.id);
   }
 
-  function handleNewSession() {
-    sessionStore.createSession();
+  function handleNewSession(e: MouseEvent) {
+    e.stopPropagation();
+    isDropdownOpen = !isDropdownOpen;
   }
 </script>
 
@@ -203,15 +206,23 @@
     {/each}
   </div>
 
-  <!-- New Session Action Button -->
-  <button
-    type="button"
-    onclick={handleNewSession}
-    class="flex items-center justify-center w-7 h-7 rounded hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-primary border border-transparent hover:border-ant-border transition flex-shrink-0"
-    title="Create new session (Ctrl+N / Cmd+N)"
-  >
-    <Plus size={15} />
-  </button>
+  <!-- New Session Action Button with Workspace Dropdown Picker -->
+  <div class="relative flex-shrink-0">
+    <button
+      type="button"
+      onclick={handleNewSession}
+      class="flex items-center justify-center w-7 h-7 rounded hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-primary border border-transparent hover:border-ant-border transition flex-shrink-0 cursor-pointer {isDropdownOpen ? 'bg-ant-bg-tertiary text-ant-primary' : ''}"
+      title="Create new conversation (Choose workspace)"
+    >
+      <Plus size={15} />
+    </button>
+
+    <NewSessionDropdown
+      bind:open={isDropdownOpen}
+      placement="bottom-end"
+      onClose={() => isDropdownOpen = false}
+    />
+  </div>
 </div>
 
 <style>

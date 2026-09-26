@@ -14,6 +14,7 @@
   import RightSidebar from '$lib/components/layout/RightSidebar.svelte';
   import ScreenFlash from '$lib/components/snapshot/ScreenFlash.svelte';
   import ModalConfirm from '$lib/antd/ModalConfirm.svelte';
+  import NewSessionDropdown from '$lib/components/layout/NewSessionDropdown.svelte';
   import { dialogStore } from '$lib/stores/dialog.svelte';
   import { playCameraShutterSound } from '$lib/utils/audio';
   import { settingsStore } from '$lib/stores/settings.svelte';
@@ -50,6 +51,7 @@
   let pingResult = $state<string>('');
   let skillsCatalogVisible = $state(false);
   let settingsModalVisible = $state(false);
+  let emptyStateDropdownOpen = $state(false);
   let flashActive = $state(false);
   const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
@@ -1178,15 +1180,26 @@
           <p class="text-sm font-serif text-ant-text-secondary max-w-md mb-6 leading-relaxed">
             All conversation tabs are closed. Any background tasks or queued runs continue working automatically.
           </p>
-          <div class="flex items-center space-x-3">
-            <button
-              type="button"
-              onclick={() => sessionStore.createSession()}
-              class="flex items-center space-x-2 px-4 py-2 rounded-lg bg-ant-primary hover:bg-ant-primary/90 text-white font-serif text-xs font-semibold shadow-md shadow-ant-primary/20 transition cursor-pointer"
-            >
-              <span>New Conversation</span>
-              <kbd class="px-1.5 py-0.5 text-[10px] font-mono bg-white/20 rounded text-white">{isMac ? '⌘T' : 'Ctrl+T'}</kbd>
-            </button>
+          <div class="flex items-center space-x-3 relative">
+            <div class="relative">
+              <button
+                type="button"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  emptyStateDropdownOpen = !emptyStateDropdownOpen;
+                }}
+                class="flex items-center space-x-2 px-4 py-2 rounded-lg bg-ant-primary hover:bg-ant-primary/90 text-white font-serif text-xs font-semibold shadow-md shadow-ant-primary/20 transition cursor-pointer"
+              >
+                <span>New Conversation</span>
+                <kbd class="px-1.5 py-0.5 text-[10px] font-mono bg-white/20 rounded text-white">{isMac ? '⌘T' : 'Ctrl+T'}</kbd>
+              </button>
+
+              <NewSessionDropdown
+                bind:open={emptyStateDropdownOpen}
+                placement="bottom-center"
+                onClose={() => emptyStateDropdownOpen = false}
+              />
+            </div>
             <button
               type="button"
               onclick={performGlobalSnapshot}
