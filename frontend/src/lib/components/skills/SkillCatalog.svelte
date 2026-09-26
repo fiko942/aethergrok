@@ -39,6 +39,33 @@
   let selectedSkillId = $state<string | null>(null);
   let importerModalVisible = $state(false);
 
+  // Tab button references and sliding pill geometry
+  let tabContainerEl = $state<HTMLDivElement | null>(null);
+  let tabButtonEls = $state<Record<string, HTMLButtonElement | null>>({});
+  let pillStyle = $state({ left: 4, width: 40, opacity: 0 });
+
+  function updatePillPosition() {
+    const activeBtn = tabButtonEls[activeCategory];
+    const container = tabContainerEl;
+    if (activeBtn && container) {
+      const containerRect = container.getBoundingClientRect();
+      const btnRect = activeBtn.getBoundingClientRect();
+      pillStyle = {
+        left: btnRect.left - containerRect.left,
+        width: btnRect.width,
+        opacity: 1
+      };
+    }
+  }
+
+  $effect(() => {
+    // Recompute pill position whenever activeCategory or visible changes
+    if (visible && activeCategory) {
+      // Use tick or requestAnimationFrame to ensure DOM is ready
+      requestAnimationFrame(updatePillPosition);
+    }
+  });
+
   const categories: Array<'All' | 'Frontend' | 'Backend' | 'Design' | 'Agents' | 'Tools'> = [
     'All',
     'Frontend',
@@ -209,7 +236,7 @@
           <div>
             <div class="flex items-center space-x-2">
               <h2 class="font-serif-display text-base font-semibold text-ant-text tracking-tight">Skills & MCP Discovery Catalog</h2>
-              <span class="px-2 py-0.5 text-[10px] font-serif font-semibold bg-ant-primary/20 text-ant-primary rounded-full border border-ant-primary/30">
+              <span class="px-2.5 py-0.5 text-[10px] font-serif font-semibold bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20 shadow-xs">
                 {skills.length} Installed
               </span>
             </div>
@@ -272,13 +299,26 @@
           {/if}
         </div>
 
-        <!-- Category Tabs -->
-        <div class="flex items-center space-x-1 bg-ant-bg-secondary p-1 rounded-lg border border-ant-border-secondary overflow-x-auto max-w-full">
+        <!-- Category Tabs with Animated Sliding Pill -->
+        <div
+          bind:this={tabContainerEl}
+          class="relative flex items-center bg-ant-bg-secondary p-1 rounded-xl border border-white/5 overflow-x-auto max-w-full"
+        >
+          <!-- Sliding Pill Background Indicator -->
+          <div
+            class="absolute top-1 bottom-1 bg-ant-primary rounded-lg shadow-sm transition-all duration-200 ease-out pointer-events-none"
+            style="left: {pillStyle.left}px; width: {pillStyle.width}px; opacity: {pillStyle.opacity};"
+          ></div>
+
           {#each categories as cat}
             <button
+              bind:this={tabButtonEls[cat]}
               type="button"
-              onclick={() => activeCategory = cat}
-              class="px-2.5 py-1 text-xs font-medium rounded-md transition whitespace-nowrap {activeCategory === cat ? 'bg-ant-primary text-white shadow-sm' : 'text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary'}"
+              onclick={() => {
+                activeCategory = cat;
+                requestAnimationFrame(updatePillPosition);
+              }}
+              class="relative z-10 px-3 py-1 text-xs font-medium rounded-lg transition-colors whitespace-nowrap {activeCategory === cat ? 'text-white' : 'text-ant-text-secondary hover:text-ant-text'}"
             >
               {cat}
             </button>
