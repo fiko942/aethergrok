@@ -1,0 +1,73 @@
+SnapshotVersion: "1.0.0"
+LastMergedAt: "2026-09-26T06:27:00+07:00"
+MergeType: "additive"
+
+ProjectOverview:
+  name: "AetherGrok Desktop GUI Studio / grok-desktop"
+  description: "High-Performance Desktop GUI Studio for Grok Build CLI (including Grok 4.6), built with Go 1.24, Wails v2, Svelte 5 Runes, and Ant Design Dark."
+  repository: "phuryn/grok-build-vscode / fiko942/grok-build"
+
+HowToRun:
+  dev: "wails dev"
+  build_frontend: "pnpm --prefix frontend run build"
+  check_frontend: "pnpm --prefix frontend run check"
+  test_go: "go test ./test/... -v"
+  build_binary: "go build -o build/bin/aethergrok main.go app.go"
+
+ArchitectureMap:
+  backend:
+    runtime: "Go 1.24"
+    framework: "Wails v2"
+    subprocesses: "pkg/grokrunner (Process Group pgid, 16ms token batching)"
+    screen_capture: "pkg/screen (OS-excluding 4-phase coordination)"
+    skills_registry: "pkg/skills (Local SKILL.md scanner & in-memory catalog)"
+  frontend:
+    framework: "Svelte 5 (Runes)"
+    styling: "Tailwind CSS + Ant Design Dark Tokens (lib/antd)"
+    state: "Svelte 5 $state/$derived stores (sessionStore, settingsStore, dialogStore)"
+
+Workflow:
+  composer: "Prompts dispatch through Wails IPC -> GrokRunner -> NDJSON streaming -> 16ms token buffer -> Svelte chat feed."
+  screen_snapshot: "Triggered via shortcut (customizable, e.g. Right Shift or Cmd+Shift+S) -> Hides window -> Compositor sync -> Native capture -> Restores window & attaches image."
+  skills_discovery: "Universal scanner indexes ~/.grok/skills and ~/.agents/skills -> populates interactive catalog."
+
+EndpointsMap:
+  wails_ipc:
+    - "App.RunPromptStream(req)"
+    - "App.RespondPermission(resp)"
+    - "App.CancelSession(sessionId)"
+    - "App.CaptureScreenExcludingSelf(delayMs)"
+    - "App.RevealGrokConfigFile()"
+    - "App.GetInstalledSkills()"
+    - "App.DiscoverGrokSessions(path)"
+
+DatabaseMap:
+  type: "File-based / LocalStorage"
+  client_state: "~/.grok/client-state/*.json"
+  app_storage: "localStorage (aethergrok_settings_v1)"
+  session_history: "~/.grok/sessions/<urlencoded-cwd>/<id>/"
+
+UISystem:
+  theme: "Ant Design Dark Tokens (#141414, #1f1f1f, #1677ff)"
+  windowing: "10-Turn DOM virtualization with relative scroll anchor preservation"
+  components: "Ant Design primitives (Button, Card, Badge, Switch) + Custom Chat/Diff cards"
+
+Invariants:
+  - "Zero unhandled child process leaks (all spawned with setpgid / process groups)"
+  - "DOM memory ceiling capped by 10-turn progressive windowing"
+  - "Non-intrusive compositor restoration on screen capture panic/cancel"
+
+CurrentState:
+  status: "Operational"
+  frontend_errors: 0
+  go_tests: "Passing (all 9 suites)"
+  latest_fixes:
+    - "Grok config button consolidated to single line with refined dark border"
+    - "Dynamic snapshot shortcut synchronization (Right Shift) in Shortcuts tab and global listener"
+
+NextSteps:
+  - "Continuous feature expansion and skill integrations"
+  - "Optional live release testing against external real grok daemon"
+
+KnownIssues: []
+Unknowns: []

@@ -143,6 +143,21 @@ func (a *App) CaptureScreenExcludingSelf(delayMs int) (*screen.SnapshotResult, e
 	return a.screenCapture.CaptureScreenExcludingWindow(context.Background(), winCtrl, delayMs)
 }
 
+// GetSnapshotCacheStats calculates the total size and count of screenshot cache files
+func (a *App) GetSnapshotCacheStats() (*screen.CacheStats, error) {
+	return screen.GetSnapshotCacheStats()
+}
+
+// ClearSnapshotCache clears all grok screenshot cache files from disk
+func (a *App) ClearSnapshotCache() (*screen.ClearCacheResult, error) {
+	return screen.ClearSnapshotCache()
+}
+
+// DeleteSessionTempFiles removes temporary files associated with a deleted session
+func (a *App) DeleteSessionTempFiles(filePaths []string) error {
+	return screen.DeleteSessionTempFiles(filePaths)
+}
+
 // GetInstalledSkills returns all discovered skills from ~/.grok/skills/ and ~/.agents/skills/
 func (a *App) GetInstalledSkills() []skills.Skill {
 	if a.skillsReg == nil {
@@ -238,6 +253,45 @@ func (a *App) GetSessionUsage(workspacePath, sessionID string) (*grokrunner.Sess
 // CompactSession executes context compaction on a session
 func (a *App) CompactSession(workspacePath, sessionID string) (*grokrunner.SessionUsageStats, error) {
 	return grokrunner.CompactSession(a.ctx, a.runner.GetBinaryPath(), workspacePath, sessionID)
+}
+
+// OpenPathInSystem opens a folder or file in macOS Finder or Windows Explorer
+func (a *App) OpenPathInSystem(targetPath string) error {
+	if strings.TrimSpace(targetPath) == "" {
+		return fmt.Errorf("target path cannot be empty")
+	}
+
+	cleanPath := strings.TrimSpace(targetPath)
+	if strings.HasPrefix(cleanPath, "~") {
+		if homeDir, err := os.UserHomeDir(); err == nil {
+			cleanPath = filepath.Join(homeDir, cleanPath[1:])
+		}
+	}
+
+	info, err := os.Stat(cleanPath)
+	if err != nil {
+		return err
+	}
+
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		if info.IsDir() {
+			cmd = exec.Command("open", cleanPath)
+		} else {
+			cmd = exec.Command("open", "-R", cleanPath)
+		}
+	case "windows":
+		if info.IsDir() {
+			cmd = exec.Command("explorer.exe", filepath.Clean(cleanPath))
+		} else {
+			cmd = exec.Command("explorer.exe", fmt.Sprintf("/select,%s", filepath.Clean(cleanPath)))
+		}
+	default:
+		cmd = exec.Command("xdg-open", cleanPath)
+	}
+
+	return cmd.Start()
 }
 
 // RevealGrokConfigFile reveals the user's ~/.grok/config.toml file in macOS Finder or Windows Explorer

@@ -20,11 +20,15 @@ export function CheckMultipleFilesExists(arg1:string,arg2:Array<string>):Promise
 
 export function CleanupSkillImportTemp(arg1:string):Promise<void>;
 
+export function ClearSnapshotCache():Promise<screen.ClearCacheResult>;
+
 export function CommitWorkspaceChanges(arg1:string,arg2:string):Promise<void>;
 
 export function CompactSession(arg1:string,arg2:string):Promise<grokrunner.SessionUsageStats>;
 
 export function DeleteGrokSession(arg1:string,arg2:string):Promise<void>;
+
+export function DeleteSessionTempFiles(arg1:Array<string>):Promise<void>;
 
 export function DiscoverGrokSessions(arg1:string):Promise<Array<grokrunner.GrokSessionMetadata>>;
 
@@ -35,6 +39,8 @@ export function GetAvailableModels():Promise<Array<grokrunner.ModelInfo>>;
 export function GetInstalledSkills():Promise<Array<skills.Skill>>;
 
 export function GetSessionUsage(arg1:string,arg2:string):Promise<grokrunner.SessionUsageStats>;
+
+export function GetSnapshotCacheStats():Promise<screen.CacheStats>;
 
 export function GetWorkspaceFileDiff(arg1:string,arg2:string):Promise<string>;
 
@@ -49,6 +55,8 @@ export function LoadGrokSessionHistory(arg1:string,arg2:string):Promise<Array<gr
 export function OpenAccessibilitySettings():Promise<void>;
 
 export function OpenExternalURL(arg1:string):Promise<void>;
+
+export function OpenPathInSystem(arg1:string):Promise<void>;
 
 export function PullWorkspaceChanges(arg1:string):Promise<string>;
 

@@ -60,11 +60,75 @@ function isValidPathCandidate(p: string): boolean {
 }
 
 /**
- * Renders an interactive blue badge chip for existing local files
+ * Renders an interactive blue badge chip for existing local files or folders
  */
-function renderFileChip(fullPath: string, label: string): string {
+function renderFileChip(fullPath: string, label: string, isDir = false): string {
   const encoded = encodeURIComponent(fullPath);
-  return `<button type="button" class="inline-file-chip inline-flex items-center gap-1 px-1.5 py-0.5 my-0.5 rounded text-[11.5px] font-mono font-medium text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/25 hover:border-sky-500/50 transition cursor-pointer" data-file-path="${encoded}" title="Click to open file: ${label}"><svg class="w-3 h-3 text-sky-400 inline shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg><span>${label}</span></button>`;
+  const iconSvg = isDir
+    ? `<svg class="w-3 h-3 text-sky-400 inline shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>`
+    : `<svg class="w-3 h-3 text-sky-400 inline shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>`;
+
+  return `<button type="button" class="inline-file-chip inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] leading-tight font-mono font-medium text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/25 hover:border-sky-500/50 transition cursor-pointer align-baseline" data-file-path="${encoded}" data-is-dir="${isDir ? 'true' : 'false'}" title="${isDir ? 'Click to reveal folder in Finder/Explorer' : 'Click to preview file'}: ${label}">${iconSvg}<span>${label}</span></button>`;
+}
+
+/**
+ * Normalizes and repairs nested markdown code fences.
+ * When an assistant outputs ```markdown containing nested ```bash or other blocks,
+ * using 3 backticks for both outer and inner blocks causes standard CommonMark parsers
+ * to close the outer block prematurely, leaving the rest of the message as a raw code block.
+ * This lifts outer ```markdown / ```md blocks to 4 backticks (````markdown ... ````).
+ */
+export function repairMarkdownFences(markdown: string): string {
+  if (!markdown) return '';
+
+  const lines = markdown.split('\n');
+  const result: string[] = [];
+  
+  let inMarkdownBlock = false;
+  let nestedOpen = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const match = line.match(/^([ \t]*)(`{3,}|~{3,})(.*)$/);
+
+    if (match) {
+      const fenceLen = match[2].length;
+      const info = match[3].trim();
+      const lang = info.split(/\s+/)[0].toLowerCase();
+
+      if (!inMarkdownBlock) {
+        if (['markdown', 'md'].includes(lang) && fenceLen === 3) {
+          inMarkdownBlock = true;
+          result.push('````' + (info || 'markdown'));
+          continue;
+        } else {
+          result.push(line);
+        }
+      } else {
+        if (info !== '') {
+          // Inner opening fence (e.g. ```bash)
+          nestedOpen = true;
+          result.push(line);
+        } else {
+          if (nestedOpen) {
+            nestedOpen = false;
+            result.push(line);
+          } else {
+            inMarkdownBlock = false;
+            result.push('````');
+          }
+        }
+      }
+    } else {
+      result.push(line);
+    }
+  }
+
+  if (inMarkdownBlock) {
+    result.push('````');
+  }
+
+  return result.join('\n');
 }
 
 /**
@@ -74,9 +138,9 @@ function renderFileChip(fullPath: string, label: string): string {
 export function preprocessMarkdownDiagrams(raw: string): string {
   if (!raw) return '';
 
-  // 1. Temporarily protect already backticked code blocks
+  // 1. Temporarily protect already backticked code blocks (support 3, 4, or more backticks)
   const codeBlocks: string[] = [];
-  const protectedContent = raw.replace(/```[\s\S]*?```/g, (match) => {
+  const protectedContent = raw.replace(/(`{3,}|~{3,})[\s\S]*?\1/g, (match) => {
     codeBlocks.push(match);
     return `___PRE_SAVED_CODE_BLOCK_${codeBlocks.length - 1}___`;
   });
@@ -105,10 +169,15 @@ export function preprocessMarkdownDiagrams(raw: string): string {
   };
 
   for (const para of paragraphs) {
-    const lines = para.split('\n');
+    const trimmed = para.trim();
+    const lines = trimmed.split('\n');
     let isDiagram = false;
 
-    if (lines.length >= 2) {
+    // Check if paragraph is a standard Markdown GFM Table
+    // If line 2 is a table header separator (| :--- | :--- |), keep it as markdown table, not diagram!
+    const isTable = lines.length >= 2 && /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?\s*$/.test(lines[1]);
+
+    if (!isTable && lines.length >= 2) {
       let matchCount = 0;
       for (const line of lines) {
         if (diagramIndicators.some((regex) => regex.test(line))) {
@@ -172,32 +241,43 @@ export function createMarkdownRenderer(existingFilesMap: Record<string, FilePath
             <span class="copy-label">Copy</span>
           </button>
         </div>
-        <div class="p-3.5 overflow-x-auto text-[12.5px] font-mono leading-relaxed select-text ${language === 'diagram' ? 'text-cyan-200/90 whitespace-pre font-mono tracking-tight' : 'text-ant-text'}">
+        <div class="p-3.5 overflow-x-auto text-[12.5px] font-mono leading-relaxed select-text whitespace-pre ${language === 'diagram' ? 'text-cyan-200/90 tracking-tight' : 'text-ant-text'}">
           <code>${highlighted}</code>
         </div>
       </div>
     `;
   };
 
+  // Custom link renderer: ensure target="_blank" and rel="noopener noreferrer"
+  customRenderer.link = function ({ href, title, text }: { href: string; title?: string | null; text: string }) {
+    const titleAttr = title ? ` title="${title}"` : '';
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer"${titleAttr} class="text-ant-primary hover:text-blue-400 underline underline-offset-2 transition">${text}</a>`;
+  };
+
   // Custom codespan renderer: turns verified file paths in `...` into clickable chips
   customRenderer.codespan = function ({ text }: { text: string }) {
     const clean = cleanCandidate(text);
     if (existingFilesMap[clean] && existingFilesMap[clean].exists) {
-      return renderFileChip(existingFilesMap[clean].fullPath, clean);
+      return renderFileChip(existingFilesMap[clean].fullPath, clean, existingFilesMap[clean].isDir);
     }
     return `<code class="font-mono text-[11.5px] bg-ant-bg-tertiary px-1.5 py-0.5 rounded text-ant-primary">${text}</code>`;
   };
 
-  // Custom text token renderer: turns verified file paths in prose into clickable blue chips
-  customRenderer.text = function ({ text }: { text: string }) {
-    let res = text;
+  // Custom text token renderer: handles marked v18 nested tokens and turns verified file paths in prose into clickable blue chips
+  customRenderer.text = function (token: any) {
+    // If marked v18 passes a token with child tokens (e.g. bold, codespan, links inside list items), parse children
+    if (token && typeof token === 'object' && 'tokens' in token && token.tokens && (this as any).parser) {
+      return (this as any).parser.parseInline(token.tokens);
+    }
+
+    let res = typeof token === 'string' ? token : token?.text || '';
     const sortedPaths = Object.keys(existingFilesMap).sort((a, b) => b.length - a.length);
     for (const cand of sortedPaths) {
       const info = existingFilesMap[cand];
       if (info && info.exists) {
         const escaped = cand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const reg = new RegExp(`(?<=^|[\\s(\`"'\\[<])${escaped}(?=[.,;:\\s\`"'\\]>]|$)`, 'g');
-        res = res.replace(reg, renderFileChip(info.fullPath, cand));
+        res = res.replace(reg, renderFileChip(info.fullPath, cand, info.isDir));
       }
     }
     return res;
@@ -209,7 +289,8 @@ export function createMarkdownRenderer(existingFilesMap: Record<string, FilePath
 export function renderMarkdown(content: string, existingFilesMap: Record<string, FilePathInfo> = {}): string {
   if (!content) return '';
   try {
-    const preprocessed = preprocessMarkdownDiagrams(content);
+    const repaired = repairMarkdownFences(content);
+    const preprocessed = preprocessMarkdownDiagrams(repaired);
     const renderer = createMarkdownRenderer(existingFilesMap);
     return marked.parse(preprocessed, {
       gfm: true,

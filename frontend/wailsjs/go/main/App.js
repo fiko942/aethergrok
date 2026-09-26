@@ -30,6 +30,10 @@ export function CleanupSkillImportTemp(arg1) {
   return window['go']['main']['App']['CleanupSkillImportTemp'](arg1);
 }
 
+export function ClearSnapshotCache() {
+  return window['go']['main']['App']['ClearSnapshotCache']();
+}
+
 export function CommitWorkspaceChanges(arg1, arg2) {
   return window['go']['main']['App']['CommitWorkspaceChanges'](arg1, arg2);
 }
@@ -40,6 +44,10 @@ export function CompactSession(arg1, arg2) {
 
 export function DeleteGrokSession(arg1, arg2) {
   return window['go']['main']['App']['DeleteGrokSession'](arg1, arg2);
+}
+
+export function DeleteSessionTempFiles(arg1) {
+  return window['go']['main']['App']['DeleteSessionTempFiles'](arg1);
 }
 
 export function DiscoverGrokSessions(arg1) {
@@ -60,6 +68,10 @@ export function GetInstalledSkills() {
 
 export function GetSessionUsage(arg1, arg2) {
   return window['go']['main']['App']['GetSessionUsage'](arg1, arg2);
+}
+
+export function GetSnapshotCacheStats() {
+  return window['go']['main']['App']['GetSnapshotCacheStats']();
 }
 
 export function GetWorkspaceFileDiff(arg1, arg2) {
@@ -88,6 +100,10 @@ export function OpenAccessibilitySettings() {
 
 export function OpenExternalURL(arg1) {
   return window['go']['main']['App']['OpenExternalURL'](arg1);
+}
+
+export function OpenPathInSystem(arg1) {
+  return window['go']['main']['App']['OpenPathInSystem'](arg1);
 }
 
 export function PullWorkspaceChanges(arg1) {

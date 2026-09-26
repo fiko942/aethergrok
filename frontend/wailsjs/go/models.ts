@@ -252,6 +252,38 @@ export namespace permissions {
 
 export namespace screen {
 	
+	export class CacheStats {
+	    totalBytes: number;
+	    fileCount: number;
+	    formattedSize: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CacheStats(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.totalBytes = source["totalBytes"];
+	        this.fileCount = source["fileCount"];
+	        this.formattedSize = source["formattedSize"];
+	    }
+	}
+	export class ClearCacheResult {
+	    freedBytes: number;
+	    deletedCount: number;
+	    formattedSize: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ClearCacheResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.freedBytes = source["freedBytes"];
+	        this.deletedCount = source["deletedCount"];
+	        this.formattedSize = source["formattedSize"];
+	    }
+	}
 	export class SnapshotResult {
 	    filePath: string;
 	    dataUrl: string;

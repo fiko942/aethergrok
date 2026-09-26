@@ -33,7 +33,10 @@
     FolderOpen,
     FileCode2,
     ShieldCheck,
-    ZapOff
+    ZapOff,
+    Trash2,
+    HardDrive,
+    RefreshCw
   } from 'lucide-svelte';
   import Button from '$lib/antd/Button.svelte';
   import Card from '$lib/antd/Card.svelte';
@@ -73,6 +76,55 @@
   let isRecordingShortcut = $state(false);
   let saveSuccessNotice = $state(false);
 
+  // Storage & Cache State
+  let cacheStats = $state<{ totalBytes: number; fileCount: number; formattedSize: string }>({
+    totalBytes: 0,
+    fileCount: 0,
+    formattedSize: '0 B'
+  });
+  let isClearingCache = $state(false);
+  let cacheClearNotice = $state<string | null>(null);
+
+  async function refreshCacheStats() {
+    if (window.go?.main?.App?.GetSnapshotCacheStats) {
+      try {
+        const stats = await window.go.main.App.GetSnapshotCacheStats();
+        if (stats) {
+          cacheStats = {
+            totalBytes: stats.totalBytes || 0,
+            fileCount: stats.fileCount || 0,
+            formattedSize: stats.formattedSize || '0 B'
+          };
+        }
+      } catch (err) {
+        console.warn('Failed to load cache stats:', err);
+      }
+    }
+  }
+
+  async function handleClearCache() {
+    if (isClearingCache) return;
+    isClearingCache = true;
+    cacheClearNotice = null;
+    try {
+      if (window.go?.main?.App?.ClearSnapshotCache) {
+        const res = await window.go.main.App.ClearSnapshotCache();
+        if (res) {
+          cacheClearNotice = `Freed ${res.formattedSize} (${res.deletedCount} snapshot files deleted)`;
+        }
+      }
+      await refreshCacheStats();
+    } catch (err) {
+      console.error('Failed to clear snapshot cache:', err);
+      cacheClearNotice = 'Failed to clear cache: ' + String(err);
+    } finally {
+      isClearingCache = false;
+      setTimeout(() => {
+        cacheClearNotice = null;
+      }, 4000);
+    }
+  }
+
   function openExternal(url: string) {
     if (window.go?.main?.App?.OpenExternalURL) {
       window.go.main.App.OpenExternalURL(url);
@@ -105,6 +157,7 @@
       editTheme = settingsStore.theme;
       isRecordingShortcut = false;
       saveSuccessNotice = false;
+      refreshCacheStats();
     }
   });
 
@@ -595,6 +648,62 @@
                       <span>80ms (Recommended Win)</span>
                       <span>500ms (Safe)</span>
                     </div>
+                  </div>
+                </div>
+              </Card>
+
+              <!-- Storage & Screenshot Cache Management -->
+              <Card>
+                <div class="space-y-3">
+                  <!-- Header Row: Icon, Title, Description, and Badged Size Counter -->
+                  <div class="flex items-start justify-between gap-4">
+                    <div class="space-y-1">
+                      <div class="text-xs font-semibold text-ant-text flex items-center gap-1.5">
+                        <HardDrive size={14} class="text-ant-primary" />
+                        Storage & Snapshot Cache
+                      </div>
+                      <p class="text-[11px] text-ant-text-secondary leading-relaxed">
+                        Temporary vision scratch files and screenshots. Deleting a chat or workspace automatically purges its media.
+                      </p>
+                    </div>
+
+                    <div class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-ant-bg border border-white/5 font-mono text-xs shrink-0 self-start">
+                      <span class="font-semibold text-ant-text">{cacheStats.formattedSize}</span>
+                      <span class="text-ant-text-muted text-[11px]">({cacheStats.fileCount} {cacheStats.fileCount === 1 ? 'file' : 'files'})</span>
+                    </div>
+                  </div>
+
+                  {#if cacheClearNotice}
+                    <div class="px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] font-mono text-emerald-400 flex items-center gap-2 animate-in fade-in duration-150">
+                      <CheckCircle2 size={13} class="text-emerald-400 shrink-0" />
+                      <span>{cacheClearNotice}</span>
+                    </div>
+                  {/if}
+
+                  <!-- Action Bar: Clean inline layout with clear affordance -->
+                  <div class="pt-2.5 border-t border-white/5 flex items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      onclick={refreshCacheStats}
+                      class="px-2.5 py-1.5 rounded-lg text-xs font-serif text-ant-text-secondary hover:text-ant-text hover:bg-white/5 transition flex items-center gap-1.5"
+                    >
+                      <RefreshCw size={12} class={isClearingCache ? 'animate-spin text-ant-primary' : ''} />
+                      <span>Refresh Size</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onclick={handleClearCache}
+                      disabled={isClearingCache || cacheStats.fileCount === 0}
+                      class="px-3.5 py-1.5 rounded-lg text-xs font-serif font-medium transition flex items-center gap-1.5 {
+                        cacheStats.fileCount === 0
+                          ? 'bg-white/5 text-ant-text-muted/60 border border-transparent cursor-not-allowed opacity-60'
+                          : 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 active:scale-95'
+                      }"
+                    >
+                      <Trash2 size={12} class={isClearingCache ? 'animate-spin' : ''} />
+                      <span>{isClearingCache ? 'Purging Cache...' : 'Clear Snapshot Cache'}</span>
+                    </button>
                   </div>
                 </div>
               </Card>

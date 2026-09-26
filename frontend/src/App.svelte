@@ -16,6 +16,7 @@
   import ScreenFlash from '$lib/components/snapshot/ScreenFlash.svelte';
   import ModalConfirm from '$lib/antd/ModalConfirm.svelte';
   import NewSessionDropdown from '$lib/components/layout/NewSessionDropdown.svelte';
+  import WorkspacePickerModal from '$lib/components/layout/WorkspacePickerModal.svelte';
   import { dialogStore } from '$lib/stores/dialog.svelte';
   import { playCameraShutterSound } from '$lib/utils/audio';
   import { settingsStore } from '$lib/stores/settings.svelte';
@@ -44,7 +45,8 @@
     PanelRightClose,
     PanelRightOpen,
     ChevronRight,
-    Upload
+    Upload,
+    FolderPlus
   } from 'lucide-svelte';
 
   let reasoningEffort = $state<'low' | 'medium' | 'high'>('medium');
@@ -52,6 +54,7 @@
   let pingResult = $state<string>('');
   let skillsCatalogVisible = $state(false);
   let settingsModalVisible = $state(false);
+  let workspacePickerModalVisible = $state(false);
   let emptyStateDropdownOpen = $state(false);
   let flashActive = $state(false);
   const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
@@ -696,6 +699,65 @@
     return true;
   }
 
+  // Handle Open New Folder in Empty State & Dropdowns
+  async function handleOpenNewFolder() {
+    if (window.go?.main?.App?.SelectWorkspaceDirectory) {
+      try {
+        const dir = await window.go.main.App.SelectWorkspaceDirectory();
+        if (dir) {
+          const folderName = dir.split(/[/\\]/).filter(Boolean).pop() || 'workspace';
+          const newWs = sessionStore.addWorkspace(folderName, dir);
+          if (window.go?.main?.App?.DiscoverGrokSessions) {
+            const diskSessions = await window.go.main.App.DiscoverGrokSessions(dir);
+            if (diskSessions && diskSessions.length > 0) {
+              sessionStore.syncDiscoveredGrokSessions(newWs.id, diskSessions);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to open workspace directory:', err);
+      }
+    } else {
+      const path = window.prompt('Enter absolute path of folder workspace:', '/Users/fiko942/Desktop/workspace');
+      if (path && path.trim()) {
+        const folderName = path.trim().split(/[/\\]/).filter(Boolean).pop() || 'workspace';
+        sessionStore.addWorkspace(folderName, path.trim());
+      }
+    }
+  }
+
+  // Toggle Window Maximization (Zoom / Fill Screen on current desktop) on Header Double Click
+  async function handleHeaderDoubleClick(e: MouseEvent) {
+    const target = e.target as HTMLElement | null;
+    if (target?.closest('button, input, select, textarea, a, [role="button"], [role="tab"]')) {
+      return;
+    }
+
+    // Ensure we exit macOS Space fullscreen if accidentally active
+    if (window.runtime?.WindowIsFullscreen) {
+      try {
+        const isFull = await window.runtime.WindowIsFullscreen();
+        if (isFull) {
+          window.runtime.WindowUnfullscreen();
+          return;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    // Toggle window maximize to fill the current desktop screen without creating a separate macOS space
+    if (window.runtime?.WindowToggleMaximise) {
+      try {
+        window.runtime.WindowToggleMaximise();
+      } catch (err) {
+        console.error('Failed to toggle window maximize via Wails runtime:', err);
+      }
+    } else if (window.runtime?.WindowMaximise) {
+      window.runtime.WindowMaximise();
+    }
+  }
+
   // Global Keyboard Shortcuts Handler
   function handleGlobalKeyDown(e: KeyboardEvent) {
     const isMetaOrCtrl = e.metaKey || e.ctrlKey;
@@ -721,10 +783,10 @@
       return;
     }
 
-    // Cmd/Ctrl + T: Create new session
+    // Cmd/Ctrl + T: Open Workspace Picker for New Conversation
     if (isMetaOrCtrl && !e.shiftKey && e.key.toLowerCase() === 't') {
       e.preventDefault();
-      sessionStore.createSession();
+      workspacePickerModalVisible = true;
       return;
     }
 
@@ -772,6 +834,29 @@
     }
   }
 
+  // Global link click interceptor: ensures any external link clicked in the webview
+  // opens in default OS browser (macOS Safari/Chrome/etc.) rather than navigating the app window
+  function handleGlobalDocumentClick(e: MouseEvent) {
+    const target = e.target as HTMLElement | null;
+    const linkEl = target?.closest('a') as HTMLAnchorElement | null;
+    if (linkEl && linkEl.href) {
+      const href = linkEl.href;
+      // If it's a web URL (http:// or https://) or mailto/etc.
+      if (/^https?:\/\//i.test(href) || /^mailto:/i.test(href)) {
+        e.preventDefault();
+        e.stopPropagation();
+        const win = window as any;
+        if (win.go?.main?.App?.OpenExternalURL) {
+          win.go.main.App.OpenExternalURL(href);
+        } else if (win.runtime?.BrowserOpenURL) {
+          win.runtime.BrowserOpenURL(href);
+        } else {
+          window.open(href, '_blank');
+        }
+      }
+    }
+  }
+
   // Wails Event Listeners
   let unsubDelta: (() => void) | undefined;
   let unsubTool: (() => void) | undefined;
@@ -780,6 +865,7 @@
   let unsubError: (() => void) | undefined;
 
   onMount(() => {
+    window.addEventListener('click', handleGlobalDocumentClick, true);
     window.addEventListener('keydown', handleGlobalKeyDown);
     window.addEventListener('resize', handleWindowResize);
     handleWindowResize();
@@ -931,52 +1017,10 @@
         }
       });
     }
-
-    // Default sample session setup
-    if (sessionStore.activeSession && sessionStore.activeSession.messages.length === 0) {
-      sessionStore.addMessage(sessionStore.activeSession.id, {
-        role: 'user',
-        content: 'Check system readiness and status of AetherGrok GUI engine.'
-      });
-      sessionStore.addMessage(sessionStore.activeSession.id, {
-        role: 'assistant',
-        content: 'System diagnostic completed. All components **Svelte 5 Runes**, **Ant Design Dark Tokens**, **Diff Viewer**, and **Smart Snapshot** are initialized and operational.',
-        tokens: { input: 154, output: 86, total: 240 },
-        toolCalls: [
-          {
-            id: 'tc_init_01',
-            tool: 'read_file',
-            params: { target_file: 'frontend/src/App.svelte' },
-            result: '// Initialized AetherGrok Desktop UI\nstatus: nominal',
-            status: 'completed',
-            startTime: Date.now() - 32,
-            endTime: Date.now()
-          },
-          {
-            id: 'tc_init_02',
-            tool: 'search_replace',
-            params: {
-              file_path: 'src/config.ts',
-              old_string: 'const TIMEOUT = 1000;',
-              new_string: 'const TIMEOUT = 5000;'
-            },
-            result: 'Updated timeout parameter successfully.',
-            status: 'completed',
-            startTime: Date.now() - 20,
-            endTime: Date.now(),
-            diff: {
-              oldPath: 'src/config.ts',
-              newPath: 'src/config.ts',
-              diffUnified: '--- src/config.ts\n+++ src/config.ts\n@@ -1,2 +1,2 @@\n-const TIMEOUT = 1000;\n+const TIMEOUT = 5000;'
-            }
-          }
-        ]
-      });
-      sessionStore.setSessionStatus(sessionStore.activeSession.id, 'idle');
-    }
   });
 
   onDestroy(() => {
+    window.removeEventListener('click', handleGlobalDocumentClick, true);
     window.removeEventListener('keydown', handleGlobalKeyDown);
     window.removeEventListener('resize', handleWindowResize);
     window.removeEventListener('mousemove', handleResizeMove);
@@ -992,7 +1036,8 @@
 <div class="flex flex-col h-screen w-screen bg-ant-bg text-ant-text select-none overflow-hidden font-serif">
   <!-- Top Navigation Bar -->
   <header
-    class="flex items-center justify-between pl-20 pr-4 h-[38px] bg-ant-bg-secondary border-b border-white/5 flex-shrink-0"
+    ondblclick={handleHeaderDoubleClick}
+    class="flex items-center justify-between pl-20 pr-4 h-[38px] bg-ant-bg-secondary border-b border-white/5 flex-shrink-0 cursor-default"
     style="--wails-draggable:drag"
   >
     <div class="flex items-center space-x-2 shrink-0">
@@ -1017,7 +1062,7 @@
       </Tooltip>
 
       <img
-        src="/app-icon-64.png"
+        src="/brand-emblem-64.png"
         alt="AetherGrok Logo"
         class="w-5 h-5 shrink-0 object-contain drop-shadow-sm select-none pointer-events-none"
         draggable="false"
@@ -1194,11 +1239,11 @@
       {:else}
         <!-- Zero-Tab Empty Workspace State -->
         <div class="flex-1 flex flex-col items-center justify-center p-8 select-none text-center bg-radial from-ant-bg-secondary/40 via-ant-bg to-ant-bg">
-          <div class="w-16 h-16 rounded-2xl bg-ant-bg-elevated border border-ant-border-subtle flex items-center justify-center mb-5 shadow-xl shadow-black/40 overflow-hidden group">
+          <div class="w-16 h-16 rounded-2xl bg-ant-bg-elevated border border-white/5 flex items-center justify-center mb-5 shadow-xl shadow-black/40 overflow-hidden group">
             <img
-              src="/app-icon-128.png"
+              src="/brand-emblem-128.png"
               alt="AetherGrok Logo"
-              class="w-12 h-12 object-contain"
+              class="w-11 h-11 object-contain drop-shadow-md select-none pointer-events-none"
               draggable="false"
             />
           </div>
@@ -1228,12 +1273,11 @@
             </div>
             <button
               type="button"
-              onclick={performGlobalSnapshot}
+              onclick={handleOpenNewFolder}
               class="flex items-center space-x-2 px-4 py-2 rounded-lg bg-ant-bg-tertiary hover:bg-white/10 text-ant-text font-serif text-xs font-medium border border-white/5 transition cursor-pointer"
             >
-              <Camera size={13} class="text-ant-primary" />
-              <span>Take Snapshot</span>
-              <kbd class="px-1.5 py-0.5 text-[10px] font-mono bg-white/10 rounded text-ant-text-secondary">{isMac ? '⌘⇧S' : 'Ctrl+⇧S'}</kbd>
+              <FolderPlus size={14} class="text-ant-primary" />
+              <span>Open New Folder</span>
             </button>
           </div>
         </div>
@@ -1261,6 +1305,12 @@
   <SettingsModal
     visible={settingsModalVisible}
     onClose={() => settingsModalVisible = false}
+  />
+
+  <!-- Universal Workspace Selector Modal for New Conversation (Cmd+T / Menu) -->
+  <WorkspacePickerModal
+    visible={workspacePickerModalVisible}
+    onClose={() => workspacePickerModalVisible = false}
   />
 
   <!-- Interactive Permission Modal -->

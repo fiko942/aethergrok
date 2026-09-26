@@ -2,6 +2,7 @@
   import { X, Code, Eye, Copy, Check, FileText, AlertTriangle, FileWarning, ArrowRight } from 'lucide-svelte';
   import { marked } from 'marked';
   import FileIcon from './FileIcon.svelte';
+  import { highlightCode } from '$lib/utils/codeHighlighter';
 
   let {
     isOpen = false,
@@ -110,37 +111,12 @@
     }
   }
 
-  // Basic syntax highlighter helper for read-only view
-  function highlightLine(line: string, fileExt: string): string {
-    const escaped = line
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-
-    if (fileExt === '.json') {
-      return escaped
-        .replace(/"(.*?)":/g, '<span class="text-sky-300 font-semibold">"$1"</span>:')
-        .replace(/:\s*"(.*?)"/g, ': <span class="text-amber-200">"$1"</span>')
-        .replace(/:\s*(\d+(\.\d+)?)/g, ': <span class="text-emerald-300">$1</span>')
-        .replace(/:\s*(true|false|null)/g, ': <span class="text-purple-300 font-medium">$1</span>');
-    }
-
-    if (fileExt === '.ts' || fileExt === '.js' || fileExt === '.svelte' || fileExt === '.go') {
-      return escaped
-        .replace(/\b(const|let|var|function|import|export|from|return|if|else|switch|case|break|for|while|type|interface|class|struct|package|func)\b/g, '<span class="text-purple-400 font-medium">$1</span>')
-        .replace(/\b(true|false|null|undefined|nil)\b/g, '<span class="text-amber-400">$1</span>')
-        .replace(/\b(string|number|boolean|any|int|error)\b/g, '<span class="text-emerald-400">$1</span>')
-        .replace(/(\/\/.*$)/g, '<span class="text-zinc-500 italic">$1</span>');
-    }
-
-    if (fileExt === '.sh' || fileExt === '.bash') {
-      return escaped
-        .replace(/(#.*$)/g, '<span class="text-zinc-500 italic">$1</span>')
-        .replace(/\b(echo|export|if|then|else|fi|for|do|done|exit|cd|mkdir|rm)\b/g, '<span class="text-emerald-400 font-medium">$1</span>');
-    }
-
-    return escaped;
-  }
+  // Professional syntax highlighter powered by PrismJS with extension mapping
+  const highlightedCodeHtml = $derived.by(() => {
+    if (!content) return '';
+    const cleanExt = (ext.startsWith('.') ? ext.slice(1) : ext).toLowerCase();
+    return highlightCode(content, cleanExt);
+  });
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -251,7 +227,7 @@
             {@html renderedMarkdownHtml}
           </div>
         {:else}
-          <!-- Code View with Line Numbers -->
+          <!-- Code View with Line Numbers & PrismJS Syntax Highlighting -->
           <div class="flex font-mono text-xs leading-5">
             <!-- Line numbers -->
             <div class="py-3 px-3 select-none text-zinc-600 text-right bg-[#121214] border-r border-[#222226] shrink-0 font-mono">
@@ -260,11 +236,9 @@
               {/each}
             </div>
 
-            <!-- Code Lines -->
-            <div class="py-3 px-4 overflow-x-auto whitespace-pre font-mono text-zinc-200 flex-1">
-              {#each content.split('\n') as line}
-                <div>{@html highlightLine(line, ext) || '&nbsp;'}</div>
-              {/each}
+            <!-- PrismJS Highlighted Code Container -->
+            <div class="py-3 px-4 overflow-x-auto whitespace-pre font-mono text-zinc-200 flex-1 leading-5">
+              <code>{@html highlightedCodeHtml}</code>
             </div>
           </div>
         {/if}

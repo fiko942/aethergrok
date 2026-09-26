@@ -173,6 +173,10 @@ export const DEFAULT_WINDOW_TURNS = 10;
 export const PREPEND_CHUNK_TURNS = 10;
 
 const WORKSPACES_STORAGE_KEY = 'aethergrok_workspaces_v1';
+const SESSIONS_STORAGE_KEY = 'aethergrok_sessions_v1';
+const OPEN_TABS_STORAGE_KEY = 'aethergrok_open_tabs_v1';
+const ACTIVE_SESSION_STORAGE_KEY = 'aethergrok_active_session_id_v1';
+const ACTIVE_WS_STORAGE_KEY = 'aethergrok_active_workspace_id_v1';
 
 class SessionStore {
   workspaces = $state<WorkspaceFolder[]>([]);
@@ -191,8 +195,9 @@ class SessionStore {
 
   constructor() {
     this.loadWorkspacesFromStorage();
+    this.loadSessionsFromStorage();
 
-    // Ensure we have at least one workspace
+    // Ensure we have at least one workspace if completely empty
     if (this.workspaces.length === 0) {
       const defaultWs: WorkspaceFolder = {
         id: 'ws_affilia_root',
@@ -204,6 +209,7 @@ class SessionStore {
       };
       this.workspaces = [defaultWs];
       this.activeWorkspaceId = defaultWs.id;
+      this.saveWorkspacesToStorage();
     }
 
     // Workspaces default to collapsed unless explicitly expanded by user
@@ -217,16 +223,14 @@ class SessionStore {
       this.activeWorkspaceId = this.workspaces[0].id;
     }
 
-    // Initialize with a default session linked to default workspace
-    const initialSession = this.createNewSessionModel('Log Audit & Automation', this.activeWorkspaceId);
-    this.sessions = [initialSession];
-    this.activeSessionId = initialSession.id;
-    this.openTabSessionIds = [initialSession.id];
+    // Validate activeSessionId and openTabSessionIds against actual sessions
+    this.reconcileSessionState();
 
     // Trigger verification of workspaces on disk
     if (typeof window !== 'undefined') {
       setTimeout(() => {
         this.verifyAllWorkspaces();
+        this.verifySessionsOnDisk();
       }, 100);
     }
   }
@@ -241,6 +245,10 @@ class SessionStore {
           this.workspaces = parsed;
         }
       }
+      const rawActiveWs = window.localStorage.getItem(ACTIVE_WS_STORAGE_KEY);
+      if (rawActiveWs) {
+        this.activeWorkspaceId = rawActiveWs;
+      }
     } catch (e) {
       console.warn('Failed to load workspaces from storage:', e);
     }
@@ -250,8 +258,92 @@ class SessionStore {
     if (typeof window === 'undefined' || !window.localStorage) return;
     try {
       window.localStorage.setItem(WORKSPACES_STORAGE_KEY, JSON.stringify(this.workspaces));
+      if (this.activeWorkspaceId) {
+        window.localStorage.setItem(ACTIVE_WS_STORAGE_KEY, this.activeWorkspaceId);
+      }
     } catch (e) {
       console.warn('Failed to save workspaces to storage:', e);
+    }
+  }
+
+  private loadSessionsFromStorage() {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    try {
+      const rawSessions = window.localStorage.getItem(SESSIONS_STORAGE_KEY);
+      if (rawSessions) {
+        const parsed = JSON.parse(rawSessions);
+        if (Array.isArray(parsed)) {
+          this.sessions = parsed;
+        }
+      }
+
+      const rawTabs = window.localStorage.getItem(OPEN_TABS_STORAGE_KEY);
+      if (rawTabs) {
+        const parsed = JSON.parse(rawTabs);
+        if (Array.isArray(parsed)) {
+          this.openTabSessionIds = parsed;
+        }
+      }
+
+      const rawActiveSession = window.localStorage.getItem(ACTIVE_SESSION_STORAGE_KEY);
+      if (rawActiveSession !== null) {
+        this.activeSessionId = rawActiveSession || null;
+      }
+    } catch (e) {
+      console.warn('Failed to load sessions from storage:', e);
+    }
+  }
+
+  saveSessionsToStorage() {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    try {
+      window.localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(this.sessions));
+      window.localStorage.setItem(OPEN_TABS_STORAGE_KEY, JSON.stringify(this.openTabSessionIds));
+      if (this.activeSessionId) {
+        window.localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, this.activeSessionId);
+      } else {
+        window.localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
+      }
+    } catch (e) {
+      console.warn('Failed to save sessions to storage:', e);
+    }
+  }
+
+  // Ensure tabs and active session point to existing sessions
+  private reconcileSessionState() {
+    // Keep only open tab IDs that exist in this.sessions
+    this.openTabSessionIds = this.openTabSessionIds.filter(id => this.sessions.some(s => s.id === id));
+
+    // If activeSessionId is set but doesn't exist, pick another open tab or null
+    if (this.activeSessionId && !this.sessions.some(s => s.id === this.activeSessionId)) {
+      if (this.openTabSessionIds.length > 0) {
+        this.activeSessionId = this.openTabSessionIds[0];
+      } else {
+        this.activeSessionId = null;
+      }
+    }
+
+    // If activeSessionId is set but not in openTabSessionIds, add it
+    if (this.activeSessionId && !this.openTabSessionIds.includes(this.activeSessionId)) {
+      this.openTabSessionIds.push(this.activeSessionId);
+    }
+
+    this.saveSessionsToStorage();
+  }
+
+  async verifySessionsOnDisk(): Promise<void> {
+    if (typeof window === 'undefined') return;
+    if (!window.go?.main?.App?.DiscoverGrokSessions) return;
+
+    for (const ws of this.workspaces) {
+      try {
+        const diskSessions = await window.go.main.App.DiscoverGrokSessions(ws.path);
+        if (diskSessions) {
+          this.syncDiscoveredGrokSessions(ws.id, diskSessions);
+        }
+      } catch (err) {
+        console.warn('verifySessionsOnDisk failed for', ws.path, err);
+      }
     }
   }
 
@@ -398,9 +490,6 @@ class SessionStore {
     this.workspaces.push(newWs);
     this.activeWorkspaceId = id;
     this.saveWorkspacesToStorage();
-
-    // Create a starter session for the newly added workspace
-    this.createSession(`New ${name} Task`, id);
     return newWs;
   }
 
@@ -429,6 +518,10 @@ class SessionStore {
   removeWorkspace(id: string): void {
     const index = this.workspaces.findIndex((w) => w.id === id);
     if (index === -1) return;
+
+    // Purge temporary files from disk for all sessions of this workspace
+    const sessionsToRemove = this.sessions.filter((s) => s.workspaceId === id);
+    this.purgeTempFilesForSessions(sessionsToRemove);
 
     this.workspaces.splice(index, 1);
     // Remove associated sessions
@@ -479,9 +572,73 @@ class SessionStore {
     this.selectedSessionIds = new Set();
   }
 
+  // Extract all temporary file paths (such as snapshots) linked to a session
+  collectSessionTempFilePaths(session: Session): string[] {
+    const paths: string[] = [];
+    // From messages images
+    for (const msg of session.messages) {
+      if (msg.images) {
+        for (const img of msg.images) {
+          if (img.filePath) paths.push(img.filePath);
+        }
+      }
+      if (msg.attachments) {
+        for (const att of msg.attachments) {
+          if (att.filePath) paths.push(att.filePath);
+        }
+      }
+    }
+    // From session draft
+    if (session.draft?.images) {
+      for (const img of session.draft.images) {
+        if (img.filePath) paths.push(img.filePath);
+      }
+    }
+    if (session.draft?.attachments) {
+      for (const att of session.draft.attachments) {
+        if (att.filePath) paths.push(att.filePath);
+      }
+    }
+    // From queued prompts
+    if (session.queuedPrompts) {
+      for (const q of session.queuedPrompts) {
+        if (q.images) {
+          for (const img of q.images) {
+            if (img.filePath) paths.push(img.filePath);
+          }
+        }
+        if (q.attachments) {
+          for (const att of q.attachments) {
+            if (att.filePath) paths.push(att.filePath);
+          }
+        }
+      }
+    }
+    return paths;
+  }
+
+  // Safely trigger backend deletion of temporary files
+  private purgeTempFilesForSessions(sessions: Session[]): void {
+    if (typeof window === 'undefined' || !window.go?.main?.App?.DeleteSessionTempFiles) return;
+    const allPaths: string[] = [];
+    for (const s of sessions) {
+      allPaths.push(...this.collectSessionTempFilePaths(s));
+    }
+    if (allPaths.length > 0) {
+      window.go.main.App.DeleteSessionTempFiles(allPaths).catch((err: any) => {
+        console.warn('Failed to delete session temp files:', err);
+      });
+    }
+  }
+
   deleteSelectedSessions(): void {
     if (this.selectedSessionIds.size === 0) return;
     const idsToDelete = new Set(this.selectedSessionIds);
+    const sessionsToDelete = this.sessions.filter((s) => idsToDelete.has(s.id));
+
+    // Purge temporary vision files on disk for all selected sessions
+    this.purgeTempFilesForSessions(sessionsToDelete);
+
     this.sessions = this.sessions.filter((s) => !idsToDelete.has(s.id));
     this.selectedSessionIds = new Set();
     this.isSelectionMode = false;
@@ -493,6 +650,7 @@ class SessionStore {
     } else if (!this.activeSessionId || idsToDelete.has(this.activeSessionId)) {
       this.activeSessionId = currentWsSessions[0].id;
     }
+    this.saveSessionsToStorage();
   }
 
   // Right Sidebar Session-Isolated Toggle & Tab Switching
@@ -521,6 +679,7 @@ class SessionStore {
     this.sessions.push(newSession);
     this.openTabSessionIds.push(newSession.id);
     this.activeSessionId = newSession.id;
+    this.saveSessionsToStorage();
     return newSession;
   }
 
@@ -542,6 +701,7 @@ class SessionStore {
     if (target.workspaceId && target.workspaceId !== this.activeWorkspaceId) {
       this.activeWorkspaceId = target.workspaceId;
     }
+    this.saveSessionsToStorage();
 
     // Lazy load real chat history from disk if session has 0 messages
     if (target.messages.length === 0) {
@@ -715,16 +875,25 @@ class SessionStore {
     if (currentOpenInWs.length === 0) {
       // Allow closing down to 0 tabs without auto-creating a new session
       this.activeSessionId = null;
+      this.saveSessionsToStorage();
       return;
     }
 
     if (this.activeSessionId === id) {
       const nextTab = currentOpenInWs[Math.max(0, tabIdx - 1)] || currentOpenInWs[0];
       this.openSessionInTab(nextTab.id);
+    } else {
+      this.saveSessionsToStorage();
     }
   }
 
   closeSession(id: string): void {
+    const targetSession = this.sessions.find((s) => s.id === id);
+    if (targetSession) {
+      // Purge temporary files from disk for this session
+      this.purgeTempFilesForSessions([targetSession]);
+    }
+
     this.closeSessionTab(id);
     const index = this.sessions.findIndex((s) => s.id === id);
     if (index === -1) return;
@@ -734,10 +903,8 @@ class SessionStore {
 
     const remainingInWs = this.sessions.filter((s) => s.workspaceId === wsId);
     if (remainingInWs.length === 0) {
-      const fallback = this.createNewSessionModel('New Task', wsId);
-      this.sessions.push(fallback);
-      this.openTabSessionIds = [fallback.id];
-      this.activeSessionId = fallback.id;
+      this.activeSessionId = null;
+      this.saveSessionsToStorage();
       return;
     }
 
@@ -745,6 +912,7 @@ class SessionStore {
       this.activeSessionId = remainingInWs[0].id;
       remainingInWs[0].visibleTurnCount = DEFAULT_WINDOW_TURNS;
     }
+    this.saveSessionsToStorage();
   }
 
   togglePinSession(id: string): void {
@@ -803,9 +971,9 @@ class SessionStore {
       if (realFirst && (!this.activeSessionId || hasExistingPlaceholders.some((ph) => ph.id === this.activeSessionId))) {
         this.openSessionInTab(realFirst.id);
       }
-    } else if (this.activeSessionId && this.openTabSessionIds.length === 0) {
-      this.openTabSessionIds = [this.activeSessionId];
     }
+
+    this.reconcileSessionState();
   }
 
   renameSession(id: string, title: string): void {
@@ -814,6 +982,7 @@ class SessionStore {
       session.title = title.trim();
       session.isCustomTitle = true; // Lock manual title
       session.updatedAt = Date.now();
+      this.saveSessionsToStorage();
     }
   }
 
@@ -824,6 +993,7 @@ class SessionStore {
       // Still update grokSessionId link if provided, but preserve custom title
       if (grokSessionId) {
         session.grokSessionId = grokSessionId;
+        this.saveSessionsToStorage();
       }
       return;
     }
@@ -834,6 +1004,7 @@ class SessionStore {
         session.grokSessionId = grokSessionId;
       }
       session.updatedAt = Date.now();
+      this.saveSessionsToStorage();
     }
   }
 
@@ -855,7 +1026,9 @@ class SessionStore {
 
     const sourceIndex = this.sessions.findIndex((s) => s.id === id);
     this.sessions.splice(sourceIndex + 1, 0, forked);
+    this.openTabSessionIds.push(forked.id);
     this.activeSessionId = forked.id;
+    this.saveSessionsToStorage();
     return forked;
   }
 
@@ -966,6 +1139,7 @@ class SessionStore {
 
     session.messages.push(msg);
     session.updatedAt = Date.now();
+    this.saveSessionsToStorage();
     return msg;
   }
 

@@ -106,19 +106,47 @@
   function handleMessageClick(e: MouseEvent) {
     const target = e.target as HTMLElement;
 
-    // 1. Handle clicking on verified file chip/link
+    // 1. Handle clicking on links (open in default OS browser instead of navigating webview)
+    const linkEl = target.closest('a') as HTMLAnchorElement | null;
+    if (linkEl && linkEl.href) {
+      e.preventDefault();
+      e.stopPropagation();
+      const href = linkEl.href;
+      const win = window as any;
+      if (win.go?.main?.App?.OpenExternalURL) {
+        win.go.main.App.OpenExternalURL(href);
+      } else if (win.runtime?.BrowserOpenURL) {
+        win.runtime.BrowserOpenURL(href);
+      } else {
+        window.open(href, '_blank');
+      }
+      return;
+    }
+
+    // 2. Handle clicking on verified file chip/link
     const fileChip = target.closest('.inline-file-chip') as HTMLElement;
     if (fileChip) {
       e.preventDefault();
       e.stopPropagation();
       const rawPath = decodeURIComponent(fileChip.dataset.filePath || '');
+      const isDir = fileChip.dataset.isDir === 'true';
+
       if (rawPath) {
-        dialogStore.openFileViewer(rawPath, currentWorkspacePath);
+        if (isDir) {
+          // If directory, open in native file manager (macOS Finder or Windows Explorer)
+          const win = window as any;
+          if (win.go?.main?.App?.OpenPathInSystem) {
+            win.go.main.App.OpenPathInSystem(rawPath);
+          }
+        } else {
+          // If regular file, open in built-in modal FileViewer
+          dialogStore.openFileViewer(rawPath, currentWorkspacePath);
+        }
       }
       return;
     }
 
-    // 2. Handle clicking copy code block button
+    // 3. Handle clicking copy code block button
     const copyBtn = target.closest('.copy-code-btn') as HTMLElement;
     if (copyBtn) {
       const rawCode = decodeURIComponent(copyBtn.dataset.rawCode || '');
@@ -335,7 +363,7 @@
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
             onclick={handleMessageClick}
-            class="font-serif text-[14px] text-ant-text leading-[1.7] tracking-normal select-text space-y-3 prose dark:prose-invert max-w-none prose-headings:font-serif-display prose-headings:font-semibold prose-headings:text-ant-text prose-headings:tracking-tight prose-h1:text-[18px] prose-h2:text-[16px] prose-h3:text-[14.5px] prose-p:my-2.5 prose-ul:my-2 prose-ul:list-disc prose-ul:pl-5 prose-ol:my-2 prose-ol:list-decimal prose-ol:pl-5 prose-li:my-1 prose-code:font-mono prose-code:text-[11.5px] prose-code:bg-ant-bg-tertiary prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-ant-primary prose-pre:my-2.5 prose-pre:bg-transparent prose-pre:border-0 prose-pre:p-0 prose-blockquote:font-serif prose-blockquote:italic prose-blockquote:border-l-2 prose-blockquote:border-ant-primary/60 prose-blockquote:pl-3.5 prose-blockquote:text-ant-text-secondary prose-hr:my-4 prose-hr:border-white/5 dark:prose-hr:border-white/5 prose-strong:text-ant-text prose-strong:font-semibold prose-table:my-2.5 prose-table:border-collapse prose-table:font-sans prose-th:border prose-th:border-white/5 prose-th:p-1.5 prose-th:bg-ant-bg-secondary prose-th:text-xs prose-td:border prose-td:border-white/5 prose-td:p-1.5 prose-td:text-xs"
+            class="font-serif text-[14px] text-ant-text leading-[1.7] tracking-normal select-text markdown-chat-body max-w-none"
           >
             {@html renderedHtml}
           </div>

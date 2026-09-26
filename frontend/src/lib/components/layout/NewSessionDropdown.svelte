@@ -27,7 +27,13 @@
         if (dir) {
           const folderName = dir.split(/[/\\]/).filter(Boolean).pop() || 'workspace';
           const newWs = sessionStore.addWorkspace(folderName, dir);
-          sessionStore.createSession(undefined, newWs.id);
+          // Sync any existing grok sessions on disk
+          if (window.go?.main?.App?.DiscoverGrokSessions) {
+            const diskSessions = await window.go.main.App.DiscoverGrokSessions(dir);
+            if (diskSessions && diskSessions.length > 0) {
+              sessionStore.syncDiscoveredGrokSessions(newWs.id, diskSessions);
+            }
+          }
         }
       } catch (err) {
         console.error('Failed to open workspace directory:', err);
@@ -36,8 +42,7 @@
       const path = window.prompt('Enter absolute path of folder workspace:', '/Users/fiko942/Desktop/workspace');
       if (path && path.trim()) {
         const folderName = path.trim().split(/[/\\]/).filter(Boolean).pop() || 'workspace';
-        const newWs = sessionStore.addWorkspace(folderName, path.trim());
-        sessionStore.createSession(undefined, newWs.id);
+        sessionStore.addWorkspace(folderName, path.trim());
       }
     }
   }

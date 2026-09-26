@@ -94,6 +94,9 @@ declare global {
       WindowMaximise: () => void;
       WindowUnmaximise: () => void;
       WindowToggleMaximise: () => void;
+      WindowFullscreen: () => void;
+      WindowUnfullscreen: () => void;
+      WindowIsFullscreen: () => Promise<boolean>;
       WindowHide: () => void;
       WindowShow: () => void;
       WindowClose: () => void;
@@ -129,6 +132,9 @@ declare global {
           CheckAndRequestAccessibilityPermissions: () => Promise<{ granted: boolean; message: string; platform: string }>;
           OpenAccessibilitySettings: () => Promise<void>;
           RevealGrokConfigFile?: () => Promise<void>;
+          GetSnapshotCacheStats?: () => Promise<{ totalBytes: number; fileCount: number; formattedSize: string }>;
+          ClearSnapshotCache?: () => Promise<{ freedBytes: number; deletedCount: number; formattedSize: string }>;
+          DeleteSessionTempFiles?: (filePaths: string[]) => Promise<void>;
         };
       };
     };
