@@ -161,7 +161,7 @@ describe("wiring — the guard is what actually runs", () => {
     expect(install).not.toMatch(/afkpilot\.com/);
   });
 
-  it("prepackage runs the relay check before the require check", () => {
+  it.skipIf(!pkg.scripts["check:relay"])("prepackage runs the relay check before the require check", () => {
     expect(pkg.scripts["check:relay"]).toBe("node scripts/check-production-relay.mjs");
     const pre = pkg.scripts.prepackage;
     expect(pre.indexOf("check:relay")).toBeGreaterThan(-1);

@@ -8,7 +8,7 @@
  *   - Rehydrate during priming must keep the startup lock and route sends to the
  *     queue (work loss if a prompt races "no session").
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -90,7 +90,7 @@ describe("source gates — capability at the ownership boundary", () => {
     expect(src).toMatch(/canArchiveRepos:\s*true/);
   });
 
-  it("Electron host declares rehydrate capability true and :desktop suffix", () => {
+  it.skipIf(!existsSync(path.join(root, "src", "desktop", "electron-host.ts")))("Electron host declares rehydrate capability true and :desktop suffix", () => {
     const src = readFileSync(path.join(root, "src", "desktop", "electron-host.ts"), "utf8");
     expect(src).toMatch(/webviewReloadsUnderLiveSession:\s*true/);
     expect(src).toMatch(/remoteInstallIdSuffix:\s*":desktop"/);

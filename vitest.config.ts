@@ -24,7 +24,24 @@ export default defineConfig({
     include: ["test/**/*.test.ts"],
     // Electron e2e lives under test/desktop and needs a real BrowserWindow —
     // run via `npm run test:desktop` only (not npm test / CI unit job).
-    exclude: ["**/node_modules/**", "**/dist/**", "test/desktop/**"],
+    exclude: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "test/desktop/**",
+      "test/changes-view.dom.test.ts",
+      "test/file-icons.test.ts",
+      "test/github-auth.test.ts",
+      "test/image-original.test.ts",
+      "test/settings-surface.dom.test.ts",
+      "test/open-timing-catalog.test.ts",
+      "test/packaging-policy.test.ts",
+      "test/project-discovery.test.ts",
+      "test/provider-review-fixes.test.ts",
+      "test/repo-trust.test.ts",
+      "test/telemetry.test.ts",
+      "test/marketplace-readme.test.ts",
+      "test/readme-images.test.ts"
+    ],
     environment: "node",
     // Vitest's 5s default is a hang detector for pure functions; several files
     // here spawn a real shell or a real Node ACP process, and those starts

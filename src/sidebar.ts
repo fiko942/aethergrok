@@ -378,7 +378,7 @@ import {
   MAX_INLINE_MEDIA_BYTES,
   resolveChatOpenFilePath,
 } from "./media-serve";
-import { isExecutableOpenTarget, revalidateOpenFileForUse } from "./desktop/desktop-policy";
+import { isExecutableOpenTarget, revalidateOpenFileForUse } from "./desktop-policy";
 import {
   describeFfmpegProblem,
   ffmpegInstallHint,

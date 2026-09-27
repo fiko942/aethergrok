@@ -529,6 +529,7 @@
   "scripts": {
     "vscode:prepublish": "tsc -p .",
     "compile": "tsc -p .",
+    "package": "vsce package --no-dependencies",
     "watch": "tsc -p . -w",
     "test": "vitest run",
     "test:watch": "vitest",
