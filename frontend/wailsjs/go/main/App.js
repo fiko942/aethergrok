@@ -134,6 +134,10 @@ export function ReadWorkspaceFileContent(arg1, arg2, arg3) {
   return window['go']['main']['App']['ReadWorkspaceFileContent'](arg1, arg2, arg3);
 }
 
+export function RegisterGlobalSnapshotShortcut(arg1) {
+  return window['go']['main']['App']['RegisterGlobalSnapshotShortcut'](arg1);
+}
+
 export function RequestMicrophonePermission() {
   return window['go']['main']['App']['RequestMicrophonePermission']();
 }
@@ -158,6 +162,10 @@ export function SaveMarkdownExport(arg1, arg2) {
   return window['go']['main']['App']['SaveMarkdownExport'](arg1, arg2);
 }
 
+export function SaveTemporaryImage(arg1, arg2) {
+  return window['go']['main']['App']['SaveTemporaryImage'](arg1, arg2);
+}
+
 export function SaveVoiceAudioRecording(arg1, arg2) {
   return window['go']['main']['App']['SaveVoiceAudioRecording'](arg1, arg2);
 }
@@ -180,4 +188,8 @@ export function SetGrokBinaryPath(arg1) {
 
 export function TranscribeAudioWithGrok(arg1, arg2) {
   return window['go']['main']['App']['TranscribeAudioWithGrok'](arg1, arg2);
+}
+
+export function UnregisterGlobalSnapshotShortcut() {
+  return window['go']['main']['App']['UnregisterGlobalSnapshotShortcut']();
 }

@@ -9,3 +9,8 @@ func checkDarwinAccessibility() Status {
 		Platform: "other",
 	}
 }
+
+// OpenAccessibilityPreferences is a no-op on non-darwin platforms
+func OpenAccessibilityPreferences() error {
+	return nil
+}

@@ -136,6 +136,7 @@ export namespace grokrunner {
 	    disableTools?: boolean;
 	    systemPrompt?: string;
 	    customFlags?: string[];
+	    grokSessionId?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new SessionOptions(source);
@@ -151,6 +152,7 @@ export namespace grokrunner {
 	        this.disableTools = source["disableTools"];
 	        this.systemPrompt = source["systemPrompt"];
 	        this.customFlags = source["customFlags"];
+	        this.grokSessionId = source["grokSessionId"];
 	    }
 	}
 	export class PromptRequest {

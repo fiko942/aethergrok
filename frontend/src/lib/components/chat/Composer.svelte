@@ -88,7 +88,22 @@
   // Active session queue
   const currentQueue = $derived(sessionStore.activeSession?.queuedPrompts || []);
 
-  // Voice Dictation (Microphone to Grok Transcription) State
+  // Expose appendPrompt to inject terminal logs or attachments directly
+  export function appendPrompt(appendContent: string) {
+    if (!appendContent) return;
+    if (text.trim()) {
+      text = `${text}\n\n${appendContent}`;
+    } else {
+      text = appendContent;
+    }
+    tick().then(() => {
+      adjustTextareaHeight();
+      if (textareaEl) {
+        textareaEl.focus();
+        textareaEl.scrollTop = textareaEl.scrollHeight;
+      }
+    });
+  }
   let voiceState = $state<VoiceRecorderState>('idle');
   let voiceSeconds = $state(0);
   let voiceStatusText = $state('');
@@ -123,13 +138,16 @@
       });
     } catch (err: any) {
       voiceState = 'error';
-      voiceError = err?.message || 'Failed to start microphone recording';
+      const msg = err?.message || 'Failed to start microphone recording';
+      voiceError = msg;
+      voiceErrorMessage = 'Microphone recording could not be started.';
+      voiceErrorDetails = msg;
       setTimeout(() => {
         if (voiceState === 'error') {
           voiceState = 'idle';
           voiceError = null;
         }
-      }, 4000);
+      }, 5000);
     }
   }
 
@@ -329,14 +347,22 @@
     }
   });
 
-  // Per-session prompt draft isolation
+  // Per-session prompt draft & agentMode isolation
   let activeSessionId = $derived(sessionStore.activeSessionId);
   let trackedSessionId: string | null = null;
+
+  // Track session agentMode changes dynamically
+  $effect(() => {
+    const curSession = sessionStore.activeSession;
+    if (curSession && curSession.agentMode) {
+      agentMode = curSession.agentMode;
+    }
+  });
 
   $effect(() => {
     const curId = activeSessionId;
     if (curId !== trackedSessionId) {
-      // 1. Save draft of the previous session if any
+      // 1. Save draft and agentMode of the previous session if any
       if (trackedSessionId) {
         const prevSession = sessionStore.sessions.find((s) => s.id === trackedSessionId);
         if (prevSession) {
@@ -345,25 +371,35 @@
             images: [...attachedImages],
             attachments: [...attachedFiles]
           };
+          prevSession.agentMode = agentMode;
         }
       }
 
-      // 2. Load draft of the newly selected session
+      // 2. Load draft and agentMode of the newly selected session
       if (curId) {
         const newSession = sessionStore.sessions.find((s) => s.id === curId);
-        if (newSession && newSession.draft) {
-          text = newSession.draft.text || '';
-          attachedImages = [...(newSession.draft.images || [])];
-          attachedFiles = [...(newSession.draft.attachments || [])];
-        } else {
-          text = '';
-          attachedImages = [];
-          attachedFiles = [];
+        if (newSession) {
+          if (newSession.agentMode) {
+            agentMode = newSession.agentMode;
+          } else {
+            agentMode = 'agent';
+          }
+
+          if (newSession.draft) {
+            text = newSession.draft.text || '';
+            attachedImages = [...(newSession.draft.images || [])];
+            attachedFiles = [...(newSession.draft.attachments || [])];
+          } else {
+            text = '';
+            attachedImages = [];
+            attachedFiles = [];
+          }
         }
       } else {
         text = '';
         attachedImages = [];
         attachedFiles = [];
+        agentMode = 'agent';
       }
 
       trackedSessionId = curId;
@@ -582,20 +618,51 @@
     }
   }
 
-  // Centralized file processor for input selection, drag-and-drop, and paste
-  function processFiles(files: FileList | File[]) {
+  // Centralized file/blob processor for input selection, drag-and-drop, and paste
+  async function processFiles(files: FileList | File[] | Blob[]) {
     for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const isImg = file.type.startsWith('image/');
+      const item = files[i];
+      if (!item) continue;
+
+      let file: File;
+      if (item instanceof File) {
+        file = item;
+      } else if (item instanceof Blob) {
+        const ext = item.type.includes('png') ? 'png' : item.type.includes('jpeg') || item.type.includes('jpg') ? 'jpg' : item.type.includes('webp') ? 'webp' : 'bin';
+        const defaultName = `screenshot-${Date.now()}-${i + 1}.${ext}`;
+        file = new File([item], defaultName, { type: item.type || 'image/png' });
+      } else {
+        continue;
+      }
+
+      const isImg = file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp|svg|tiff?)$/i.test(file.name);
       const fileId = 'file_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36);
+      const fileName = file.name || `attachment-${Date.now()}.${isImg ? 'png' : 'txt'}`;
 
       if (isImg) {
         const reader = new FileReader();
-        reader.onload = (readEvent) => {
+        reader.onload = async (readEvent) => {
           const dataUrl = readEvent.target?.result as string;
+          if (!dataUrl) return;
+
+          let realDiskPath = fileName;
+
+          // If running in desktop app and image doesn't have an absolute disk path (e.g. dragged screenshot thumbnail, blob, clipboard),
+          // cache it to system temp via SaveTemporaryImage so it has a valid disk path and is counted in Settings > Cache
+          if (window.go?.main?.App?.SaveTemporaryImage) {
+            try {
+              const res = await window.go.main.App.SaveTemporaryImage(dataUrl, file.type || 'image/png');
+              if (res && res.filePath) {
+                realDiskPath = res.filePath;
+              }
+            } catch (err) {
+              console.warn('Failed to save dropped image to temporary cache:', err);
+            }
+          }
+
           const newImg: VisionImage = {
             id: fileId,
-            filePath: file.name,
+            filePath: realDiskPath,
             dataUrl,
             sizeBytes: file.size,
             timestamp: Date.now()
@@ -605,15 +672,18 @@
             ...attachedFiles,
             {
               id: fileId,
-              name: file.name,
-              filePath: file.name,
+              name: fileName,
+              filePath: realDiskPath,
               sizeBytes: file.size,
-              mimeType: file.type,
+              mimeType: file.type || 'image/png',
               dataUrl,
               isImage: true,
               timestamp: Date.now()
             }
           ];
+        };
+        reader.onerror = (readErr) => {
+          console.error('Failed to read image dataUrl:', readErr);
         };
         reader.readAsDataURL(file);
       } else {
@@ -625,19 +695,55 @@
             ...attachedFiles,
             {
               id: fileId,
-              name: file.name,
-              filePath: file.name,
+              name: fileName,
+              filePath: fileName,
               sizeBytes: file.size,
               mimeType: file.type || 'text/plain',
-              content,
+              content: content || '',
               isImage: false,
               timestamp: Date.now()
             }
           ];
         };
+        reader.onerror = (readErr) => {
+          console.error('Failed to read file content:', readErr);
+        };
         reader.readAsText(file);
       }
     }
+  }
+
+  // Helper to extract Files and Image Blobs from DataTransfer or ClipboardData items
+  async function extractFilesAndBlobs(dataTransfer: DataTransfer | null): Promise<File[]> {
+    if (!dataTransfer) return [];
+    const collected: File[] = [];
+
+    // 1. Check dataTransfer.files first
+    if (dataTransfer.files && dataTransfer.files.length > 0) {
+      for (let i = 0; i < dataTransfer.files.length; i++) {
+        const f = dataTransfer.files[i];
+        if (f) collected.push(f);
+      }
+    }
+
+    // 2. Check dataTransfer.items if available (covers clipboard pastes, macOS screenshot proxy drops, web drag-in)
+    if (dataTransfer.items && dataTransfer.items.length > 0) {
+      for (let i = 0; i < dataTransfer.items.length; i++) {
+        const item = dataTransfer.items[i];
+        if (item.kind === 'file') {
+          const file = item.getAsFile();
+          if (file) {
+            // Only add if not already in collected by name/size to avoid duplicates
+            const exists = collected.some((existing) => existing.name === file.name && existing.size === file.size);
+            if (!exists) {
+              collected.push(file);
+            }
+          }
+        }
+      }
+    }
+
+    return collected;
   }
 
   function handleFileSelect(e: Event) {
@@ -648,9 +754,22 @@
     isPlusMenuOpen = false;
   }
 
+  function hasAcceptableData(dataTransfer: DataTransfer | null): boolean {
+    if (!dataTransfer || !dataTransfer.types) return false;
+    const types = Array.from(dataTransfer.types);
+    return (
+      types.includes('Files') ||
+      types.includes('public.png') ||
+      types.includes('public.tiff') ||
+      types.includes('public.jpeg') ||
+      types.includes('com.apple.traditional-mac-plain-text') ||
+      types.some((t) => t.startsWith('image/'))
+    );
+  }
+
   // Drag and Drop handlers for file drop directly into prompt box
   function handleContainerDragEnter(e: DragEvent) {
-    if (e.dataTransfer?.types?.includes('Files')) {
+    if (hasAcceptableData(e.dataTransfer)) {
       e.preventDefault();
       e.stopPropagation();
       dragCounter++;
@@ -658,12 +777,12 @@
     }
   }
 
-  export function handleExternalFiles(files: FileList | File[]) {
+  export function handleExternalFiles(files: FileList | File[] | Blob[]) {
     processFiles(files);
   }
 
   function handleContainerDragOver(e: DragEvent) {
-    if (e.dataTransfer?.types?.includes('Files')) {
+    if (hasAcceptableData(e.dataTransfer)) {
       e.preventDefault();
       e.stopPropagation();
       if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
@@ -681,21 +800,24 @@
     }
   }
 
-  function handleContainerDrop(e: DragEvent) {
+  async function handleContainerDrop(e: DragEvent) {
     e.preventDefault();
     e.stopPropagation();
     dragCounter = 0;
     isDragOver = false;
-    if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-      processFiles(e.dataTransfer.files);
+
+    const files = await extractFilesAndBlobs(e.dataTransfer);
+    if (files.length > 0) {
+      processFiles(files);
     }
   }
 
   // Paste handler: if images or files are in clipboard, intercept them as attachments
-  function handlePaste(e: ClipboardEvent) {
-    if (e.clipboardData?.files && e.clipboardData.files.length > 0) {
+  async function handlePaste(e: ClipboardEvent) {
+    const files = await extractFilesAndBlobs(e.clipboardData);
+    if (files.length > 0) {
       e.preventDefault();
-      processFiles(e.clipboardData.files);
+      processFiles(files);
     }
   }
 
@@ -1061,6 +1183,13 @@
           <!-- Agent Mode Selector Pill -->
           <AgentModeDropdown
             bind:mode={agentMode}
+            onChange={(newMode) => {
+              const curSession = sessionStore.activeSession;
+              if (curSession) {
+                curSession.agentMode = newMode;
+                sessionStore.saveSessionsToStorage();
+              }
+            }}
             disabled={disabled || isWorking}
           />
 

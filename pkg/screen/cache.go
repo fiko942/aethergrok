@@ -1,10 +1,16 @@
 package screen
 
 import (
+	"bytes"
+	"encoding/base64"
 	"fmt"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // CacheStats represents statistics about screenshot cache on disk
@@ -123,4 +129,95 @@ func DeleteSessionTempFiles(filePaths []string) error {
 	}
 
 	return nil
+}
+
+// SaveTemporaryImage writes base64 image data to a temporary file prefixed with grok-snapshot-drop-
+// It compresses large images (> 650KB) to high-quality JPEG and returns a populated SnapshotResult
+func SaveTemporaryImage(base64Data string, mimeType string) (*SnapshotResult, error) {
+	cleanData := base64Data
+	if commaIdx := strings.Index(base64Data, ","); commaIdx != -1 {
+		cleanData = base64Data[commaIdx+1:]
+	}
+
+	rawBytes, err := base64.StdEncoding.DecodeString(cleanData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64 image data: %w", err)
+	}
+
+	if len(rawBytes) == 0 {
+		return nil, fmt.Errorf("image data buffer is empty")
+	}
+
+	finalBytes := rawBytes
+	outMime := mimeType
+	if outMime == "" {
+		outMime = "image/png"
+	}
+	fileExt := "png"
+	if strings.Contains(outMime, "jpeg") || strings.Contains(outMime, "jpg") {
+		fileExt = "jpg"
+	} else if strings.Contains(outMime, "webp") {
+		fileExt = "webp"
+	}
+
+	width := 0
+	height := 0
+	const maxSizeBytes = 650 * 1024
+
+	// Inspect dimensions & compress if large
+	img, _, decodeErr := image.Decode(bytes.NewReader(rawBytes))
+	if decodeErr == nil && img != nil {
+		bounds := img.Bounds()
+		width = bounds.Dx()
+		height = bounds.Dy()
+
+		if len(rawBytes) > maxSizeBytes {
+			quality := 85
+			for quality >= 50 {
+				var buf bytes.Buffer
+				err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: quality})
+				if err == nil {
+					compressed := buf.Bytes()
+					if len(compressed) <= maxSizeBytes || quality == 50 {
+						finalBytes = compressed
+						outMime = "image/jpeg"
+						fileExt = "jpg"
+						break
+					}
+				}
+				quality -= 10
+			}
+		}
+	} else if fileExt == "png" {
+		// Attempt png decode if general decode failed
+		if pImg, pErr := png.Decode(bytes.NewReader(rawBytes)); pErr == nil && pImg != nil {
+			bounds := pImg.Bounds()
+			width = bounds.Dx()
+			height = bounds.Dy()
+		}
+	}
+
+	tmpFile, err := os.CreateTemp("", fmt.Sprintf("grok-snapshot-drop-*.%s", fileExt))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temporary image file: %w", err)
+	}
+	defer tmpFile.Close()
+
+	if _, err := tmpFile.Write(finalBytes); err != nil {
+		_ = os.Remove(tmpFile.Name())
+		return nil, fmt.Errorf("failed to write image data to temp file: %w", err)
+	}
+
+	encodedB64 := base64.StdEncoding.EncodeToString(finalBytes)
+	dataURL := fmt.Sprintf("data:%s;base64,%s", outMime, encodedB64)
+
+	return &SnapshotResult{
+		FilePath:  tmpFile.Name(),
+		DataURL:   dataURL,
+		Base64:    encodedB64,
+		Width:     width,
+		Height:    height,
+		Size:      int64(len(finalBytes)),
+		Timestamp: time.Now().UnixMilli(),
+	}, nil
 }

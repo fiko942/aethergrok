@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"aethergrok/pkg/gitutil"
 )
 
 // FileItem represents a single file or directory node in the workspace
@@ -231,7 +233,7 @@ func GetGitStatus(workspacePath string) (*GitStatusResult, error) {
 	}
 
 	// 1. Get current branch
-	cmdBranch := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+	cmdBranch := exec.Command(gitutil.Executable(), "rev-parse", "--abbrev-ref", "HEAD")
 	cmdBranch.Dir = workspacePath
 	branchOut, _ := cmdBranch.Output()
 	branch := strings.TrimSpace(string(branchOut))
@@ -240,7 +242,7 @@ func GetGitStatus(workspacePath string) (*GitStatusResult, error) {
 	}
 
 	// 2. Get status porcelain with -uall (untracked files individually listed, respecting .gitignore)
-	cmdStatus := exec.Command("git", "status", "--porcelain=v1", "-uall", "--ignored=no")
+	cmdStatus := exec.Command(gitutil.Executable(), "status", "--porcelain=v1", "-uall", "--ignored=no")
 	cmdStatus.Dir = workspacePath
 	statusOut, err := cmdStatus.Output()
 	if err != nil {
@@ -279,7 +281,7 @@ func GetGitStatus(workspacePath string) (*GitStatusResult, error) {
 		delCount := 0
 
 		if statusCode != "?" {
-			cmdDiff := exec.Command("git", "diff", "--numstat", "HEAD", "--", filePath)
+			cmdDiff := exec.Command(gitutil.Executable(), "diff", "--numstat", "HEAD", "--", filePath)
 			cmdDiff.Dir = workspacePath
 			numstatOut, _ := cmdDiff.Output()
 
@@ -336,7 +338,7 @@ func GetFileDiff(workspacePath, filePath string) (string, error) {
 	}
 
 	// 1. Try standard git diff HEAD -- <filePath>
-	cmd := exec.Command("git", "diff", "HEAD", "--", filePath)
+	cmd := exec.Command(gitutil.Executable(), "diff", "HEAD", "--", filePath)
 	cmd.Dir = workspacePath
 	out, err := cmd.CombinedOutput()
 	if err == nil && len(bytes.TrimSpace(out)) > 0 {
@@ -344,7 +346,7 @@ func GetFileDiff(workspacePath, filePath string) (string, error) {
 	}
 
 	// 2. Check working tree vs staged index
-	cmdStaged := exec.Command("git", "diff", "--", filePath)
+	cmdStaged := exec.Command(gitutil.Executable(), "diff", "--", filePath)
 	cmdStaged.Dir = workspacePath
 	stagedOut, _ := cmdStaged.CombinedOutput()
 	if len(bytes.TrimSpace(stagedOut)) > 0 {
@@ -364,7 +366,7 @@ func GetFileDiff(workspacePath, filePath string) (string, error) {
 				}
 				rel, rErr := filepath.Rel(workspacePath, p)
 				if rErr == nil {
-					cmdChild := exec.Command("git", "diff", "--no-index", "/dev/null", rel)
+					cmdChild := exec.Command(gitutil.Executable(), "diff", "--no-index", "/dev/null", rel)
 					cmdChild.Dir = workspacePath
 					childOut, _ := cmdChild.CombinedOutput()
 					if len(childOut) > 0 {
@@ -379,7 +381,7 @@ func GetFileDiff(workspacePath, filePath string) (string, error) {
 			}
 		} else {
 			// Single untracked file diff against /dev/null
-			cmdUntracked := exec.Command("git", "diff", "--no-index", "/dev/null", filePath)
+			cmdUntracked := exec.Command(gitutil.Executable(), "diff", "--no-index", "/dev/null", filePath)
 			cmdUntracked.Dir = workspacePath
 			untrackedOut, _ := cmdUntracked.CombinedOutput()
 			if len(untrackedOut) > 0 {
@@ -398,14 +400,14 @@ func ExecuteCommit(workspacePath, message string) error {
 	}
 
 	// Add changes
-	addCmd := exec.Command("git", "add", "-A")
+	addCmd := exec.Command(gitutil.Executable(), "add", "-A")
 	addCmd.Dir = workspacePath
 	if out, err := addCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("git add failed: %s (%w)", string(out), err)
 	}
 
 	// Commit
-	commitCmd := exec.Command("git", "commit", "-m", message)
+	commitCmd := exec.Command(gitutil.Executable(), "commit", "-m", message)
 	commitCmd.Dir = workspacePath
 	if out, err := commitCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("git commit failed: %s (%w)", string(out), err)
@@ -416,7 +418,7 @@ func ExecuteCommit(workspacePath, message string) error {
 
 // ExecutePush performs git push
 func ExecutePush(workspacePath string) (string, error) {
-	cmd := exec.Command("git", "push")
+	cmd := exec.Command(gitutil.Executable(), "push")
 	cmd.Dir = workspacePath
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -430,7 +432,7 @@ func ExecutePush(workspacePath string) (string, error) {
 
 // ExecutePull performs git pull
 func ExecutePull(workspacePath string) (string, error) {
-	cmd := exec.Command("git", "pull")
+	cmd := exec.Command(gitutil.Executable(), "pull")
 	cmd.Dir = workspacePath
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

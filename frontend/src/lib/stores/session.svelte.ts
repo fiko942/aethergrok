@@ -125,6 +125,8 @@ export interface Session {
   // Tab-isolated Right Sidebar State
   rightSidebarOpen?: boolean;
   rightSidebarTab?: RightSidebarTab;
+  // Per-session execution mode ('agent' | 'plan' | 'yolo')
+  agentMode?: 'agent' | 'plan' | 'yolo';
 }
 
 export interface WorkspaceFolder {
@@ -228,8 +230,9 @@ class SessionStore {
 
     // Trigger verification of workspaces on disk
     if (typeof window !== 'undefined') {
-      setTimeout(() => {
-        this.verifyAllWorkspaces();
+      setTimeout(async () => {
+        await this.verifyAllWorkspaces();
+        this.reconcileSessionState();
         this.verifySessionsOnDisk();
       }, 100);
     }
@@ -310,12 +313,20 @@ class SessionStore {
   }
 
   // Ensure tabs and active session point to existing sessions
-  private reconcileSessionState() {
-    // Keep only open tab IDs that exist in this.sessions
-    this.openTabSessionIds = this.openTabSessionIds.filter(id => this.sessions.some(s => s.id === id));
+  reconcileSessionState() {
+    // Keep only open tab IDs that exist in this.sessions and belong to workspaces that are not missing
+    const missingWsIds = new Set(
+      this.workspaces.filter((w) => w.existsOnDisk === false).map((w) => w.id)
+    );
 
-    // If activeSessionId is set but doesn't exist, pick another open tab or null
-    if (this.activeSessionId && !this.sessions.some(s => s.id === this.activeSessionId)) {
+    this.openTabSessionIds = this.openTabSessionIds.filter((id) => {
+      const sess = this.sessions.find((s) => s.id === id);
+      return sess && !missingWsIds.has(sess.workspaceId);
+    });
+
+    // If activeSessionId is set but doesn't exist or is missing, pick another open tab or null
+    const activeSess = this.activeSessionId ? this.sessions.find((s) => s.id === this.activeSessionId) : null;
+    if (this.activeSessionId && (!activeSess || missingWsIds.has(activeSess.workspaceId))) {
       if (this.openTabSessionIds.length > 0) {
         this.activeSessionId = this.openTabSessionIds[0];
       } else {
@@ -407,10 +418,29 @@ class SessionStore {
     return this.sessions.filter((s) => s.workspaceId === this.activeWorkspaceId);
   }
 
-  // Open tabs belonging to active workspace
+  // All open tabs across active workspaces (excluding sessions from missing workspaces)
+  get openTabs(): Session[] {
+    // Collect valid workspace IDs that either exist on disk or are active
+    const validWorkspaceIds = new Set(
+      this.workspaces
+        .filter((w) => w.existsOnDisk !== false)
+        .map((w) => w.id)
+    );
+
+    // Map open tab session IDs to actual session objects, preserving order
+    const validSessions: Session[] = [];
+    for (const tabId of this.openTabSessionIds) {
+      const session = this.sessions.find((s) => s.id === tabId);
+      if (session && validWorkspaceIds.has(session.workspaceId)) {
+        validSessions.push(session);
+      }
+    }
+    return validSessions;
+  }
+
+  // Open tabs belonging to active workspace (kept for backward compatibility)
   get openWorkspaceTabs(): Session[] {
-    const wsSessions = this.activeWorkspaceSessions;
-    return wsSessions.filter((s) => this.openTabSessionIds.includes(s.id));
+    return this.openTabs;
   }
 
   // Active Session Getter
@@ -704,7 +734,7 @@ class SessionStore {
     this.saveSessionsToStorage();
 
     // Lazy load real chat history from disk if session has 0 messages
-    if (target.messages.length === 0) {
+    if (target.messages.length === 0 || target.grokSessionId) {
       await this.loadSessionHistoryFromDisk(target);
     }
 
@@ -840,7 +870,8 @@ class SessionStore {
 
     if (window.go?.main?.App?.LoadGrokSessionHistory) {
       try {
-        const history = await window.go.main.App.LoadGrokSessionHistory(ws.path, session.id);
+        const targetGrokId = session.grokSessionId || session.id;
+        const history = await window.go.main.App.LoadGrokSessionHistory(ws.path, targetGrokId);
         if (history && history.length > 0) {
           session.messages = history.map((m: any, idx: number) => ({
             id: m.id || `${session.id}_msg_${idx}`,
@@ -852,6 +883,27 @@ class SessionStore {
             tokens: m.tokens,
             status: m.status || 'done'
           }));
+          session.visibleTurnCount = Math.max(session.visibleTurnCount || DEFAULT_WINDOW_TURNS, session.messages.length);
+
+          // Reconcile agentMode from session message tool calls if not explicitly set
+          if (!session.agentMode) {
+            let lastPlanMode: 'agent' | 'plan' | null = null;
+            for (const m of session.messages) {
+              if (m.toolCalls) {
+                for (const tc of m.toolCalls) {
+                  const toolLower = (tc.tool || '').toLowerCase();
+                  if (toolLower.includes('enter_plan_mode')) {
+                    lastPlanMode = 'plan';
+                  } else if (toolLower.includes('exit_plan_mode')) {
+                    lastPlanMode = 'agent';
+                  }
+                }
+              }
+            }
+            if (lastPlanMode) {
+              session.agentMode = lastPlanMode;
+            }
+          }
         }
       } catch (err) {
         console.error('Failed to load session history for', session.id, err);
@@ -866,6 +918,12 @@ class SessionStore {
 
   // Close tab only (preserves session in sidebar and disk)
   closeSessionTab(id: string): void {
+    // Terminate all background pseudo-terminals for this session to free process groups
+    if (window.go?.main?.App?.CloseSessionTerminals) {
+      window.go.main.App.CloseSessionTerminals(id)
+        .catch(() => {});
+    }
+
     const tabIdx = this.openTabSessionIds.indexOf(id);
     if (tabIdx !== -1) {
       this.openTabSessionIds.splice(tabIdx, 1);
@@ -1056,16 +1114,17 @@ class SessionStore {
   reorderSessions(fromIndex: number, toIndex: number): void {
     if (
       fromIndex < 0 ||
-      fromIndex >= this.sessions.length ||
+      fromIndex >= this.openTabSessionIds.length ||
       toIndex < 0 ||
-      toIndex >= this.sessions.length ||
+      toIndex >= this.openTabSessionIds.length ||
       fromIndex === toIndex
     ) {
       return;
     }
 
-    const [moved] = this.sessions.splice(fromIndex, 1);
-    this.sessions.splice(toIndex, 0, moved);
+    const [moved] = this.openTabSessionIds.splice(fromIndex, 1);
+    this.openTabSessionIds.splice(toIndex, 0, moved);
+    this.saveSessionsToStorage();
   }
 
   loadEarlierTurns(chunk = PREPEND_CHUNK_TURNS): boolean {

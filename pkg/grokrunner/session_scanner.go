@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"os"
 	"os/exec"
@@ -294,7 +295,7 @@ func LoadGrokSessionMessages(workspacePath, sessionID string) ([]DiscoveredChatM
 			}
 
 			messages = append(messages, DiscoveredChatMessage{
-				ID:        sessionID + "_u_" + string(rune(lineIdx)),
+				ID:        fmt.Sprintf("%s_u_%d", sessionID, lineIdx),
 				Role:      "user",
 				Content:   userText,
 				Timestamp: 0,
@@ -347,7 +348,7 @@ func LoadGrokSessionMessages(workspacePath, sessionID string) ([]DiscoveredChatM
 						pendingToolCalls = nil
 					}
 					messages = append(messages, DiscoveredChatMessage{
-						ID:        sessionID + "_a_" + string(rune(lineIdx)),
+						ID:        fmt.Sprintf("%s_a_%d", sessionID, lineIdx),
 						Role:      "assistant",
 						Content:   contentStr,
 						Timestamp: 0,

@@ -21,6 +21,7 @@ type SessionOptions struct {
 	DisableTools    bool     `json:"disableTools,omitempty"`
 	SystemPrompt    string   `json:"systemPrompt,omitempty"`
 	CustomFlags     []string `json:"customFlags,omitempty"`
+	GrokSessionID   string   `json:"grokSessionId,omitempty"` // Underlying Grok UUID on disk to resume
 }
 
 // PromptRequest is the request payload to start or continue a session

@@ -631,6 +631,12 @@ pre[class*="language-"] {
   padding: 0.55rem 0.85rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   border-right: 1px solid rgba(255, 255, 255, 0.03);
+  vertical-align: top;
+}
+
+.markdown-chat-body td .inline-file-chip {
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .markdown-chat-body td:last-child,

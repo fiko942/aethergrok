@@ -3,6 +3,7 @@
   import ToolCallCard from './ToolCallCard.svelte';
   import TurnDiffSummary from './TurnDiffSummary.svelte';
   import PlanReviewCard from './PlanReviewCard.svelte';
+  import { calculateDiffStat } from '$lib/utils/diffUtils';
   import { sessionStore } from '$lib/stores/session.svelte';
   import { dialogStore } from '$lib/stores/dialog.svelte';
   import {
@@ -353,7 +354,10 @@
         {/if}
 
         <!-- Multi-File Turn Diff Summary Rollup -->
-        {#if message.toolCalls && message.toolCalls.some(tc => tc.diff)}
+        {#if message.toolCalls && message.toolCalls.some(tc => {
+          const stat = calculateDiffStat(tc);
+          return stat.added > 0 || stat.removed > 0 || !!tc.diff;
+        })}
           <TurnDiffSummary toolCalls={message.toolCalls} />
         {/if}
 

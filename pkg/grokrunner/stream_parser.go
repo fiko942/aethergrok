@@ -42,6 +42,18 @@ func extractToolOutput(rawOutput interface{}, contentBlocks []interface{}) strin
 	}
 
 	if rawMap, ok := rawOutput.(map[string]interface{}); ok {
+		// Unwrap TaskOutput / Result structure (e.g. from get_command_or_subagent_output or terminal runners)
+		if resMap, ok := rawMap["Result"].(map[string]interface{}); ok {
+			if out, ok := resMap["output"].(string); ok && strings.TrimSpace(out) != "" {
+				return cleanANSI(out)
+			}
+		}
+		if resMap, ok := rawMap["result"].(map[string]interface{}); ok {
+			if out, ok := resMap["output"].(string); ok && strings.TrimSpace(out) != "" {
+				return cleanANSI(out)
+			}
+		}
+
 		// Output for prompt if available
 		if outputForPrompt, ok := rawMap["output_for_prompt"].(string); ok && strings.TrimSpace(outputForPrompt) != "" {
 			return cleanANSI(outputForPrompt)

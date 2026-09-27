@@ -1,7 +1,8 @@
 <script lang="ts">
   import { sessionStore, STATUS_META, type Session } from '$lib/stores/session.svelte';
   import { settingsStore } from '$lib/stores/settings.svelte';
-  import { Plus, X, GitFork, Edit2, Check, Loader2, AlertCircle, CheckCircle2, MessageSquare } from 'lucide-svelte';
+  import { terminalStore } from '$lib/stores/terminal.svelte';
+  import { Plus, X, GitFork, Edit2, Check, Loader2, AlertCircle, CheckCircle2, MessageSquare, Folder, Terminal } from 'lucide-svelte';
   import NewSessionDropdown from './NewSessionDropdown.svelte';
 
   let draggedIndex = $state<number | null>(null);
@@ -79,13 +80,15 @@
   }
 </script>
 
-<div class="flex items-center w-full bg-ant-bg-secondary border-b border-white/5 px-2 h-10 select-none overflow-x-auto no-scrollbar gap-1.5 font-serif">
-  <div class="flex items-center space-x-1 flex-1 min-w-0 overflow-x-auto">
-    {#each sessionStore.openWorkspaceTabs as session, index (session.id)}
+<div class="flex items-center w-full bg-ant-bg-secondary border-b border-white/5 px-2 h-10 select-none gap-1.5 font-serif relative overflow-visible z-20">
+  <div class="flex items-center space-x-1 flex-1 min-w-0 overflow-x-auto no-scrollbar py-1">
+    {#each sessionStore.openTabs as session, index (session.id)}
       {@const isActive = sessionStore.activeSessionId === session.id}
       {@const meta = STATUS_META[session.status]}
       {@const isDragging = draggedIndex === index}
       {@const isOver = dragOverIndex === index}
+      {@const ws = sessionStore.workspaces.find((w) => w.id === session.workspaceId)}
+      {@const showWsBadge = sessionStore.workspaces.filter((w) => w.existsOnDisk !== false).length > 1 && ws}
 
       <div
         role="tab"
@@ -98,7 +101,7 @@
         ondragend={handleDragEnd}
         onclick={() => sessionStore.switchSession(session.id)}
         onkeydown={(e) => e.key === 'Enter' && sessionStore.switchSession(session.id)}
-        class="group relative flex items-center h-8 pl-2.5 pr-2 rounded-md text-xs font-medium cursor-pointer transition-all duration-200 border max-w-[200px] min-w-[120px] flex-shrink-0 {isActive
+        class="group relative flex items-center h-8 pl-2.5 pr-2 rounded-md text-xs font-medium cursor-pointer transition-all duration-200 border max-w-[220px] min-w-[120px] flex-shrink-0 {isActive
           ? 'bg-ant-bg text-ant-primary border-white/[0.08] shadow-sm font-semibold'
           : 'bg-ant-bg-tertiary/40 text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'} {isDragging ? 'opacity-40 scale-95' : ''} {isOver ? 'border-r-2 border-r-ant-primary' : ''} {settingsStore.animationsEnabled ? 'tab-peel-transition' : ''}"
       >
@@ -156,16 +159,26 @@
             </button>
           </div>
         {:else}
-          <span
-            role="button"
-            tabindex="0"
-            class="truncate flex-1 min-w-0 font-serif text-[12px]"
-            ondblclick={(e) => startEditing(session, e)}
-            onkeydown={(e) => e.key === 'F2' && startEditing(session, e as unknown as MouseEvent)}
-            title={`${session.title} (Double click to rename)`}
-          >
-            {session.title}
-          </span>
+          <div class="flex items-center min-w-0 flex-1 gap-1">
+            <span
+              role="button"
+              tabindex="0"
+              class="truncate flex-1 min-w-0 font-serif text-[12px]"
+              ondblclick={(e) => startEditing(session, e)}
+              onkeydown={(e) => e.key === 'F2' && startEditing(session, e as unknown as MouseEvent)}
+              title={`${session.title}${ws ? ` (${ws.name})` : ''} - Double click to rename`}
+            >
+              {session.title}
+            </span>
+            {#if showWsBadge}
+              <span
+                class="flex-shrink-0 text-[9.5px] font-mono px-1 py-0.2 rounded bg-white/[0.06] text-ant-text-muted border border-white/[0.04] max-w-[65px] truncate"
+                title={`Workspace: ${ws?.name} (${ws?.path})`}
+              >
+                {ws?.name}
+              </span>
+            {/if}
+          </div>
         {/if}
 
         <!-- Hover Actions: Fork, Rename & Close with fixed space reservation -->
@@ -206,8 +219,20 @@
     {/each}
   </div>
 
-  <!-- New Session Action Button with Workspace Dropdown Picker -->
-  <div class="relative flex-shrink-0">
+  <!-- Right Actions: Terminal Toggle + New Session Action Button -->
+  <div class="relative flex items-center space-x-1 flex-shrink-0 z-30">
+    <!-- Tab-Isolated Terminal Toggle Button -->
+    <button
+      type="button"
+      onclick={() => terminalStore.toggleOpen()}
+      class="flex items-center space-x-1 px-2 h-7 rounded text-xs transition border {terminalStore.isOpen ? 'bg-ant-primary/20 text-ant-primary border-ant-primary/40 font-medium' : 'text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'}"
+      title="Toggle Session Terminal (Multi-tab PTY with full process cleanup)"
+    >
+      <Terminal size={13} />
+      <span class="text-[11px]">Terminal</span>
+    </button>
+
+    <!-- New Session Action Button with Workspace Dropdown Picker -->
     <button
       type="button"
       onclick={handleNewSession}

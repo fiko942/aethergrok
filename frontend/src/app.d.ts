@@ -113,12 +113,22 @@ declare global {
           CancelSession: (sessionId: string) => Promise<void>;
           SetGrokBinaryPath: (path: string) => Promise<void>;
           CaptureScreenExcludingSelf: (delayMs: number) => Promise<SnapshotResult>;
+          RegisterGlobalSnapshotShortcut?: (shortcutStr: string) => Promise<void>;
+          UnregisterGlobalSnapshotShortcut?: () => Promise<void>;
           GetInstalledSkills: () => Promise<SkillItem[]>;
           SearchSkills: (query: string, category: string) => Promise<SkillItem[]>;
           SelectWorkspaceDirectory: () => Promise<string>;
           CheckDirectoryExists: (dirPath: string) => Promise<boolean>;
           SaveMarkdownExport: (defaultFilename: string, content: string) => Promise<string>;
           GetAvailableModels: () => Promise<Array<{ id: string; name: string; description: string; isDefault: boolean }>>;
+          // Terminal & Process Management APIs
+          CreateTerminal: (sessionId: string, termId: string, cwd: string, shell: string) => Promise<void>;
+          WriteTerminal: (termId: string, data: string) => Promise<void>;
+          ResizeTerminal: (termId: string, cols: number, rows: number) => Promise<void>;
+          CloseTerminal: (termId: string) => Promise<void>;
+          CloseSessionTerminals: (sessionId: string) => Promise<void>;
+          GetPlanContent: (planPath: string) => Promise<string>;
+
           DiscoverGrokSessions: (workspacePath: string) => Promise<Array<{ id: string; title: string; createdAt: number; updatedAt: number }>>;
           LoadGrokSessionHistory: (workspacePath: string, sessionID: string) => Promise<Array<any>>;
           DeleteGrokSession: (workspacePath: string, sessionId: string) => Promise<void>;
@@ -140,6 +150,7 @@ declare global {
           RevealGrokConfigFile?: () => Promise<void>;
           GetSnapshotCacheStats?: () => Promise<{ totalBytes: number; fileCount: number; formattedSize: string }>;
           ClearSnapshotCache?: () => Promise<{ freedBytes: number; deletedCount: number; formattedSize: string }>;
+          SaveTemporaryImage?: (base64Data: string, mimeType: string) => Promise<{ filePath: string; dataUrl: string; base64: string; width: number; height: number; sizeBytes: number; timestamp: number }>;
           DeleteSessionTempFiles?: (filePaths: string[]) => Promise<void>;
         };
       };

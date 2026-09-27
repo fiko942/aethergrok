@@ -16,10 +16,13 @@ import (
 	"strings"
 	"time"
 
+	"aethergrok/pkg/gitutil"
 	"aethergrok/pkg/grokrunner"
+	"aethergrok/pkg/hotkey"
 	"aethergrok/pkg/permissions"
 	"aethergrok/pkg/screen"
 	"aethergrok/pkg/skills"
+	"aethergrok/pkg/terminal"
 	"aethergrok/pkg/workspace"
 
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -31,6 +34,8 @@ type App struct {
 	runner        *grokrunner.Runner
 	screenCapture *screen.Orchestrator
 	skillsReg     *skills.Registry
+	hotkeyMgr     *hotkey.Manager
+	terminalMgr   *terminal.Manager
 }
 
 // NewApp creates a new App application struct
@@ -39,6 +44,8 @@ func NewApp() *App {
 		runner:        grokrunner.NewRunner(),
 		screenCapture: screen.NewOrchestrator(),
 		skillsReg:     skills.NewRegistry(),
+		hotkeyMgr:     hotkey.NewManager(),
+		terminalMgr:   terminal.NewManager(),
 	}
 }
 
@@ -46,6 +53,18 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	if a.terminalMgr != nil {
+		a.terminalMgr.SetContext(ctx)
+	}
+	if a.hotkeyMgr != nil {
+		a.hotkeyMgr.SetHandler(func() {
+			if a.ctx != nil {
+				wailsRuntime.EventsEmit(a.ctx, "snapshot:trigger_global", map[string]interface{}{
+					"timestamp": time.Now().UnixMilli(),
+				})
+			}
+		})
+	}
 }
 
 // domReady is called after front-end resources have loaded
@@ -64,8 +83,15 @@ func (a *App) beforeClose(ctx context.Context) (prevent bool) {
 
 // shutdown is called at application termination
 func (a *App) shutdown(ctx context.Context) {
+	if a.hotkeyMgr != nil {
+		a.hotkeyMgr.Unregister()
+	}
 	if a.runner != nil {
 		a.runner.CancelAll()
+	}
+	if a.terminalMgr != nil {
+		// Clean up all running terminal instances and their process groups
+		_ = a.terminalMgr.CloseSessionTerminals("")
 	}
 }
 
@@ -150,6 +176,21 @@ func (a *App) CaptureScreenExcludingSelf(delayMs int) (*screen.SnapshotResult, e
 	return a.screenCapture.CaptureScreenExcludingWindow(context.Background(), winCtrl, delayMs)
 }
 
+// RegisterGlobalSnapshotShortcut registers or updates the global screen snapshot shortcut
+func (a *App) RegisterGlobalSnapshotShortcut(shortcutStr string) error {
+	if a.hotkeyMgr == nil {
+		a.hotkeyMgr = hotkey.NewManager()
+	}
+	return a.hotkeyMgr.RegisterShortcut(shortcutStr)
+}
+
+// UnregisterGlobalSnapshotShortcut unregisters the global screen snapshot shortcut
+func (a *App) UnregisterGlobalSnapshotShortcut() {
+	if a.hotkeyMgr != nil {
+		a.hotkeyMgr.Unregister()
+	}
+}
+
 // GetSnapshotCacheStats calculates the total size and count of screenshot cache files
 func (a *App) GetSnapshotCacheStats() (*screen.CacheStats, error) {
 	return screen.GetSnapshotCacheStats()
@@ -158,6 +199,11 @@ func (a *App) GetSnapshotCacheStats() (*screen.CacheStats, error) {
 // ClearSnapshotCache clears all grok screenshot cache files from disk
 func (a *App) ClearSnapshotCache() (*screen.ClearCacheResult, error) {
 	return screen.ClearSnapshotCache()
+}
+
+// SaveTemporaryImage caches a dropped image or screenshot to disk in the temp directory
+func (a *App) SaveTemporaryImage(base64Data string, mimeType string) (*screen.SnapshotResult, error) {
+	return screen.SaveTemporaryImage(base64Data, mimeType)
 }
 
 // DeleteSessionTempFiles removes temporary files associated with a deleted session
@@ -301,6 +347,66 @@ func (a *App) OpenPathInSystem(targetPath string) error {
 	return cmd.Start()
 }
 
+// CreateTerminal starts a new isolated pseudo-terminal instance
+func (a *App) CreateTerminal(sessionID, termID, cwd, shell string) error {
+	if a.terminalMgr == nil {
+		return fmt.Errorf("terminal manager not initialized")
+	}
+	return a.terminalMgr.Create(sessionID, termID, cwd, shell)
+}
+
+// WriteTerminal writes user input to a pseudo-terminal
+func (a *App) WriteTerminal(termID, data string) error {
+	if a.terminalMgr == nil {
+		return fmt.Errorf("terminal manager not initialized")
+	}
+	return a.terminalMgr.Write(termID, data)
+}
+
+// ResizeTerminal resizes the dimensions of a pseudo-terminal
+func (a *App) ResizeTerminal(termID string, cols, rows int) error {
+	if a.terminalMgr == nil {
+		return fmt.Errorf("terminal manager not initialized")
+	}
+	return a.terminalMgr.Resize(termID, cols, rows)
+}
+
+// CloseTerminal terminates a pseudo-terminal and its full process tree
+func (a *App) CloseTerminal(termID string) error {
+	if a.terminalMgr == nil {
+		return fmt.Errorf("terminal manager not initialized")
+	}
+	return a.terminalMgr.Close(termID)
+}
+
+// CloseSessionTerminals terminates all terminals belonging to a session
+func (a *App) CloseSessionTerminals(sessionID string) error {
+	if a.terminalMgr == nil {
+		return fmt.Errorf("terminal manager not initialized")
+	}
+	return a.terminalMgr.CloseSessionTerminals(sessionID)
+}
+
+// GetPlanContent reads the full markdown content of a plan file from disk
+func (a *App) GetPlanContent(planPath string) (string, error) {
+	if strings.TrimSpace(planPath) == "" {
+		return "", fmt.Errorf("plan path cannot be empty")
+	}
+
+	cleanPath := strings.TrimSpace(planPath)
+	if strings.HasPrefix(cleanPath, "~") {
+		if homeDir, err := os.UserHomeDir(); err == nil {
+			cleanPath = filepath.Join(homeDir, cleanPath[1:])
+		}
+	}
+
+	data, err := os.ReadFile(cleanPath)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
 // RevealGrokConfigFile reveals the user's ~/.grok/config.toml file in macOS Finder or Windows Explorer
 func (a *App) RevealGrokConfigFile() error {
 	homeDir, err := os.UserHomeDir()
@@ -412,7 +518,7 @@ func (a *App) RevertWorkspaceFiles(workspacePath string, filePaths []string) err
 	if info, err := os.Stat(gitDir); err == nil && info.IsDir() {
 		// Run git checkout -- <files>
 		args := append([]string{"checkout", "--"}, filePaths...)
-		cmd := exec.Command("git", args...)
+		cmd := exec.Command(gitutil.Executable(), args...)
 		cmd.Dir = workspacePath
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("git revert failed: %w (output: %s)", err, string(out))
@@ -583,15 +689,47 @@ func (a *App) TranscribeAudioWithGrok(workspacePath, audioFilePath string) (stri
 		apiKey = envKey
 	}
 
+	// Clean up any preamble/conversational prefixes if present
+	cleanTranscript := func(text string) string {
+		text = strings.TrimSpace(text)
+		// Remove common conversational preamble lines generated by AI models
+		preambles := []string{
+			"Berikut adalah transkripsi yang akurat dari rekaman audio tersebut:",
+			"Berikut adalah transkripsi dari rekaman audio tersebut:",
+			"Berikut adalah transkripsi audio tersebut:",
+			"Berikut transkripsi audio:",
+			"Hasil transkripsi audio:",
+			"Berikut adalah hasil transkripsi:",
+			"Here is the transcription of the audio recording:",
+			"Here is the accurate transcription of the audio:",
+			"Here is the transcription:",
+		}
+		for _, p := range preambles {
+			if strings.HasPrefix(strings.ToLower(text), strings.ToLower(p)) {
+				text = strings.TrimSpace(text[len(p):])
+			}
+		}
+		// Strip surrounding markdown quotes if returned in a quote block or triple backticks
+		text = strings.Trim(text, "`\"'")
+		text = strings.TrimSpace(text)
+		return text
+	}
+
 	transcript, err := a.transcribeAudioViaSTTEndpoint(endpointURL, apiKey, audioFilePath)
 	if err == nil && strings.TrimSpace(transcript) != "" {
-		return strings.TrimSpace(transcript), nil
+		cleaned := cleanTranscript(transcript)
+		if cleaned != "" {
+			return cleaned, nil
+		}
 	}
 
 	// 2. Second priority: Try multimodal audio chat completions via gateway (ag/gemini-3.8-flash / gemini-3.7-flash)
 	transcript, errChat := a.transcribeAudioViaChatCompletions(endpointURL, apiKey, audioFilePath)
 	if errChat == nil && strings.TrimSpace(transcript) != "" {
-		return strings.TrimSpace(transcript), nil
+		cleaned := cleanTranscript(transcript)
+		if cleaned != "" {
+			return cleaned, nil
+		}
 	}
 
 	// 3. Fallback: Run Grok CLI in an isolated temp directory to prevent workspace session leakage
@@ -607,7 +745,7 @@ func (a *App) TranscribeAudioWithGrok(workspacePath, audioFilePath string) (stri
 		grokBin = grokrunner.ResolveGrokBinary()
 	}
 
-	systemInstructions := "Kamu adalah transcriber audio programmer yang sangat akurat. Dengarkan rekaman audio teknis ini. Transkripsikan dengan jelas, gunakan istilah teknis, nama variabel, fungsi, bahasa pemrograman, dan tanda baca yang tepat dan rapi. Hanya keluarkan hasil transkrip teks murni tanpa kata pembuka, penutup, atau penjelasan tambahan."
+	systemInstructions := "Kamu adalah transcriber audio programmer yang sangat akurat. Dengarkan rekaman audio teknis ini. Transkripsikan dengan jelas, gunakan istilah teknis, nama variabel, fungsi, bahasa pemrograman, dan tanda baca yang tepat dan rapi. PENTING: Keluarkan HANYA teks transkripsi murni. DILARANG KERAS menyertakan kalimat pembuka seperti 'Berikut adalah transkripsi...', kalimat penutup, tanda petik pembungkus, atau penjelasan tambahan."
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
@@ -636,7 +774,7 @@ func (a *App) TranscribeAudioWithGrok(workspacePath, audioFilePath string) (stri
 
 	cliTranscript := strings.TrimSpace(string(out))
 	cliTranscript = strings.TrimPrefix(cliTranscript, "Grok:")
-	cliTranscript = strings.TrimSpace(cliTranscript)
+	cliTranscript = cleanTranscript(cliTranscript)
 
 	if cliTranscript == "" {
 		return "", fmt.Errorf("transcription returned empty response")
@@ -736,7 +874,7 @@ func (a *App) transcribeAudioViaChatCompletions(baseURL, apiKey, audioFilePath s
 	}
 	audioB64 := base64.StdEncoding.EncodeToString(audioBytes)
 
-	promptText := "Kamu adalah transcriber audio programmer yang sangat akurat. Dengarkan rekaman audio teknis ini secara verbatim. Transkripsikan dengan jelas, gunakan istilah teknis, nama variabel, fungsi, bahasa pemrograman, dan tanda baca yang tepat. Hanya keluarkan teks transkripsi murni tanpa kata pembuka atau penutup."
+	promptText := "Kamu adalah transcriber audio programmer yang sangat akurat. Dengarkan rekaman audio teknis ini secara verbatim. Transkripsikan dengan jelas, gunakan istilah teknis, nama variabel, fungsi, bahasa pemrograman, dan tanda baca yang tepat. PENTING: Keluarkan HANYA teks transkripsi murni. Jangan menambahkan kalimat pembuka (seperti 'Berikut adalah transkripsi...', 'Here is the transcription...'), jangan menambahkan tanda petik di awal/akhir, dan jangan menambahkan penjelasan apa pun."
 
 	// Fast transcription candidate models with 1000k context window:
 	// ag/gemini-3.7-flash-low completes in ~3s, ag/gemini-3.8-flash-low in ~4s

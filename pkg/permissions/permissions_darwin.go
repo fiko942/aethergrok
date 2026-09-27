@@ -52,10 +52,8 @@ func checkDarwinAccessibility() Status {
 	}
 }
 
-// OpenAccessibilityPreferences opens the macOS Accessibility system settings pane
+// OpenAccessibilityPreferences opens the macOS Accessibility system settings pane directly
 func OpenAccessibilityPreferences() error {
-	script := "tell application \"System Settings\" to activate\n" +
-		"do shell script \"open 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'\""
-	cmd := exec.Command("osascript", "-e", script)
+	cmd := exec.Command("open", "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
 	return cmd.Run()
 }

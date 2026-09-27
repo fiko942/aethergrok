@@ -72,7 +72,7 @@
 {#if open}
   <div
     bind:this={dropdownRef}
-    class="absolute z-50 min-w-[260px] max-w-[320px] bg-[#18181c]/95 border border-white/10 rounded-xl shadow-2xl backdrop-blur-md p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150 select-none {
+    class="absolute z-[9999] min-w-[280px] max-w-[340px] bg-[#1a1c23] border border-white/10 rounded-xl shadow-2xl backdrop-blur-md p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150 select-none {
       placement === 'bottom-end' ? 'right-0 top-full mt-1.5' : placement === 'bottom-start' ? 'left-0 top-full mt-1.5' : 'left-1/2 -translate-x-1/2 top-full mt-2'
     }"
   >

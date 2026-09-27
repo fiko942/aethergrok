@@ -286,44 +286,53 @@
 <div
   bind:this={containerEl}
   onscroll={handleScroll}
-  class="flex-1 w-full h-full overflow-y-auto px-4 py-3 space-y-3 relative bg-ant-bg select-text"
+  class="flex-1 w-full h-full overflow-y-auto px-4 py-3 space-y-3 relative bg-ant-bg select-text flex flex-col"
 >
-  <div bind:this={contentWrapperEl} class="w-full space-y-3">
+  <div bind:this={contentWrapperEl} class="w-full space-y-3 flex-1 flex flex-col">
     <!-- Top Sentinel & Prepend History Header -->
-    <div bind:this={topSentinelEl} class="w-full flex justify-center py-2">
-      {#if sessionStore.remainingHiddenTurns > 0}
-        <button
-          type="button"
-          onclick={loadEarlier}
-          disabled={isHydrating}
-          class="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-medium bg-ant-bg-secondary hover:bg-ant-bg-tertiary text-ant-primary border border-white/10 shadow-sm transition-all duration-150 disabled:opacity-50"
-        >
-          {#if isHydrating}
-            <Loader2 size={13} class="animate-spin text-ant-primary" />
-            <span>Hydrating turns...</span>
-          {:else}
-            <ArrowUp size={13} class="text-ant-primary" />
-            <span>Show previous ({sessionStore.remainingHiddenTurns} earlier turns)</span>
-          {/if}
-        </button>
-      {:else if sessionStore.visibleMessages.length > 0}
-        <div class="text-[11px] text-ant-text-muted font-mono flex items-center gap-1.5 py-1 select-none">
-          <span>Beginning of session conversation</span>
-        </div>
-      {/if}
-    </div>
+    {#if sessionStore.visibleMessages.length > 0}
+      <div bind:this={topSentinelEl} class="w-full flex justify-center py-2">
+        {#if sessionStore.remainingHiddenTurns > 0}
+          <button
+            type="button"
+            onclick={loadEarlier}
+            disabled={isHydrating}
+            class="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-medium bg-ant-bg-secondary hover:bg-ant-bg-tertiary text-ant-primary border border-white/10 shadow-sm transition-all duration-150 disabled:opacity-50"
+          >
+            {#if isHydrating}
+              <Loader2 size={13} class="animate-spin text-ant-primary" />
+              <span>Hydrating turns...</span>
+            {:else}
+              <ArrowUp size={13} class="text-ant-primary" />
+              <span>Show previous ({sessionStore.remainingHiddenTurns} earlier turns)</span>
+            {/if}
+          </button>
+        {:else}
+          <div class="text-[11px] text-ant-text-muted font-mono flex items-center gap-1.5 py-1 select-none">
+            <span>Beginning of session conversation</span>
+          </div>
+        {/if}
+      </div>
+    {/if}
 
     <!-- Empty state if no messages -->
     {#if sessionStore.visibleMessages.length === 0}
-      <div class="flex flex-col items-center justify-center h-64 text-center space-y-3">
-        <div class="w-12 h-12 rounded-xl bg-ant-primary/10 border border-ant-primary/20 flex items-center justify-center text-ant-primary">
-          <Sparkles size={24} />
+      {@const activeWs = sessionStore.workspaces.find(w => w.id === sessionStore.activeWorkspaceId)}
+      <div class="flex-1 w-full min-h-[360px] flex flex-col items-center justify-center text-center p-6 space-y-5 my-auto select-none">
+        <div class="w-14 h-14 rounded-2xl bg-ant-primary/10 border border-ant-primary/20 flex items-center justify-center text-ant-primary shadow-lg shadow-ant-primary/5">
+          <Sparkles size={28} />
         </div>
-        <div>
-          <h3 class="font-serif-display text-lg font-semibold text-ant-text tracking-tight">Start a new conversation</h3>
-          <p class="font-serif text-[13px] text-ant-text-secondary mt-1 max-w-sm leading-relaxed">
+        <div class="space-y-1.5">
+          <h3 class="font-serif-display text-xl font-semibold text-ant-text tracking-tight">Start a new conversation</h3>
+          <p class="font-serif text-[13.5px] text-ant-text-secondary max-w-md leading-relaxed mx-auto">
             Ask Grok to inspect your code, execute terminal commands, or orchestrate autonomous agent tasks.
           </p>
+          {#if activeWs}
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/5 text-[11px] font-mono text-ant-text-muted mt-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              <span class="truncate max-w-[280px]">{activeWs.name} ({activeWs.path})</span>
+            </div>
+          {/if}
         </div>
       </div>
     {:else}

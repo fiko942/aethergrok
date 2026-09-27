@@ -86,6 +86,17 @@ wails build \
 
 echo -e "${GREEN}✓ Wails macOS bundle compiled.${NC}"
 
+# Ensure macOS Privacy Usage Descriptions are present in the compiled Info.plist
+APP_PLIST="$BUILD_DIR/aethergrok.app/Contents/Info.plist"
+if [ -f "$APP_PLIST" ]; then
+  echo "Injecting privacy usage descriptions into Info.plist..."
+  /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string 'AetherGrok requires microphone access for voice dictation and speech-to-text input.'" "$APP_PLIST" 2>/dev/null || \
+  /usr/libexec/PlistBuddy -c "Set :NSMicrophoneUsageDescription 'AetherGrok requires microphone access for voice dictation and speech-to-text input.'" "$APP_PLIST" 2>/dev/null || true
+  
+  /usr/libexec/PlistBuddy -c "Add :NSSpeechRecognitionUsageDescription string 'AetherGrok uses speech recognition to convert dictated voice prompts into text.'" "$APP_PLIST" 2>/dev/null || \
+  /usr/libexec/PlistBuddy -c "Set :NSSpeechRecognitionUsageDescription 'AetherGrok uses speech recognition to convert dictated voice prompts into text.'" "$APP_PLIST" 2>/dev/null || true
+fi
+
 # 4. Prepare and package .dmg Installer
 echo -e "\n${YELLOW}Step 4/5: Creating macOS .dmg Installer...${NC}"
 

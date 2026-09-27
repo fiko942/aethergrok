@@ -78,3 +78,60 @@ func TestDiscoverGrokSessions_ExtractionAndFiltering(t *testing.T) {
 		t.Errorf("Failed to resolve title from user_query in chat_history.jsonl for sess-02")
 	}
 }
+
+func TestLoadGrokSessionMessages_CompleteSequence(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testWs := "/tmp/test-workspace-messages"
+	encodedWs := url.PathEscape(testWs)
+	testDir := filepath.Join(home, ".grok", "sessions", encodedWs, "session-test-seq")
+	defer os.RemoveAll(filepath.Join(home, ".grok", "sessions", encodedWs))
+
+	if err := os.MkdirAll(testDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	lines := []string{
+		`{"type":"system","content":"System prompt..."}`,
+		`{"type":"user","content":"<user_info>OS: macos</user_info>\n<user_query>Hello, please write a test</user_query>"}`,
+		`{"type":"assistant","content":"","tool_calls":[{"id":"tc-1","name":"read_file","arguments":"{\"file\":\"main.go\"}"}]}`,
+		`{"type":"tool_result","tool_call_id":"tc-1","content":"package main\nfunc main() {}"}`,
+		`{"type":"assistant","content":"Here is the test: func TestMain(t *testing.T) {}"}`,
+		`{"type":"user","content":"<user_query>Can you add another test case?</user_query>"}`,
+		`{"type":"assistant","content":"Sure, added TestSecond(t *testing.T) {}"}`,
+	}
+
+	f, err := os.Create(filepath.Join(testDir, "chat_history.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, l := range lines {
+		f.WriteString(l + "\n")
+	}
+	f.Close()
+
+	msgs, err := LoadGrokSessionMessages(testWs, "session-test-seq")
+	if err != nil {
+		t.Fatalf("LoadGrokSessionMessages failed: %v", err)
+	}
+
+	if len(msgs) != 4 {
+		t.Fatalf("Expected 4 messages (2 user, 2 assistant), got %d", len(msgs))
+	}
+
+	if msgs[0].Role != "user" || msgs[0].Content != "Hello, please write a test" {
+		t.Errorf("Message 0 mismatch: %+v", msgs[0])
+	}
+	if msgs[1].Role != "assistant" || len(msgs[1].ToolCalls) != 1 || msgs[1].ToolCalls[0].Result != "package main\nfunc main() {}" {
+		t.Errorf("Message 1 tool calls mismatch: %+v", msgs[1])
+	}
+	if msgs[2].Role != "user" || msgs[2].Content != "Can you add another test case?" {
+		t.Errorf("Message 2 mismatch: %+v", msgs[2])
+	}
+	if msgs[3].Role != "assistant" || msgs[3].Content != "Sure, added TestSecond(t *testing.T) {}" {
+		t.Errorf("Message 3 mismatch: %+v", msgs[3])
+	}
+}

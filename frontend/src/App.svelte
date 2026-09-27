@@ -5,6 +5,8 @@
   import Switch from '$lib/antd/Switch.svelte';
   import Tooltip from '$lib/antd/Tooltip.svelte';
   import SessionTabs from '$lib/components/layout/SessionTabs.svelte';
+  import TerminalPanel from '$lib/components/terminal/TerminalPanel.svelte';
+  import { terminalStore } from '$lib/stores/terminal.svelte';
   import MessageList from '$lib/components/chat/MessageList.svelte';
   import Composer from '$lib/components/chat/Composer.svelte';
   import PermissionModal from '$lib/components/chat/PermissionModal.svelte';
@@ -63,8 +65,21 @@
   let isSessionDragOver = $state(false);
   let sessionDragCounter = 0;
 
+  function hasAcceptableData(dataTransfer: DataTransfer | null): boolean {
+    if (!dataTransfer || !dataTransfer.types) return false;
+    const types = Array.from(dataTransfer.types);
+    return (
+      types.includes('Files') ||
+      types.includes('public.png') ||
+      types.includes('public.tiff') ||
+      types.includes('public.jpeg') ||
+      types.includes('com.apple.traditional-mac-plain-text') ||
+      types.some((t) => t.startsWith('image/'))
+    );
+  }
+
   function handleMainDragEnter(e: DragEvent) {
-    if (e.dataTransfer?.types?.includes('Files')) {
+    if (hasAcceptableData(e.dataTransfer)) {
       e.preventDefault();
       sessionDragCounter++;
       isSessionDragOver = true;
@@ -72,7 +87,7 @@
   }
 
   function handleMainDragOver(e: DragEvent) {
-    if (e.dataTransfer?.types?.includes('Files')) {
+    if (hasAcceptableData(e.dataTransfer)) {
       e.preventDefault();
       if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
       isSessionDragOver = true;
@@ -92,8 +107,30 @@
     e.preventDefault();
     sessionDragCounter = 0;
     isSessionDragOver = false;
-    if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-      composerRef?.handleExternalFiles?.(e.dataTransfer.files);
+
+    // Delegate extraction and processing to composer
+    if (e.dataTransfer) {
+      const files: File[] = [];
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        for (let i = 0; i < e.dataTransfer.files.length; i++) {
+          const f = e.dataTransfer.files[i];
+          if (f) files.push(f);
+        }
+      }
+      if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+        for (let i = 0; i < e.dataTransfer.items.length; i++) {
+          const item = e.dataTransfer.items[i];
+          if (item.kind === 'file') {
+            const file = item.getAsFile();
+            if (file && !files.some((existing) => existing.name === file.name && existing.size === file.size)) {
+              files.push(file);
+            }
+          }
+        }
+      }
+      if (files.length > 0) {
+        composerRef?.handleExternalFiles?.(files);
+      }
     }
   }
 
@@ -366,7 +403,11 @@
     // If Wails Go backend is available, run prompt stream
     if (window.go?.main?.App?.RunPromptStream) {
       try {
-        const workingDir = sessionStore.activeWorkspace?.path;
+        const sessionObj = sessionStore.sessions.find((s) => s.id === sessionId);
+        const sessionWs = sessionObj ? sessionStore.workspaces.find((w) => w.id === sessionObj.workspaceId) : null;
+        const workingDir = sessionWs?.path || sessionStore.activeWorkspace?.path;
+        const grokSessionId = sessionObj?.grokSessionId || (sessionObj?.id && !sessionObj.id.startsWith('sess_') ? sessionObj.id : undefined);
+
         await window.go.main.App.RunPromptStream({
           sessionId,
           prompt: fullPromptText,
@@ -374,7 +415,8 @@
           options: {
             model: payload.model || undefined,
             reasoningEffort: payload.reasoningEffort,
-            workingDir: workingDir || undefined
+            workingDir: workingDir || undefined,
+            grokSessionId: grokSessionId
           }
         });
       } catch (err) {
@@ -863,6 +905,17 @@
   let unsubPerm: (() => void) | undefined;
   let unsubComplete: (() => void) | undefined;
   let unsubError: (() => void) | undefined;
+  let unsubGlobalSnapshot: (() => void) | undefined;
+
+  // Keep native global snapshot shortcut registered on OS level
+  $effect(() => {
+    const sc = settingsStore.snapshotShortcut;
+    if (window.go?.main?.App?.RegisterGlobalSnapshotShortcut && sc) {
+      window.go.main.App.RegisterGlobalSnapshotShortcut(sc).catch((err: unknown) => {
+        console.error('Failed to register OS global snapshot shortcut:', err);
+      });
+    }
+  });
 
   onMount(() => {
     window.addEventListener('click', handleGlobalDocumentClick, true);
@@ -885,6 +938,9 @@
 
     // Hook Wails native runtime events if available
     if (window.runtime?.EventsOn) {
+      unsubGlobalSnapshot = window.runtime.EventsOn('snapshot:trigger_global', () => {
+        performGlobalSnapshot();
+      });
       unsubDelta = window.runtime.EventsOn('grok:delta_batch', (event: { sessionId: string; delta: string; role?: string }) => {
         if (event.sessionId) {
           const session = sessionStore.sessions.find((s) => s.id === event.sessionId);
@@ -909,6 +965,14 @@
             sessionStore.setSessionStatus(event.sessionId, 'working');
           }
           if (!session) return;
+
+          // Dynamically sync agentMode per session on enter_plan_mode / exit_plan_mode events
+          const toolLower = (event.toolName || '').toLowerCase();
+          if (toolLower.includes('enter_plan_mode')) {
+            session.agentMode = 'plan';
+          } else if (toolLower.includes('exit_plan_mode')) {
+            session.agentMode = 'agent';
+          }
 
           let found = false;
           for (const msg of session.messages) {
@@ -989,7 +1053,9 @@
           }
 
           // Rescan workspace on disk to sync official Grok titles & IDs from summary.json
-          const ws = sessionStore.activeWorkspace;
+          const sessionObj = sessionStore.sessions.find((s) => s.id === event.sessionId);
+          const sessionWs = sessionObj ? sessionStore.workspaces.find((w) => w.id === sessionObj.workspaceId) : null;
+          const ws = sessionWs || sessionStore.activeWorkspace;
           if (ws && window.go?.main?.App?.DiscoverGrokSessions) {
             try {
               const diskSessions = await window.go.main.App.DiscoverGrokSessions(ws.path);
@@ -1030,6 +1096,7 @@
     unsubPerm?.();
     unsubComplete?.();
     unsubError?.();
+    unsubGlobalSnapshot?.();
   });
 </script>
 
@@ -1226,6 +1293,17 @@
             onPlanAction={handlePlanAction}
           />
         </div>
+
+        <!-- Tab-Isolated Multi-Tab Terminal Panel -->
+        <TerminalPanel
+          sessionId={sessionStore.activeSession.id}
+          workspacePath={sessionStore.activeWorkspace?.path || ''}
+          onAttachLogToComposer={(logText) => {
+            if (composerRef) {
+              composerRef.appendPrompt(logText);
+            }
+          }}
+        />
 
         <!-- Rich Prompt Composer with Snapshot & Model Selectors -->
         <Composer

@@ -72,6 +72,8 @@ export function ReadWorkspaceDirectory(arg1:string,arg2:string):Promise<Array<wo
 
 export function ReadWorkspaceFileContent(arg1:string,arg2:string,arg3:boolean):Promise<string>;
 
+export function RegisterGlobalSnapshotShortcut(arg1:string):Promise<void>;
+
 export function RequestMicrophonePermission():Promise<permissions.Status>;
 
 export function RespondPermission(arg1:grokrunner.PermissionResponse):Promise<void>;
@@ -84,6 +86,8 @@ export function RunPromptStream(arg1:grokrunner.PromptRequest):Promise<void>;
 
 export function SaveMarkdownExport(arg1:string,arg2:string):Promise<string>;
 
+export function SaveTemporaryImage(arg1:string,arg2:string):Promise<screen.SnapshotResult>;
+
 export function SaveVoiceAudioRecording(arg1:string,arg2:string):Promise<string>;
 
 export function ScanGitHubSkills(arg1:string):Promise<skills.SkillAnalysisResult>;
@@ -95,3 +99,5 @@ export function SelectWorkspaceDirectory():Promise<string>;
 export function SetGrokBinaryPath(arg1:string):Promise<void>;
 
 export function TranscribeAudioWithGrok(arg1:string,arg2:string):Promise<string>;
+
+export function UnregisterGlobalSnapshotShortcut():Promise<void>;

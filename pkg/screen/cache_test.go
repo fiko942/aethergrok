@@ -3,6 +3,7 @@ package screen
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -100,5 +101,33 @@ func TestFormatBytes(t *testing.T) {
 		if out != c.expected {
 			t.Errorf("formatBytes(%d) = %s; want %s", c.bytes, out, c.expected)
 		}
+	}
+}
+
+func TestSaveTemporaryImage(t *testing.T) {
+	// 1x1 png base64
+	sampleB64 := "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+	res, err := SaveTemporaryImage("data:image/png;base64,"+sampleB64, "image/png")
+	if err != nil {
+		t.Fatalf("SaveTemporaryImage failed: %v", err)
+	}
+	defer os.Remove(res.FilePath)
+
+	if !strings.Contains(filepath.Base(res.FilePath), "grok-snapshot-drop-") {
+		t.Errorf("expected filename prefix grok-snapshot-drop-, got %s", res.FilePath)
+	}
+
+	fi, err := os.Stat(res.FilePath)
+	if err != nil || fi.Size() == 0 {
+		t.Errorf("expected file to exist and not be empty on disk")
+	}
+
+	// Verify it shows up in snapshot cache stats
+	stats, err := GetSnapshotCacheStats()
+	if err != nil {
+		t.Fatalf("GetSnapshotCacheStats failed: %v", err)
+	}
+	if stats.FileCount < 1 {
+		t.Errorf("expected at least 1 file in cache stats, got %d", stats.FileCount)
 	}
 }

@@ -44,6 +44,8 @@
     return modes.find((m) => m.id === mode) || modes[0];
   });
 
+  const CurrentIcon = $derived(currentModeObj.icon);
+
   function toggleOpen(e: MouseEvent) {
     e.stopPropagation();
     if (disabled) return;
@@ -83,16 +85,16 @@
 </script>
 
 <div class="relative inline-flex items-center" bind:this={containerRef}>
-  <!-- Pill Button Trigger (Matching screenshot: [Robot Icon] Agent mode) -->
+  <!-- Pill Button Trigger (Dynamically reflects mode with appropriate icon & color) -->
   <button
     type="button"
     onclick={toggleOpen}
     {disabled}
-    class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-ant-bg-secondary/40 hover:bg-ant-bg-tertiary text-ant-text transition-colors border border-transparent hover:border-white/5 {isOpen ? '!bg-ant-primary/10 text-ant-primary' : ''} {disabled ? 'opacity-50 cursor-not-allowed' : ''}"
+    class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all border {mode === 'plan' ? 'bg-violet-500/10 text-violet-300 border-violet-500/30 hover:bg-violet-500/20' : mode === 'yolo' ? 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20' : 'bg-ant-bg-secondary/40 hover:bg-ant-bg-tertiary text-ant-text border-transparent hover:border-white/5'} {isOpen ? '!ring-1 !ring-ant-primary/40' : ''} {disabled ? 'opacity-50 cursor-not-allowed' : ''}"
     title="Choose Grok Agent Execution Mode"
   >
-    <Bot size={13} class="text-ant-text-secondary" />
-    <span class="text-[11px]">{currentModeObj.title}</span>
+    <CurrentIcon size={13} class={mode === 'plan' ? 'text-violet-400' : mode === 'yolo' ? 'text-amber-400' : 'text-ant-text-secondary'} />
+    <span class="text-[11px] font-medium">{currentModeObj.title}</span>
   </button>
 
   <!-- Dropdown Menu (Matching screenshot) -->

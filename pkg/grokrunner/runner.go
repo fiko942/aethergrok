@@ -2,9 +2,11 @@ package grokrunner
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -173,6 +175,25 @@ func (r *Runner) GetBinaryPath() string {
 	return r.grokBinaryPath
 }
 
+// isUUID checks if a string is a standard UUID format (36 chars with dashes)
+func isUUID(str string) bool {
+	if len(str) != 36 {
+		return false
+	}
+	for i, ch := range str {
+		if i == 8 || i == 13 || i == 18 || i == 23 {
+			if ch != '-' {
+				return false
+			}
+		} else {
+			if !((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // StartSession launches a grok subprocess for a prompt request and streams events via callbacks
 func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks StreamCallbacks) error {
 	r.mu.Lock()
@@ -187,6 +208,31 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 	sessionCtx, cancel := context.WithCancel(ctx)
 
 	args := []string{"--output-format", "streaming-json"}
+
+	// Determine session continuation vs new session:
+	// If GrokSessionID is specified, or req.SessionID is a valid UUID that already exists on disk, use --resume.
+	targetGrokID := req.Options.GrokSessionID
+	if targetGrokID == "" && isUUID(req.SessionID) {
+		targetGrokID = req.SessionID
+	}
+
+	// Check if the target session exists on disk to resume
+	if targetGrokID != "" {
+		homeDir, _ := os.UserHomeDir()
+		wsPath := req.Options.WorkingDir
+		if wsPath == "" {
+			wsPath, _ = os.Getwd()
+		}
+		encodedWs := url.PathEscape(wsPath)
+		sessionFolder := filepath.Join(homeDir, ".grok", "sessions", encodedWs, targetGrokID)
+		if fi, err := os.Stat(sessionFolder); err == nil && fi.IsDir() {
+			args = append(args, "--resume", targetGrokID)
+		} else if isUUID(targetGrokID) {
+			// Brand new session with an explicitly requested UUID
+			args = append(args, "--session-id", targetGrokID)
+		}
+	}
+
 	if req.Options.Model != "" {
 		args = append(args, "--model", req.Options.Model)
 	}
@@ -206,12 +252,55 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 		args = append(args, flag)
 	}
 
-	for _, img := range req.Images {
-		args = append(args, "--image", img)
-	}
+	// Prepare prompt arguments:
+	// If images are attached, Grok CLI expects ACP content blocks via `--prompt-json <JSON>`.
+	// For text-only turns, standard `-p <prompt>` is used.
+	if len(req.Images) > 0 {
+		var contentBlocks []map[string]interface{}
+		for _, imgPath := range req.Images {
+			imgPath = strings.TrimSpace(imgPath)
+			if imgPath == "" {
+				continue
+			}
+			dataBytes, err := os.ReadFile(imgPath)
+			if err != nil {
+				continue
+			}
+			mimeType := "image/png"
+			ext := strings.ToLower(filepath.Ext(imgPath))
+			if ext == ".jpg" || ext == ".jpeg" {
+				mimeType = "image/jpeg"
+			} else if ext == ".webp" {
+				mimeType = "image/webp"
+			} else if ext == ".gif" {
+				mimeType = "image/gif"
+			}
+			contentBlocks = append(contentBlocks, map[string]interface{}{
+				"type":     "image",
+				"data":     base64.StdEncoding.EncodeToString(dataBytes),
+				"mimeType": mimeType,
+			})
+		}
 
-	// Non-interactive prompt turn
-	args = append(args, "-p", req.Prompt)
+		userText := req.Prompt
+		if userText == "" {
+			userText = "Describe and analyze this image."
+		}
+		contentBlocks = append(contentBlocks, map[string]interface{}{
+			"type": "text",
+			"text": userText,
+		})
+
+		jsonBytes, err := json.Marshal(contentBlocks)
+		if err == nil {
+			args = append(args, "--prompt-json", string(jsonBytes))
+		} else {
+			args = append(args, "-p", req.Prompt)
+		}
+	} else {
+		// Non-interactive text-only prompt turn
+		args = append(args, "-p", req.Prompt)
+	}
 
 	binPath := r.grokBinaryPath
 	if binPath == "" || binPath == "grok" {

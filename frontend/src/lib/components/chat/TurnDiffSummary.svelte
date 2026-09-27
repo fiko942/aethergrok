@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ToolCall } from '$lib/stores/session.svelte';
+  import { calculateDiffStat } from '$lib/utils/diffUtils';
   import DiffCard from './DiffCard.svelte';
   import { FileCode, ChevronDown, ChevronRight, Plus, Minus, ExternalLink } from 'lucide-svelte';
 
@@ -17,35 +18,27 @@
     path: string;
     addedCount: number;
     removedCount: number;
-    diff: NonNullable<ToolCall['diff']>;
+    diff?: ToolCall['diff'];
+    newContent?: string;
   }
 
-  // Aggregate all tool calls that modified files with diffs
+  // Aggregate all tool calls that modified files with diffs or line counts
   const changedFiles = $derived.by(() => {
     const list: FileChange[] = [];
     for (const tc of toolCalls) {
-      if (tc.diff) {
-        const patch = tc.diff.diffUnified || '';
-        let added = tc.diff.addedCount || 0;
-        let removed = tc.diff.removedCount || 0;
-
-        // If counts aren't pre-computed, calculate from unified patch lines
-        if (added === 0 && removed === 0 && patch) {
-          const lines = patch.split('\n');
-          for (const l of lines) {
-            if (l.startsWith('+') && !l.startsWith('+++')) added++;
-            else if (l.startsWith('-') && !l.startsWith('---')) removed++;
-          }
-        }
-
-        const path = tc.diff.newPath || tc.diff.oldPath || (typeof tc.params === 'object' && tc.params && (tc.params.file_path || tc.params.target_file)) as string || 'modified_file';
+      const stat = calculateDiffStat(tc);
+      if (stat.added > 0 || stat.removed > 0 || tc.diff) {
+        const path = stat.filePath || (tc.diff && (tc.diff.newPath || tc.diff.oldPath)) || 'modified_file';
+        const p = (typeof tc.params === 'object' && tc.params !== null) ? tc.params as Record<string, unknown> : {};
+        const content = typeof p.content === 'string' ? p.content : undefined;
 
         list.push({
           toolCallId: tc.id,
           path,
-          addedCount: added,
-          removedCount: removed,
-          diff: tc.diff
+          addedCount: stat.added,
+          removedCount: stat.removed,
+          diff: tc.diff,
+          newContent: content
         });
       }
     }
@@ -142,7 +135,20 @@
             <!-- Inline Diff Preview for Selected File -->
             {#if isThisFileExpanded}
               <div class="mt-1 pl-4 pr-1 pb-1 animate-in fade-in duration-150">
-                <DiffCard diff={item.diff} showHeaderTitle={false} />
+                {#if item.diff}
+                  <DiffCard diff={item.diff} showHeaderTitle={false} />
+                {:else if item.newContent !== undefined}
+                  <DiffCard
+                    newPath={item.path}
+                    oldContent=""
+                    newContent={item.newContent}
+                    showHeaderTitle={false}
+                  />
+                {:else}
+                  <div class="p-2 rounded bg-ant-bg-secondary/60 text-xs font-mono text-ant-text-secondary">
+                    Changes applied in tool call ({item.toolCallId})
+                  </div>
+                {/if}
               </div>
             {/if}
           </div>

@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"aethergrok/pkg/gitutil"
 )
 
 // DiscoveredSkill represents an individual skill found in a repository
@@ -79,7 +81,7 @@ func ScanGitHubRepo(ctx context.Context, repoInput string) (*SkillAnalysisResult
 	cloneCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(cloneCtx, "git", "clone", "--depth", "1", cleanURL, tempDir)
+	cmd := exec.CommandContext(cloneCtx, gitutil.Executable(), "clone", "--depth", "1", cleanURL, tempDir)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		_ = os.RemoveAll(tempDir)

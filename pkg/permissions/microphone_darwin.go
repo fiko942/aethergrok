@@ -68,10 +68,8 @@ func requestDarwinMicrophone() Status {
 	return checkDarwinMicrophone()
 }
 
-// OpenMicrophonePreferences opens the macOS Microphone Privacy & Security settings pane
+// OpenMicrophonePreferences opens the macOS Microphone Privacy & Security settings pane directly
 func OpenMicrophonePreferences() error {
-	script := "tell application \"System Settings\" to activate\n" +
-		"do shell script \"open 'x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone'\""
-	cmd := exec.Command("osascript", "-e", script)
+	cmd := exec.Command("open", "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")
 	return cmd.Run()
 }
