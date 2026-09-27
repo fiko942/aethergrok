@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "AetherGrok Release Changelog",
+  "description": "Central single source of truth for all AetherGrok releases, commit ranges, and download artifacts.",
+  "latest": "1.0.0",
+  "releases": [
+    {
+      "version": "1.0.0",
+      "tag": "v1.0.0",
+      "date": "2026-09-28T00:00:00.000Z",
+      "title": "AetherGrok 1.0.0 - Initial Official Release",
+      "targetCommit": "f4bf14e",
+      "previousCommit": null,
+      "highlights": [
+        "Pure-Go persistent JSONL storage engine for settings, workspaces, and UI tabs",
+        "Full support for macOS (Apple Silicon arm64 & Intel x64) and Windows (x64 & arm64)",
+        "Integrated terminal dock with persistent layouts and adaptive font sizing",
+        "Wails v2 native desktop shell with light/dark studio themes and system tray integration"
+      ],
+      "commits": [
+        {
+          "hash": "f4bf14e",
+          "message": "fix(permissions): set mmacosx-version-min=10.15 for AVFoundation cgo CFLAGS to silence compiler warnings"
+        },
+        {
+          "hash": "5bf0c46",
+          "message": "ci: configure Wails desktop installer build workflow for macOS (.dmg) and Windows (.exe)"
+        },
+        {
+          "hash": "07f8ca7",
+          "message": "feat(storage): implement backend persistent storage for settings, workspaces, and UI state"
+        }
+      ],
+      "downloads": {
+        "macos_arm64_dmg": "https://github.com/fiko942/grok-build/releases/download/v1.0.0/AetherGrok-1.0.0-macOS-arm64.dmg",
+        "macos_arm64_portable": "https://github.com/fiko942/grok-build/releases/download/v1.0.0/AetherGrok-1.0.0-macOS-arm64-portable.tar.gz",
+        "macos_x64_dmg": "https://github.com/fiko942/grok-build/releases/download/v1.0.0/AetherGrok-1.0.0-macOS-x64.dmg",
+        "macos_x64_portable": "https://github.com/fiko942/grok-build/releases/download/v1.0.0/AetherGrok-1.0.0-macOS-x64-portable.tar.gz",
+        "windows_x64_setup": "https://github.com/fiko942/grok-build/releases/download/v1.0.0/AetherGrok-1.0.0-windows-x64-setup.exe",
+        "windows_x64_portable": "https://github.com/fiko942/grok-build/releases/download/v1.0.0/AetherGrok-1.0.0-windows-x64-portable.zip",
+        "windows_arm64_setup": "https://github.com/fiko942/grok-build/releases/download/v1.0.0/AetherGrok-1.0.0-windows-arm64-setup.exe",
+        "windows_arm64_portable": "https://github.com/fiko942/grok-build/releases/download/v1.0.0/AetherGrok-1.0.0-windows-arm64-portable.zip"
+      }
+    }
+  ]
+}

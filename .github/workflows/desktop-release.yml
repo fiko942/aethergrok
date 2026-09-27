@@ -1,20 +1,26 @@
-name: Build Desktop Installers
+name: Build & Release Desktop Installers
 
 on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Release tag (e.g. v1.0.0). Leave empty to only produce downloadable artifacts"
+        description: "Release tag (e.g. v1.1.0). If provided, assets are automatically attached to the GitHub release."
         required: false
         default: ""
+  push:
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
 
 jobs:
   build-macos:
-    name: Build macOS Installer (.dmg)
+    name: Build macOS (${{ matrix.arch }})
     runs-on: macos-15
+    strategy:
+      matrix:
+        arch: [arm64, amd64]
     steps:
       - uses: actions/checkout@v4
 
@@ -41,28 +47,38 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build macOS App & DMG Package
-        run: bash build-macos.sh
+      - name: Build macOS App, DMG & Portable Package (${{ matrix.arch }})
+        run: bash build-macos.sh ${{ matrix.arch }}
 
-      - name: Upload macOS Artifacts
+      - name: Upload macOS Artifacts (${{ matrix.arch }})
         uses: actions/upload-artifact@v4
         with:
-          name: aethergrok-macos-dmg
+          name: aethergrok-macos-${{ matrix.arch }}
           path: |
             build/bin/*.dmg
-            build/bin/*.dmg.sha256
+            build/bin/*.tar.gz
+            build/bin/*.sha256
           retention-days: 14
 
-      - name: Attach to GitHub Release (macOS)
-        if: ${{ inputs.release_tag != '' }}
+      - name: Attach to GitHub Release (macOS ${{ matrix.arch }})
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name || inputs.release_tag }}
         run: |
-          gh release upload "${{ inputs.release_tag }}" build/bin/*.dmg build/bin/*.dmg.sha256 --clobber || echo "No release with tag ${{ inputs.release_tag }} found"
+          TARGET_TAG="${TAG_NAME}"
+          if [ -z "$TARGET_TAG" ] && [ -n "${{ inputs.release_tag }}" ]; then
+            TARGET_TAG="${{ inputs.release_tag }}"
+          fi
+          if [ -n "$TARGET_TAG" ]; then
+            gh release upload "$TARGET_TAG" build/bin/*.dmg build/bin/*.tar.gz build/bin/*.sha256 --clobber || echo "No release with tag $TARGET_TAG found"
+          fi
 
   build-windows:
-    name: Build Windows Installer (.exe)
+    name: Build Windows (${{ matrix.arch }})
     runs-on: windows-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
     steps:
       - uses: actions/checkout@v4
 
@@ -92,23 +108,58 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build Windows Executable & NSIS Installer
+      - name: Build Windows Executable & Installer (${{ matrix.arch }})
         shell: pwsh
         run: |
-          wails build -platform windows/amd64 -nsis
+          $Version = "1.0.0"
+          if (Test-Path "wails.json") {
+            $wailsJson = Get-Content "wails.json" | ConvertFrom-Json
+            if ($wailsJson.version) { $Version = $wailsJson.version }
+          }
+          
+          # Build NSIS Setup Installer
+          wails build -platform "windows/${{ matrix.arch }}" -nsis -clean -ldflags "-s -w"
+          
+          # Create Portable Zip Archive
+          $TargetExe = "build/bin/aethergrok.exe"
+          if (Test-Path "build/bin/AetherGrok.exe") { $TargetExe = "build/bin/AetherGrok.exe" }
+          
+          $PortableName = "AetherGrok-${Version}-windows-${{ matrix.arch }}-portable.zip"
+          Compress-Archive -Path $TargetExe -DestinationPath "build/bin/$PortableName" -Force
+          
+          # Standardize Installer Name if exists
+          $Installer = Get-Item "build/bin/*installer*.exe" -ErrorAction SilentlyContinue
+          if ($Installer) {
+            $StandardInstallerName = "AetherGrok-${Version}-windows-${{ matrix.arch }}-setup.exe"
+            Rename-Item -Path $Installer.FullName -NewName $StandardInstallerName -Force
+          }
+          
+          # Generate Checksums
+          Get-ChildItem -Path "build/bin" -Include @("*.exe", "*.zip") | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            Set-Content -Path "$($_.FullName).sha256" -Value "$hash  $($_.Name)"
+          }
 
-      - name: Upload Windows Artifacts
+      - name: Upload Windows Artifacts (${{ matrix.arch }})
         uses: actions/upload-artifact@v4
         with:
-          name: aethergrok-windows-exe
+          name: aethergrok-windows-${{ matrix.arch }}
           path: |
             build/bin/*.exe
+            build/bin/*.zip
+            build/bin/*.sha256
           retention-days: 14
 
-      - name: Attach to GitHub Release (Windows)
-        if: ${{ inputs.release_tag != '' }}
+      - name: Attach to GitHub Release (Windows ${{ matrix.arch }})
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name || inputs.release_tag }}
         run: |
-          gh release upload "${{ inputs.release_tag }}" build/bin/*.exe --clobber
+          $TargetTag = $env:TAG_NAME
+          if (-not $TargetTag -and $env:RELEASE_TAG_INPUT) {
+            $TargetTag = $env:RELEASE_TAG_INPUT
+          }
+          if ($TargetTag) {
+            gh release upload "$TargetTag" build/bin/*.exe build/bin/*.zip build/bin/*.sha256 --clobber
+          }

@@ -540,6 +540,7 @@
     "build-production": "node scripts/build-production.mjs",
     "build:prod": "node scripts/build-production.mjs",
     "build:mac": "./build-macos.sh",
+    "release": "node scripts/release.mjs",
     "wails:dev": "wails dev",
     "wails:build": "wails build"
   },
