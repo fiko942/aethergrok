@@ -116,24 +116,36 @@ fi
 # 4. Prepare and package .dmg Installer
 echo -e "\n${YELLOW}Step 4/6: Creating macOS .dmg Installer...${NC}"
 
-DMG_STAGE_DIR=$(mktemp -d /tmp/aethergrok_dmg_stage.XXXXXX)
-DMG_OUTPUT="$BUILD_DIR/AetherGrok-${VERSION}-macOS-${TARGET_ARCH}.dmg"
+DMG_STAGE_DIR="$BUILD_DIR/dmg_stage_${TARGET_ARCH}"
+rm -rf "$DMG_STAGE_DIR"
+mkdir -p "$DMG_STAGE_DIR"
 
+DMG_OUTPUT="$BUILD_DIR/AetherGrok-${VERSION}-macOS-${TARGET_ARCH}.dmg"
 rm -f "$DMG_OUTPUT"
 
 echo "Staging application bundle..."
 cp -R "$APP_BUNDLE" "$DMG_STAGE_DIR/AetherGrok.app"
-ln -s /Applications "$DMG_STAGE_DIR/Applications"
 
 echo "Creating compressed DMG installer with hdiutil..."
-hdiutil create \
-  -volname "$APP_NAME" \
-  -srcfolder "$DMG_STAGE_DIR" \
-  -ov \
-  -format UDZO \
-  "$DMG_OUTPUT"
+for attempt in 1 2 3; do
+  if hdiutil create \
+    -volname "$APP_NAME" \
+    -srcfolder "$DMG_STAGE_DIR" \
+    -ov \
+    -format UDZO \
+    -noanyowners \
+    "$DMG_OUTPUT"; then
+    break
+  fi
+  echo -e "${YELLOW}hdiutil create attempt $attempt failed, retrying in 2 seconds...${NC}"
+  sleep 2
+done
 
 rm -rf "$DMG_STAGE_DIR"
+if [ ! -f "$DMG_OUTPUT" ]; then
+  echo -e "${RED}Error: Failed to create DMG installer.${NC}"
+  exit 1
+fi
 echo -e "${GREEN}✓ DMG Installer package ready: $(basename "$DMG_OUTPUT")${NC}"
 
 # 5. Create Portable Portable Archive (.tar.gz)

@@ -135,7 +135,7 @@ jobs:
           }
           
           # Generate Checksums
-          Get-ChildItem -Path "build/bin" -Include @("*.exe", "*.zip") | ForEach-Object {
+          Get-ChildItem -Path "build/bin" -File | Where-Object { $_.Extension -in @(".exe", ".zip") } | ForEach-Object {
             $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
             Set-Content -Path "$($_.FullName).sha256" -Value "$hash  $($_.Name)"
           }
@@ -161,5 +161,8 @@ jobs:
             $TargetTag = $env:RELEASE_TAG_INPUT
           }
           if ($TargetTag) {
-            gh release upload "$TargetTag" build/bin/*.exe build/bin/*.zip build/bin/*.sha256 --clobber
+            $filesToUpload = Get-ChildItem -Path "build/bin" -File | Where-Object { $_.Extension -in @(".exe", ".zip", ".sha256") } | Select-Object -ExpandProperty FullName
+            if ($filesToUpload) {
+              gh release upload "$TargetTag" $filesToUpload --clobber
+            }
           }
