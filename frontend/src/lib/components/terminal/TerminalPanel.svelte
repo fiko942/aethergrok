@@ -14,10 +14,12 @@
     Minimize2,
     PanelBottom,
     PanelRight,
-    Sparkles
+    Sparkles,
+    Columns2,
+    ExternalLink
   } from 'lucide-svelte';
   import Tooltip from '$lib/antd/Tooltip.svelte';
-  import { terminalStore, type TerminalTab } from '$lib/stores/terminal.svelte';
+  import { terminalStore, type TerminalTab, type TerminalSplitGroup } from '$lib/stores/terminal.svelte';
   import { sessionStore } from '$lib/stores/session.svelte';
   import { settingsStore } from '$lib/stores/settings.svelte';
 
@@ -145,12 +147,207 @@
     }
   });
 
+  let activeSplitGroup = $derived(terminalStore.getActiveSplitGroup(sessionId));
+  let focusedPaneTermId = $derived(terminalStore.getFocusedPaneId(sessionId));
+
+  // Drag and drop state for terminal tabs
+  let draggedTermId = $state<string | null>(null);
+  let activeDropZone = $state<{
+    targetTermId: string;
+    position: 'left' | 'right' | 'top' | 'bottom';
+  } | null>(null);
+
+  // ResizeObserver registry for split containers
+  const resizeObservers = new Map<string, ResizeObserver>();
+
+  function handleTabDragStart(e: DragEvent, tabId: string) {
+    if (!e.dataTransfer) return;
+    draggedTermId = tabId;
+    e.dataTransfer.setData('text/plain', tabId);
+    e.dataTransfer.setData('application/x-terminal-tab', tabId);
+    e.dataTransfer.effectAllowed = 'move';
+  }
+
+  function handleTabDragEnd() {
+    draggedTermId = null;
+    activeDropZone = null;
+  }
+
+  function handlePaneDragOver(e: DragEvent, targetTermId: string) {
+    if (!draggedTermId || draggedTermId === targetTermId) return;
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'move';
+    }
+
+    const target = e.currentTarget as HTMLElement;
+    if (!target) return;
+
+    const rect = target.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const w = rect.width;
+    const h = rect.height;
+
+    // Calculate zone
+    const isRightDock = dockPosition === 'right';
+    if (isRightDock) {
+      // Prioritize vertical splitting when docked at the right
+      if (y < h * 0.5) {
+        activeDropZone = { targetTermId, position: 'top' };
+      } else {
+        activeDropZone = { targetTermId, position: 'bottom' };
+      }
+    } else {
+      // Prioritize horizontal splitting when docked at the bottom
+      if (x < w * 0.4) {
+        activeDropZone = { targetTermId, position: 'left' };
+      } else if (x > w * 0.6) {
+        activeDropZone = { targetTermId, position: 'right' };
+      } else if (y > h * 0.6) {
+        activeDropZone = { targetTermId, position: 'bottom' };
+      } else {
+        activeDropZone = { targetTermId, position: 'right' };
+      }
+    }
+  }
+
+  function handlePaneDragLeave(e: DragEvent) {
+    // Only clear if leaving to an outside element
+    const currentTarget = e.currentTarget as HTMLElement;
+    const relatedTarget = e.relatedTarget as Node | null;
+    if (!currentTarget.contains(relatedTarget)) {
+      activeDropZone = null;
+    }
+  }
+
+  function handlePaneDrop(e: DragEvent, targetTermId: string) {
+    e.preventDefault();
+    if (!draggedTermId || draggedTermId === targetTermId) {
+      activeDropZone = null;
+      draggedTermId = null;
+      return;
+    }
+
+    const pos = activeDropZone?.position || 'right';
+    terminalStore.splitTerminal(sessionId, draggedTermId, targetTermId, pos);
+
+    activeDropZone = null;
+    draggedTermId = null;
+    refitAllSplitTerminals();
+  }
+
+  function handleQuickSplit() {
+    terminalStore.splitNewTerminal(sessionId, workspacePath);
+    refitAllSplitTerminals();
+  }
+
+  function refitAllSplitTerminals() {
+    tick().then(() => {
+      const activeSplit = terminalStore.getActiveSplitGroup(sessionId);
+      if (!activeSplit) return;
+      for (const termId of activeSplit.paneTermIds) {
+        if (terminalInstances.has(termId)) {
+          const inst = terminalInstances.get(termId)!;
+          try {
+            inst.fitAddon.fit();
+            if (window.go?.main?.App?.ResizeTerminal) {
+              window.go.main.App.ResizeTerminal(termId, inst.term.cols, inst.term.rows);
+            }
+          } catch (e) {}
+        }
+      }
+    });
+  }
+
+  // Interactive Split Divider dragging
+  let isDraggingSplitDivider = $state(false);
+  let activeDividerIndex = $state<number | null>(null);
+  let dividerStartPos = 0;
+  let dividerInitialSizes: number[] = [];
+  let dividerContainerSize = 0;
+
+  function handleSplitDividerStart(e: MouseEvent, index: number, isVertical: boolean, containerEl: HTMLElement) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const activeSplit = terminalStore.getActiveSplitGroup(sessionId);
+    if (!activeSplit) return;
+
+    isDraggingSplitDivider = true;
+    activeDividerIndex = index;
+    dividerStartPos = isVertical ? e.clientY : e.clientX;
+    dividerContainerSize = isVertical ? containerEl.clientHeight : containerEl.clientWidth;
+
+    const count = activeSplit.paneTermIds.length;
+    dividerInitialSizes = activeSplit.paneSizes && activeSplit.paneSizes.length === count
+      ? [...activeSplit.paneSizes]
+      : Array(count).fill(100 / count);
+
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = isVertical ? 'row-resize' : 'col-resize';
+
+    const onMove = (moveEvt: MouseEvent) => {
+      if (!isDraggingSplitDivider || activeDividerIndex === null) return;
+      const currentPos = isVertical ? moveEvt.clientY : moveEvt.clientX;
+      const deltaPx = currentPos - dividerStartPos;
+      const deltaPercent = (deltaPx / Math.max(1, dividerContainerSize)) * 100;
+
+      const newSizes = [...dividerInitialSizes];
+      const i = activeDividerIndex;
+      const minPercent = 15; // Minimum size for any pane
+
+      if (newSizes[i] + deltaPercent >= minPercent && newSizes[i + 1] - deltaPercent >= minPercent) {
+        newSizes[i] += deltaPercent;
+        newSizes[i + 1] -= deltaPercent;
+
+        if (activeSplit) {
+          terminalStore.setGroupPaneSizes(sessionId, activeSplit.id, newSizes);
+          refitAllSplitTerminals();
+        }
+      }
+    };
+
+    const onEnd = () => {
+      isDraggingSplitDivider = false;
+      activeDividerIndex = null;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onEnd);
+      refitAllSplitTerminals();
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onEnd);
+  }
+
   function terminalContainerAction(node: HTMLElement, termId: string) {
     termContainerMap.set(termId, node);
     initXterm(termId, node);
 
+    // Attach ResizeObserver to auto-fit xterm whenever pane dimensions change
+    const ro = new ResizeObserver(() => {
+      if (terminalInstances.has(termId)) {
+        const inst = terminalInstances.get(termId)!;
+        try {
+          inst.fitAddon.fit();
+          if (window.go?.main?.App?.ResizeTerminal) {
+            window.go.main.App.ResizeTerminal(termId, inst.term.cols, inst.term.rows);
+          }
+        } catch (e) {}
+      }
+    });
+    ro.observe(node);
+    resizeObservers.set(termId, ro);
+
     return {
       destroy() {
+        const obs = resizeObservers.get(termId);
+        if (obs) {
+          obs.disconnect();
+          resizeObservers.delete(termId);
+        }
         termContainerMap.delete(termId);
         cleanupXterm(termId);
       }
@@ -500,15 +697,19 @@
           <!-- Left: Terminal Sub-Tabs -->
           <div class="flex items-center space-x-1 overflow-x-auto no-scrollbar flex-1 min-w-0 pr-2">
             {#each activeTerminals as tab (tab.id)}
-              {@const isActive = tab.id === activeTermId}
+              {@const isTabActive = activeSplitGroup?.paneTermIds.includes(tab.id) || tab.id === activeTermId}
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <div
-                class="flex items-center space-x-1.5 px-2.5 py-1 rounded-t-md text-xs transition-colors cursor-pointer border-t-2 flex-shrink-0 {isActive ? 'bg-ant-bg text-ant-text border-ant-primary font-medium shadow-sm' : 'border-transparent text-ant-text-secondary hover:text-ant-text hover:bg-white/5'}"
+                draggable="true"
+                ondragstart={(e) => handleTabDragStart(e, tab.id)}
+                ondragend={handleTabDragEnd}
+                class="flex items-center space-x-1.5 px-2.5 py-1 rounded-t-md text-xs transition-all cursor-grab active:cursor-grabbing border-t-2 flex-shrink-0 {isTabActive ? 'bg-ant-bg text-ant-text border-ant-primary font-medium shadow-sm' : 'border-transparent text-ant-text-secondary hover:text-ant-text hover:bg-white/5'}"
                 onclick={() => terminalStore.switchTerminal(sessionId, tab.id)}
                 ondblclick={(e) => startRename(tab, e)}
+                title="Drag to terminal viewport to split"
               >
-                <TerminalIcon size={12} class="{isActive ? 'text-ant-primary' : 'text-ant-text-secondary'} flex-shrink-0" />
+                <TerminalIcon size={12} class="{isTabActive ? 'text-ant-primary' : 'text-ant-text-secondary'} flex-shrink-0" />
                 {#if editingTermId === tab.id}
                   <!-- svelte-ignore a11y_autofocus -->
                   <input
@@ -556,6 +757,17 @@
 
           <!-- Right: Action Buttons -->
           <div class="flex items-center space-x-1.5 flex-shrink-0">
+            <Tooltip title="Split Terminal (Ctrl+Shift+5)" placement="top">
+              <button
+                type="button"
+                onclick={handleQuickSplit}
+                class="flex items-center space-x-1 px-2 py-1 rounded-md bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-text hover:bg-ant-primary/10 hover:text-ant-primary text-[11px] font-medium transition outline-none border border-ant-border-secondary dark:border-white/5"
+              >
+                <Columns2 size={12} />
+                <span>Split</span>
+              </button>
+            </Tooltip>
+
             <Tooltip title="Attach recent terminal output to composer" placement="top">
               <button
                 type="button"
@@ -592,7 +804,7 @@
                 type="button"
                 onclick={() => {
                   isMaximized = !isMaximized;
-                  refitActiveTerminal();
+                  refitAllSplitTerminals();
                 }}
                 class="p-1 text-ant-text-secondary hover:text-ant-text hover:bg-white/10 rounded transition"
               >
@@ -616,15 +828,119 @@
           </div>
         </div>
 
-        <!-- Terminal Canvas Containers -->
-        <div class="flex-1 w-full relative overflow-hidden p-1.5 bg-ant-bg {isDragging ? 'pointer-events-none' : ''}">
-          {#each activeTerminals as tab (tab.id)}
+        <!-- Terminal Split Viewport Containers (Bottom Dock) -->
+        {#if true}
+          {@const splitGroup = activeSplitGroup}
+          {@const visibleTermIds = splitGroup?.paneTermIds || (activeTermId ? [activeTermId] : [])}
+          {@const isMultiSplit = visibleTermIds.length > 1}
+          <div
+            class="flex-1 w-full relative overflow-hidden p-1 bg-ant-bg {isDragging || isDraggingSplitDivider ? 'select-none' : ''}"
+          >
+            <!-- Split Flex Container -->
             <div
-              use:terminalContainerAction={tab.id}
-              class="w-full h-full {tab.id === activeTermId ? 'block' : 'hidden'}"
-            ></div>
-          {/each}
-        </div>
+              class="w-full h-full flex {splitGroup?.splitDirection === 'vertical' ? 'flex-col' : 'flex-row'} gap-0"
+            >
+              {#each visibleTermIds as termId, idx (termId)}
+                {@const tabObj = activeTerminals.find((t) => t.id === termId)}
+                {@const panePct = splitGroup?.paneSizes?.[idx] ?? (100 / visibleTermIds.length)}
+                {@const isPaneFocused = focusedPaneTermId === termId}
+
+                <!-- Resizable Divider Handle between panes -->
+                {#if idx > 0}
+                  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                  <div
+                    role="separator"
+                    class="{splitGroup?.splitDirection === 'vertical' ? 'h-1.5 w-full cursor-row-resize' : 'w-1.5 h-full cursor-col-resize'} bg-transparent hover:bg-ant-primary/50 active:bg-ant-primary transition-colors flex items-center justify-center flex-shrink-0 z-30 group"
+                    onmousedown={(e) => {
+                      const parent = (e.currentTarget as HTMLElement).parentElement;
+                      if (parent) {
+                        handleSplitDividerStart(e, idx - 1, splitGroup?.splitDirection === 'vertical', parent);
+                      }
+                    }}
+                  >
+                    <div class="{splitGroup?.splitDirection === 'vertical' ? 'w-8 h-0.5' : 'w-0.5 h-8'} bg-ant-border-secondary dark:bg-white/10 group-hover:bg-ant-primary rounded-full transition-colors"></div>
+                  </div>
+                {/if}
+
+                <!-- Single Split Pane Box -->
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <div
+                  class="relative flex flex-col min-w-0 min-h-0 rounded-lg overflow-hidden border transition-all {isPaneFocused ? 'border-ant-primary shadow-sm shadow-ant-primary/10' : 'border-ant-border-secondary dark:border-white/5'}"
+                  style="{splitGroup?.splitDirection === 'vertical' ? `height: ${panePct}%;` : `width: ${panePct}%;`}"
+                  onclick={() => terminalStore.setFocusedPaneId(sessionId, termId)}
+                  ondragover={(e) => handlePaneDragOver(e, termId)}
+                  ondragleave={handlePaneDragLeave}
+                  ondrop={(e) => handlePaneDrop(e, termId)}
+                >
+                  <!-- Mini Pane Header when in Multi-Split mode -->
+                  {#if isMultiSplit && tabObj}
+                    <div class="h-6 px-2 bg-ant-bg-secondary/80 border-b border-ant-border-secondary dark:border-white/5 flex items-center justify-between text-[10.5px] select-none flex-shrink-0">
+                      <div class="flex items-center space-x-1 min-w-0">
+                        <TerminalIcon size={10} class="{isPaneFocused ? 'text-ant-primary' : 'text-ant-text-muted'}" />
+                        <span class="font-mono font-medium truncate {isPaneFocused ? 'text-ant-text' : 'text-ant-text-secondary'}">
+                          {tabObj.title}
+                        </span>
+                      </div>
+
+                      <div class="flex items-center space-x-1">
+                        <Tooltip title="Unsplit (Move back to standalone tab)" placement="top">
+                          <button
+                            type="button"
+                            onclick={(e) => {
+                              e.stopPropagation();
+                              terminalStore.unsplitTerminal(sessionId, termId);
+                              refitAllSplitTerminals();
+                            }}
+                            class="p-0.5 text-ant-text-secondary hover:text-ant-primary hover:bg-white/10 rounded transition"
+                          >
+                            <ExternalLink size={10} />
+                          </button>
+                        </Tooltip>
+
+                        <Tooltip title="Close split pane" placement="top">
+                          <button
+                            type="button"
+                            onclick={(e) => {
+                              e.stopPropagation();
+                              terminalStore.closeTerminal(sessionId, termId);
+                              refitAllSplitTerminals();
+                            }}
+                            class="p-0.5 text-ant-text-secondary hover:text-rose-400 hover:bg-white/10 rounded transition"
+                          >
+                            <X size={10} />
+                          </button>
+                        </Tooltip>
+                      </div>
+                    </div>
+                  {/if}
+
+                  <!-- Terminal Canvas Node -->
+                  <div
+                    use:terminalContainerAction={termId}
+                    class="flex-1 w-full h-full p-1 bg-ant-bg"
+                  ></div>
+
+                  <!-- Visual Drop Indicator Overlay when dragging a tab over this pane -->
+                  {#if activeDropZone && activeDropZone.targetTermId === termId}
+                    <div
+                      class="absolute pointer-events-none z-40 bg-ant-primary/20 border-2 border-dashed border-ant-primary backdrop-blur-[1px] flex items-center justify-center transition-all duration-150 animate-pulse {
+                        activeDropZone.position === 'left' ? 'left-0 top-0 bottom-0 w-1/2 rounded-l-lg' :
+                        activeDropZone.position === 'right' ? 'right-0 top-0 bottom-0 w-1/2 rounded-r-lg' :
+                        activeDropZone.position === 'top' ? 'top-0 left-0 right-0 h-1/2 rounded-t-lg' :
+                        'bottom-0 left-0 right-0 h-1/2 rounded-b-lg'
+                      }"
+                    >
+                      <div class="px-2.5 py-1 rounded bg-ant-primary text-white text-[11px] font-serif font-medium shadow-md shadow-black/30">
+                        Split {activeDropZone.position.toUpperCase()}
+                      </div>
+                    </div>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
       </div>
     {:else}
       <!-- Right Docked Panel -->
@@ -648,15 +964,19 @@
             <!-- Left: Terminal Sub-Tabs -->
             <div class="flex items-center space-x-1 overflow-x-auto no-scrollbar flex-1 min-w-0 pr-1">
               {#each activeTerminals as tab (tab.id)}
-                {@const isActive = tab.id === activeTermId}
+                {@const isTabActive = activeSplitGroup?.paneTermIds.includes(tab.id) || tab.id === activeTermId}
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div
-                  class="flex items-center space-x-1.5 px-2.5 py-1 rounded-t-md text-xs transition-colors cursor-pointer border-t-2 flex-shrink-0 {isActive ? 'bg-ant-bg text-ant-text border-ant-primary font-medium shadow-sm' : 'border-transparent text-ant-text-secondary hover:text-ant-text hover:bg-white/5'}"
+                  draggable="true"
+                  ondragstart={(e) => handleTabDragStart(e, tab.id)}
+                  ondragend={handleTabDragEnd}
+                  class="flex items-center space-x-1.5 px-2 py-1 rounded-t-md text-xs transition-all cursor-grab active:cursor-grabbing border-t-2 flex-shrink-0 {isTabActive ? 'bg-ant-bg text-ant-text border-ant-primary font-medium shadow-sm' : 'border-transparent text-ant-text-secondary hover:text-ant-text hover:bg-white/5'}"
                   onclick={() => terminalStore.switchTerminal(sessionId, tab.id)}
                   ondblclick={(e) => startRename(tab, e)}
+                  title="Drag to terminal viewport to split"
                 >
-                  <TerminalIcon size={11} class="{isActive ? 'text-ant-primary' : 'text-ant-text-secondary'} flex-shrink-0" />
+                  <TerminalIcon size={11} class="{isTabActive ? 'text-ant-primary' : 'text-ant-text-secondary'} flex-shrink-0" />
                   {#if editingTermId === tab.id}
                     <!-- svelte-ignore a11y_autofocus -->
                     <input
@@ -704,6 +1024,16 @@
 
           <!-- Right Action Controls -->
           <div class="flex items-center space-x-1 flex-shrink-0">
+            <Tooltip title="Split Terminal" placement="bottom">
+              <button
+                type="button"
+                onclick={handleQuickSplit}
+                class="p-1 text-ant-text-secondary hover:text-ant-text hover:bg-white/10 rounded transition"
+              >
+                <Columns2 size={11} />
+              </button>
+            </Tooltip>
+
             <Tooltip title="Send output to Agent" placement="bottom">
               <button
                 type="button"
@@ -746,15 +1076,117 @@
           </div>
           </div>
 
-          <!-- Terminal Canvas Containers for Right Dock -->
-          <div class="flex-1 w-full relative overflow-hidden p-1 bg-ant-bg {isDragging ? 'pointer-events-none' : ''}">
-            {#each activeTerminals as tab (tab.id)}
+          <!-- Terminal Split Viewport Containers (Right Dock) -->
+          {#if true}
+            {@const rightSplitGroup = activeSplitGroup}
+            {@const visibleRightTermIds = rightSplitGroup?.paneTermIds || (activeTermId ? [activeTermId] : [])}
+            {@const isRightMultiSplit = visibleRightTermIds.length > 1}
+            <div
+              class="flex-1 w-full relative overflow-hidden p-1 bg-ant-bg {isDragging || isDraggingSplitDivider ? 'select-none' : ''}"
+            >
+              <!-- Split Flex Container for Right Dock -->
               <div
-                use:terminalContainerAction={tab.id}
-                class="w-full h-full {tab.id === activeTermId ? 'block' : 'hidden'}"
-              ></div>
-            {/each}
-          </div>
+                class="w-full h-full flex flex-col gap-0"
+              >
+                {#each visibleRightTermIds as termId, idx (termId)}
+                  {@const tabObj = activeTerminals.find((t) => t.id === termId)}
+                  {@const panePct = rightSplitGroup?.paneSizes?.[idx] ?? (100 / visibleRightTermIds.length)}
+                  {@const isPaneFocused = focusedPaneTermId === termId}
+
+                  <!-- Resizable Divider Handle between stacked panes in right dock -->
+                  {#if idx > 0}
+                    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                    <div
+                      role="separator"
+                      class="h-1.5 w-full cursor-row-resize bg-transparent hover:bg-ant-primary/50 active:bg-ant-primary transition-colors flex items-center justify-center flex-shrink-0 z-30 group"
+                      onmousedown={(e) => {
+                        const parent = (e.currentTarget as HTMLElement).parentElement;
+                        if (parent) {
+                          handleSplitDividerStart(e, idx - 1, true, parent);
+                        }
+                      }}
+                    >
+                      <div class="w-8 h-0.5 bg-ant-border-secondary dark:bg-white/10 group-hover:bg-ant-primary rounded-full transition-colors"></div>
+                    </div>
+                  {/if}
+
+                  <!-- Single Split Pane Box (Right Dock) -->
+                  <!-- svelte-ignore a11y_click_events_have_key_events -->
+                  <!-- svelte-ignore a11y_no_static_element_interactions -->
+                  <div
+                    class="relative flex flex-col min-w-0 min-h-0 rounded-lg overflow-hidden border transition-all {isPaneFocused ? 'border-ant-primary shadow-sm shadow-ant-primary/10' : 'border-ant-border-secondary dark:border-white/5'}"
+                    style="height: {panePct}%;"
+                    onclick={() => terminalStore.setFocusedPaneId(sessionId, termId)}
+                    ondragover={(e) => handlePaneDragOver(e, termId)}
+                    ondragleave={handlePaneDragLeave}
+                    ondrop={(e) => handlePaneDrop(e, termId)}
+                  >
+                    <!-- Mini Pane Header when in Multi-Split mode -->
+                    {#if isRightMultiSplit && tabObj}
+                      <div class="h-5 px-1.5 bg-ant-bg-secondary/80 border-b border-ant-border-secondary dark:border-white/5 flex items-center justify-between text-[10px] select-none flex-shrink-0">
+                        <div class="flex items-center space-x-1 min-w-0">
+                          <TerminalIcon size={9} class="{isPaneFocused ? 'text-ant-primary' : 'text-ant-text-muted'}" />
+                          <span class="font-mono font-medium truncate {isPaneFocused ? 'text-ant-text' : 'text-ant-text-secondary'}">
+                            {tabObj.title}
+                          </span>
+                        </div>
+
+                        <div class="flex items-center space-x-0.5">
+                          <Tooltip title="Unsplit" placement="bottom">
+                            <button
+                              type="button"
+                              onclick={(e) => {
+                                e.stopPropagation();
+                                terminalStore.unsplitTerminal(sessionId, termId);
+                                refitAllSplitTerminals();
+                              }}
+                              class="p-0.5 text-ant-text-secondary hover:text-ant-primary hover:bg-white/10 rounded transition"
+                            >
+                              <ExternalLink size={9} />
+                            </button>
+                          </Tooltip>
+
+                          <Tooltip title="Close split pane" placement="bottom">
+                            <button
+                              type="button"
+                              onclick={(e) => {
+                                e.stopPropagation();
+                                terminalStore.closeTerminal(sessionId, termId);
+                                refitAllSplitTerminals();
+                              }}
+                              class="p-0.5 text-ant-text-secondary hover:text-rose-400 hover:bg-white/10 rounded transition"
+                            >
+                              <X size={9} />
+                            </button>
+                          </Tooltip>
+                        </div>
+                      </div>
+                    {/if}
+
+                    <!-- Terminal Canvas Node -->
+                    <div
+                      use:terminalContainerAction={termId}
+                      class="flex-1 w-full h-full p-0.5 bg-ant-bg"
+                    ></div>
+
+                    <!-- Visual Drop Indicator Overlay (Right Dock) -->
+                    {#if activeDropZone && activeDropZone.targetTermId === termId}
+                      <div
+                        class="absolute pointer-events-none z-40 bg-ant-primary/20 border-2 border-dashed border-ant-primary backdrop-blur-[1px] flex items-center justify-center transition-all duration-150 animate-pulse {
+                          activeDropZone.position === 'top' ? 'top-0 left-0 right-0 h-1/2 rounded-t-lg' :
+                          'bottom-0 left-0 right-0 h-1/2 rounded-b-lg'
+                        }"
+                      >
+                        <div class="px-2 py-0.5 rounded bg-ant-primary text-white text-[10px] font-serif font-medium shadow-md shadow-black/30">
+                          Split {activeDropZone.position.toUpperCase()}
+                        </div>
+                      </div>
+                    {/if}
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {/if}
         </div>
       </div>
     {/if}

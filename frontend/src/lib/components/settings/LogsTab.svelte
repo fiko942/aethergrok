@@ -312,8 +312,8 @@
           }">
             <span>{log.message}</span>
             {#if log.details}
-              <div class="mt-1 p-2 rounded-lg bg-ant-bg-secondary dark:bg-black/40 border border-ant-border-secondary dark:border-white/5 text-[10.5px] text-ant-text font-mono overflow-x-auto shadow-2xs">
-                <pre class="whitespace-pre-wrap leading-relaxed text-ant-text dark:text-ant-text-secondary">{typeof log.details === 'object' ? JSON.stringify(log.details, null, 2) : String(log.details)}</pre>
+              <div class="mt-1.5 p-2.5 rounded-lg bg-zinc-100 dark:bg-black/50 border border-zinc-200 dark:border-white/10 text-[11px] text-zinc-900 dark:text-zinc-200 font-mono overflow-x-auto shadow-xs">
+                <pre class="whitespace-pre-wrap leading-relaxed text-zinc-900 dark:text-zinc-200 font-medium">{typeof log.details === 'object' ? JSON.stringify(log.details, null, 2) : String(log.details)}</pre>
               </div>
             {/if}
           </div>

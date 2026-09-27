@@ -363,20 +363,59 @@
   });
 
   // Parse directory listing output into clean file/folder items
-  const dirListingItems = $derived.by(() => {
-    if (toolParsed.type !== 'list' || !toolCall.result) return [];
+  const dirListingData = $derived.by(() => {
+    if (toolParsed.type !== 'list' || !toolCall.result) {
+      return { folders: [], files: [], all: [] };
+    }
     const raw = typeof toolCall.result === 'string' ? toolCall.result : '';
     const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
 
-    return lines.map(line => {
+    const targetDir = toolParsed.target?.replace(/^\.\/?/, '').replace(/\/$/, '') || '';
+
+    const items = lines.map(line => {
       // Strip bullet "- " or "• "
-      const clean = line.replace(/^[-*•]\s+/, '').trim();
+      let clean = line.replace(/^[-*•]\s+/, '').trim();
+      
+      // If path starts with target directory, show relative name
+      let displayName = clean;
+      if (targetDir && displayName.startsWith(targetDir + '/')) {
+        displayName = displayName.slice(targetDir.length + 1);
+      }
+      
       const isDir = clean.endsWith('/') || clean.endsWith('\\');
+      const ext = !isDir && displayName.includes('.') ? displayName.split('.').pop()?.toLowerCase() || '' : '';
+      
       return {
-        name: clean,
-        isDir
+        fullName: clean,
+        name: displayName,
+        isDir,
+        ext
       };
     });
+
+    const folders = items.filter(i => i.isDir).sort((a, b) => a.name.localeCompare(b.name));
+    const files = items.filter(i => !i.isDir).sort((a, b) => a.name.localeCompare(b.name));
+
+    return {
+      folders,
+      files,
+      all: [...folders, ...files]
+    };
+  });
+
+  const filteredDirItems = $derived.by(() => {
+    let source = dirListingData.all;
+    if (dirFilterTab === 'folders') source = dirListingData.folders;
+    if (dirFilterTab === 'files') source = dirListingData.files;
+
+    const q = dirSearchQuery.trim().toLowerCase();
+    if (!q) return source;
+
+    return source.filter(i => i.name.toLowerCase().includes(q) || i.fullName.toLowerCase().includes(q));
+  });
+
+  const displayDirList = $derived.by(() => {
+    return dirShowAll ? filteredDirItems : filteredDirItems.slice(0, 18);
   });
 
   // Parse polymorphic tool result (e.g. JSON TaskOutput from terminal/subagent tools, stripping ANSI)
@@ -615,26 +654,105 @@
             </table>
           </div>
         </div>
-      {:else if toolParsed.type === 'list' && dirListingItems.length > 0}
-        <!-- 2c. Clean Directory Listing Grid -->
-        <div class="rounded border border-white/5 bg-ant-bg-secondary/30 overflow-hidden text-[11px]">
-          <div class="flex items-center justify-between px-2.5 py-1 bg-ant-bg-tertiary/50 border-b border-white/5 text-[10px] select-none text-ant-text-muted">
-            <span class="font-mono text-indigo-400 font-medium">
-              {dirListingItems.length} {dirListingItems.length === 1 ? 'item' : 'items'} in directory
-            </span>
-          </div>
-          <div class="p-2 overflow-x-auto max-h-56 scrollbar-thin grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1">
-            {#each dirListingItems as item}
-              <div class="flex items-center space-x-1.5 px-2 py-1 rounded bg-white/[0.02] hover:bg-white/[0.05] text-[11.5px] font-mono truncate text-ant-text border border-white/[0.03]">
-                {#if item.isDir}
-                  <Folder size={12} class="text-indigo-400 flex-shrink-0" />
-                {:else}
-                  <FileCode size={12} class="text-blue-400/80 flex-shrink-0" />
-                {/if}
-                <span class="truncate" title={item.name}>{item.name}</span>
+      {:else if toolParsed.type === 'list' && dirListingData.all.length > 0}
+        <!-- 2c. Clean Directory Listing Grid with Categorization & Search Filter -->
+        <div class="rounded-lg border border-ant-border-secondary dark:border-white/5 bg-ant-bg-secondary/40 overflow-hidden text-[11px]">
+          <!-- Header Bar: Stats, Filter Tabs & Search -->
+          <div class="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-ant-bg-tertiary/60 border-b border-ant-border-secondary dark:border-white/5 text-[10px] select-none text-ant-text-muted">
+            <!-- Left: Counts & Filter Pills -->
+            <div class="flex items-center space-x-1.5 font-mono">
+              <span class="text-blue-700 dark:text-blue-400 font-semibold flex items-center gap-1">
+                <Folder size={12} class="text-blue-500" />
+                <span>{dirListingData.all.length} items</span>
+              </span>
+
+              <div class="flex items-center space-x-0.5 ml-2 bg-ant-bg p-0.5 rounded-md border border-ant-border-secondary dark:border-white/5 text-[10px]">
+                <button
+                  type="button"
+                  onclick={() => dirFilterTab = 'all'}
+                  class="px-2 py-0.5 rounded transition {dirFilterTab === 'all' ? 'bg-ant-primary/15 text-ant-primary font-bold' : 'text-ant-text-secondary hover:text-ant-text'}"
+                >
+                  All ({dirListingData.all.length})
+                </button>
+                <button
+                  type="button"
+                  onclick={() => dirFilterTab = 'folders'}
+                  class="px-2 py-0.5 rounded transition flex items-center gap-1 {dirFilterTab === 'folders' ? 'bg-ant-primary/15 text-ant-primary font-bold' : 'text-ant-text-secondary hover:text-ant-text'}"
+                >
+                  <Folder size={10} />
+                  <span>Folders ({dirListingData.folders.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onclick={() => dirFilterTab = 'files'}
+                  class="px-2 py-0.5 rounded transition flex items-center gap-1 {dirFilterTab === 'files' ? 'bg-ant-primary/15 text-ant-primary font-bold' : 'text-ant-text-secondary hover:text-ant-text'}"
+                >
+                  <FileCode size={10} />
+                  <span>Files ({dirListingData.files.length})</span>
+                </button>
               </div>
-            {/each}
+            </div>
+
+            <!-- Right: Search Input -->
+            <div class="relative w-40">
+              <Search size={11} class="absolute left-2 top-1/2 -translate-y-1/2 text-ant-text-muted" />
+              <input
+                type="text"
+                placeholder="Filter items..."
+                bind:value={dirSearchQuery}
+                class="w-full pl-6 pr-2 py-0.5 text-[10.5px] bg-ant-bg text-ant-text rounded border border-ant-border-secondary dark:border-white/5 outline-none focus:border-ant-primary transition font-sans"
+              />
+            </div>
           </div>
+
+          <!-- Items Grid -->
+          {#if filteredDirItems.length === 0}
+            <div class="p-4 text-center text-ant-text-muted text-[11px] italic">
+              No matching files or folders found
+            </div>
+          {:else}
+            <div class="p-2 overflow-x-auto max-h-64 scrollbar-thin grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5">
+              {#each displayDirList as item}
+                <div class="flex items-center space-x-2 px-2.5 py-1.5 rounded-md bg-ant-bg hover:bg-ant-bg-secondary text-[11.5px] font-mono truncate text-ant-text border border-ant-border-secondary dark:border-white/5 shadow-2xs group transition-colors">
+                  {#if item.isDir}
+                    <div class="p-1 rounded bg-blue-500/10 text-blue-700 dark:text-blue-400 flex-shrink-0">
+                      <Folder size={12} />
+                    </div>
+                  {:else}
+                    <div class="p-1 rounded bg-ant-bg-tertiary text-ant-text-secondary group-hover:text-ant-text flex-shrink-0">
+                      <FileCode size={12} />
+                    </div>
+                  {/if}
+                  <div class="flex-1 min-w-0">
+                    <span class="truncate block {item.isDir ? 'font-semibold text-blue-800 dark:text-blue-300' : 'text-ant-text'}" title={item.fullName}>
+                      {item.name}
+                    </span>
+                  </div>
+                  {#if item.isDir}
+                    <span class="text-[9px] uppercase tracking-wider text-blue-700 dark:text-blue-400/80 bg-blue-500/10 px-1 py-0.2 rounded font-semibold flex-shrink-0">dir</span>
+                  {:else if item.ext}
+                    <span class="text-[9px] uppercase tracking-wider text-ant-text-muted bg-ant-bg-tertiary px-1 py-0.2 rounded flex-shrink-0 font-medium">.{item.ext}</span>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+
+            <!-- Expand / Collapse Bar if count > 18 -->
+            {#if filteredDirItems.length > 18}
+              <div class="px-3 py-1.5 bg-ant-bg border-t border-ant-border-secondary dark:border-white/5 flex items-center justify-between text-[10.5px]">
+                <span class="text-ant-text-muted">
+                  Showing {displayDirList.length} of {filteredDirItems.length} items
+                </span>
+                <button
+                  type="button"
+                  onclick={() => dirShowAll = !dirShowAll}
+                  class="text-ant-primary hover:text-ant-primary-hover font-medium cursor-pointer"
+                >
+                  {dirShowAll ? 'Show less (first 18)' : `Show all ${filteredDirItems.length} items`}
+                </button>
+              </div>
+            {/if}
+          {/if}
         </div>
       {:else if (toolParsed.type === 'plan_enter' || toolParsed.type === 'plan_exit') && (planMarkdownContent || toolParsed.reason || toolCall.result)}
         <!-- 2d. Rich Markdown Plan Document Viewer -->
