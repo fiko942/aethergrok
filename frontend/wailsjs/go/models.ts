@@ -233,6 +233,24 @@ export namespace grokrunner {
 
 export namespace permissions {
 	
+	export class AudioDeviceInfo {
+	    name: string;
+	    isDefault: boolean;
+	    transport: string;
+	    manufacturer: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AudioDeviceInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.isDefault = source["isDefault"];
+	        this.transport = source["transport"];
+	        this.manufacturer = source["manufacturer"];
+	    }
+	}
 	export class Status {
 	    granted: boolean;
 	    message: string;

@@ -9,6 +9,9 @@
 export interface AudioInputDevice {
   deviceId: string;
   label: string;
+  isDefault?: boolean;
+  transport?: 'built-in' | 'bluetooth' | 'usb' | 'virtual' | 'continuity' | 'unknown';
+  manufacturer?: string;
 }
 
 export type VoiceRecorderState =
@@ -35,23 +38,95 @@ export class VoiceRecorderManager {
   private startTime: number = 0;
 
   /**
-   * Enumerate connected audio input devices (microphones)
+   * Enumerate connected audio input devices (microphones) with dual-layer native & browser metadata
    */
   async getAudioInputDevices(): Promise<AudioInputDevice[]> {
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.enumerateDevices) {
-      return [];
+    const win = (typeof window !== 'undefined' ? window : {}) as any;
+    let nativeDevices: Array<{ name: string; isDefault: boolean; transport: string; manufacturer: string }> = [];
+
+    if (win.go?.main?.App?.GetSystemAudioInputDevices) {
+      try {
+        const res = await win.go.main.App.GetSystemAudioInputDevices();
+        if (Array.isArray(res)) {
+          nativeDevices = res;
+        }
+      } catch (err) {
+        console.warn('Failed to retrieve native audio input devices:', err);
+      }
     }
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      return devices
-        .filter((d) => d && d.kind === 'audioinput')
-        .map((d, index) => ({
-          deviceId: d.deviceId || '',
-          label: d.label || `Microphone ${index + 1}`,
-        }));
-    } catch {
-      return [];
+
+    let webDevices: MediaDeviceInfo[] = [];
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.enumerateDevices) {
+      try {
+        const all = await navigator.mediaDevices.enumerateDevices();
+        webDevices = all.filter((d) => d && d.kind === 'audioinput');
+      } catch (err) {
+        console.warn('Failed to enumerate web media devices:', err);
+      }
     }
+
+    // If web devices with labels exist, map them with native metadata enrichments
+    if (webDevices.length > 0) {
+      const results: AudioInputDevice[] = [];
+      const hasLabels = webDevices.some((d) => d.label && d.label.trim() !== '');
+
+      for (let i = 0; i < webDevices.length; i++) {
+        const wd = webDevices[i];
+        let label = wd.label || '';
+        let matchedNative = nativeDevices.find((nd) => label && nd.name.toLowerCase().includes(label.toLowerCase()));
+
+        if (!matchedNative && !hasLabels && nativeDevices[i]) {
+          matchedNative = nativeDevices[i];
+        }
+
+        if (!label) {
+          if (matchedNative) {
+            label = matchedNative.Name || (matchedNative as any).name || '';
+          } else {
+            label = `Microphone ${i + 1}`;
+          }
+        }
+
+        let transport = (matchedNative?.transport as any) || 'unknown';
+        const labelLower = label.toLowerCase();
+        if (transport === 'unknown') {
+          if (labelLower.includes('built-in') || labelLower.includes('macbook') || labelLower.includes('internal')) {
+            transport = 'built-in';
+          } else if (labelLower.includes('airpods') || labelLower.includes('bluetooth') || labelLower.includes('wireless') || labelLower.includes('wh-') || labelLower.includes('wf-')) {
+            transport = 'bluetooth';
+          } else if (labelLower.includes('usb') || labelLower.includes('scarlett') || labelLower.includes('yeti') || labelLower.includes('podcast')) {
+            transport = 'usb';
+          } else if (labelLower.includes('movavi') || labelLower.includes('blackhole') || labelLower.includes('soundflower') || labelLower.includes('virtual') || labelLower.includes('grabber')) {
+            transport = 'virtual';
+          } else if (labelLower.includes('iphone') || labelLower.includes('ipad') || labelLower.includes('continuity')) {
+            transport = 'continuity';
+          }
+        }
+
+        results.push({
+          deviceId: wd.deviceId || '',
+          label,
+          isDefault: matchedNative?.isDefault || wd.deviceId === 'default',
+          transport,
+          manufacturer: matchedNative?.manufacturer || ''
+        });
+      }
+
+      return results;
+    }
+
+    // Fallback if browser mediaDevices did not return items but native profiler did
+    if (nativeDevices.length > 0) {
+      return nativeDevices.map((nd, idx) => ({
+        deviceId: nd.isDefault ? 'default' : `native-dev-${idx}`,
+        label: nd.name,
+        isDefault: nd.isDefault,
+        transport: nd.transport as any,
+        manufacturer: nd.manufacturer
+      }));
+    }
+
+    return [];
   }
 
   /**

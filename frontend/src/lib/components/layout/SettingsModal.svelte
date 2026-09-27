@@ -44,6 +44,7 @@
   import Switch from '$lib/antd/Switch.svelte';
   import Badge from '$lib/antd/Badge.svelte';
   import KeyRecorderModal from '$lib/components/ui/KeyRecorderModal.svelte';
+  import MicrophoneSelectDropdown from '$lib/components/layout/MicrophoneSelectDropdown.svelte';
   import { voiceRecorder, type AudioInputDevice } from '$lib/utils/voiceRecorder';
 
   let {
@@ -1175,19 +1176,16 @@
                   </p>
 
                   <div class="space-y-2">
-                    <label for="mic-device-select" class="block text-xs font-medium text-ant-text">
+                    <span class="block text-xs font-medium text-ant-text">
                       Active Microphone
-                    </label>
-                    <select
-                      id="mic-device-select"
-                      bind:value={editSelectedMicrophoneDeviceId}
-                      class="w-full bg-ant-bg text-ant-text border border-white/10 rounded-xl px-3.5 py-2 text-xs outline-none focus:border-ant-primary transition font-serif cursor-pointer"
-                    >
-                      <option value="">Default System Microphone</option>
-                      {#each audioInputDevices as device}
-                        <option value={device.deviceId}>{device.label}</option>
-                      {/each}
-                    </select>
+                    </span>
+                    <MicrophoneSelectDropdown
+                      selectedDeviceId={editSelectedMicrophoneDeviceId}
+                      devices={audioInputDevices}
+                      onselect={(id) => {
+                        editSelectedMicrophoneDeviceId = id;
+                      }}
+                    />
                   </div>
                 </div>
               </Card>

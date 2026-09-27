@@ -143,6 +143,7 @@ declare global {
           OpenAccessibilitySettings: () => Promise<void>;
           CheckMicrophonePermission: () => Promise<{ granted: boolean; message: string; platform: string }>;
           RequestMicrophonePermission: () => Promise<{ granted: boolean; message: string; platform: string }>;
+          GetSystemAudioInputDevices: () => Promise<Array<{ name: string; isDefault: boolean; transport: string; manufacturer: string }>>;
           OpenMicrophoneSettings: () => Promise<void>;
           SaveVoiceAudioRecording: (base64Data: string, ext: string) => Promise<string>;
           DeleteVoiceAudioRecording: (filePath: string) => Promise<void>;

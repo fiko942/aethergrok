@@ -601,6 +601,11 @@ func (a *App) RequestMicrophonePermission() permissions.Status {
 	return permissions.RequestMicrophonePermission()
 }
 
+// GetSystemAudioInputDevices returns the list of physical and virtual microphone input devices
+func (a *App) GetSystemAudioInputDevices() ([]permissions.AudioDeviceInfo, error) {
+	return permissions.GetAudioInputDevices()
+}
+
 // OpenMicrophoneSettings opens macOS System Settings to Microphone panel
 func (a *App) OpenMicrophoneSettings() error {
 	return permissions.OpenMicrophonePreferences()

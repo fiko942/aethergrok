@@ -54,6 +54,8 @@ export function GetSessionUsage(arg1:string,arg2:string):Promise<grokrunner.Sess
 
 export function GetSnapshotCacheStats():Promise<screen.CacheStats>;
 
+export function GetSystemAudioInputDevices():Promise<Array<permissions.AudioDeviceInfo>>;
+
 export function GetWorkspaceFileDiff(arg1:string,arg2:string):Promise<string>;
 
 export function GetWorkspaceGitStatus(arg1:string):Promise<workspace.GitStatusResult>;
