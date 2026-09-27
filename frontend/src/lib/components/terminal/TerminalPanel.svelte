@@ -246,6 +246,11 @@
   const pendingFitMap = new Map<string, number>();
 
   function scheduleXtermFit(termId: string) {
+    // If the panel or divider is actively being dragged, skip fitting until drag ends
+    if (isDragging || isResizingPanel || isDraggingSplitDivider) {
+      return;
+    }
+
     if (pendingFitMap.has(termId)) {
       cancelAnimationFrame(pendingFitMap.get(termId)!);
     }
@@ -265,11 +270,7 @@
   }
 
   function refitAllSplitTerminals() {
-    const activeSplit = terminalStore.getActiveSplitGroup(sessionId);
-    if (!activeSplit) return;
-    for (const termId of activeSplit.paneTermIds) {
-      scheduleXtermFit(termId);
-    }
+    forceRefitAllSplitTerminals();
   }
 
   // Interactive Split Divider dragging
@@ -322,7 +323,6 @@
 
           if (activeSplit) {
             terminalStore.setGroupPaneSizes(sessionId, activeSplit.id, newSizes);
-            refitAllSplitTerminals();
           }
         }
       });
@@ -446,9 +446,12 @@
 
   let rafId: number | null = null;
 
+  let isResizingPanel = $state(false);
+
   function handleResizeStart(e: MouseEvent) {
     e.preventDefault();
     isDragging = true;
+    isResizingPanel = true;
     startX = e.clientX;
     startY = e.clientY;
     startHeight = terminalStore.panelHeight;
@@ -482,6 +485,7 @@
 
   function handleResizeEnd() {
     isDragging = false;
+    isResizingPanel = false;
     if (rafId) {
       cancelAnimationFrame(rafId);
       rafId = null;
@@ -492,7 +496,7 @@
 
     window.removeEventListener('mousemove', handleResizeMove);
     window.removeEventListener('mouseup', handleResizeEnd);
-    refitActiveTerminal();
+    refitAllSplitTerminals();
   }
 
   function refitActiveTerminal() {
@@ -871,7 +875,7 @@
           {@const visibleTermIds = splitGroup?.paneTermIds || (activeTermId ? [activeTermId] : [])}
           {@const isMultiSplit = visibleTermIds.length > 1}
           <div
-            class="flex-1 w-full relative overflow-hidden p-1 bg-ant-bg {isDragging || isDraggingSplitDivider ? 'select-none' : ''}"
+            class="flex-1 w-full relative overflow-hidden p-1 bg-ant-bg {isDragging || isResizingPanel || isDraggingSplitDivider ? 'select-none' : ''}"
           >
             <!-- Split Flex Container -->
             <div
@@ -1119,7 +1123,7 @@
             {@const visibleRightTermIds = rightSplitGroup?.paneTermIds || (activeTermId ? [activeTermId] : [])}
             {@const isRightMultiSplit = visibleRightTermIds.length > 1}
             <div
-              class="flex-1 w-full relative overflow-hidden p-1 bg-ant-bg {isDragging || isDraggingSplitDivider ? 'select-none' : ''}"
+              class="flex-1 w-full relative overflow-hidden p-1 bg-ant-bg {isDragging || isResizingPanel || isDraggingSplitDivider ? 'select-none' : ''}"
             >
               <!-- Split Flex Container for Right Dock -->
               <div
