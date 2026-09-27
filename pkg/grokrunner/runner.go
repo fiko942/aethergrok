@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"aethergrok/pkg/storage"
 )
 
 // ActiveSession holds running process information for a session
@@ -29,6 +30,14 @@ type Runner struct {
 	mu             sync.Mutex
 	sessions       map[string]*ActiveSession
 	grokBinaryPath string
+	storageMgr     *storage.StorageManager
+}
+
+// SetStorageManager binds persistent storage manager for automatic permission modes
+func (r *Runner) SetStorageManager(sm *storage.StorageManager) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.storageMgr = sm
 }
 
 // ResolveGrokBinary searches for the grok CLI binary across standard paths and environment
@@ -230,6 +239,18 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 		} else if isUUID(targetGrokID) {
 			// Brand new session with an explicitly requested UUID
 			args = append(args, "--session-id", targetGrokID)
+		}
+	}
+
+	// Check if default model or options need fallback from storage settings
+	if r.storageMgr != nil {
+		if st, err := r.storageMgr.GetSettings(); err == nil {
+			if req.Options.Model == "" && st.DefaultModel != "" {
+				args = append(args, "--model", st.DefaultModel)
+			}
+			if req.Options.ReasoningEffort == "" && st.DefaultReasoningEffort != "" {
+				args = append(args, "--reasoning-effort", st.DefaultReasoningEffort)
+			}
 		}
 	}
 

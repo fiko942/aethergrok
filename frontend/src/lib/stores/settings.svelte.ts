@@ -51,6 +51,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 };
 
 export class SettingsStore {
+  isHydrated = $state<boolean>(false);
   theme = $state<ThemeMode>(DEFAULT_SETTINGS.theme);
   defaultModel = $state<DefaultModel>(DEFAULT_SETTINGS.defaultModel);
   defaultReasoningEffort = $state<ReasoningEffort>(DEFAULT_SETTINGS.defaultReasoningEffort);
@@ -70,8 +71,98 @@ export class SettingsStore {
   sidebarCollapsed = $state<boolean>(DEFAULT_SETTINGS.sidebarCollapsed);
   selectedMicrophoneDeviceId = $state<string>(DEFAULT_SETTINGS.selectedMicrophoneDeviceId);
 
+  private saveTimeout: any = null;
+
   constructor() {
     this.loadFromStorage();
+    if (typeof window !== 'undefined') {
+      this.hydrateFromBackend();
+      // Retry once after Wails IPC bindings are fully registered on window
+      setTimeout(() => {
+        if (!this.isHydrated) {
+          this.hydrateFromBackend();
+        }
+      }, 100);
+    }
+  }
+
+  async hydrateFromBackend(): Promise<void> {
+    const win = typeof window !== 'undefined' ? (window as any) : null;
+    if (win?.go?.main?.App?.GetAppSettings) {
+      try {
+        const backendSettings = await win.go.main.App.GetAppSettings();
+        if (backendSettings && typeof backendSettings === 'object') {
+          // If backend has settings, apply them
+          this.applySettings(backendSettings);
+          this.isHydrated = true;
+          logger.info('SETTINGS', 'Hydrated settings from persistent backend storage');
+          return;
+        }
+      } catch (err) {
+        logger.error('SETTINGS', 'Failed to hydrate settings from backend, using local fallback', err);
+      }
+    }
+
+    // Auto-migrate from localStorage if backend was empty
+    this.saveToStorage();
+    this.isHydrated = true;
+  }
+
+  private applySettings(parsed: Partial<AppSettings>): void {
+    if (parsed.theme && ['dark-studio', 'dark-high-contrast', 'light-antd'].includes(parsed.theme)) {
+      this.theme = parsed.theme;
+    }
+    if (parsed.defaultModel) {
+      this.defaultModel = parsed.defaultModel;
+    }
+    if (parsed.defaultReasoningEffort && ['none', 'low', 'medium', 'high', 'max'].includes(parsed.defaultReasoningEffort)) {
+      this.defaultReasoningEffort = parsed.defaultReasoningEffort;
+    }
+    if (parsed.permissionMode && ['default', 'acceptEdits', 'auto', 'plan', 'bypassPermissions'].includes(parsed.permissionMode)) {
+      this.permissionMode = parsed.permissionMode;
+    }
+    if (parsed.planGateMode && ['active', 'bypass'].includes(parsed.planGateMode)) {
+      this.planGateMode = parsed.planGateMode;
+    }
+    if (typeof parsed.animationsEnabled === 'boolean') {
+      this.animationsEnabled = parsed.animationsEnabled;
+    }
+    if (typeof parsed.grokBinaryPath === 'string') {
+      this.grokBinaryPath = parsed.grokBinaryPath;
+    }
+    if (typeof parsed.snapshotShortcut === 'string') {
+      this.snapshotShortcut = parsed.snapshotShortcut;
+    }
+    if (typeof parsed.snapshotDelayMs === 'number' && Number.isFinite(parsed.snapshotDelayMs)) {
+      this.snapshotDelayMs = parsed.snapshotDelayMs;
+    }
+    if (typeof parsed.snapshotAutoHideWindow === 'boolean') {
+      this.snapshotAutoHideWindow = parsed.snapshotAutoHideWindow;
+    }
+    if (typeof parsed.snapshotSoundEnabled === 'boolean') {
+      this.snapshotSoundEnabled = parsed.snapshotSoundEnabled;
+    }
+    if (typeof parsed.snapshotFlashEnabled === 'boolean') {
+      this.snapshotFlashEnabled = parsed.snapshotFlashEnabled;
+    }
+    if (typeof parsed.snapshotAutoAttach === 'boolean') {
+      this.snapshotAutoAttach = parsed.snapshotAutoAttach;
+    }
+    if (typeof parsed.activeWindowTurnCount === 'number' && Number.isFinite(parsed.activeWindowTurnCount)) {
+      this.activeWindowTurnCount = parsed.activeWindowTurnCount;
+    }
+    if (typeof parsed.maxContextTokens === 'number' && Number.isFinite(parsed.maxContextTokens)) {
+      this.maxContextTokens = parsed.maxContextTokens;
+    }
+    if (typeof parsed.sidebarWidth === 'number' && Number.isFinite(parsed.sidebarWidth)) {
+      this.sidebarWidth = Math.min(480, Math.max(220, parsed.sidebarWidth));
+    }
+    if (typeof parsed.sidebarCollapsed === 'boolean') {
+      this.sidebarCollapsed = parsed.sidebarCollapsed;
+    }
+    if (typeof parsed.selectedMicrophoneDeviceId === 'string') {
+      this.selectedMicrophoneDeviceId = parsed.selectedMicrophoneDeviceId;
+    }
   }
 
   loadFromStorage(): void {
@@ -80,94 +171,50 @@ export class SettingsStore {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       const parsed = JSON.parse(raw) as Partial<AppSettings>;
-
-      if (parsed.theme && ['dark-studio', 'dark-high-contrast', 'light-antd'].includes(parsed.theme)) {
-        this.theme = parsed.theme;
-      }
-      if (parsed.defaultModel) {
-        this.defaultModel = parsed.defaultModel;
-      }
-      if (parsed.defaultReasoningEffort && ['none', 'low', 'medium', 'high', 'max'].includes(parsed.defaultReasoningEffort)) {
-        this.defaultReasoningEffort = parsed.defaultReasoningEffort;
-      }
-      if (parsed.permissionMode && ['default', 'acceptEdits', 'auto', 'plan', 'bypassPermissions'].includes(parsed.permissionMode)) {
-        this.permissionMode = parsed.permissionMode;
-      }
-      if (parsed.planGateMode && ['active', 'bypass'].includes(parsed.planGateMode)) {
-        this.planGateMode = parsed.planGateMode;
-      }
-      if (typeof parsed.animationsEnabled === 'boolean') {
-        this.animationsEnabled = parsed.animationsEnabled;
-      }
-      if (typeof parsed.grokBinaryPath === 'string') {
-        this.grokBinaryPath = parsed.grokBinaryPath;
-      }
-      if (typeof parsed.snapshotShortcut === 'string') {
-        this.snapshotShortcut = parsed.snapshotShortcut;
-      }
-      if (typeof parsed.snapshotDelayMs === 'number' && Number.isFinite(parsed.snapshotDelayMs)) {
-        this.snapshotDelayMs = parsed.snapshotDelayMs;
-      }
-      if (typeof parsed.snapshotAutoHideWindow === 'boolean') {
-        this.snapshotAutoHideWindow = parsed.snapshotAutoHideWindow;
-      }
-      if (typeof parsed.snapshotSoundEnabled === 'boolean') {
-        this.snapshotSoundEnabled = parsed.snapshotSoundEnabled;
-      }
-      if (typeof parsed.snapshotFlashEnabled === 'boolean') {
-        this.snapshotFlashEnabled = parsed.snapshotFlashEnabled;
-      }
-      if (typeof parsed.snapshotAutoAttach === 'boolean') {
-        this.snapshotAutoAttach = parsed.snapshotAutoAttach;
-      }
-      if (typeof parsed.activeWindowTurnCount === 'number' && Number.isFinite(parsed.activeWindowTurnCount)) {
-        this.activeWindowTurnCount = parsed.activeWindowTurnCount;
-      }
-      if (typeof parsed.maxContextTokens === 'number' && Number.isFinite(parsed.maxContextTokens)) {
-        this.maxContextTokens = parsed.maxContextTokens;
-      }
-      if (typeof parsed.sidebarWidth === 'number' && Number.isFinite(parsed.sidebarWidth)) {
-        this.sidebarWidth = Math.min(480, Math.max(220, parsed.sidebarWidth));
-      }
-      if (typeof parsed.sidebarCollapsed === 'boolean') {
-        this.sidebarCollapsed = parsed.sidebarCollapsed;
-      }
-      if (typeof parsed.selectedMicrophoneDeviceId === 'string') {
-        this.selectedMicrophoneDeviceId = parsed.selectedMicrophoneDeviceId;
-      }
+      this.applySettings(parsed);
     } catch (err) {
       console.warn('Failed to load settings from localStorage:', err);
     }
   }
 
   saveToStorage(): void {
-    if (typeof window === 'undefined' || !window.localStorage) return;
-    try {
-      const data: AppSettings = {
-        theme: this.theme,
-        defaultModel: this.defaultModel,
-        defaultReasoningEffort: this.defaultReasoningEffort,
-        permissionMode: this.permissionMode,
-        planGateMode: this.planGateMode,
-        animationsEnabled: this.animationsEnabled,
-        grokBinaryPath: this.grokBinaryPath,
-        snapshotShortcut: this.snapshotShortcut,
-        snapshotDelayMs: this.snapshotDelayMs,
-        snapshotAutoHideWindow: this.snapshotAutoHideWindow,
-        snapshotSoundEnabled: this.snapshotSoundEnabled,
-        snapshotFlashEnabled: this.snapshotFlashEnabled,
-        snapshotAutoAttach: this.snapshotAutoAttach,
-        activeWindowTurnCount: this.activeWindowTurnCount,
-        maxContextTokens: this.maxContextTokens,
-        sidebarWidth: this.sidebarWidth,
-        sidebarCollapsed: this.sidebarCollapsed,
-        selectedMicrophoneDeviceId: this.selectedMicrophoneDeviceId
-      };
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      logger.info('SETTINGS', 'Application settings saved to localStorage', { theme: this.theme, defaultModel: this.defaultModel });
-    } catch (err) {
-      logger.error('SETTINGS', 'Failed to save settings to localStorage', err);
-      console.warn('Failed to save settings to localStorage:', err);
+    const data: AppSettings = {
+      theme: this.theme,
+      defaultModel: this.defaultModel,
+      defaultReasoningEffort: this.defaultReasoningEffort,
+      permissionMode: this.permissionMode,
+      planGateMode: this.planGateMode,
+      animationsEnabled: this.animationsEnabled,
+      grokBinaryPath: this.grokBinaryPath,
+      snapshotShortcut: this.snapshotShortcut,
+      snapshotDelayMs: this.snapshotDelayMs,
+      snapshotAutoHideWindow: this.snapshotAutoHideWindow,
+      snapshotSoundEnabled: this.snapshotSoundEnabled,
+      snapshotFlashEnabled: this.snapshotFlashEnabled,
+      snapshotAutoAttach: this.snapshotAutoAttach,
+      activeWindowTurnCount: this.activeWindowTurnCount,
+      maxContextTokens: this.maxContextTokens,
+      sidebarWidth: this.sidebarWidth,
+      sidebarCollapsed: this.sidebarCollapsed,
+      selectedMicrophoneDeviceId: this.selectedMicrophoneDeviceId
+    };
+
+    // 1. Fallback save to localStorage for offline cache
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (e) {}
+    }
+
+    // 2. Persist to Go backend storage
+    const win = typeof window !== 'undefined' ? (window as any) : null;
+    if (win?.go?.main?.App?.SaveAppSettings) {
+      clearTimeout(this.saveTimeout);
+      this.saveTimeout = setTimeout(() => {
+        win.go.main.App.SaveAppSettings(data).catch((err: any) => {
+          logger.error('SETTINGS', 'Failed to save settings to backend storage', err);
+        });
+      }, 50);
     }
   }
 

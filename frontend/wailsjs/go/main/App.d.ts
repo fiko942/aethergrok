@@ -5,6 +5,7 @@ import {screen} from '../models';
 import {permissions} from '../models';
 import {workspace} from '../models';
 import {grokrunner} from '../models';
+import {storage} from '../models';
 import {skills} from '../models';
 
 export function AppendSystemLog(arg1:logger.LogEntry):Promise<void>;
@@ -49,6 +50,8 @@ export function DiscoverGrokSessions(arg1:string):Promise<Array<grokrunner.GrokS
 
 export function ExecuteSkillSetupCommand(arg1:string,arg2:string):Promise<void>;
 
+export function GetAppSettings():Promise<storage.AppSettings>;
+
 export function GetAvailableModels():Promise<Array<grokrunner.ModelInfo>>;
 
 export function GetInstalledSkills():Promise<Array<skills.Skill>>;
@@ -63,9 +66,13 @@ export function GetSystemAudioInputDevices():Promise<Array<permissions.AudioDevi
 
 export function GetTerminalBuffer(arg1:string):Promise<string>;
 
+export function GetUIState():Promise<storage.UIState>;
+
 export function GetWorkspaceFileDiff(arg1:string,arg2:string):Promise<string>;
 
 export function GetWorkspaceGitStatus(arg1:string):Promise<workspace.GitStatusResult>;
+
+export function GetWorkspaces():Promise<Array<storage.Workspace>>;
 
 export function Greet(arg1:string):Promise<string>;
 
@@ -105,13 +112,19 @@ export function RevertWorkspaceFiles(arg1:string,arg2:Array<string>):Promise<voi
 
 export function RunPromptStream(arg1:grokrunner.PromptRequest):Promise<void>;
 
+export function SaveAppSettings(arg1:storage.AppSettings):Promise<void>;
+
 export function SaveLogExport(arg1:string,arg2:string,arg3:string):Promise<string>;
 
 export function SaveMarkdownExport(arg1:string,arg2:string):Promise<string>;
 
 export function SaveTemporaryImage(arg1:string,arg2:string):Promise<screen.SnapshotResult>;
 
+export function SaveUIState(arg1:storage.UIState):Promise<void>;
+
 export function SaveVoiceAudioRecording(arg1:string,arg2:string):Promise<string>;
+
+export function SaveWorkspaces(arg1:Array<storage.Workspace>):Promise<void>;
 
 export function ScanGitHubSkills(arg1:string):Promise<skills.SkillAnalysisResult>;
 

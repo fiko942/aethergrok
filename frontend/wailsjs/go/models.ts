@@ -493,6 +493,95 @@ export namespace skills {
 
 }
 
+export namespace storage {
+	
+	export class AppSettings {
+	    theme: string;
+	    defaultModel: string;
+	    defaultReasoningEffort: string;
+	    permissionMode: string;
+	    planGateMode: string;
+	    animationsEnabled: boolean;
+	    grokBinaryPath: string;
+	    snapshotShortcut: string;
+	    snapshotDelayMs: number;
+	    snapshotAutoHideWindow: boolean;
+	    snapshotSoundEnabled: boolean;
+	    snapshotFlashEnabled: boolean;
+	    snapshotAutoAttach: boolean;
+	    activeWindowTurnCount: number;
+	    maxContextTokens: number;
+	    sidebarWidth: number;
+	    sidebarCollapsed: boolean;
+	    selectedMicrophoneDeviceId: string;
+	    updatedAt?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new AppSettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.theme = source["theme"];
+	        this.defaultModel = source["defaultModel"];
+	        this.defaultReasoningEffort = source["defaultReasoningEffort"];
+	        this.permissionMode = source["permissionMode"];
+	        this.planGateMode = source["planGateMode"];
+	        this.animationsEnabled = source["animationsEnabled"];
+	        this.grokBinaryPath = source["grokBinaryPath"];
+	        this.snapshotShortcut = source["snapshotShortcut"];
+	        this.snapshotDelayMs = source["snapshotDelayMs"];
+	        this.snapshotAutoHideWindow = source["snapshotAutoHideWindow"];
+	        this.snapshotSoundEnabled = source["snapshotSoundEnabled"];
+	        this.snapshotFlashEnabled = source["snapshotFlashEnabled"];
+	        this.snapshotAutoAttach = source["snapshotAutoAttach"];
+	        this.activeWindowTurnCount = source["activeWindowTurnCount"];
+	        this.maxContextTokens = source["maxContextTokens"];
+	        this.sidebarWidth = source["sidebarWidth"];
+	        this.sidebarCollapsed = source["sidebarCollapsed"];
+	        this.selectedMicrophoneDeviceId = source["selectedMicrophoneDeviceId"];
+	        this.updatedAt = source["updatedAt"];
+	    }
+	}
+	export class UIState {
+	    activeWorkspaceId: string;
+	    activeSessionId: string;
+	    openTabSessionIds: string[];
+	    updatedAt?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new UIState(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.activeWorkspaceId = source["activeWorkspaceId"];
+	        this.activeSessionId = source["activeSessionId"];
+	        this.openTabSessionIds = source["openTabSessionIds"];
+	        this.updatedAt = source["updatedAt"];
+	    }
+	}
+	export class Workspace {
+	    id: string;
+	    name: string;
+	    path: string;
+	    createdAt: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Workspace(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.path = source["path"];
+	        this.createdAt = source["createdAt"];
+	    }
+	}
+
+}
+
 export namespace workspace {
 	
 	export class FileCheckResult {

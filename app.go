@@ -23,6 +23,7 @@ import (
 	"aethergrok/pkg/permissions"
 	"aethergrok/pkg/screen"
 	"aethergrok/pkg/skills"
+	"aethergrok/pkg/storage"
 	"aethergrok/pkg/terminal"
 	"aethergrok/pkg/workspace"
 
@@ -37,16 +38,23 @@ type App struct {
 	skillsReg     *skills.Registry
 	hotkeyMgr     *hotkey.Manager
 	terminalMgr   *terminal.Manager
+	storageMgr    *storage.StorageManager
 }
 
 // NewApp creates a new App application struct
 func NewApp() *App {
+	sm, _ := storage.NewStorageManager("")
+	runner := grokrunner.NewRunner()
+	if sm != nil {
+		runner.SetStorageManager(sm)
+	}
 	return &App{
-		runner:        grokrunner.NewRunner(),
+		runner:        runner,
 		screenCapture: screen.NewOrchestrator(),
 		skillsReg:     skills.NewRegistry(),
 		hotkeyMgr:     hotkey.NewManager(),
 		terminalMgr:   terminal.NewManager(),
+		storageMgr:    sm,
 	}
 }
 
@@ -519,6 +527,80 @@ func (a *App) RevealGrokConfigFile() error {
 	}
 
 	return nil
+}
+
+// Storage Management APIs (Persistent Settings, Workspaces, UIState)
+
+// GetAppSettings retrieves the stored application settings
+func (a *App) GetAppSettings() (storage.AppSettings, error) {
+	if a.storageMgr == nil {
+		sm, err := storage.NewStorageManager("")
+		if err != nil {
+			return storage.DefaultSettings(), err
+		}
+		a.storageMgr = sm
+	}
+	return a.storageMgr.GetSettings()
+}
+
+// SaveAppSettings writes updated application settings to disk
+func (a *App) SaveAppSettings(settings storage.AppSettings) error {
+	if a.storageMgr == nil {
+		sm, err := storage.NewStorageManager("")
+		if err != nil {
+			return err
+		}
+		a.storageMgr = sm
+	}
+	return a.storageMgr.SaveSettings(settings)
+}
+
+// GetWorkspaces retrieves all registered workspace folders
+func (a *App) GetWorkspaces() ([]storage.Workspace, error) {
+	if a.storageMgr == nil {
+		sm, err := storage.NewStorageManager("")
+		if err != nil {
+			return []storage.Workspace{}, err
+		}
+		a.storageMgr = sm
+	}
+	return a.storageMgr.GetWorkspaces()
+}
+
+// SaveWorkspaces persists the list of workspaces
+func (a *App) SaveWorkspaces(workspaces []storage.Workspace) error {
+	if a.storageMgr == nil {
+		sm, err := storage.NewStorageManager("")
+		if err != nil {
+			return err
+		}
+		a.storageMgr = sm
+	}
+	return a.storageMgr.SaveWorkspaces(workspaces)
+}
+
+// GetUIState retrieves open tabs and active workspace/session
+func (a *App) GetUIState() (storage.UIState, error) {
+	if a.storageMgr == nil {
+		sm, err := storage.NewStorageManager("")
+		if err != nil {
+			return storage.UIState{}, err
+		}
+		a.storageMgr = sm
+	}
+	return a.storageMgr.GetUIState()
+}
+
+// SaveUIState persists open tabs and active workspace/session
+func (a *App) SaveUIState(state storage.UIState) error {
+	if a.storageMgr == nil {
+		sm, err := storage.NewStorageManager("")
+		if err != nil {
+			return err
+		}
+		a.storageMgr = sm
+	}
+	return a.storageMgr.SaveUIState(state)
 }
 
 func (a *App) SearchSkills(query string, category string) []skills.Skill {

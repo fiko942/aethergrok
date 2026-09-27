@@ -220,6 +220,7 @@ class SessionStore {
     // Trigger verification of workspaces and active session hydration on disk
     if (typeof window !== 'undefined') {
       setTimeout(async () => {
+        await this.hydrateFromBackend();
         logger.info('SESSION', 'Starting session and workspace reconciliation cycle');
         await this.verifyAllWorkspaces();
         this.reconcileSessionState();
@@ -237,6 +238,53 @@ class SessionStore {
           }
         }
       }, 50);
+    }
+  }
+
+  async hydrateFromBackend(): Promise<void> {
+    const win = typeof window !== 'undefined' ? (window as any) : null;
+    if (!win?.go?.main?.App) return;
+
+    try {
+      // 1. Load workspaces from backend storage
+      if (win.go.main.App.GetWorkspaces) {
+        const storedWs = await win.go.main.App.GetWorkspaces();
+        if (Array.isArray(storedWs) && storedWs.length > 0) {
+          this.workspaces = storedWs.map((w: any) => ({
+            id: w.id,
+            name: w.name,
+            path: w.path,
+            createdAt: w.createdAt || Date.now(),
+            isExpanded: false
+          }));
+        } else if (this.workspaces.length > 0 && win.go.main.App.SaveWorkspaces) {
+          // Auto-migrate local workspaces to backend
+          await win.go.main.App.SaveWorkspaces(this.workspaces.map(w => ({
+            id: w.id,
+            name: w.name,
+            path: w.path,
+            createdAt: w.createdAt
+          })));
+        }
+      }
+
+      // 2. Load UI state from backend storage
+      if (win.go.main.App.GetUIState) {
+        const uiState = await win.go.main.App.GetUIState();
+        if (uiState) {
+          if (uiState.activeWorkspaceId) {
+            this.activeWorkspaceId = uiState.activeWorkspaceId;
+          }
+          if (Array.isArray(uiState.openTabSessionIds) && uiState.openTabSessionIds.length > 0) {
+            this.openTabSessionIds = uiState.openTabSessionIds;
+          }
+          if (uiState.activeSessionId) {
+            this.activeSessionId = uiState.activeSessionId;
+          }
+        }
+      }
+    } catch (err) {
+      logger.error('SESSION', 'Failed to hydrate session/workspace state from backend', err);
     }
   }
 
@@ -260,16 +308,29 @@ class SessionStore {
   }
 
   private saveWorkspacesToStorage() {
-    if (typeof window === 'undefined' || !window.localStorage) return;
-    try {
-      window.localStorage.setItem(WORKSPACES_STORAGE_KEY, JSON.stringify(this.workspaces));
-      if (this.activeWorkspaceId) {
-        window.localStorage.setItem(ACTIVE_WS_STORAGE_KEY, this.activeWorkspaceId);
-      } else {
-        window.localStorage.removeItem(ACTIVE_WS_STORAGE_KEY);
+    // 1. LocalStorage fallback
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.setItem(WORKSPACES_STORAGE_KEY, JSON.stringify(this.workspaces));
+        if (this.activeWorkspaceId) {
+          window.localStorage.setItem(ACTIVE_WS_STORAGE_KEY, this.activeWorkspaceId);
+        } else {
+          window.localStorage.removeItem(ACTIVE_WS_STORAGE_KEY);
+        }
+      } catch (e) {
+        console.warn('Failed to save workspaces to storage:', e);
       }
-    } catch (e) {
-      console.warn('Failed to save workspaces to storage:', e);
+    }
+
+    // 2. Persist to Go backend storage
+    const win = typeof window !== 'undefined' ? (window as any) : null;
+    if (win?.go?.main?.App?.SaveWorkspaces) {
+      win.go.main.App.SaveWorkspaces(this.workspaces.map(w => ({
+        id: w.id,
+        name: w.name,
+        path: w.path,
+        createdAt: w.createdAt
+      }))).catch(() => {});
     }
   }
 
@@ -302,17 +363,29 @@ class SessionStore {
   }
 
   saveSessionsToStorage() {
-    if (typeof window === 'undefined' || !window.localStorage) return;
-    try {
-      window.localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(this.sessions));
-      window.localStorage.setItem(OPEN_TABS_STORAGE_KEY, JSON.stringify(this.openTabSessionIds));
-      if (this.activeSessionId) {
-        window.localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, this.activeSessionId);
-      } else {
-        window.localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
+    // 1. LocalStorage fallback
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(this.sessions));
+        window.localStorage.setItem(OPEN_TABS_STORAGE_KEY, JSON.stringify(this.openTabSessionIds));
+        if (this.activeSessionId) {
+          window.localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, this.activeSessionId);
+        } else {
+          window.localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
+        }
+      } catch (e) {
+        console.warn('Failed to save sessions to storage:', e);
       }
-    } catch (e) {
-      console.warn('Failed to save sessions to storage:', e);
+    }
+
+    // 2. Persist UIState (open tabs and active workspace/session) to backend
+    const win = typeof window !== 'undefined' ? (window as any) : null;
+    if (win?.go?.main?.App?.SaveUIState) {
+      win.go.main.App.SaveUIState({
+        activeWorkspaceId: this.activeWorkspaceId,
+        activeSessionId: this.activeSessionId || '',
+        openTabSessionIds: this.openTabSessionIds
+      }).catch(() => {});
     }
   }
 

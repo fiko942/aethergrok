@@ -125,6 +125,13 @@ declare global {
           LoadPersistedLogs: (limit: number) => Promise<Array<{ id: string; timestamp: number; level: string; category: string; message: string; details?: any }>>;
           ClearPersistedLogs: () => Promise<void>;
           GetAvailableModels: () => Promise<Array<{ id: string; name: string; description: string; isDefault: boolean }>>;
+          // Persistent Backend Storage APIs
+          GetAppSettings: () => Promise<any>;
+          SaveAppSettings: (settings: any) => Promise<void>;
+          GetWorkspaces: () => Promise<Array<{ id: string; name: string; path: string; createdAt: number }>>;
+          SaveWorkspaces: (workspaces: Array<{ id: string; name: string; path: string; createdAt: number }>) => Promise<void>;
+          GetUIState: () => Promise<{ activeWorkspaceId: string; activeSessionId: string; openTabSessionIds: string[]; updatedAt?: number }>;
+          SaveUIState: (state: { activeWorkspaceId: string; activeSessionId: string; openTabSessionIds: string[]; updatedAt?: number }) => Promise<void>;
           // Terminal & Process Management APIs
           CreateTerminal: (sessionId: string, termId: string, cwd: string, shell: string) => Promise<void>;
           WriteTerminal: (termId: string, data: string) => Promise<void>;

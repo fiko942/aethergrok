@@ -86,6 +86,10 @@ export function ExecuteSkillSetupCommand(arg1, arg2) {
   return window['go']['main']['App']['ExecuteSkillSetupCommand'](arg1, arg2);
 }
 
+export function GetAppSettings() {
+  return window['go']['main']['App']['GetAppSettings']();
+}
+
 export function GetAvailableModels() {
   return window['go']['main']['App']['GetAvailableModels']();
 }
@@ -114,12 +118,20 @@ export function GetTerminalBuffer(arg1) {
   return window['go']['main']['App']['GetTerminalBuffer'](arg1);
 }
 
+export function GetUIState() {
+  return window['go']['main']['App']['GetUIState']();
+}
+
 export function GetWorkspaceFileDiff(arg1, arg2) {
   return window['go']['main']['App']['GetWorkspaceFileDiff'](arg1, arg2);
 }
 
 export function GetWorkspaceGitStatus(arg1) {
   return window['go']['main']['App']['GetWorkspaceGitStatus'](arg1);
+}
+
+export function GetWorkspaces() {
+  return window['go']['main']['App']['GetWorkspaces']();
 }
 
 export function Greet(arg1) {
@@ -198,6 +210,10 @@ export function RunPromptStream(arg1) {
   return window['go']['main']['App']['RunPromptStream'](arg1);
 }
 
+export function SaveAppSettings(arg1) {
+  return window['go']['main']['App']['SaveAppSettings'](arg1);
+}
+
 export function SaveLogExport(arg1, arg2, arg3) {
   return window['go']['main']['App']['SaveLogExport'](arg1, arg2, arg3);
 }
@@ -210,8 +226,16 @@ export function SaveTemporaryImage(arg1, arg2) {
   return window['go']['main']['App']['SaveTemporaryImage'](arg1, arg2);
 }
 
+export function SaveUIState(arg1) {
+  return window['go']['main']['App']['SaveUIState'](arg1);
+}
+
 export function SaveVoiceAudioRecording(arg1, arg2) {
   return window['go']['main']['App']['SaveVoiceAudioRecording'](arg1, arg2);
+}
+
+export function SaveWorkspaces(arg1) {
+  return window['go']['main']['App']['SaveWorkspaces'](arg1);
 }
 
 export function ScanGitHubSkills(arg1) {
