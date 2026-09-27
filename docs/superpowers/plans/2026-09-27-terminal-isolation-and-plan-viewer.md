@@ -1,36 +1,27 @@
-# Plan: Session-Isolated Multi-Tab Terminal & Expandable Plan Viewer
+# Plan: Terminal Isolation, Cross-Platform Process Cleanup, and Plan Viewer
 
-## Tasks
+## Execution Log & Status
 
-- [ ] Task 1: Go Backend Terminal Manager (`pkg/terminal`)
-  - Create `pkg/terminal/terminal.go` and `terminal_test.go`
-  - Implement PTY allocation and process group termination (`-pgid`)
-  - Expose Wails methods in `app.go`:
-    - `CreateTerminal(sessionId, termId, cwd, shell string) error`
-    - `WriteTerminal(termId, data string) error`
-    - `ResizeTerminal(termId, cols, rows int) error`
-    - `CloseTerminal(termId string) error`
-    - `CloseSessionTerminals(sessionId string) error`
-    - `GetPlanContent(planPath string) (string, error)`
-
-- [ ] Task 2: Expandable Plan Markdown Viewer
-  - Update `ToolCallCard.svelte` to fetch plan content or load file content when `toolParsed.type === 'plan_enter'` or `'plan_exit'` is expanded
-  - Render with `renderMarkdown` / formatted markdown container
-
-- [ ] Task 3: Terminal Frontend Components & Store
-  - Create `frontend/src/lib/stores/terminal.svelte.ts`
-  - Create `frontend/src/lib/components/terminal/TerminalPanel.svelte`
-  - Implement Xterm / ANSI canvas renderer with multi-tab support
-  - Implement Drag-to-resize divider
-  - Implement "Send to Agent" button which injects terminal output into active prompt composer
-
-- [ ] Task 4: App Integration & Session Binding
-  - Mount `TerminalPanel` in `App.svelte` below chat message view
-  - Ensure switching tabs preserves background terminal execution per session
-  - Clean up terminals on session tab close
-
-- [ ] Task 5: Verification & Testing
-  - Run `go test ./...`
-  - Run frontend build `npm run build`
-  - Verify process group cleanup
-  - Commit & Push to Git
+- [x] **Backend PTY Engine (`pkg/terminal/terminal.go`)**:
+  - Implemented `Manager` and `Instance` with PTY creation and lifecycle tracking.
+  - Added Wails bindings: `CreateTerminal`, `WriteTerminal`, `ResizeTerminal`, `CloseTerminal`, `CloseSessionTerminals`.
+- [x] **Cross-Platform Process Cleanup (`pkg/terminal/pty_unix.go`, `pkg/terminal/pty_windows.go`)**:
+  - Unix/macOS: `syscall.Setpgid`, `syscall.Kill(-pgid, SIGTERM)` followed by `SIGKILL` to clean all descendants.
+  - Windows: `CREATE_NEW_PROCESS_GROUP` and `taskkill /T /F /PID <pid>`.
+  - Added cross-platform `osFileWrapper` for uniform I/O.
+- [x] **Shell Login Environment & PATH Injection**:
+  - Spawn login shell (`shell, "-l"`) on macOS/Unix.
+  - Merge `/opt/homebrew/bin`, `~/.local/bin`, `~/Library/pnpm`, `/usr/local/bin`, and language bins into `PATH`.
+  - Fix broken symlinks in `~/.local/bin/` pointing to outdated runtimes.
+- [x] **Frontend Terminal Multi-Tab & Store (`TerminalPanel.svelte`, `terminal.svelte.ts`)**:
+  - Per-session terminal tab isolation in Svelte store.
+  - `@import '@xterm/xterm/css/xterm.css'` to properly hide xterm helper textarea and prevent visual text artifacts.
+  - Minimalist styling without white borders for the "Send to Agent" button.
+  - Resizable height handle, maximize toggle, and buffer clear action.
+- [x] **Plan Markdown Viewer (`ToolCallCard.svelte`, `app.go`)**:
+  - Added backend `GetPlanContent(planPath string)` binding.
+  - Automatic markdown rendering on tool card expansion for `enter_plan_mode` and `exit_plan_mode`.
+- [x] **Verification & Cross-Platform Builds**:
+  - Go unit tests: `go test -count=1 -v ./...` (100% pass).
+  - Wails cross-compilation: Windows (`aethergrok.exe`) and macOS (`aethergrok.app`).
+  - Frontend production build (`vite build`): Succeeded.
