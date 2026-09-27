@@ -290,10 +290,10 @@
         <button
           type="button"
           onclick={handleSendToAgent}
-          class="flex items-center space-x-1 px-2 py-0.5 rounded bg-ant-primary/15 text-ant-primary hover:bg-ant-primary/25 border border-ant-primary/30 text-[11px] font-medium transition"
+          class="flex items-center space-x-1 px-2.5 py-1 rounded-md bg-ant-primary/10 text-ant-primary hover:bg-ant-primary/20 text-[11px] font-medium transition outline-none"
           title="Attach recent terminal output to agent composer"
         >
-          <Send size={10} />
+          <Send size={11} />
           <span>Send to Agent</span>
         </button>
 
