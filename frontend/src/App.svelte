@@ -1104,7 +1104,7 @@
   <!-- Top Navigation Bar -->
   <header
     ondblclick={handleHeaderDoubleClick}
-    class="flex items-center justify-between pl-20 pr-4 h-[38px] bg-ant-bg-secondary border-b border-white/5 flex-shrink-0 cursor-default"
+    class="flex items-center justify-between pl-20 pr-4 h-[38px] bg-ant-bg-secondary border-b border-ant-border flex-shrink-0 cursor-default"
     style="--wails-draggable:drag"
   >
     <div class="flex items-center space-x-2 shrink-0">
@@ -1136,7 +1136,7 @@
       />
       <div class="flex items-center space-x-2 shrink-0">
         <span class="font-serif-display font-bold text-sm tracking-tight text-ant-text leading-none select-none">AetherGrok</span>
-        <span class="px-1.5 py-0.5 text-[9px] font-mono font-medium bg-white/5 text-ant-text-muted rounded border border-transparent leading-none select-none">v{__APP_VERSION__}</span>
+        <span class="px-1.5 py-0.5 text-[9px] font-mono font-medium bg-ant-bg-tertiary text-ant-text-muted rounded border border-ant-border/40 leading-none select-none">v{__APP_VERSION__}</span>
       </div>
     </div>
 
@@ -1147,7 +1147,7 @@
       <Button size="small" type="default" onclick={() => skillsCatalogVisible = true}>
         <Sparkles size={13} class="mr-1 text-ant-primary" /> Skills Hub
       </Button>
-      <div class="h-6.5 flex items-center space-x-2 text-xs text-ant-text-secondary bg-ant-bg px-2 rounded-md border border-white/5 shrink-0 whitespace-nowrap">
+      <div class="h-6.5 flex items-center space-x-2 text-xs text-ant-text-secondary bg-ant-bg px-2 rounded-md border border-ant-border shrink-0 whitespace-nowrap shadow-2xs">
         <Badge status={isWorking ? 'processing' : 'success'} />
         <span class="whitespace-nowrap">Model: <strong class="text-ant-text font-medium">{selectedModel}</strong></span>
       </div>
@@ -1192,7 +1192,7 @@
 
     <!-- Left Sidebar: Workspace & Session Management (Resizable & Collapsible) -->
     <aside
-      class="{isCompact ? 'fixed top-12 bottom-0 left-0 z-40 shadow-2xl transition-transform duration-200 ease-out' : `relative ${isDraggingSidebar ? 'transition-none' : 'transition-[width] duration-200 ease-out'}`} bg-ant-bg-secondary border-r border-white/5 flex flex-col justify-between p-3 overflow-hidden flex-shrink-0 {isDraggingSidebar ? 'select-none pointer-events-none' : ''}"
+      class="{isCompact ? 'fixed top-12 bottom-0 left-0 z-40 shadow-2xl transition-transform duration-200 ease-out' : `relative ${isDraggingSidebar ? 'transition-none' : 'transition-[width] duration-200 ease-out'}`} bg-ant-bg-secondary border-r border-ant-border flex flex-col justify-between p-3 overflow-hidden flex-shrink-0 {isDraggingSidebar ? 'select-none pointer-events-none' : ''}"
       style="{isCompact ? (settingsStore.sidebarCollapsed ? 'transform: translateX(-100%); width: 288px;' : 'transform: translateX(0); width: 288px;') : (settingsStore.sidebarCollapsed ? 'width: 0px; padding: 0px; border-right: none;' : `width: ${settingsStore.sidebarWidth || 288}px;`)}"
     >
       <!-- Workspace Folders & Sessions List -->
@@ -1201,7 +1201,7 @@
       </div>
 
       <!-- Compact Engine Controls & Quick Settings Footer -->
-      <div class="pt-2 mt-1 border-t border-white/5 flex-shrink-0">
+      <div class="pt-2 mt-1 border-t border-ant-border flex-shrink-0">
         <Tooltip
           title="Settings"
           shortcut={isMac ? '⌘,' : 'Ctrl+,'}
@@ -1210,7 +1210,7 @@
           <button
             type="button"
             onclick={() => settingsModalVisible = true}
-            class="w-full flex items-center space-x-2 px-2 py-1.5 bg-ant-bg/60 hover:bg-ant-bg-tertiary border border-white/5 hover:border-white/10 rounded-md text-xs text-ant-text transition group cursor-pointer"
+            class="w-full flex items-center space-x-2 px-2 py-1.5 bg-ant-bg hover:bg-ant-bg-tertiary border border-ant-border hover:border-ant-primary/40 rounded-md text-xs text-ant-text transition group cursor-pointer shadow-2xs"
           >
             <div class="w-5 h-5 rounded bg-ant-primary/10 flex items-center justify-center text-ant-primary group-hover:scale-105 transition-transform flex-shrink-0">
               <Settings size={12} />
@@ -1232,7 +1232,7 @@
         title="Drag to resize (220-480px), Double-click to reset"
         class="w-[6px] -ml-[3px] hover:w-[6px] hover:bg-ant-primary/40 active:bg-ant-primary transition-colors cursor-col-resize z-20 select-none flex-shrink-0 relative group flex items-center justify-center"
       >
-        <div class="w-[2px] h-8 rounded-full bg-white/10 group-hover:bg-ant-primary/60 transition-colors"></div>
+        <div class="w-[2px] h-8 rounded-full bg-ant-border group-hover:bg-ant-primary transition-colors"></div>
       </div>
     {/if}
 
@@ -1247,7 +1247,7 @@
           <button
             type="button"
             onclick={toggleSidebar}
-            class="flex items-center justify-center w-7 h-7 rounded-md bg-ant-bg-secondary/90 hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-primary border border-white/5 shadow-md backdrop-blur-sm transition-all cursor-pointer"
+            class="flex items-center justify-center w-7 h-7 rounded-md bg-ant-bg-secondary hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-primary border border-ant-border shadow-md backdrop-blur-sm transition-all cursor-pointer"
           >
             <ChevronRight size={15} />
           </button>

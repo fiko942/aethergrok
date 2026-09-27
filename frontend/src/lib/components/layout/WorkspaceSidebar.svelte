@@ -374,7 +374,7 @@
 
 <div class="flex flex-col w-full h-full bg-ant-bg-secondary select-none relative z-20 font-serif">
   <!-- 1. Search Bar & Action Controls -->
-  <div class="p-2.5 border-b border-white/5 space-y-2">
+  <div class="p-2.5 border-b border-ant-border space-y-2">
     <!-- Search Bar -->
     <div class="relative flex items-center">
       <Search size={13} class="absolute left-2.5 text-ant-text-muted" />
@@ -382,7 +382,7 @@
         type="text"
         bind:value={searchQuery}
         placeholder="Filter project & session..."
-        class="w-full bg-ant-bg-secondary/80 border border-transparent rounded-md pl-8 pr-2.5 py-1 text-xs text-ant-text placeholder-ant-text-muted focus:border-ant-primary/30 focus:bg-ant-bg focus:outline-none transition-colors"
+        class="w-full bg-ant-bg border border-ant-border rounded-md pl-8 pr-2.5 py-1 text-xs text-ant-text placeholder-ant-text-muted focus:border-ant-primary focus:bg-ant-bg focus:outline-none transition-colors shadow-2xs"
       />
     </div>
 
@@ -399,7 +399,7 @@
 
       <button
         onclick={() => sessionStore.toggleSelectionMode()}
-        class="text-[11px] font-medium px-2 py-0.5 rounded transition {sessionStore.isSelectionMode ? 'bg-ant-primary text-white' : 'text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary'}"
+        class="text-[11px] font-medium px-2 py-0.5 rounded transition border {sessionStore.isSelectionMode ? 'bg-ant-primary text-white border-ant-primary' : 'text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-ant-border/60'}"
         title="Toggle Multi-Select"
       >
         {sessionStore.isSelectionMode ? 'Cancel' : 'Select'}
@@ -499,7 +499,7 @@
       {@const { visible, totalCount, hasMore, hiddenCount } = getWorkspaceSessions(ws.id)}
       {@const isMissing = ws.existsOnDisk === false}
 
-      <div class="rounded-lg {isMissing ? 'bg-rose-500/5 border border-rose-500/20' : 'bg-ant-bg-tertiary/20 border border-white/5'} overflow-hidden">
+      <div class="rounded-lg {isMissing ? 'bg-rose-500/5 border border-rose-500/20' : 'bg-ant-bg border border-ant-border'} overflow-hidden shadow-2xs">
         <!-- Workspace Folder Header -->
         <div
           role="button"
@@ -512,7 +512,7 @@
           onkeydown={(e) => {
             if (e.key === 'Enter' && !isMissing) handleToggleWorkspace(ws.id);
           }}
-          class="flex items-center justify-between px-2.5 py-1.5 {isMissing ? 'bg-rose-500/10 cursor-not-allowed opacity-90' : 'bg-ant-bg-secondary/60 hover:bg-ant-bg-tertiary/60 cursor-pointer'} transition select-none group"
+          class="flex items-center justify-between px-2.5 py-1.5 {isMissing ? 'bg-rose-500/10 cursor-not-allowed opacity-90' : 'bg-ant-bg-secondary hover:bg-ant-bg-tertiary cursor-pointer'} transition select-none group border-b {isExpanded ? 'border-ant-border/60' : 'border-transparent'}"
           title={isMissing ? `Folder ini sudah tidak ada lagi di disk: ${ws.path}` : ws.path}
         >
           <div class="flex items-center space-x-1.5 min-w-0 flex-1">
@@ -699,44 +699,44 @@
         onclick={(e) => e.stopPropagation()}
         onkeydown={(e) => { if (e.key === 'Escape') activeDropdownId = null; }}
         style="top: {activeDropdownCoords.top}px; right: {activeDropdownCoords.right}px;"
-        class="session-dropdown-menu fixed w-48 bg-ant-bg-secondary/95 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl z-[9999] py-1 text-xs select-none font-serif animate-fade-in"
+        class="session-dropdown-menu fixed w-48 bg-ant-bg border border-ant-border rounded-lg shadow-2xl z-[9999] py-1 text-xs select-none font-serif animate-fade-in"
       >
         <button
           onclick={(e) => handleTogglePin(activeSession, e)}
-          class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-bg-tertiary text-amber-300 transition text-left"
+          class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-bg-secondary text-amber-500 transition text-left"
         >
           <Pin size={12.5} />
           <span>{activeSession.isPinned ? 'Unpin Conversation' : 'Pin Conversation'}</span>
         </button>
         <button
           onclick={(e) => handleStartRename(activeSession, e)}
-          class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-bg-tertiary text-ant-text transition text-left"
+          class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-bg-secondary text-ant-text transition text-left"
         >
           <Edit2 size={12.5} />
           <span>Rename</span>
         </button>
         <button
           onclick={(e) => handleExportMarkdown(activeSession, e)}
-          class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-bg-tertiary text-ant-text transition text-left"
+          class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-bg-secondary text-ant-text transition text-left"
         >
           <FileText size={12.5} />
           <span>Export as .md</span>
         </button>
         <button
           onclick={(e) => handleCopySessionId(activeSession, e)}
-          class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-bg-tertiary text-ant-text transition text-left"
+          class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-bg-secondary text-ant-text transition text-left"
         >
           <Copy size={12.5} />
           <span>Copy Session ID</span>
         </button>
         <button
           onclick={(e) => handleCopySessionName(activeSession, e)}
-          class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-bg-tertiary text-ant-text transition text-left"
+          class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-bg-secondary text-ant-text transition text-left"
         >
           <Tag size={12.5} />
           <span>Copy Session Title</span>
         </button>
-        <div class="border-t border-white/5 my-1"></div>
+        <div class="border-t border-ant-border/60 my-1"></div>
         <button
           onclick={(e) => handleDeleteSession(activeSession, e)}
           class="w-full flex items-center space-x-2 px-3 py-1.5 hover:bg-ant-error/15 text-ant-error transition text-left"

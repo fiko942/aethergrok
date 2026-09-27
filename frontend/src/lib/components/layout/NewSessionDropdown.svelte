@@ -72,14 +72,14 @@
 {#if open}
   <div
     bind:this={dropdownRef}
-    class="absolute z-[9999] min-w-[280px] max-w-[340px] bg-[#1a1c23] border border-white/10 rounded-xl shadow-2xl backdrop-blur-md p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150 select-none {
+    class="absolute z-[9999] min-w-[280px] max-w-[340px] bg-ant-bg border border-ant-border rounded-xl shadow-2xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150 select-none {
       placement === 'bottom-end' ? 'right-0 top-full mt-1.5' : placement === 'bottom-start' ? 'left-0 top-full mt-1.5' : 'left-1/2 -translate-x-1/2 top-full mt-2'
     }"
   >
     <!-- Dropdown Header -->
-    <div class="px-2.5 py-1.5 text-[11px] font-mono uppercase tracking-wider text-ant-text-muted flex items-center justify-between border-b border-white/5">
+    <div class="px-2.5 py-1.5 text-[11px] font-mono uppercase tracking-wider text-ant-text-secondary flex items-center justify-between border-b border-ant-border/60 bg-ant-bg-secondary rounded-t-lg">
       <span>Select Workspace</span>
-      <span class="text-[10px] text-ant-text-muted/60 lowercase">for new conversation</span>
+      <span class="text-[10px] text-ant-text-muted lowercase">for new conversation</span>
     </div>
 
     <!-- Workspace List -->
@@ -92,28 +92,28 @@
           onclick={() => handleSelectWorkspace(ws)}
           class="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-serif text-left transition group {
             isActive
-              ? 'bg-blue-500/10 text-blue-400 font-medium'
-              : 'text-ant-text hover:bg-white/5'
+              ? 'bg-ant-primary/15 text-ant-primary border border-ant-primary/30 font-medium'
+              : 'text-ant-text hover:bg-ant-bg-secondary border border-transparent'
           }"
         >
           <div class="flex items-center space-x-2.5 min-w-0">
             <div class="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 {
-              isActive ? 'bg-blue-500/20 text-blue-400' : 'bg-white/5 text-ant-text-secondary group-hover:text-ant-text'
+              isActive ? 'bg-ant-primary/20 text-ant-primary' : 'bg-ant-bg-tertiary text-ant-primary group-hover:text-ant-primary'
             }">
               <Folder size={13} />
             </div>
             <div class="min-w-0">
-              <div class="truncate text-xs font-serif">{ws.name}</div>
+              <div class="truncate text-xs font-serif font-medium">{ws.name}</div>
               <div class="truncate text-[10px] font-mono text-ant-text-muted">{ws.path}</div>
             </div>
           </div>
 
           <div class="flex items-center space-x-1.5 flex-shrink-0 ml-2">
-            <span class="text-[10.5px] font-mono px-1.5 py-0.2 rounded bg-white/5 text-ant-text-muted">
+            <span class="text-[10.5px] font-mono px-1.5 py-0.2 rounded bg-ant-bg-tertiary border border-ant-border/40 text-ant-text-muted">
               {sessionCount}
             </span>
             {#if isActive}
-              <Check size={13} class="text-blue-400" />
+              <Check size={13} class="text-ant-primary" />
             {/if}
           </div>
         </button>
@@ -121,7 +121,7 @@
     </div>
 
     <!-- Divider & Open New Workspace Action -->
-    <div class="pt-1 border-t border-white/5">
+    <div class="pt-1 border-t border-ant-border/60">
       <button
         type="button"
         onclick={handleOpenNewFolder}

@@ -80,7 +80,7 @@
   }
 </script>
 
-<div class="flex items-center w-full bg-ant-bg-secondary border-b border-white/5 px-2 h-10 select-none gap-1.5 font-serif relative overflow-visible z-20">
+<div class="flex items-center w-full bg-ant-bg-secondary border-b border-ant-border px-2 h-10 select-none gap-1.5 font-serif relative overflow-visible z-20">
   <div class="flex items-center space-x-1 flex-1 min-w-0 overflow-x-auto no-scrollbar py-1">
     {#each sessionStore.openTabs as session, index (session.id)}
       {@const isActive = sessionStore.activeSessionId === session.id}
@@ -102,8 +102,8 @@
         onclick={() => sessionStore.switchSession(session.id)}
         onkeydown={(e) => e.key === 'Enter' && sessionStore.switchSession(session.id)}
         class="group relative flex items-center h-8 pl-2.5 pr-2 rounded-md text-xs font-medium cursor-pointer transition-all duration-200 border max-w-[220px] min-w-[120px] flex-shrink-0 {isActive
-          ? 'bg-ant-bg text-ant-primary border-white/[0.08] shadow-sm font-semibold'
-          : 'bg-ant-bg-tertiary/40 text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'} {isDragging ? 'opacity-40 scale-95' : ''} {isOver ? 'border-r-2 border-r-ant-primary' : ''} {settingsStore.animationsEnabled ? 'tab-peel-transition' : ''}"
+          ? 'bg-ant-bg text-ant-primary border-ant-border shadow-2xs font-semibold'
+          : 'bg-ant-bg-tertiary/40 text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-ant-border/40'} {isDragging ? 'opacity-40 scale-95' : ''} {isOver ? 'border-r-2 border-r-ant-primary' : ''} {settingsStore.animationsEnabled ? 'tab-peel-transition' : ''}"
       >
         <!-- Status Icon Matching Sidebar -->
         {#if session.status === 'working'}
@@ -172,7 +172,7 @@
             </span>
             {#if showWsBadge}
               <span
-                class="flex-shrink-0 text-[9.5px] font-mono px-1 py-0.2 rounded bg-white/[0.06] text-ant-text-muted border border-white/[0.04] max-w-[65px] truncate"
+                class="flex-shrink-0 text-[9.5px] font-mono px-1 py-0.2 rounded bg-ant-bg-tertiary text-ant-text-muted border border-ant-border/50 max-w-[65px] truncate"
                 title={`Workspace: ${ws?.name} (${ws?.path})`}
               >
                 {ws?.name}
@@ -248,7 +248,7 @@
     <button
       type="button"
       onclick={handleNewSession}
-      class="flex items-center justify-center w-7 h-7 rounded hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-primary border border-transparent hover:border-ant-border transition flex-shrink-0 cursor-pointer {isDropdownOpen ? 'bg-ant-bg-tertiary text-ant-primary' : ''}"
+      class="flex items-center justify-center w-7 h-7 rounded bg-ant-bg hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-primary border border-ant-border hover:border-ant-primary/40 transition flex-shrink-0 cursor-pointer shadow-2xs {isDropdownOpen ? 'bg-ant-bg-tertiary text-ant-primary border-ant-primary/40' : ''}"
       title="Create new conversation (Choose workspace)"
     >
       <Plus size={15} />
