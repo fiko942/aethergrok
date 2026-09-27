@@ -228,13 +228,24 @@ class SessionStore {
     // Validate activeSessionId and openTabSessionIds against actual sessions
     this.reconcileSessionState();
 
-    // Trigger verification of workspaces on disk
+    // Trigger verification of workspaces and active session hydration on disk
     if (typeof window !== 'undefined') {
       setTimeout(async () => {
         await this.verifyAllWorkspaces();
         this.reconcileSessionState();
-        this.verifySessionsOnDisk();
-      }, 100);
+        await this.verifySessionsOnDisk();
+
+        // Auto-hydrate the active session transcript and token usage stats
+        if (this.activeSessionId) {
+          const activeSess = this.sessions.find((s) => s.id === this.activeSessionId);
+          if (activeSess) {
+            if (activeSess.messages.length === 0 || activeSess.grokSessionId) {
+              await this.loadSessionHistoryFromDisk(activeSess);
+            }
+            await this.loadSessionUsage(activeSess);
+          }
+        }
+      }, 50);
     }
   }
 
@@ -911,9 +922,16 @@ class SessionStore {
     }
   }
 
-  switchSession(id: string): void {
-    if (this.activeSessionId === id) return;
-    this.openSessionInTab(id);
+  async switchSession(id: string): Promise<void> {
+    if (this.activeSessionId === id) {
+      const target = this.sessions.find((s) => s.id === id);
+      if (target && target.messages.length === 0) {
+        await this.loadSessionHistoryFromDisk(target);
+        await this.loadSessionUsage(target);
+      }
+      return;
+    }
+    await this.openSessionInTab(id);
   }
 
   // Close tab only (preserves session in sidebar and disk)

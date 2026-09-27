@@ -95,9 +95,12 @@
   let editingTitle = $state<string>('');
 
   function selectOnFocus(node: HTMLInputElement) {
-    // Immediate select and focus
-    node.focus();
-    node.select();
+    // Delay slightly to bypass the browser double-click selection collapse
+    setTimeout(() => {
+      node.focus();
+      node.select();
+      node.setSelectionRange(0, node.value.length);
+    }, 20);
   }
 
   function startRename(tab: TerminalTab, e: MouseEvent) {
@@ -347,24 +350,51 @@
   {#if isCollapsed}
     <!-- Slim Collapsed Bar (Session Isolated) -->
     {#if dockPosition === 'bottom'}
-      <div class="h-7 w-full bg-ant-bg-secondary border-t border-ant-border flex items-center justify-between px-3 text-xs text-ant-text-secondary select-none flex-shrink-0 z-20">
-        <div class="flex items-center space-x-2">
-          <TerminalIcon size={12} class="text-ant-primary" />
-          <span class="font-mono text-[11px] font-medium text-ant-text truncate max-w-[180px]">
-            {activeTerminals.find((t) => t.id === activeTermId)?.title || 'Terminal'}
-          </span>
-          <span class="px-1.5 py-0.2 text-[10px] rounded-full bg-ant-bg-tertiary text-ant-text-secondary border border-ant-border">
-            {activeTerminals.length} tab{activeTerminals.length > 1 ? 's' : ''}
-          </span>
+      <div class="h-8 w-full bg-ant-bg-secondary border-t border-ant-border flex items-center justify-between px-3 text-xs text-ant-text-secondary select-none flex-shrink-0 z-20">
+        <!-- Left: Horizontal Clickable Tab Chips -->
+        <div class="flex items-center space-x-1.5 overflow-x-auto no-scrollbar flex-1 min-w-0 pr-2">
+          {#each activeTerminals as tab (tab.id)}
+            {@const isActive = tab.id === activeTermId}
+            <Tooltip title={`Open ${tab.title}`} placement="top">
+              <button
+                type="button"
+                onclick={() => {
+                  terminalStore.switchTerminal(sessionId, tab.id);
+                  terminalStore.toggleSessionCollapse(sessionId, false);
+                  refitActiveTerminal();
+                }}
+                class="flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono transition border flex-shrink-0 {isActive ? 'bg-ant-bg text-ant-primary border-ant-primary/40 shadow-sm font-medium' : 'text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'}"
+              >
+                <TerminalIcon size={11} class="{isActive ? 'text-ant-primary' : 'text-ant-text-secondary'} flex-shrink-0" />
+                <span class="truncate max-w-[140px] whitespace-nowrap">{tab.title}</span>
+              </button>
+            </Tooltip>
+          {/each}
+
+          <Tooltip title="New Terminal" placement="top">
+            <button
+              type="button"
+              onclick={() => {
+                terminalStore.createTerminal(sessionId, workspacePath);
+                terminalStore.toggleSessionCollapse(sessionId, false);
+                refitActiveTerminal();
+              }}
+              class="p-1 rounded text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary transition flex-shrink-0"
+            >
+              <Plus size={13} />
+            </button>
+          </Tooltip>
         </div>
-        <div class="flex items-center space-x-1">
+
+        <!-- Right: Action Controls -->
+        <div class="flex items-center space-x-1 flex-shrink-0">
           <Tooltip title="Dock to right" placement="top">
             <button
               type="button"
               onclick={toggleDock}
               class="p-1 text-ant-text-secondary hover:text-ant-text hover:bg-white/10 rounded transition"
             >
-              <PanelRight size={12} />
+              <PanelRight size={13} />
             </button>
           </Tooltip>
           <Tooltip title="Expand terminal panel" placement="top">
@@ -374,7 +404,7 @@
                 terminalStore.toggleSessionCollapse(sessionId, false);
                 refitActiveTerminal();
               }}
-              class="flex items-center space-x-1 px-2 py-0.5 text-[11px] rounded bg-ant-primary/10 text-ant-primary hover:bg-ant-primary/20 transition font-medium"
+              class="flex items-center space-x-1 px-2.5 py-1 text-[11px] rounded bg-ant-primary/10 text-ant-primary hover:bg-ant-primary/20 transition font-medium border border-ant-primary/20"
             >
               <ChevronUp size={13} />
               <span>Expand</span>
@@ -486,7 +516,12 @@
                     use:selectOnFocus
                     bind:value={editingTitle}
                     class="px-1.5 py-0.5 text-[11px] font-mono rounded bg-ant-bg-tertiary text-ant-text border border-ant-primary focus:outline-none w-28"
-                    onclick={(e) => e.stopPropagation()}
+                    onclick={(e) => {
+                      e.stopPropagation();
+                    }}
+                    onfocus={(e) => {
+                      e.currentTarget.select();
+                    }}
                     onblur={() => saveRename(tab)}
                     onkeydown={(e) => handleRenameKeyDown(e, tab)}
                   />
@@ -629,7 +664,12 @@
                       use:selectOnFocus
                       bind:value={editingTitle}
                       class="px-1 py-0.5 text-[10px] font-mono rounded bg-ant-bg-tertiary text-ant-text border border-ant-primary focus:outline-none w-20"
-                      onclick={(e) => e.stopPropagation()}
+                      onclick={(e) => {
+                        e.stopPropagation();
+                      }}
+                      onfocus={(e) => {
+                        e.currentTarget.select();
+                      }}
                       onblur={() => saveRename(tab)}
                       onkeydown={(e) => handleRenameKeyDown(e, tab)}
                     />
