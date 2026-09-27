@@ -269,8 +269,33 @@
     pendingFitMap.set(termId, id);
   }
 
+  function forceRefitTerminal(termId: string) {
+    if (!terminalInstances.has(termId)) return;
+    const inst = terminalInstances.get(termId)!;
+    const container = termContainerMap.get(termId);
+    if (!container || container.clientWidth === 0 || container.clientHeight === 0) return;
+
+    try {
+      inst.fitAddon.fit();
+      if (window.go?.main?.App?.ResizeTerminal) {
+        window.go.main.App.ResizeTerminal(termId, inst.term.cols, inst.term.rows);
+      }
+    } catch (e) {}
+  }
+
   function refitAllSplitTerminals() {
-    forceRefitAllSplitTerminals();
+    tick().then(() => {
+      // Immediate pass after Svelte DOM update
+      for (const termId of terminalInstances.keys()) {
+        forceRefitTerminal(termId);
+      }
+      // Follow-up pass to catch final CSS flex layout calculations
+      setTimeout(() => {
+        for (const termId of terminalInstances.keys()) {
+          forceRefitTerminal(termId);
+        }
+      }, 40);
+    });
   }
 
   // Interactive Split Divider dragging
@@ -959,7 +984,7 @@
                   <!-- Terminal Canvas Node -->
                   <div
                     use:terminalContainerAction={termId}
-                    class="flex-1 w-full h-full p-1 bg-ant-bg"
+                    class="flex-1 w-full h-full min-w-0 min-h-0 overflow-hidden p-1 bg-ant-bg"
                   ></div>
 
                   <!-- Visual Drop Indicator Overlay when dragging a tab over this pane -->
@@ -1207,7 +1232,7 @@
                     <!-- Terminal Canvas Node -->
                     <div
                       use:terminalContainerAction={termId}
-                      class="flex-1 w-full h-full p-0.5 bg-ant-bg"
+                      class="flex-1 w-full h-full min-w-0 min-h-0 overflow-hidden p-0.5 bg-ant-bg"
                     ></div>
 
                     <!-- Visual Drop Indicator Overlay (Right Dock) -->
