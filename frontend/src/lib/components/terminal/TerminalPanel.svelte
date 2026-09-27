@@ -474,24 +474,24 @@
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <div
-                class="flex items-center space-x-1.5 px-2.5 py-1 rounded-t-md text-xs transition-colors cursor-pointer border-t-2 {isActive ? 'bg-ant-bg text-ant-text border-ant-primary font-medium shadow-sm' : 'border-transparent text-ant-text-secondary hover:text-ant-text hover:bg-white/5'}"
+                class="flex items-center space-x-1.5 px-2.5 py-1 rounded-t-md text-xs transition-colors cursor-pointer border-t-2 flex-shrink-0 {isActive ? 'bg-ant-bg text-ant-text border-ant-primary font-medium shadow-sm' : 'border-transparent text-ant-text-secondary hover:text-ant-text hover:bg-white/5'}"
                 onclick={() => terminalStore.switchTerminal(sessionId, tab.id)}
                 ondblclick={(e) => startRename(tab, e)}
               >
-                <TerminalIcon size={12} class={isActive ? 'text-ant-primary' : 'text-ant-text-secondary'} />
+                <TerminalIcon size={12} class="{isActive ? 'text-ant-primary' : 'text-ant-text-secondary'} flex-shrink-0" />
                 {#if editingTermId === tab.id}
                   <!-- svelte-ignore a11y_autofocus -->
                   <input
                     type="text"
                     use:selectOnFocus
                     bind:value={editingTitle}
-                    class="px-1 py-0.5 text-[11px] font-mono rounded bg-ant-bg-tertiary text-ant-text border border-ant-primary focus:outline-none w-20"
+                    class="px-1.5 py-0.5 text-[11px] font-mono rounded bg-ant-bg-tertiary text-ant-text border border-ant-primary focus:outline-none w-28"
                     onclick={(e) => e.stopPropagation()}
                     onblur={() => saveRename(tab)}
                     onkeydown={(e) => handleRenameKeyDown(e, tab)}
                   />
                 {:else}
-                  <span class="truncate max-w-[120px] font-mono text-[11px] select-none" title="Double click to rename">{tab.title}</span>
+                  <span class="font-mono text-[11.5px] whitespace-nowrap select-none" title="Double click to rename">{tab.title}</span>
                 {/if}
                 <Tooltip title="Kill process & close terminal tab" placement="top">
                   <button
@@ -500,7 +500,7 @@
                       e.stopPropagation();
                       terminalStore.closeTerminal(sessionId, tab.id);
                     }}
-                    class="text-ant-text-secondary hover:text-rose-400 p-0.5 rounded transition hover:bg-white/10"
+                    class="text-ant-text-secondary hover:text-rose-400 p-0.5 rounded transition hover:bg-white/10 flex-shrink-0 ml-0.5"
                   >
                     <X size={11} />
                   </button>

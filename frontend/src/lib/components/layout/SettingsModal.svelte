@@ -1118,51 +1118,53 @@
               <!-- macOS Permission Status Card -->
               <Card title="Microphone Permission">
                 <div class="space-y-4">
-                  <div class="flex items-center justify-between p-3.5 rounded-xl border border-ant-border bg-ant-bg shadow-2xs">
-                    <div class="flex items-center space-x-3">
-                      <div class="w-8 h-8 rounded-lg flex items-center justify-center {micPermissionStatus.granted ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'}">
-                        <Mic size={16} />
-                      </div>
-                      <div>
-                        <div class="flex items-center space-x-2">
-                          <span class="text-xs font-semibold text-ant-text">System Microphone Access</span>
-                          <span class="text-[10px] px-2 py-0.5 rounded-full font-mono font-medium {micPermissionStatus.granted ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30'}">
-                            {micPermissionStatus.granted ? 'GRANTED' : 'RESTRICTED / DENIED'}
-                          </span>
+                  <div class="p-3.5 rounded-xl border border-ant-border bg-ant-bg shadow-2xs space-y-3">
+                    <div class="flex items-center justify-between gap-3 flex-wrap">
+                      <div class="flex items-center space-x-3 min-w-0">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 {micPermissionStatus.granted ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'}">
+                          <Mic size={16} />
                         </div>
-                        <p class="text-[11px] text-ant-text-secondary mt-0.5">
-                          {micPermissionStatus.message}
-                        </p>
+                        <div class="min-w-0">
+                          <div class="flex items-center space-x-2 flex-wrap">
+                            <span class="text-xs font-semibold text-ant-text whitespace-nowrap">System Microphone Access</span>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full font-mono font-medium whitespace-nowrap {micPermissionStatus.granted ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30'}">
+                              {micPermissionStatus.granted ? 'GRANTED' : 'RESTRICTED / DENIED'}
+                            </span>
+                          </div>
+                          <p class="text-[11px] text-ant-text-secondary mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis">
+                            {micPermissionStatus.message}
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    <div class="flex items-center space-x-2">
-                      <button
-                        type="button"
-                        class="px-3 py-1.5 rounded-lg border border-ant-border bg-ant-bg hover:bg-ant-bg-tertiary text-xs font-serif text-ant-text hover:border-ant-primary/40 transition flex items-center space-x-1.5 shadow-2xs"
-                        onclick={checkMicPermissionAndDevices}
-                        disabled={isCheckingMic}
-                      >
-                        <RefreshCw size={12} class={isCheckingMic ? 'animate-spin' : ''} />
-                        <span>Recheck</span>
-                      </button>
-
-                      {#if !micPermissionStatus.granted}
+                      <div class="flex items-center space-x-2 flex-shrink-0 ml-auto">
                         <button
                           type="button"
-                          class="px-3 py-1.5 rounded-lg bg-ant-primary text-white text-xs font-serif hover:bg-ant-primary-hover transition shadow-2xs"
-                          onclick={handleRequestMicPermission}
+                          class="px-2.5 py-1.5 rounded-lg border border-ant-border bg-ant-bg hover:bg-ant-bg-tertiary text-xs font-serif text-ant-text hover:border-ant-primary/40 transition flex items-center space-x-1.5 shadow-2xs whitespace-nowrap"
+                          onclick={checkMicPermissionAndDevices}
+                          disabled={isCheckingMic}
                         >
-                          Request Permission
+                          <RefreshCw size={12} class={isCheckingMic ? 'animate-spin' : ''} />
+                          <span class="whitespace-nowrap">Recheck</span>
                         </button>
-                        <button
-                          type="button"
-                          class="px-3 py-1.5 rounded-lg border border-ant-border bg-ant-bg hover:bg-ant-bg-tertiary text-xs font-serif text-ant-text-secondary hover:text-ant-text transition shadow-2xs"
-                          onclick={handleOpenMicSystemSettings}
-                        >
-                          Open System Settings
-                        </button>
-                      {/if}
+
+                        {#if !micPermissionStatus.granted}
+                          <button
+                            type="button"
+                            class="px-3 py-1.5 rounded-lg bg-ant-primary text-white text-xs font-serif hover:bg-ant-primary-hover transition shadow-2xs whitespace-nowrap"
+                            onclick={handleRequestMicPermission}
+                          >
+                            Request Permission
+                          </button>
+                          <button
+                            type="button"
+                            class="px-3 py-1.5 rounded-lg border border-ant-border bg-ant-bg hover:bg-ant-bg-tertiary text-xs font-serif text-ant-text-secondary hover:text-ant-text transition shadow-2xs whitespace-nowrap"
+                            onclick={handleOpenMicSystemSettings}
+                          >
+                            Open System Settings
+                          </button>
+                        {/if}
+                      </div>
                     </div>
                   </div>
                 </div>
