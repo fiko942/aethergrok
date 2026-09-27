@@ -2,6 +2,8 @@
  * Terminal state management per session with multi-tab terminal support
  */
 
+export type TerminalDockPosition = 'bottom' | 'right';
+
 export interface TerminalTab {
   id: string;
   sessionId: string;
@@ -15,10 +17,16 @@ export class TerminalStore {
   sessionTerminals = $state<Record<string, TerminalTab[]>>({});
   // Map of sessionId -> active terminalId
   activeTerminalIdPerSession = $state<Record<string, string>>({});
-  // Is bottom terminal panel visible
-  isOpen = $state<boolean>(false);
-  // Panel height in pixels
+  // Map of sessionId -> collapsed state (true = collapsed to slim bar)
+  sessionCollapsed = $state<Record<string, boolean>>({});
+  // Map of sessionId -> dock position ('bottom' | 'right')
+  sessionDockPosition = $state<Record<string, TerminalDockPosition>>({});
+  // Fallback global open state (for backwards compatibility if needed)
+  isOpen = $state<boolean>(true);
+  // Panel height in pixels (when docked at bottom)
   panelHeight = $state<number>(240);
+  // Panel width in pixels (when docked at right)
+  panelWidth = $state<number>(440);
 
   getTerminalTabs(sessionId: string): TerminalTab[] {
     return this.sessionTerminals[sessionId] || [];
@@ -28,12 +36,53 @@ export class TerminalStore {
     return this.activeTerminalIdPerSession[sessionId] || null;
   }
 
+  isSessionCollapsed(sessionId: string): boolean {
+    if (!sessionId) return false;
+    return this.sessionCollapsed[sessionId] ?? false;
+  }
+
+  toggleSessionCollapse(sessionId: string, collapsed?: boolean): void {
+    if (!sessionId) return;
+    const current = this.isSessionCollapsed(sessionId);
+    this.sessionCollapsed[sessionId] = collapsed !== undefined ? collapsed : !current;
+  }
+
+  getDockPosition(sessionId: string): TerminalDockPosition {
+    if (!sessionId) return 'bottom';
+    return this.sessionDockPosition[sessionId] || 'bottom';
+  }
+
+  setDockPosition(sessionId: string, pos: TerminalDockPosition): void {
+    if (!sessionId) return;
+    this.sessionDockPosition[sessionId] = pos;
+  }
+
+  toggleDockPosition(sessionId: string): void {
+    if (!sessionId) return;
+    const current = this.getDockPosition(sessionId);
+    this.sessionDockPosition[sessionId] = current === 'bottom' ? 'right' : 'bottom';
+  }
+
   toggleOpen(open?: boolean): void {
     this.isOpen = open !== undefined ? open : !this.isOpen;
   }
 
   setPanelHeight(height: number): void {
     this.panelHeight = Math.max(140, Math.min(height, window.innerHeight - 150));
+  }
+
+  setPanelWidth(width: number): void {
+    this.panelWidth = Math.max(260, Math.min(width, window.innerWidth - 350));
+  }
+
+  renameTerminal(sessionId: string, termId: string, newTitle: string): void {
+    if (!sessionId || !termId) return;
+    const list = this.sessionTerminals[sessionId];
+    if (!list) return;
+    const tab = list.find((t) => t.id === termId);
+    if (tab && newTitle.trim()) {
+      tab.title = newTitle.trim();
+    }
   }
 
   createTerminal(sessionId: string, cwd: string, title?: string): TerminalTab {
@@ -97,6 +146,8 @@ export class TerminalStore {
     }
     delete this.sessionTerminals[sessionId];
     delete this.activeTerminalIdPerSession[sessionId];
+    delete this.sessionCollapsed[sessionId];
+    delete this.sessionDockPosition[sessionId];
   }
 }
 

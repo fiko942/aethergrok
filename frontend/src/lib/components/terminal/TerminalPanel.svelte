@@ -16,6 +16,57 @@
   } from 'lucide-svelte';
   import { terminalStore, type TerminalTab } from '$lib/stores/terminal.svelte';
   import { sessionStore } from '$lib/stores/session.svelte';
+  import { settingsStore } from '$lib/stores/settings.svelte';
+
+  const DARK_TERMINAL_THEME = {
+    background: '#0e0e11',
+    foreground: '#e4e4e7',
+    cursor: '#38bdf8',
+    selectionBackground: '#38bdf840',
+    black: '#18181b',
+    red: '#f43f5e',
+    green: '#10b981',
+    yellow: '#f59e0b',
+    blue: '#3b82f6',
+    magenta: '#d946ef',
+    cyan: '#06b6d4',
+    white: '#f4f4f5',
+    brightBlack: '#71717a',
+    brightRed: '#fb7185',
+    brightGreen: '#34d399',
+    brightYellow: '#fbbf24',
+    brightBlue: '#60a5fa',
+    brightMagenta: '#e879f9',
+    brightCyan: '#22d3ee',
+    brightWhite: '#ffffff'
+  };
+
+  const LIGHT_TERMINAL_THEME = {
+    background: '#ffffff',
+    foreground: '#0f172a',
+    cursor: '#0284c7',
+    selectionBackground: '#bae6fd80',
+    black: '#0f172a',
+    red: '#e11d48',
+    green: '#059669',
+    yellow: '#d97706',
+    blue: '#2563eb',
+    magenta: '#c026d3',
+    cyan: '#0891b2',
+    white: '#f8fafc',
+    brightBlack: '#64748b',
+    brightRed: '#f43f5e',
+    brightGreen: '#10b981',
+    brightYellow: '#f59e0b',
+    brightBlue: '#3b82f6',
+    brightMagenta: '#d946ef',
+    brightCyan: '#06b6d4',
+    brightWhite: '#0f172a'
+  };
+
+  function getXtermTheme(theme: string) {
+    return theme === 'light-antd' ? LIGHT_TERMINAL_THEME : DARK_TERMINAL_THEME;
+  }
 
   interface Props {
     sessionId: string;
