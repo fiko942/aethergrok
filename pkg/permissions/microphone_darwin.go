@@ -7,7 +7,7 @@ import (
 )
 
 /*
-#cgo CFLAGS: -x objective-c
+#cgo CFLAGS: -x objective-c -mmacosx-version-min=10.15
 #cgo LDFLAGS: -framework AVFoundation -framework Foundation
 #import <AVFoundation/AVFoundation.h>
 #import <Foundation/Foundation.h>
