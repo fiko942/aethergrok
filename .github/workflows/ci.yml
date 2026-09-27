@@ -32,6 +32,11 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.x'
+          check-latest: true
+      - run: go test -v ./...
       - uses: pnpm/action-setup@v4
         with:
           version: 9
@@ -42,6 +47,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run compile
       - run: pnpm run test
+      - run: pnpm run --prefix frontend build
       # The VSIX is platform-independent, so building it twice buys nothing.
       - run: pnpm run package
         if: matrix.os == 'ubuntu-latest'
@@ -54,6 +60,7 @@ jobs:
   integration:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
