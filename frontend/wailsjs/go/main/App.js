@@ -38,12 +38,24 @@ export function ClearSnapshotCache() {
   return window['go']['main']['App']['ClearSnapshotCache']();
 }
 
+export function CloseSessionTerminals(arg1) {
+  return window['go']['main']['App']['CloseSessionTerminals'](arg1);
+}
+
+export function CloseTerminal(arg1) {
+  return window['go']['main']['App']['CloseTerminal'](arg1);
+}
+
 export function CommitWorkspaceChanges(arg1, arg2) {
   return window['go']['main']['App']['CommitWorkspaceChanges'](arg1, arg2);
 }
 
 export function CompactSession(arg1, arg2) {
   return window['go']['main']['App']['CompactSession'](arg1, arg2);
+}
+
+export function CreateTerminal(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['CreateTerminal'](arg1, arg2, arg3, arg4);
 }
 
 export function DeleteGrokSession(arg1, arg2) {
@@ -72,6 +84,10 @@ export function GetAvailableModels() {
 
 export function GetInstalledSkills() {
   return window['go']['main']['App']['GetInstalledSkills']();
+}
+
+export function GetPlanContent(arg1) {
+  return window['go']['main']['App']['GetPlanContent'](arg1);
 }
 
 export function GetSessionUsage(arg1, arg2) {
@@ -142,6 +158,10 @@ export function RequestMicrophonePermission() {
   return window['go']['main']['App']['RequestMicrophonePermission']();
 }
 
+export function ResizeTerminal(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ResizeTerminal'](arg1, arg2, arg3);
+}
+
 export function RespondPermission(arg1) {
   return window['go']['main']['App']['RespondPermission'](arg1);
 }
@@ -192,4 +212,8 @@ export function TranscribeAudioWithGrok(arg1, arg2) {
 
 export function UnregisterGlobalSnapshotShortcut() {
   return window['go']['main']['App']['UnregisterGlobalSnapshotShortcut']();
+}
+
+export function WriteTerminal(arg1, arg2) {
+  return window['go']['main']['App']['WriteTerminal'](arg1, arg2);
 }

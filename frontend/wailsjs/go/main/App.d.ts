@@ -24,9 +24,15 @@ export function CleanupSkillImportTemp(arg1:string):Promise<void>;
 
 export function ClearSnapshotCache():Promise<screen.ClearCacheResult>;
 
+export function CloseSessionTerminals(arg1:string):Promise<void>;
+
+export function CloseTerminal(arg1:string):Promise<void>;
+
 export function CommitWorkspaceChanges(arg1:string,arg2:string):Promise<void>;
 
 export function CompactSession(arg1:string,arg2:string):Promise<grokrunner.SessionUsageStats>;
+
+export function CreateTerminal(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 
 export function DeleteGrokSession(arg1:string,arg2:string):Promise<void>;
 
@@ -41,6 +47,8 @@ export function ExecuteSkillSetupCommand(arg1:string,arg2:string):Promise<void>;
 export function GetAvailableModels():Promise<Array<grokrunner.ModelInfo>>;
 
 export function GetInstalledSkills():Promise<Array<skills.Skill>>;
+
+export function GetPlanContent(arg1:string):Promise<string>;
 
 export function GetSessionUsage(arg1:string,arg2:string):Promise<grokrunner.SessionUsageStats>;
 
@@ -76,6 +84,8 @@ export function RegisterGlobalSnapshotShortcut(arg1:string):Promise<void>;
 
 export function RequestMicrophonePermission():Promise<permissions.Status>;
 
+export function ResizeTerminal(arg1:string,arg2:number,arg3:number):Promise<void>;
+
 export function RespondPermission(arg1:grokrunner.PermissionResponse):Promise<void>;
 
 export function RevealGrokConfigFile():Promise<void>;
@@ -101,3 +111,5 @@ export function SetGrokBinaryPath(arg1:string):Promise<void>;
 export function TranscribeAudioWithGrok(arg1:string,arg2:string):Promise<string>;
 
 export function UnregisterGlobalSnapshotShortcut():Promise<void>;
+
+export function WriteTerminal(arg1:string,arg2:string):Promise<void>;

@@ -7,19 +7,54 @@ import (
 	"os"
 	"os/exec"
 	"sync"
-	"syscall"
-	"time"
 
-	"github.com/creack/pty"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
+
+// osFileWrapper abstracts PTY file handles across platforms
+type osFileWrapper struct {
+	readCloser  io.ReadCloser
+	writeCloser io.WriteCloser
+	file        *os.File
+}
+
+func (w *osFileWrapper) Read(p []byte) (n int, err error) {
+	if w.readCloser != nil {
+		return w.readCloser.Read(p)
+	}
+	return 0, io.EOF
+}
+
+func (w *osFileWrapper) Write(p []byte) (n int, err error) {
+	if w.writeCloser != nil {
+		return w.writeCloser.Write(p)
+	}
+	return 0, io.ErrClosedPipe
+}
+
+func (w *osFileWrapper) Close() error {
+	var err1, err2 error
+	if w.file != nil {
+		return w.file.Close()
+	}
+	if w.readCloser != nil {
+		err1 = w.readCloser.Close()
+	}
+	if w.writeCloser != nil {
+		err2 = w.writeCloser.Close()
+	}
+	if err1 != nil {
+		return err1
+	}
+	return err2
+}
 
 // Instance represents a single pseudo-terminal process with its own process group
 type Instance struct {
 	ID        string
 	SessionID string
 	Cmd       *exec.Cmd
-	PtyFile   *os.File
+	PtyFile   *osFileWrapper
 	mu        sync.Mutex
 	closed    bool
 }
@@ -57,7 +92,11 @@ func (m *Manager) Create(sessionID, termID, cwd, shell string) error {
 	if shell == "" {
 		shell = os.Getenv("SHELL")
 		if shell == "" {
-			shell = "/bin/zsh"
+			if os.PathSeparator == '\\' {
+				shell = "powershell.exe"
+			} else {
+				shell = "/bin/zsh"
+			}
 		}
 	}
 
@@ -73,19 +112,9 @@ func (m *Manager) Create(sessionID, termID, cwd, shell string) error {
 		"AETHERGROK_TERMINAL=1",
 	)
 
-	// In sandbox/subagent environments or non-root macos, pty.Start handles process creation
-	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{
-		Rows: 24,
-		Cols: 80,
-	})
+	ptmx, err := startPty(cmd, 24, 80)
 	if err != nil {
-		// Fallback without special sysprocattr if restricted
 		return fmt.Errorf("failed to start pty: %w", err)
-	}
-
-	// Set process group if not already set by pty
-	if cmd.Process != nil {
-		_ = syscall.Setpgid(cmd.Process.Pid, cmd.Process.Pid)
 	}
 
 	inst := &Instance{
@@ -101,64 +130,59 @@ func (m *Manager) Create(sessionID, termID, cwd, shell string) error {
 	go func() {
 		buf := make([]byte, 4096)
 		for {
-			n, err := ptmx.Read(buf)
+			n, readErr := ptmx.Read(buf)
 			if n > 0 {
 				data := string(buf[:n])
 				if m.ctx != nil {
-					runtime.EventsEmit(m.ctx, "terminal:data:"+termID, data)
+					runtime.EventsEmit(m.ctx, fmt.Sprintf("terminal:data:%s", termID), data)
 				}
 			}
-			if err != nil {
-				if err != io.EOF && !inst.isClosed() {
-					// PTY read ended
-				}
+			if readErr != nil {
 				break
 			}
 		}
 
-		// Process exited, clean up
-		_ = inst.Close()
+		_ = cmd.Wait()
+
 		m.mu.Lock()
 		delete(m.terminals, termID)
 		m.mu.Unlock()
 
 		if m.ctx != nil {
-			runtime.EventsEmit(m.ctx, "terminal:exit:"+termID, map[string]interface{}{
-				"termId": termID,
-			})
+			runtime.EventsEmit(m.ctx, fmt.Sprintf("terminal:exit:%s", termID), 0)
 		}
 	}()
 
 	return nil
 }
 
-// Write writes stdin data to the pseudo-terminal
-func (m *Manager) Write(termID string, data string) error {
+// Write sends user input (keystrokes, commands) to the running PTY
+func (m *Manager) Write(termID, data string) error {
 	m.mu.RLock()
 	inst, ok := m.terminals[termID]
 	m.mu.RUnlock()
 
-	if !ok || inst == nil {
-		return fmt.Errorf("terminal %s not found", termID)
+	if !ok {
+		return fmt.Errorf("terminal instance %s not found", termID)
 	}
 
 	return inst.Write([]byte(data))
 }
 
-// Resize resizes the pseudo-terminal window
+// Resize sets the terminal window size (rows and columns)
 func (m *Manager) Resize(termID string, cols, rows int) error {
 	m.mu.RLock()
 	inst, ok := m.terminals[termID]
 	m.mu.RUnlock()
 
-	if !ok || inst == nil {
-		return fmt.Errorf("terminal %s not found", termID)
+	if !ok {
+		return fmt.Errorf("terminal instance %s not found", termID)
 	}
 
 	return inst.Resize(cols, rows)
 }
 
-// Close closes a specific terminal instance and terminates its entire process tree
+// Close closes a specific terminal instance and terminates all child processes
 func (m *Manager) Close(termID string) error {
 	m.mu.Lock()
 	inst, ok := m.terminals[termID]
@@ -167,19 +191,19 @@ func (m *Manager) Close(termID string) error {
 	}
 	m.mu.Unlock()
 
-	if !ok || inst == nil {
+	if !ok {
 		return nil
 	}
 
 	return inst.Close()
 }
 
-// CloseSessionTerminals closes and kills all terminals belonging to a session
+// CloseSessionTerminals closes all terminal instances created within a given session
 func (m *Manager) CloseSessionTerminals(sessionID string) error {
 	m.mu.Lock()
 	var toClose []*Instance
 	for id, inst := range m.terminals {
-		if inst.SessionID == sessionID {
+		if sessionID == "" || inst.SessionID == sessionID {
 			toClose = append(toClose, inst)
 			delete(m.terminals, id)
 		}
@@ -193,7 +217,21 @@ func (m *Manager) CloseSessionTerminals(sessionID string) error {
 	return nil
 }
 
-// Write writes data to the instance's PTY
+// CloseAll shuts down all running terminals (e.g. on application exit)
+func (m *Manager) CloseAll() {
+	m.mu.Lock()
+	var all []*Instance
+	for id, inst := range m.terminals {
+		all = append(all, inst)
+		delete(m.terminals, id)
+	}
+	m.mu.Unlock()
+
+	for _, inst := range all {
+		_ = inst.Close()
+	}
+}
+
 func (inst *Instance) Write(p []byte) error {
 	inst.mu.Lock()
 	defer inst.mu.Unlock()
@@ -206,7 +244,6 @@ func (inst *Instance) Write(p []byte) error {
 	return err
 }
 
-// Resize resizes the instance PTY
 func (inst *Instance) Resize(cols, rows int) error {
 	inst.mu.Lock()
 	defer inst.mu.Unlock()
@@ -215,10 +252,7 @@ func (inst *Instance) Resize(cols, rows int) error {
 		return fmt.Errorf("terminal is closed")
 	}
 
-	return pty.Setsize(inst.PtyFile, &pty.Winsize{
-		Rows: uint16(rows),
-		Cols: uint16(cols),
-	})
+	return resizePty(inst.PtyFile, rows, cols)
 }
 
 func (inst *Instance) isClosed() bool {
@@ -240,36 +274,8 @@ func (inst *Instance) Close() error {
 	cmd := inst.Cmd
 	inst.mu.Unlock()
 
-	if cmd != nil && cmd.Process != nil {
-		pid := cmd.Process.Pid
-		pgid, err := syscall.Getpgid(pid)
-
-		if err == nil && pgid > 0 {
-			// Sinyal SIGTERM ke seluruh process group (-pgid)
-			_ = syscall.Kill(-pgid, syscall.SIGTERM)
-
-			// Tunggu sebentar (150ms)
-			done := make(chan error, 1)
-			go func() {
-				state, _ := cmd.Process.Wait()
-				if state != nil && state.Exited() {
-					done <- nil
-				} else {
-					done <- fmt.Errorf("still running")
-				}
-			}()
-
-			select {
-			case <-done:
-				// Proses sudah keluar bersih
-			case <-time.After(150 * time.Millisecond):
-				// Eskalasi ke SIGKILL untuk membersihkan SEMUA background electron/vite/node processes
-				_ = syscall.Kill(-pgid, syscall.SIGKILL)
-			}
-		} else {
-			// Fallback jika pgid tidak bisa diambil
-			_ = cmd.Process.Kill()
-		}
+	if cmd != nil {
+		_ = killProcessTree(cmd)
 	}
 
 	if ptmx != nil {
