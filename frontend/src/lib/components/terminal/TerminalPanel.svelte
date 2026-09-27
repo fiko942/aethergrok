@@ -132,10 +132,21 @@
   const terminalInstances = new Map<string, { term: Xterm; fitAddon: FitAddon; unsub?: () => void }>();
   let termContainerMap = new Map<string, HTMLElement>();
 
-  // Auto create initial terminal if none exists and panel is opened
+  // Auto create initial terminal if none exists and panel is opened,
+  // or re-instantiate backend PTY sessions for persisted tabs on restart
   $effect(() => {
-    if (terminalStore.isOpen && activeTerminals.length === 0 && sessionId) {
-      terminalStore.createTerminal(sessionId, workspacePath);
+    if (terminalStore.isOpen && sessionId) {
+      if (activeTerminals.length === 0) {
+        terminalStore.createTerminal(sessionId, workspacePath);
+      } else {
+        // Ensure backend Go PTY is alive for all persisted tabs
+        for (const tab of activeTerminals) {
+          if (window.go?.main?.App?.CreateTerminal) {
+            window.go.main.App.CreateTerminal(sessionId, tab.id, tab.cwd || workspacePath, '')
+              .catch(() => {});
+          }
+        }
+      }
     }
   });
 

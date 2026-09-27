@@ -1,5 +1,6 @@
 /**
  * Terminal state management per session with multi-tab terminal & split pane support
+ * Persists layout, tabs, split groups, sizes, dock positions, and collapse state per session
  */
 
 import { logger } from './logger.svelte';
@@ -21,6 +22,20 @@ export interface TerminalSplitGroup {
   paneSizes?: number[]; // percentage weights per pane, summing to 100
 }
 
+interface PersistedTerminalState {
+  version: number;
+  sessionTerminals: Record<string, TerminalTab[]>;
+  activeTerminalIdPerSession: Record<string, string>;
+  sessionSplitGroups: Record<string, TerminalSplitGroup[]>;
+  focusedPaneTermId: Record<string, string>;
+  sessionCollapsed: Record<string, boolean>;
+  sessionDockPosition: Record<string, TerminalDockPosition>;
+  panelHeight: number;
+  panelWidth: number;
+}
+
+const STORAGE_KEY = 'aethergrok_terminal_state_v1';
+
 export class TerminalStore {
   // Map of sessionId -> TerminalTab[]
   sessionTerminals = $state<Record<string, TerminalTab[]>>({});
@@ -41,6 +56,51 @@ export class TerminalStore {
   // Panel width in pixels (when docked at right)
   panelWidth = $state<number>(440);
 
+  constructor() {
+    this.loadFromStorage();
+  }
+
+  private loadFromStorage(): void {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const data: PersistedTerminalState = JSON.parse(raw);
+      if (data && data.version === 1) {
+        if (data.sessionTerminals) this.sessionTerminals = data.sessionTerminals;
+        if (data.activeTerminalIdPerSession) this.activeTerminalIdPerSession = data.activeTerminalIdPerSession;
+        if (data.sessionSplitGroups) this.sessionSplitGroups = data.sessionSplitGroups;
+        if (data.focusedPaneTermId) this.focusedPaneTermId = data.focusedPaneTermId;
+        if (data.sessionCollapsed) this.sessionCollapsed = data.sessionCollapsed;
+        if (data.sessionDockPosition) this.sessionDockPosition = data.sessionDockPosition;
+        if (typeof data.panelHeight === 'number') this.panelHeight = data.panelHeight;
+        if (typeof data.panelWidth === 'number') this.panelWidth = data.panelWidth;
+      }
+    } catch (err) {
+      console.warn('Failed to load terminal layout from storage:', err);
+    }
+  }
+
+  private saveToStorage(): void {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    try {
+      const payload: PersistedTerminalState = {
+        version: 1,
+        sessionTerminals: this.sessionTerminals,
+        activeTerminalIdPerSession: this.activeTerminalIdPerSession,
+        sessionSplitGroups: this.sessionSplitGroups,
+        focusedPaneTermId: this.focusedPaneTermId,
+        sessionCollapsed: this.sessionCollapsed,
+        sessionDockPosition: this.sessionDockPosition,
+        panelHeight: this.panelHeight,
+        panelWidth: this.panelWidth
+      };
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch (err) {
+      console.warn('Failed to save terminal layout to storage:', err);
+    }
+  }
+
   getTerminalTabs(sessionId: string): TerminalTab[] {
     return this.sessionTerminals[sessionId] || [];
   }
@@ -56,6 +116,7 @@ export class TerminalStore {
   setFocusedPaneId(sessionId: string, termId: string): void {
     if (!sessionId || !termId) return;
     this.focusedPaneTermId[sessionId] = termId;
+    this.saveToStorage();
   }
 
   getSplitGroups(sessionId: string): TerminalSplitGroup[] {
@@ -94,6 +155,7 @@ export class TerminalStore {
     if (!sessionId) return;
     const current = this.isSessionCollapsed(sessionId);
     this.sessionCollapsed[sessionId] = collapsed !== undefined ? collapsed : !current;
+    this.saveToStorage();
   }
 
   getDockPosition(sessionId: string): TerminalDockPosition {
@@ -104,24 +166,29 @@ export class TerminalStore {
   setDockPosition(sessionId: string, pos: TerminalDockPosition): void {
     if (!sessionId) return;
     this.sessionDockPosition[sessionId] = pos;
+    this.saveToStorage();
   }
 
   toggleDockPosition(sessionId: string): void {
     if (!sessionId) return;
     const current = this.getDockPosition(sessionId);
     this.sessionDockPosition[sessionId] = current === 'bottom' ? 'right' : 'bottom';
+    this.saveToStorage();
   }
 
   toggleOpen(open?: boolean): void {
     this.isOpen = open !== undefined ? open : !this.isOpen;
+    this.saveToStorage();
   }
 
   setPanelHeight(height: number): void {
     this.panelHeight = Math.max(140, Math.min(height, window.innerHeight - 150));
+    this.saveToStorage();
   }
 
   setPanelWidth(width: number): void {
     this.panelWidth = Math.max(260, Math.min(width, window.innerWidth - 350));
+    this.saveToStorage();
   }
 
   renameTerminal(sessionId: string, termId: string, newTitle: string): void {
@@ -133,6 +200,7 @@ export class TerminalStore {
       const old = tab.title;
       tab.title = newTitle.trim();
       logger.info('TERMINAL', `Renamed terminal tab ${termId} from "${old}" to "${tab.title}"`);
+      this.saveToStorage();
     }
   }
 
@@ -152,6 +220,7 @@ export class TerminalStore {
     this.sessionTerminals[sessionId] = list;
     this.activeTerminalIdPerSession[sessionId] = termId;
     this.focusedPaneTermId[sessionId] = termId;
+    this.saveToStorage();
     logger.info('TERMINAL', `Created terminal tab: ${tab.title} (${termId}) for session ${sessionId}`);
 
     // Call Go backend to instantiate PTY with isolated Process Group
@@ -189,6 +258,7 @@ export class TerminalStore {
       this.sessionSplitGroups[sessionId] = [...groups, updatedGroup];
       this.activeTerminalIdPerSession[sessionId] = updatedPanes[0];
       this.focusedPaneTermId[sessionId] = newTab.id;
+      this.saveToStorage();
     }
 
     return newTab;
@@ -201,78 +271,77 @@ export class TerminalStore {
     sessionId: string,
     sourceTermId: string,
     targetTermId: string,
-    position: 'left' | 'right' | 'top' | 'bottom' = 'right'
+    position: 'left' | 'right' | 'top' | 'bottom'
   ): void {
     if (!sessionId || !sourceTermId || !targetTermId || sourceTermId === targetTermId) return;
 
-    logger.info('TERMINAL', `Splitting terminal ${sourceTermId} into ${targetTermId} (${position})`);
-
     const groups = this.getSplitGroups(sessionId);
-    // Find if target is in an existing group
-    let targetGroup = groups.find((g) => g.paneTermIds.includes(targetTermId));
+    const targetGroup = groups.find((g) => g.paneTermIds.includes(targetTermId));
 
-    // Remove sourceTermId from any existing group first
+    const direction: 'horizontal' | 'vertical' =
+      position === 'top' || position === 'bottom' ? 'vertical' : 'horizontal';
+
+    // Remove source from existing group if any
     const cleanedGroups = groups
-      .map((g) => ({
-        ...g,
-        paneTermIds: g.paneTermIds.filter((id) => id !== sourceTermId)
-      }))
-      .filter((g) => g.paneTermIds.length > 0);
-
-    const isVertical = position === 'top' || position === 'bottom';
-    const splitDirection = isVertical ? 'vertical' : 'horizontal';
+      .map((g) => {
+        if (!g.paneTermIds.includes(sourceTermId)) return g;
+        const remaining = g.paneTermIds.filter((id) => id !== sourceTermId);
+        const equalSize = 100 / Math.max(1, remaining.length);
+        return {
+          ...g,
+          paneTermIds: remaining,
+          paneSizes: remaining.map(() => equalSize)
+        };
+      })
+      .filter((g) => g.paneTermIds.length > 1);
 
     if (targetGroup) {
-      // Insert source relative to target
-      const panes = [...targetGroup.paneTermIds.filter((id) => id !== sourceTermId)];
+      // Add source next to target in existing group
+      const panes = targetGroup.paneTermIds.filter((id) => id !== sourceTermId);
       const targetIdx = panes.indexOf(targetTermId);
-      if (position === 'left' || position === 'top') {
-        panes.splice(Math.max(0, targetIdx), 0, sourceTermId);
-      } else {
-        panes.splice(targetIdx + 1, 0, sourceTermId);
-      }
+      const insertIdx = position === 'right' || position === 'bottom' ? targetIdx + 1 : targetIdx;
+      panes.splice(Math.max(0, insertIdx), 0, sourceTermId);
 
       const equalSize = 100 / panes.length;
+      const newSizes = panes.map(() => equalSize);
+
+      const remainingGroups = cleanedGroups.filter((g) => g.id !== targetGroup.id);
       const updatedTargetGroup: TerminalSplitGroup = {
         ...targetGroup,
         paneTermIds: panes,
-        splitDirection,
-        paneSizes: panes.map(() => equalSize)
+        splitDirection: direction,
+        paneSizes: newSizes
       };
 
-      this.sessionSplitGroups[sessionId] = [
-        ...cleanedGroups.filter((g) => g.id !== targetGroup!.id),
-        updatedTargetGroup
-      ];
-      this.activeTerminalIdPerSession[sessionId] = panes[0];
-      this.focusedPaneTermId[sessionId] = sourceTermId;
+      this.sessionSplitGroups[sessionId] = [...remainingGroups, updatedTargetGroup];
     } else {
-      // Create new split group between target and source
+      // Create new split group with target and source
       const panes =
-        position === 'left' || position === 'top'
-          ? [sourceTermId, targetTermId]
-          : [targetTermId, sourceTermId];
+        position === 'right' || position === 'bottom'
+          ? [targetTermId, sourceTermId]
+          : [sourceTermId, targetTermId];
 
       const newGroup: TerminalSplitGroup = {
-        id: `group_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        id: `split_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         paneTermIds: panes,
-        splitDirection,
+        splitDirection: direction,
         paneSizes: [50, 50]
       };
 
       this.sessionSplitGroups[sessionId] = [...cleanedGroups, newGroup];
-      this.activeTerminalIdPerSession[sessionId] = panes[0];
-      this.focusedPaneTermId[sessionId] = sourceTermId;
     }
+
+    this.activeTerminalIdPerSession[sessionId] = targetTermId;
+    this.focusedPaneTermId[sessionId] = sourceTermId;
+    this.saveToStorage();
+    logger.info('TERMINAL', `Split terminal ${sourceTermId} into group with ${targetTermId} (${position})`);
   }
 
   /**
-   * Unsplits a terminal pane, detaching it back into its own standalone tab
+   * Unsplits a terminal, removing it from its split group back into a standalone tab
    */
   unsplitTerminal(sessionId: string, termId: string): void {
     if (!sessionId || !termId) return;
-
-    logger.info('TERMINAL', `Unsplitting terminal ${termId} back to standalone tab`);
 
     const groups = this.getSplitGroups(sessionId);
     const updatedGroups = groups
@@ -291,6 +360,7 @@ export class TerminalStore {
     this.sessionSplitGroups[sessionId] = updatedGroups;
     this.activeTerminalIdPerSession[sessionId] = termId;
     this.focusedPaneTermId[sessionId] = termId;
+    this.saveToStorage();
   }
 
   /**
@@ -301,12 +371,14 @@ export class TerminalStore {
     const group = groups.find((g) => g.id === groupId);
     if (group) {
       group.paneSizes = sizes;
+      this.saveToStorage();
     }
   }
 
   switchTerminal(sessionId: string, termId: string): void {
     this.activeTerminalIdPerSession[sessionId] = termId;
     this.focusedPaneTermId[sessionId] = termId;
+    this.saveToStorage();
   }
 
   closeTerminal(sessionId: string, termId: string): void {
@@ -358,6 +430,8 @@ export class TerminalStore {
     } else if (this.focusedPaneTermId[sessionId] === termId) {
       this.focusedPaneTermId[sessionId] = this.activeTerminalIdPerSession[sessionId] || '';
     }
+
+    this.saveToStorage();
   }
 
   closeAllForSession(sessionId: string): void {
@@ -371,8 +445,8 @@ export class TerminalStore {
     delete this.sessionSplitGroups[sessionId];
     delete this.sessionCollapsed[sessionId];
     delete this.sessionDockPosition[sessionId];
+    this.saveToStorage();
   }
 }
 
 export const terminalStore = new TerminalStore();
-
