@@ -1,5 +1,5 @@
-SnapshotVersion: "1.0.0"
-LastMergedAt: "2026-09-26T06:27:00+07:00"
+SnapshotVersion: "1.1.0"
+LastMergedAt: "2026-09-27T12:00:00+07:00"
 MergeType: "additive"
 
 ProjectOverview:
@@ -11,7 +11,7 @@ HowToRun:
   dev: "wails dev"
   build_frontend: "pnpm --prefix frontend run build"
   check_frontend: "pnpm --prefix frontend run check"
-  test_go: "go test ./test/... -v"
+  test_go: "go test ./test/... ./pkg/... -v"
   build_binary: "go build -o build/bin/aethergrok main.go app.go"
 
 ArchitectureMap:
@@ -21,6 +21,8 @@ ArchitectureMap:
     subprocesses: "pkg/grokrunner (Process Group pgid, 16ms token batching)"
     screen_capture: "pkg/screen (OS-excluding 4-phase coordination)"
     skills_registry: "pkg/skills (Local SKILL.md scanner & in-memory catalog)"
+    hotkey_engine: "pkg/hotkey (OS-wide CGEventTap / Low-level global hotkey listener)"
+    git_resolver: "pkg/gitutil (Native direct binary resolution avoiding xcrun wrapper)"
   frontend:
     framework: "Svelte 5 (Runes)"
     styling: "Tailwind CSS + Ant Design Dark Tokens (lib/antd)"
@@ -30,6 +32,7 @@ Workflow:
   composer: "Prompts dispatch through Wails IPC -> GrokRunner -> NDJSON streaming -> 16ms token buffer -> Svelte chat feed."
   screen_snapshot: "Triggered via shortcut (customizable, e.g. Right Shift or Cmd+Shift+S) -> Hides window -> Compositor sync -> Native capture -> Restores window & attaches image."
   skills_discovery: "Universal scanner indexes ~/.grok/skills and ~/.agents/skills -> populates interactive catalog."
+  voice_dictation: "One-click microphone dictation with AVFoundation native check, 3x auto-retry, and clean markdown transcript insertion."
 
 EndpointsMap:
   wails_ipc:
@@ -37,6 +40,11 @@ EndpointsMap:
     - "App.RespondPermission(resp)"
     - "App.CancelSession(sessionId)"
     - "App.CaptureScreenExcludingSelf(delayMs)"
+    - "App.RegisterGlobalSnapshotShortcut(shortcutStr)"
+    - "App.UnregisterGlobalSnapshotShortcut()"
+    - "App.CheckMicrophonePermission()"
+    - "App.RequestMicrophonePermission()"
+    - "App.TranscribeAudioWithGrok(workspacePath, audioFilePath)"
     - "App.RevealGrokConfigFile()"
     - "App.GetInstalledSkills()"
     - "App.DiscoverGrokSessions(path)"
@@ -50,20 +58,23 @@ DatabaseMap:
 UISystem:
   theme: "Ant Design Dark Tokens (#141414, #1f1f1f, #1677ff)"
   windowing: "10-Turn DOM virtualization with relative scroll anchor preservation"
-  components: "Ant Design primitives (Button, Card, Badge, Switch) + Custom Chat/Diff cards"
+  components: "Ant Design primitives (Button, Card, Badge, Switch) + Custom Chat/Diff cards + Image Lightbox + Voice Error Modal"
 
 Invariants:
   - "Zero unhandled child process leaks (all spawned with setpgid / process groups)"
   - "DOM memory ceiling capped by 10-turn progressive windowing"
   - "Non-intrusive compositor restoration on screen capture panic/cancel"
+  - "Clean headless transcription without session pollution in workspace history"
 
 CurrentState:
   status: "Operational"
   frontend_errors: 0
-  go_tests: "Passing (all 9 suites)"
+  go_tests: "Passing (all suites in test/ and pkg/)"
   latest_fixes:
-    - "Grok config button consolidated to single line with refined dark border"
-    - "Dynamic snapshot shortcut synchronization (Right Shift) in Shortcuts tab and global listener"
+    - "OS-wide global snapshot shortcut registration with CGEventTap (Right Shift, etc.)"
+    - "Native direct git executable resolution in pkg/gitutil to eliminate macOS xcrun crash"
+    - "Session tabs multi-workspace contextual badges and tab reordering persistence"
+    - "Unified diff calculation utilities and robust drop/paste ingestion"
 
 NextSteps:
   - "Continuous feature expansion and skill integrations"
