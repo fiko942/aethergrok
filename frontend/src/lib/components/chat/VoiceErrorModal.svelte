@@ -52,7 +52,7 @@
   >
     <!-- Modal Card -->
     <div
-      class="relative w-full max-w-lg bg-ant-bg-secondary border border-ant-border rounded-xl shadow-2xl overflow-hidden flex flex-col animate-scale-in"
+      class="relative w-full max-w-lg bg-ant-bg-secondary border border-ant-border-secondary dark:border-white/5 rounded-xl shadow-2xl overflow-hidden flex flex-col animate-scale-in"
       onclick={(e) => e.stopPropagation()}
       role="presentation"
     >
@@ -107,7 +107,7 @@
               </button>
             </div>
 
-            <div class="p-3 bg-ant-bg border border-ant-border rounded-lg text-[11px] font-mono text-rose-300/90 whitespace-pre-wrap break-words max-h-48 overflow-y-auto scrollbar-thin select-text leading-relaxed">
+            <div class="p-3 bg-ant-bg border border-ant-border-secondary dark:border-white/5 rounded-lg text-[11px] font-mono text-rose-300/90 whitespace-pre-wrap break-words max-h-48 overflow-y-auto scrollbar-thin select-text leading-relaxed">
               {errorDetails}
             </div>
           </div>
@@ -120,7 +120,7 @@
           <button
             type="button"
             onclick={handleCopyLog}
-            class="px-3 py-1.5 text-xs font-serif rounded-lg border border-ant-border text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-hover transition flex items-center space-x-1.5"
+            class="px-3 py-1.5 text-xs font-serif rounded-lg border border-ant-border-secondary dark:border-white/5 text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-hover transition flex items-center space-x-1.5"
           >
             {#if copied}
               <Check size={13} class="text-emerald-400" />

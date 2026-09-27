@@ -118,7 +118,7 @@
 
 <div class="flex flex-col h-full bg-ant-bg text-ant-text font-sans text-xs select-none">
   <!-- Search & Toolbar -->
-  <div class="p-2 border-b border-ant-border flex items-center gap-1.5 shrink-0 bg-ant-bg-secondary">
+  <div class="p-2 border-b border-ant-border-secondary dark:border-white/5 flex items-center gap-1.5 shrink-0 bg-ant-bg-secondary">
     <div class="relative flex-1">
       <Search class="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-ant-text-muted pointer-events-none" />
       <input

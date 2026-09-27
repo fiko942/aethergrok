@@ -162,7 +162,7 @@
 
 {#if visible && filteredSkills.length > 0}
   <div
-    class="absolute bottom-full left-0 mb-3 w-96 max-w-[95vw] bg-ant-bg-secondary/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl z-[100] flex flex-col animate-in fade-in zoom-in-95 duration-100 text-ant-text"
+    class="absolute bottom-full left-0 mb-3 w-96 max-w-[95vw] bg-ant-bg-secondary/95 backdrop-blur-md border border-ant-border-secondary dark:border-white/5 rounded-xl shadow-2xl z-[100] flex flex-col animate-in fade-in zoom-in-95 duration-100 text-ant-text"
     style="box-shadow: 0 20px 40px -4px rgba(0, 0, 0, 0.5), 0 8px 16px -4px rgba(0, 0, 0, 0.3);"
   >
     <!-- Autocomplete Header -->

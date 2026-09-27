@@ -206,10 +206,11 @@
     }
   }
   let composerRef = $state<{
-    appendText: (str: string) => void;
-    attachImage: (img: VisionImage) => void;
-    focusInput: () => void;
-    restorePrompt: (payload: { text: string; images?: VisionImage[]; attachments?: AttachedFile[] }) => void;
+    appendText?: (str: string) => void;
+    appendPrompt?: (str: string) => void;
+    attachImage?: (img: VisionImage) => void;
+    focusInput?: () => void;
+    restorePrompt?: (payload: { text: string; images?: VisionImage[]; attachments?: AttachedFile[] }) => void;
     handleExternalFiles?: (files: FileList | File[]) => void;
   } | null>(null);
   let messageListRef = $state<{ forceScrollBottom: () => void } | null>(null);
@@ -416,8 +417,8 @@
             model: payload.model || undefined,
             reasoningEffort: payload.reasoningEffort,
             workingDir: workingDir || undefined,
-            grokSessionId: grokSessionId
-          }
+            ...(grokSessionId ? { grokSessionId } : {})
+          } as any
         });
       } catch (err) {
         sessionStore.addMessage(sessionId, {
@@ -1104,7 +1105,7 @@
   <!-- Top Navigation Bar -->
   <header
     ondblclick={handleHeaderDoubleClick}
-    class="flex items-center justify-between pl-20 pr-4 h-[38px] bg-ant-bg-secondary border-b border-ant-border flex-shrink-0 cursor-default"
+    class="flex items-center justify-between pl-20 pr-4 h-[38px] bg-ant-bg-secondary border-b border-ant-border-secondary dark:border-white/5 flex-shrink-0 cursor-default"
     style="--wails-draggable:drag"
   >
     <div class="flex items-center space-x-2 shrink-0">
@@ -1136,7 +1137,7 @@
       />
       <div class="flex items-center space-x-2 shrink-0">
         <span class="font-serif-display font-bold text-sm tracking-tight text-ant-text leading-none select-none">AetherGrok</span>
-        <span class="px-1.5 py-0.5 text-[9px] font-mono font-medium bg-ant-bg-tertiary text-ant-text-muted rounded border border-ant-border/40 leading-none select-none">v{__APP_VERSION__}</span>
+        <span class="px-1.5 py-0.5 text-[9px] font-mono font-medium bg-ant-bg-tertiary/70 text-ant-text-muted rounded border border-ant-border-secondary dark:border-white/5 leading-none select-none">v{__APP_VERSION__}</span>
       </div>
     </div>
 
@@ -1147,7 +1148,7 @@
       <Button size="small" type="default" onclick={() => skillsCatalogVisible = true}>
         <Sparkles size={13} class="mr-1 text-ant-primary" /> Skills Hub
       </Button>
-      <div class="h-6.5 flex items-center space-x-2 text-xs text-ant-text-secondary bg-ant-bg px-2 rounded-md border border-ant-border shrink-0 whitespace-nowrap shadow-2xs">
+      <div class="h-6.5 flex items-center space-x-2 text-xs text-ant-text-secondary bg-ant-bg px-2 rounded-md border border-ant-border-secondary dark:border-white/5 shrink-0 whitespace-nowrap shadow-2xs">
         <Badge status={isWorking ? 'processing' : 'success'} />
         <span class="whitespace-nowrap">Model: <strong class="text-ant-text font-medium">{selectedModel}</strong></span>
       </div>
@@ -1192,7 +1193,7 @@
 
     <!-- Left Sidebar: Workspace & Session Management (Resizable & Collapsible) -->
     <aside
-      class="{isCompact ? 'fixed top-12 bottom-0 left-0 z-40 shadow-2xl transition-transform duration-200 ease-out' : `relative ${isDraggingSidebar ? 'transition-none' : 'transition-[width] duration-200 ease-out'}`} bg-ant-bg-secondary border-r border-ant-border flex flex-col justify-between p-3 overflow-hidden flex-shrink-0 {isDraggingSidebar ? 'select-none pointer-events-none' : ''}"
+      class="{isCompact ? 'fixed top-12 bottom-0 left-0 z-40 shadow-2xl transition-transform duration-200 ease-out' : `relative ${isDraggingSidebar ? 'transition-none' : 'transition-[width] duration-200 ease-out'}`} bg-ant-bg-secondary border-r border-ant-border-secondary dark:border-white/5 flex flex-col justify-between overflow-hidden flex-shrink-0 {isDraggingSidebar ? 'select-none pointer-events-none' : ''}"
       style="{isCompact ? (settingsStore.sidebarCollapsed ? 'transform: translateX(-100%); width: 288px;' : 'transform: translateX(0); width: 288px;') : (settingsStore.sidebarCollapsed ? 'width: 0px; padding: 0px; border-right: none;' : `width: ${settingsStore.sidebarWidth || 288}px;`)}"
     >
       <!-- Workspace Folders & Sessions List -->
@@ -1201,7 +1202,7 @@
       </div>
 
       <!-- Compact Engine Controls & Quick Settings Footer -->
-      <div class="pt-2 mt-1 border-t border-ant-border flex-shrink-0">
+      <div class="p-2.5 border-t border-ant-border-secondary dark:border-white/5 flex-shrink-0 bg-ant-bg-secondary">
         <Tooltip
           title="Settings"
           shortcut={isMac ? '⌘,' : 'Ctrl+,'}
@@ -1210,10 +1211,10 @@
           <button
             type="button"
             onclick={() => settingsModalVisible = true}
-            class="w-full flex items-center space-x-2 px-2 py-1.5 bg-ant-bg hover:bg-ant-bg-tertiary border border-ant-border hover:border-ant-primary/40 rounded-md text-xs text-ant-text transition group cursor-pointer shadow-2xs"
+            class="w-full flex items-center space-x-2 px-2.5 py-2 bg-ant-bg hover:bg-ant-bg-tertiary border border-ant-border-secondary dark:border-white/5 hover:border-blue-500/40 rounded-lg text-xs text-ant-text transition group cursor-pointer shadow-2xs"
           >
-            <div class="w-5 h-5 rounded bg-ant-primary/10 flex items-center justify-center text-ant-primary group-hover:scale-105 transition-transform flex-shrink-0">
-              <Settings size={12} />
+            <div class="w-5 h-5 rounded-md bg-ant-primary/10 flex items-center justify-center text-ant-primary group-hover:scale-105 transition-transform flex-shrink-0">
+              <Settings size={13} />
             </div>
             <span class="font-serif text-xs font-medium text-ant-text truncate">Settings</span>
           </button>
@@ -1247,7 +1248,7 @@
           <button
             type="button"
             onclick={toggleSidebar}
-            class="flex items-center justify-center w-7 h-7 rounded-md bg-ant-bg-secondary hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-primary border border-ant-border shadow-md backdrop-blur-sm transition-all cursor-pointer"
+            class="flex items-center justify-center w-7 h-7 rounded-md bg-ant-bg-secondary hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-primary border border-ant-border-secondary dark:border-white/5 shadow-md backdrop-blur-sm transition-all cursor-pointer"
           >
             <ChevronRight size={15} />
           </button>

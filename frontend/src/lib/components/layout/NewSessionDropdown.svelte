@@ -72,12 +72,12 @@
 {#if open}
   <div
     bind:this={dropdownRef}
-    class="absolute z-[9999] min-w-[280px] max-w-[340px] bg-ant-bg border border-ant-border rounded-xl shadow-2xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150 select-none {
+    class="absolute z-[9999] min-w-[280px] max-w-[340px] bg-ant-bg border border-ant-border-secondary dark:border-white/5 rounded-xl shadow-2xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150 select-none {
       placement === 'bottom-end' ? 'right-0 top-full mt-1.5' : placement === 'bottom-start' ? 'left-0 top-full mt-1.5' : 'left-1/2 -translate-x-1/2 top-full mt-2'
     }"
   >
     <!-- Dropdown Header -->
-    <div class="px-2.5 py-1.5 text-[11px] font-mono uppercase tracking-wider text-ant-text-secondary flex items-center justify-between border-b border-ant-border/60 bg-ant-bg-secondary rounded-t-lg">
+    <div class="px-2.5 py-1.5 text-[11px] font-mono uppercase tracking-wider text-ant-text-secondary flex items-center justify-between border-b border-ant-border-secondary dark:border-white/5 bg-ant-bg-secondary rounded-t-lg">
       <span>Select Workspace</span>
       <span class="text-[10px] text-ant-text-muted lowercase">for new conversation</span>
     </div>
@@ -92,13 +92,13 @@
           onclick={() => handleSelectWorkspace(ws)}
           class="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-serif text-left transition group {
             isActive
-              ? 'bg-ant-primary/15 text-ant-primary border border-ant-primary/30 font-medium'
+              ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30 font-medium'
               : 'text-ant-text hover:bg-ant-bg-secondary border border-transparent'
           }"
         >
           <div class="flex items-center space-x-2.5 min-w-0">
             <div class="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 {
-              isActive ? 'bg-ant-primary/20 text-ant-primary' : 'bg-ant-bg-tertiary text-ant-primary group-hover:text-ant-primary'
+              isActive ? 'bg-blue-500/20 text-blue-400' : 'bg-ant-bg-tertiary text-ant-primary group-hover:text-ant-primary'
             }">
               <Folder size={13} />
             </div>
@@ -109,11 +109,11 @@
           </div>
 
           <div class="flex items-center space-x-1.5 flex-shrink-0 ml-2">
-            <span class="text-[10.5px] font-mono px-1.5 py-0.2 rounded bg-ant-bg-tertiary border border-ant-border/40 text-ant-text-muted">
+            <span class="text-[10.5px] font-mono px-1.5 py-0.2 rounded bg-ant-bg-tertiary/80 border border-ant-border-secondary dark:border-white/5 text-ant-text-muted">
               {sessionCount}
             </span>
             {#if isActive}
-              <Check size={13} class="text-ant-primary" />
+              <Check size={13} class="text-blue-400" />
             {/if}
           </div>
         </button>
@@ -121,7 +121,7 @@
     </div>
 
     <!-- Divider & Open New Workspace Action -->
-    <div class="pt-1 border-t border-ant-border/60">
+    <div class="pt-1 border-t border-ant-border-secondary dark:border-white/5">
       <button
         type="button"
         onclick={handleOpenNewFolder}

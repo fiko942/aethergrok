@@ -250,7 +250,7 @@
     onclick={(e) => { if (e.target === e.currentTarget && !isScanning && !isInstalling) handleCloseModal(); }}
   >
     <div
-      class="w-full max-w-3xl max-h-[85vh] flex flex-col bg-ant-bg-secondary border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 text-ant-text"
+      class="w-full max-w-3xl max-h-[85vh] flex flex-col bg-ant-bg-secondary border border-ant-border-secondary dark:border-white/5 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 text-ant-text"
       role="dialog"
       aria-modal="true"
       tabindex="-1"
@@ -302,7 +302,7 @@
                   onkeydown={(e) => e.key === 'Enter' && handleScanRepo()}
                   type="text"
                   placeholder="https://github.com/owner/repository or owner/repository"
-                  class="w-full px-3.5 py-2.5 bg-ant-bg border border-white/10 focus:border-ant-primary/60 rounded-xl text-xs text-ant-text placeholder:text-ant-text-muted outline-none transition shadow-sm font-mono"
+                  class="w-full px-3.5 py-2.5 bg-ant-bg border border-ant-border-secondary dark:border-white/5 focus:border-ant-primary/60 rounded-xl text-xs text-ant-text placeholder:text-ant-text-muted outline-none transition shadow-sm font-mono"
                 />
               </div>
               <p class="text-[11px] text-ant-text-muted">
@@ -449,7 +449,7 @@
             </div>
 
             <!-- Discovered Skills Checklist Table -->
-            <div class="border border-white/10 rounded-xl overflow-hidden bg-ant-bg">
+            <div class="border border-ant-border-secondary dark:border-white/5 rounded-xl overflow-hidden bg-ant-bg">
               <div class="divide-y divide-white/5 max-h-72 overflow-y-auto scrollbar-thin">
                 {#each analysisResult.skills as skill}
                   {@const isChecked = selectedSkillPaths.includes(skill.relativePath)}
@@ -540,7 +540,7 @@
             <!-- Live Terminal View -->
             <div
               bind:this={terminalContainerRef}
-              class="w-full h-72 bg-ant-bg rounded-xl border border-white/10 p-3 font-mono text-[11px] leading-relaxed overflow-y-auto scrollbar-thin text-ant-text space-y-1 select-text"
+              class="w-full h-72 bg-ant-bg rounded-xl border border-ant-border-secondary dark:border-white/5 p-3 font-mono text-[11px] leading-relaxed overflow-y-auto scrollbar-thin text-ant-text space-y-1 select-text"
             >
               {#each installLogs as log}
                 {#if log.startsWith('[error]')}

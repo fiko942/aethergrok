@@ -237,20 +237,20 @@
         <tbody>
           {#each parsedDiff.lines as line, idx (idx)}
             {#if line.type === 'add'}
-              <tr class="bg-emerald-500/10 hover:bg-emerald-500/15 text-emerald-300 border-l-2 border-emerald-500/50">
+              <tr class="bg-emerald-500/10 hover:bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-l-2 border-emerald-500/50">
                 <td class="w-7 px-1.5 text-right text-ant-text-muted/30 border-r border-white/5 select-none text-[10px]"></td>
-                <td class="w-7 px-1.5 text-right text-emerald-400 font-semibold border-r border-white/5 select-none text-[10px]">{line.newLineNo}</td>
+                <td class="w-7 px-1.5 text-right text-emerald-700 dark:text-emerald-400 font-semibold border-r border-white/5 select-none text-[10px]">{line.newLineNo}</td>
                 <td class="px-2.5 py-0.5 whitespace-pre font-mono flex items-start">
-                  <span class="text-emerald-400 font-bold mr-2 select-none">+</span>
+                  <span class="text-emerald-700 dark:text-emerald-400 font-bold mr-2 select-none">+</span>
                   <span>{line.content}</span>
                 </td>
               </tr>
             {:else if line.type === 'del'}
-              <tr class="bg-rose-500/10 hover:bg-rose-500/15 text-rose-300 border-l-2 border-rose-500/50">
-                <td class="w-7 px-1.5 text-right text-rose-400 font-semibold border-r border-white/5 select-none text-[10px]">{line.oldLineNo}</td>
+              <tr class="bg-rose-500/10 hover:bg-rose-500/15 text-rose-800 dark:text-rose-300 border-l-2 border-rose-500/50">
+                <td class="w-7 px-1.5 text-right text-rose-700 dark:text-rose-400 font-semibold border-r border-white/5 select-none text-[10px]">{line.oldLineNo}</td>
                 <td class="w-7 px-1.5 text-right text-ant-text-muted/30 border-r border-white/5 select-none text-[10px]"></td>
                 <td class="px-2.5 py-0.5 whitespace-pre font-mono flex items-start">
-                  <span class="text-rose-400 font-bold mr-2 select-none">-</span>
+                  <span class="text-rose-700 dark:text-rose-400 font-bold mr-2 select-none">-</span>
                   <span>{line.content}</span>
                 </td>
               </tr>
@@ -279,11 +279,11 @@
               </td>
               <td
                 class="w-1/2 px-2.5 py-0.5 whitespace-pre font-mono border-r border-white/5 {row.left?.type === 'del'
-                  ? 'bg-rose-500/10 text-rose-300 border-l-2 border-rose-500/50'
+                  ? 'bg-rose-500/10 text-rose-800 dark:text-rose-300 border-l-2 border-rose-500/50'
                   : 'text-ant-text'}"
               >
                 {#if row.left?.type === 'del'}
-                  <span class="text-rose-400 font-bold mr-1.5 select-none">-</span>
+                  <span class="text-rose-700 dark:text-rose-400 font-bold mr-1.5 select-none">-</span>
                 {/if}
                 {row.left?.content ?? ''}
               </td>
@@ -294,11 +294,11 @@
               </td>
               <td
                 class="w-1/2 px-2.5 py-0.5 whitespace-pre font-mono {row.right?.type === 'add'
-                  ? 'bg-emerald-500/10 text-emerald-300 border-l-2 border-emerald-500/50'
+                  ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border-l-2 border-emerald-500/50'
                   : 'text-ant-text'}"
               >
                 {#if row.right?.type === 'add'}
-                  <span class="text-emerald-400 font-bold mr-1.5 select-none">+</span>
+                  <span class="text-emerald-700 dark:text-emerald-400 font-bold mr-1.5 select-none">+</span>
                 {/if}
                 {row.right?.content ?? ''}
               </td>

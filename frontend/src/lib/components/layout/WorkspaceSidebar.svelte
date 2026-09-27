@@ -399,7 +399,7 @@
 
       <button
         onclick={() => sessionStore.toggleSelectionMode()}
-        class="text-[11px] font-medium px-2 py-0.5 rounded transition border {sessionStore.isSelectionMode ? 'bg-ant-primary text-white border-ant-primary' : 'text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-ant-border/60'}"
+        class="text-[11px] font-medium px-2 py-0.5 rounded transition border {sessionStore.isSelectionMode ? 'bg-ant-primary text-white border-ant-primary shadow-xs' : 'text-ant-text-secondary hover:text-ant-text bg-ant-bg-tertiary/40 hover:bg-ant-bg-tertiary border-ant-border-secondary dark:border-white/5'}"
         title="Toggle Multi-Select"
       >
         {sessionStore.isSelectionMode ? 'Cancel' : 'Select'}
@@ -494,12 +494,33 @@
     {/if}
 
     <!-- WORKSPACE TREES -->
-    {#each filteredWorkspaces as ws (ws.id)}
+    {#if filteredWorkspaces.length === 0}
+      <div class="flex flex-col items-center justify-center p-5 text-center my-6 space-y-3 rounded-xl border border-dashed border-ant-border-secondary dark:border-white/5 bg-ant-bg-secondary/30">
+        <div class="w-10 h-10 rounded-xl bg-ant-primary/10 flex items-center justify-center text-ant-primary/70">
+          <FolderOpen size={20} />
+        </div>
+        <div class="space-y-1">
+          <p class="text-xs font-medium text-ant-text">No workspaces open</p>
+          <p class="text-[11px] text-ant-text-muted leading-relaxed max-w-[190px]">
+            Open any project directory on your machine to start collaborating with Grok.
+          </p>
+        </div>
+        <button
+          type="button"
+          onclick={handleOpenWorkspaceFolder}
+          class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-ant-primary text-white hover:bg-ant-primary/90 transition shadow-xs"
+        >
+          <FolderPlus size={13} />
+          <span>Open Folder</span>
+        </button>
+      </div>
+    {:else}
+      {#each filteredWorkspaces as ws (ws.id)}
       {@const isExpanded = ws.isExpanded === true}
       {@const { visible, totalCount, hasMore, hiddenCount } = getWorkspaceSessions(ws.id)}
       {@const isMissing = ws.existsOnDisk === false}
 
-      <div class="rounded-lg {isMissing ? 'bg-rose-500/5 border border-rose-500/20' : 'bg-ant-bg border border-ant-border'} overflow-hidden shadow-2xs">
+      <div class="rounded-lg {isMissing ? 'bg-rose-500/5 border border-rose-500/20' : 'bg-ant-bg border border-ant-border-secondary dark:border-white/5'} overflow-hidden shadow-2xs">
         <!-- Workspace Folder Header -->
         <div
           role="button"
@@ -512,7 +533,7 @@
           onkeydown={(e) => {
             if (e.key === 'Enter' && !isMissing) handleToggleWorkspace(ws.id);
           }}
-          class="flex items-center justify-between px-2.5 py-1.5 {isMissing ? 'bg-rose-500/10 cursor-not-allowed opacity-90' : 'bg-ant-bg-secondary hover:bg-ant-bg-tertiary cursor-pointer'} transition select-none group border-b {isExpanded ? 'border-ant-border/60' : 'border-transparent'}"
+          class="flex items-center justify-between px-2.5 py-1.5 {isMissing ? 'bg-rose-500/10 cursor-not-allowed opacity-90' : 'bg-ant-bg-secondary hover:bg-ant-bg-tertiary cursor-pointer'} transition select-none group border-b {isExpanded ? 'border-ant-border-secondary dark:border-white/5' : 'border-transparent'}"
           title={isMissing ? `Folder ini sudah tidak ada lagi di disk: ${ws.path}` : ws.path}
         >
           <div class="flex items-center space-x-1.5 min-w-0 flex-1">
@@ -687,6 +708,7 @@
         {/if}
       </div>
     {/each}
+    {/if}
   </div>
 
   <!-- Global Fixed Dropdown Menu (Portal) to prevent parent overflow clipping -->

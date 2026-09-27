@@ -152,7 +152,7 @@
   <!-- Trigger Pill Button -->
   <button
     type="button"
-    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-ant-bg border border-ant-border hover:border-ant-primary/60 text-ant-text hover:bg-ant-bg-tertiary transition-all shadow-sm focus:outline-none focus:ring-1 focus:ring-ant-primary/40 disabled:opacity-50 disabled:cursor-not-allowed group"
+    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-ant-bg border border-ant-border-secondary dark:border-white/5 hover:border-blue-500/40 text-ant-text hover:bg-ant-bg-tertiary transition-all shadow-sm focus:outline-none focus:ring-1 focus:ring-ant-primary/40 disabled:opacity-50 disabled:cursor-not-allowed group"
     onclick={toggleDropdown}
     {disabled}
     title="Choose active model engine"
@@ -172,11 +172,11 @@
   <!-- Dropdown Menu / Popover with Search & Options -->
   {#if isOpen}
     <div
-      class="absolute bottom-full left-0 mb-3 w-80 max-w-[90vw] bg-ant-bg border border-ant-border rounded-xl shadow-2xl z-[100] flex flex-col animate-in fade-in zoom-in-95 duration-150"
+      class="absolute bottom-full left-0 mb-3 w-80 max-w-[90vw] bg-ant-bg border border-ant-border-secondary dark:border-white/5 rounded-xl shadow-2xl z-[100] flex flex-col animate-in fade-in zoom-in-95 duration-150"
       style="box-shadow: 0 20px 40px -4px rgba(0, 0, 0, 0.45), 0 8px 16px -4px rgba(0, 0, 0, 0.25);"
     >
       <!-- Dropdown Header & Search Box -->
-      <div class="p-3 border-b border-ant-border bg-ant-bg-secondary rounded-t-xl">
+      <div class="p-3 border-b border-ant-border-secondary dark:border-white/5 bg-ant-bg-secondary rounded-t-xl">
         <div class="flex items-center justify-between mb-2 px-0.5">
           <div class="flex items-center gap-1.5 text-[11px] font-semibold text-ant-text">
             <Sparkles size={12} class="text-ant-primary" />
@@ -200,7 +200,7 @@
             type="text"
             bind:value={searchQuery}
             placeholder="Search model by name..."
-            class="w-full pl-7 pr-3 py-1.5 text-xs bg-ant-bg border border-ant-border rounded-lg text-ant-text placeholder:text-ant-text-muted outline-none focus:border-ant-primary focus:ring-1 focus:ring-ant-primary/30 transition shadow-inner"
+            class="w-full pl-7 pr-3 py-1.5 text-xs bg-ant-bg border border-ant-border-secondary dark:border-white/5 rounded-lg text-ant-text placeholder:text-ant-text-muted outline-none focus:border-ant-primary focus:ring-1 focus:ring-ant-primary/30 transition shadow-inner"
           />
         </div>
       </div>
@@ -251,7 +251,7 @@
       </div>
 
       <!-- Footer Quick Status -->
-      <div class="px-3 py-2 bg-ant-bg-secondary border-t border-ant-border rounded-b-xl flex items-center justify-between text-[10px] text-ant-text-muted">
+      <div class="px-3 py-2 bg-ant-bg-secondary border-t border-ant-border-secondary dark:border-white/5 rounded-b-xl flex items-center justify-between text-[10px] text-ant-text-muted">
         <span>{filteredOptions.length} available</span>
         <span class="font-mono text-[9px]">grok CLI</span>
       </div>

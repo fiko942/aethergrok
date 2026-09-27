@@ -172,7 +172,7 @@
             </span>
             {#if showWsBadge}
               <span
-                class="flex-shrink-0 text-[9.5px] font-mono px-1 py-0.2 rounded bg-ant-bg-tertiary text-ant-text-muted border border-ant-border/50 max-w-[65px] truncate"
+                class="flex-shrink-0 text-[9.5px] font-mono px-1 py-0.2 rounded bg-ant-bg-tertiary/70 text-ant-text-muted border border-ant-border-secondary dark:border-white/5 max-w-[65px] truncate"
                 title={`Workspace: ${ws?.name} (${ws?.path})`}
               >
                 {ws?.name}
@@ -236,7 +236,7 @@
             terminalStore.toggleSessionCollapse(activeSessionId);
           }
         }}
-        class="flex items-center space-x-1 px-2 h-7 rounded text-xs transition border {hasTerminals && !isCollapsed ? 'bg-ant-primary/20 text-ant-primary border-ant-primary/40 font-medium' : 'text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'}"
+        class="flex items-center space-x-1 px-2 h-7 rounded text-xs transition {hasTerminals && !isCollapsed ? 'bg-ant-primary/15 text-ant-primary font-medium' : 'text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary'}"
         title="Toggle Session Terminal (Multi-tab PTY with full process cleanup)"
       >
         <Terminal size={13} />
@@ -248,7 +248,7 @@
     <button
       type="button"
       onclick={handleNewSession}
-      class="flex items-center justify-center w-7 h-7 rounded bg-ant-bg hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-primary border border-ant-border hover:border-ant-primary/40 transition flex-shrink-0 cursor-pointer shadow-2xs {isDropdownOpen ? 'bg-ant-bg-tertiary text-ant-primary border-ant-primary/40' : ''}"
+      class="flex items-center justify-center w-7 h-7 rounded bg-ant-bg hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-primary transition flex-shrink-0 cursor-pointer shadow-2xs {isDropdownOpen ? 'bg-ant-bg-tertiary text-ant-primary' : ''}"
       title="Create new conversation (Choose workspace)"
     >
       <Plus size={15} />

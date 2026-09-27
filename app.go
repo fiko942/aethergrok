@@ -19,6 +19,7 @@ import (
 	"aethergrok/pkg/gitutil"
 	"aethergrok/pkg/grokrunner"
 	"aethergrok/pkg/hotkey"
+	"aethergrok/pkg/logger"
 	"aethergrok/pkg/permissions"
 	"aethergrok/pkg/screen"
 	"aethergrok/pkg/skills"
@@ -281,6 +282,65 @@ func (a *App) SaveMarkdownExport(defaultFilename string, content string) (string
 	}
 
 	return filePath, nil
+}
+
+// SaveLogExport opens a native save file dialog to export system logs as .log or .json
+func (a *App) SaveLogExport(defaultFilename, content, fileType string) (string, error) {
+	if a.ctx == nil {
+		return "", fmt.Errorf("application context not initialized")
+	}
+
+	var filterName, pattern string
+	if fileType == "json" {
+		filterName = "JSON Log Files (*.json)"
+		pattern = "*.json"
+	} else {
+		filterName = "Text Log Files (*.log)"
+		pattern = "*.log"
+	}
+
+	filePath, err := wailsRuntime.SaveFileDialog(a.ctx, wailsRuntime.SaveDialogOptions{
+		Title:           "Export System Logs",
+		DefaultFilename: defaultFilename,
+		Filters: []wailsRuntime.FileFilter{
+			{
+				DisplayName: filterName,
+				Pattern:     pattern,
+			},
+			{
+				DisplayName: "All Files (*.*)",
+				Pattern:     "*.*",
+			},
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+	if filePath == "" {
+		return "", nil // User cancelled
+	}
+
+	err = os.WriteFile(filePath, []byte(content), 0644)
+	if err != nil {
+		return "", fmt.Errorf("failed to write export file: %w", err)
+	}
+
+	return filePath, nil
+}
+
+// AppendSystemLog writes a log entry asynchronously into the persistent disk log buffer
+func (a *App) AppendSystemLog(entry logger.LogEntry) error {
+	return logger.GetDiskLogger().Append(entry)
+}
+
+// LoadPersistedLogs retrieves up to `limit` entries from ~/.grok/logs/aethergrok.log
+func (a *App) LoadPersistedLogs(limit int) ([]logger.LogEntry, error) {
+	return logger.GetDiskLogger().ReadRecentEntries(limit)
+}
+
+// ClearPersistedLogs deletes all persistent log files on disk
+func (a *App) ClearPersistedLogs() error {
+	return logger.GetDiskLogger().Clear()
 }
 
 // DiscoverGrokSessions scans disk for sessions belonging to workspacePath

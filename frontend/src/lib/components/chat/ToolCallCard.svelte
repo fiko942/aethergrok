@@ -38,6 +38,9 @@
   let copiedOutput = $state(false);
   let planMarkdownContent = $state<string>('');
   let isPlanLoading = $state(false);
+  let dirSearchQuery = $state('');
+  let dirFilterTab = $state<'all' | 'folders' | 'files'>('all');
+  let dirShowAll = $state(false);
 
   // Fetch plan file content when plan card is expanded
   $effect(() => {
@@ -243,11 +246,30 @@
       };
     }
 
+    // 10. Git commands / Git plugins
+    if (rawTool.includes('git_') || rawTool.includes('git-') || rawTool.includes(':git_') || rawTool.includes(':git-') || rawTool.startsWith('git')) {
+      const cleanVerb = toolCall.tool?.replace(/^.*[:_]/, 'git ') || 'Git';
+      return {
+        verb: 'Git',
+        type: 'custom' as const,
+        target: toolCall.tool || 'git action',
+        icon: Terminal,
+        iconClass: 'text-amber-500 dark:text-amber-400'
+      };
+    }
+
     // Fallback Tool
+    // Format custom/namespaced tools like "git_traffic_cop:git_status" or "search_tool" cleanly
+    const displayVerb = toolCall.tool
+      ? toolCall.tool.split(':').pop()?.replace(/_/g, ' ') || toolCall.tool
+      : 'Tool';
+
     return {
-      verb: toolCall.tool || 'Tool',
+      verb: displayVerb.charAt(0).toUpperCase() + displayVerb.slice(1),
       type: 'custom' as const,
-      target: typeof toolCall.params === 'string' ? toolCall.params : '',
+      target: typeof toolCall.params === 'string'
+        ? toolCall.params
+        : (Object.keys(p).length > 0 ? JSON.stringify(p) : toolCall.tool || ''),
       icon: FileText,
       iconClass: 'text-ant-primary'
     };
@@ -444,10 +466,10 @@
       {#if diffStat && (diffStat.added > 0 || diffStat.removed > 0)}
         <div class="flex items-center space-x-1 text-[10px] font-mono">
           {#if diffStat.added > 0}
-            <span class="text-emerald-400 font-medium bg-emerald-500/10 px-1 rounded">+{diffStat.added}</span>
+            <span class="text-emerald-700 dark:text-emerald-400 font-semibold bg-emerald-500/15 dark:bg-emerald-500/10 px-1 rounded">+{diffStat.added}</span>
           {/if}
           {#if diffStat.removed > 0}
-            <span class="text-rose-400 font-medium bg-rose-500/10 px-1 rounded">−{diffStat.removed}</span>
+            <span class="text-rose-700 dark:text-rose-400 font-semibold bg-rose-500/15 dark:bg-rose-500/10 px-1 rounded">−{diffStat.removed}</span>
           {/if}
         </div>
       {/if}
@@ -486,8 +508,8 @@
               <table class="w-full border-collapse font-mono text-[11px] leading-relaxed">
                 <tbody>
                   {#each editDiffLines as line, idx (idx)}
-                    <tr class="hover:bg-white/[0.02] {line.type === 'add' ? 'bg-emerald-500/10 text-emerald-300' : line.type === 'del' ? 'bg-rose-500/10 text-rose-300' : 'text-ant-text-muted'}">
-                      <td class="w-6 px-1.5 py-0.5 text-center select-none font-bold {line.type === 'add' ? 'text-emerald-400' : line.type === 'del' ? 'text-rose-400' : 'text-ant-text-muted/40'}">
+                    <tr class="hover:bg-white/[0.02] {line.type === 'add' ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300' : line.type === 'del' ? 'bg-rose-500/10 text-rose-800 dark:text-rose-300' : 'text-ant-text-muted'}">
+                      <td class="w-6 px-1.5 py-0.5 text-center select-none font-bold {line.type === 'add' ? 'text-emerald-700 dark:text-emerald-400' : line.type === 'del' ? 'text-rose-700 dark:text-rose-400' : 'text-ant-text-muted/40'}">
                         {line.type === 'add' ? '+' : line.type === 'del' ? '−' : ' '}
                       </td>
                       <td class="px-2 py-0.5 whitespace-pre font-mono break-all">
@@ -501,14 +523,14 @@
           {:else}
             <div class="p-2 space-y-0.5">
               {#if toolParsed.oldStr}
-                <div class="text-rose-400 break-all flex items-start gap-1">
-                  <span class="select-none font-bold min-w-[10px] text-rose-500">−</span>
+                <div class="text-rose-800 dark:text-rose-400 break-all flex items-start gap-1">
+                  <span class="select-none font-bold min-w-[10px] text-rose-700 dark:text-rose-500">−</span>
                   <span class="bg-rose-500/10 px-1 py-0.5 rounded flex-1 whitespace-pre-wrap">{toolParsed.oldStr}</span>
                 </div>
               {/if}
               {#if toolParsed.newStr}
-                <div class="text-emerald-400 break-all flex items-start gap-1">
-                  <span class="select-none font-bold min-w-[10px] text-emerald-500">+</span>
+                <div class="text-emerald-800 dark:text-emerald-400 break-all flex items-start gap-1">
+                  <span class="select-none font-bold min-w-[10px] text-emerald-700 dark:text-emerald-500">+</span>
                   <span class="bg-emerald-500/10 px-1 py-0.5 rounded flex-1 whitespace-pre-wrap">{toolParsed.newStr}</span>
                 </div>
               {/if}
@@ -689,7 +711,7 @@
               {/if}
             </button>
           </div>
-          <pre class="p-2 leading-relaxed overflow-x-auto max-h-64 scrollbar-thin {toolCall.status === 'error' || parsedOutput.status === 'failed' || (parsedOutput.exitCode !== undefined && parsedOutput.exitCode !== 0) ? 'text-rose-300' : 'text-ant-text'}"><code>{parsedOutput.output || '(empty)'}</code></pre>
+          <pre class="p-2 leading-relaxed overflow-x-auto max-h-64 scrollbar-thin {toolCall.status === 'error' || parsedOutput.status === 'failed' || (parsedOutput.exitCode !== undefined && parsedOutput.exitCode !== 0) ? 'text-rose-700 dark:text-rose-300' : 'text-ant-text'}"><code>{parsedOutput.output || '(empty)'}</code></pre>
           {#if parsedOutput.truncated && parsedOutput.outputFile}
             <div class="px-2 py-1 bg-ant-bg-tertiary/40 border-t border-white/5 text-[10px] text-ant-text-muted flex items-center justify-between">
               <span>Output truncated</span>

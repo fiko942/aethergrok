@@ -201,21 +201,6 @@ class SessionStore {
     this.loadWorkspacesFromStorage();
     this.loadSessionsFromStorage();
 
-    // Ensure we have at least one workspace if completely empty
-    if (this.workspaces.length === 0) {
-      const defaultWs: WorkspaceFolder = {
-        id: 'ws_affilia_root',
-        name: 'affilia',
-        path: '/Users/fiko942/Desktop/affilia',
-        createdAt: Date.now(),
-        existsOnDisk: true,
-        isExpanded: false
-      };
-      this.workspaces = [defaultWs];
-      this.activeWorkspaceId = defaultWs.id;
-      this.saveWorkspacesToStorage();
-    }
-
     // Workspaces default to collapsed unless explicitly expanded by user
     for (const ws of this.workspaces) {
       if (ws.isExpanded === undefined) {
@@ -223,7 +208,9 @@ class SessionStore {
       }
     }
 
-    if (!this.activeWorkspaceId || !this.workspaces.some(w => w.id === this.activeWorkspaceId)) {
+    if (this.workspaces.length === 0) {
+      this.activeWorkspaceId = '';
+    } else if (!this.activeWorkspaceId || !this.workspaces.some(w => w.id === this.activeWorkspaceId)) {
       this.activeWorkspaceId = this.workspaces[0].id;
     }
 
@@ -278,6 +265,8 @@ class SessionStore {
       window.localStorage.setItem(WORKSPACES_STORAGE_KEY, JSON.stringify(this.workspaces));
       if (this.activeWorkspaceId) {
         window.localStorage.setItem(ACTIVE_WS_STORAGE_KEY, this.activeWorkspaceId);
+      } else {
+        window.localStorage.removeItem(ACTIVE_WS_STORAGE_KEY);
       }
     } catch (e) {
       console.warn('Failed to save workspaces to storage:', e);
@@ -394,11 +383,11 @@ class SessionStore {
 
   private createNewSessionModel(title?: string, wsId?: string): Session {
     const id = 'sess_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36);
-    const workspaceId = wsId || this.activeWorkspaceId || (this.workspaces[0]?.id ?? 'ws_default');
+    const workspaceId = wsId || this.activeWorkspaceId || (this.workspaces[0]?.id ?? '');
     return {
       id,
       workspaceId,
-      title: title || `Session ${this.sessions.filter((s) => s.workspaceId === workspaceId).length + 1}`,
+      title: title || (workspaceId ? `Session ${this.sessions.filter((s) => s.workspaceId === workspaceId).length + 1}` : `Session ${this.sessions.length + 1}`),
       status: 'idle',
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -571,10 +560,13 @@ class SessionStore {
     this.workspaces.splice(index, 1);
     // Remove associated sessions
     this.sessions = this.sessions.filter((s) => s.workspaceId !== id);
-    this.saveWorkspacesToStorage();
 
     if (this.workspaces.length === 0) {
-      const fallback = this.addWorkspace('default', '/');
+      this.activeWorkspaceId = '';
+      this.activeSessionId = null;
+      this.openTabSessionIds = [];
+      this.saveWorkspacesToStorage();
+      this.saveSessionsToStorage();
       return;
     }
 
@@ -583,6 +575,7 @@ class SessionStore {
       const wsSessions = this.sessions.filter((s) => s.workspaceId === this.activeWorkspaceId);
       this.activeSessionId = wsSessions[0]?.id || null;
     }
+    this.saveWorkspacesToStorage();
   }
 
   // Selection Mode Actions

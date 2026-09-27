@@ -17,10 +17,34 @@ class LoggerStore {
   entries = $state<LogEntry[]>([]);
   maxEntries = $state<number>(MAX_LOG_ENTRIES);
   autoScroll = $state<boolean>(true);
+  isLoadedFromDisk = $state<boolean>(false);
 
   constructor() {
     this.setupGlobalErrorHandlers();
-    this.info('SYSTEM', 'Application logging engine initialized', {
+    this.initLogsFromBackend();
+  }
+
+  private async initLogsFromBackend(): Promise<void> {
+    if (typeof window !== 'undefined' && window.go?.main?.App?.LoadPersistedLogs) {
+      try {
+        const persisted = await window.go.main.App.LoadPersistedLogs(this.maxEntries);
+        if (persisted && Array.isArray(persisted) && persisted.length > 0) {
+          this.entries = persisted.map((p) => ({
+            id: p.id || 'log_' + Math.random().toString(36).substring(2, 8),
+            timestamp: p.timestamp || Date.now(),
+            level: (p.level as LogLevel) || 'INFO',
+            category: (p.category as LogCategory) || 'SYSTEM',
+            message: p.message,
+            details: p.details
+          }));
+        }
+      } catch (err) {
+        console.warn('Failed to load persisted logs from disk:', err);
+      }
+    }
+
+    this.isLoadedFromDisk = true;
+    this.info('SYSTEM', 'Application logging engine initialized (persistent file backing active)', {
       maxEntries: this.maxEntries,
       userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown'
     });
@@ -73,6 +97,20 @@ class LoggerStore {
     }
     this.entries.push(entry);
 
+    // Persist to disk via Wails backend (non-blocking)
+    if (typeof window !== 'undefined' && window.go?.main?.App?.AppendSystemLog) {
+      window.go.main.App.AppendSystemLog({
+        id: entry.id,
+        timestamp: entry.timestamp,
+        level: entry.level,
+        category: entry.category,
+        message: entry.message,
+        details: entry.details
+      }).catch((e: any) => {
+        // Ignore background disk append logging errors
+      });
+    }
+
     // Standard devtools console mirror (non-blocking)
     const formatted = `[${category}] ${message}`;
     if (level === 'ERROR') {
@@ -104,35 +142,75 @@ class LoggerStore {
 
   clear(): void {
     this.entries = [];
-    this.info('SYSTEM', 'Log buffer cleared by user');
+    if (typeof window !== 'undefined' && window.go?.main?.App?.ClearPersistedLogs) {
+      window.go.main.App.ClearPersistedLogs().catch((e: any) => {
+        console.warn('Failed to clear persisted logs on disk:', e);
+      });
+    }
+    this.info('SYSTEM', 'Log buffer and disk files cleared by user');
   }
 
-  exportAsJSON(): void {
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(this.entries, null, 2));
+  async exportAsJSON(): Promise<string | null> {
+    const filename = `aethergrok-logs-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+    const content = JSON.stringify(this.entries, null, 2);
+
+    if (typeof window !== 'undefined' && window.go?.main?.App?.SaveLogExport) {
+      try {
+        const savedPath = await window.go.main.App.SaveLogExport(filename, content, 'json');
+        if (savedPath) {
+          this.info('SYSTEM', 'Exported logs as JSON to disk', { path: savedPath, count: this.entries.length });
+          return savedPath;
+        }
+        return null; // Cancelled
+      } catch (err) {
+        this.error('SYSTEM', 'Failed to save JSON log export via dialog', err);
+      }
+    }
+
+    // Browser download fallback
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(content);
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `aethergrok-logs-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
+    downloadAnchor.setAttribute('download', filename);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
-    this.info('SYSTEM', 'Exported logs as JSON', { count: this.entries.length });
+    this.info('SYSTEM', 'Exported logs as JSON (browser fallback)', { count: this.entries.length });
+    return filename;
   }
 
-  exportAsText(): void {
+  async exportAsText(): Promise<string | null> {
     const lines = this.entries.map((e) => {
       const timeStr = new Date(e.timestamp).toISOString();
       const detailsStr = e.details ? ` | details: ${JSON.stringify(e.details)}` : '';
       return `[${timeStr}] [${e.level.padEnd(5)}] [${e.category.padEnd(8)}] ${e.message}${detailsStr}`;
     });
+    const filename = `aethergrok-logs-${new Date().toISOString().replace(/[:.]/g, '-')}.log`;
+    const content = lines.join('\n');
 
-    const dataStr = 'data:text/plain;charset=utf-8,' + encodeURIComponent(lines.join('\n'));
+    if (typeof window !== 'undefined' && window.go?.main?.App?.SaveLogExport) {
+      try {
+        const savedPath = await window.go.main.App.SaveLogExport(filename, content, 'log');
+        if (savedPath) {
+          this.info('SYSTEM', 'Exported logs as Text .log to disk', { path: savedPath, count: this.entries.length });
+          return savedPath;
+        }
+        return null; // Cancelled
+      } catch (err) {
+        this.error('SYSTEM', 'Failed to save Text log export via dialog', err);
+      }
+    }
+
+    // Browser download fallback
+    const dataStr = 'data:text/plain;charset=utf-8,' + encodeURIComponent(content);
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `aethergrok-logs-${new Date().toISOString().replace(/[:.]/g, '-')}.log`);
+    downloadAnchor.setAttribute('download', filename);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
-    this.info('SYSTEM', 'Exported logs as Text .log', { count: this.entries.length });
+    this.info('SYSTEM', 'Exported logs as Text .log (browser fallback)', { count: this.entries.length });
+    return filename;
   }
 
   async copyToClipboard(): Promise<boolean> {

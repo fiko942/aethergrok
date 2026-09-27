@@ -124,10 +124,10 @@
 {#if isOpen}
   <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-md animate-in fade-in duration-150">
     <div
-      class="bg-ant-bg border border-ant-border rounded-xl shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden text-ant-text relative z-[101]"
+      class="bg-ant-bg border border-ant-border-secondary dark:border-white/5 rounded-xl shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden text-ant-text relative z-[101]"
     >
       <!-- Header -->
-      <div class="px-4 py-3 border-b border-ant-border flex items-center justify-between bg-ant-bg-secondary shrink-0">
+      <div class="px-4 py-3 border-b border-ant-border-secondary dark:border-white/5 flex items-center justify-between bg-ant-bg-secondary shrink-0">
         <div class="flex items-center gap-2 min-w-0">
           <FileIcon ext={ext} name={fileName} class="w-4 h-4" />
           <span class="font-medium text-sm text-ant-text truncate">{fileName}</span>
@@ -136,7 +136,7 @@
 
         <div class="flex items-center gap-2 shrink-0">
           {#if isMarkdown && !isLargeFilePending && !errorMsg}
-            <div class="flex items-center bg-ant-bg-tertiary border border-ant-border rounded-lg p-0.5 text-xs">
+            <div class="flex items-center bg-ant-bg-tertiary border border-ant-border-secondary dark:border-white/5 rounded-lg p-0.5 text-xs">
               <button
                 onclick={() => (viewMode = 'preview')}
                 class="flex items-center gap-1 px-2.5 py-1 rounded-md transition-colors {viewMode === 'preview' ? 'bg-ant-bg text-ant-text shadow-sm' : 'text-ant-text-muted hover:text-ant-text'}"
@@ -158,7 +158,7 @@
             <button
               onclick={copyContent}
               title="Copy Content"
-              class="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg border border-ant-border bg-ant-bg-tertiary text-ant-text hover:border-ant-primary/40 hover:text-ant-primary transition-colors"
+              class="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg border border-ant-border-secondary dark:border-white/5 bg-ant-bg-tertiary text-ant-text hover:border-ant-primary/40 hover:text-ant-primary transition-colors"
             >
               {#if copied}
                 <Check class="w-3.5 h-3.5 text-emerald-500" />
@@ -204,7 +204,7 @@
             <div class="flex items-center gap-3">
               <button
                 onclick={onClose}
-                class="px-4 py-2 text-xs font-medium rounded-lg border border-ant-border bg-ant-bg-secondary text-ant-text hover:bg-ant-bg-tertiary transition-colors"
+                class="px-4 py-2 text-xs font-medium rounded-lg border border-ant-border-secondary dark:border-white/5 bg-ant-bg-secondary text-ant-text hover:bg-ant-bg-tertiary transition-colors"
               >
                 Batal
               </button>
@@ -230,7 +230,7 @@
           <!-- Code View with Line Numbers & PrismJS Syntax Highlighting -->
           <div class="flex font-mono text-xs leading-5">
             <!-- Line numbers -->
-            <div class="py-3 px-3 select-none text-ant-text-muted/60 text-right bg-ant-bg-secondary border-r border-ant-border/40 shrink-0 font-mono">
+            <div class="py-3 px-3 select-none text-ant-text-muted/60 text-right bg-ant-bg-secondary border-r border-ant-border-secondary dark:border-white/5 shrink-0 font-mono">
               {#each content.split('\n') as _, i}
                 <div>{i + 1}</div>
               {/each}
@@ -245,7 +245,7 @@
       </div>
 
       <!-- Footer -->
-      <div class="px-4 py-2 border-t border-ant-border bg-ant-bg-secondary flex items-center justify-between text-[11px] text-ant-text-muted font-mono shrink-0">
+      <div class="px-4 py-2 border-t border-ant-border-secondary dark:border-white/5 bg-ant-bg-secondary flex items-center justify-between text-[11px] text-ant-text-muted font-mono shrink-0">
         <span>Read-Only Mode</span>
         {#if !isLargeFilePending && content}
           <span>{content.split('\n').length} lines &bull; {formatBytes(content.length)}</span>

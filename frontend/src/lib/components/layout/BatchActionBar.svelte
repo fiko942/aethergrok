@@ -99,26 +99,26 @@
 </script>
 
 {#if sessionStore.isSelectionMode}
-  <div class="p-2.5 bg-[#18181b] border border-[#27272a] rounded-xl shadow-2xl space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
+  <div class="p-2.5 bg-ant-bg-elevated border border-ant-border-secondary dark:border-white/10 rounded-xl shadow-xl space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
     <div class="flex items-center justify-between">
       <div class="flex items-center space-x-2">
         <button
           onclick={handleToggleSelectAll}
-          class="flex items-center space-x-2 text-xs text-zinc-300 hover:text-white font-medium transition group"
+          class="flex items-center space-x-2 text-xs text-ant-text hover:text-ant-primary font-medium transition group"
           title={isAllSelected ? 'Deselect visible sessions' : 'Select all visible sessions'}
         >
           <CustomCheckbox checked={isAllSelected} indeterminate={isIndeterminate} size="sm" />
-          <span>{isAllSelected ? 'Deselect All' : 'Select All'}</span>
+          <span class="text-ant-text">{isAllSelected ? 'Deselect All' : 'Select All'}</span>
         </button>
       </div>
 
       <div class="flex items-center space-x-1.5">
-        <span class="px-2 py-0.5 text-[11px] font-mono font-medium bg-[#222226] text-zinc-300 rounded-md border border-[#2e2e34]">
+        <span class="px-2 py-0.5 text-[11px] font-mono font-medium bg-ant-bg-tertiary text-ant-text-secondary rounded-md border border-ant-border-secondary dark:border-white/5">
           {selectedCount} selected
         </span>
         <button
           onclick={handleCancelSelection}
-          class="p-1 text-zinc-500 hover:text-zinc-200 rounded hover:bg-zinc-800 transition"
+          class="p-1 text-ant-text-muted hover:text-ant-text rounded hover:bg-ant-bg-tertiary transition"
           title="Close Selection Mode"
         >
           <X size={14} />
@@ -127,28 +127,28 @@
     </div>
 
     <!-- Batch action buttons -->
-    <div class="grid grid-cols-2 gap-2 pt-1.5 border-t border-[#27272a]">
+    <div class="grid grid-cols-2 gap-2 pt-1.5 border-t border-ant-border-secondary dark:border-white/5">
       <button
         onclick={handleBatchExport}
         disabled={selectedCount === 0 || isExporting}
-        class="flex items-center justify-center space-x-1.5 px-2 py-1.5 rounded-lg text-xs font-medium bg-[#222226] hover:bg-zinc-800 text-zinc-200 border border-transparent hover:border-zinc-700 transition disabled:opacity-40 disabled:pointer-events-none"
+        class="flex items-center justify-center space-x-1.5 px-2 py-1.5 rounded-lg text-xs font-medium bg-ant-bg hover:bg-ant-bg-secondary text-ant-text border border-ant-border-secondary dark:border-white/5 hover:border-ant-primary/40 transition disabled:opacity-40 disabled:pointer-events-none shadow-2xs"
       >
-        <Download size={13} class="text-zinc-400" />
+        <Download size={13} class="text-ant-primary" />
         <span>{isExporting ? 'Exporting...' : 'Export (.md)'}</span>
       </button>
 
       <button
         onclick={handleBatchDelete}
         disabled={selectedCount === 0}
-        class="flex items-center justify-center space-x-1.5 px-2 py-1.5 rounded-lg text-xs font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-transparent hover:border-rose-500/30 transition disabled:opacity-40 disabled:pointer-events-none"
+        class="flex items-center justify-center space-x-1.5 px-2 py-1.5 rounded-lg text-xs font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 hover:border-rose-500/40 transition disabled:opacity-40 disabled:pointer-events-none shadow-2xs"
       >
-        <Trash2 size={13} class="text-rose-400" />
+        <Trash2 size={13} class="text-rose-500 dark:text-rose-400" />
         <span>Delete</span>
       </button>
     </div>
 
     {#if actionFeedback}
-      <div class="text-[11px] text-emerald-400 text-center font-medium bg-emerald-950/40 py-1 rounded border border-emerald-800/30">
+      <div class="text-[11px] text-emerald-600 dark:text-emerald-400 text-center font-medium bg-emerald-500/10 py-1 rounded-lg border border-emerald-500/20">
         {actionFeedback}
       </div>
     {/if}

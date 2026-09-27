@@ -90,8 +90,8 @@
   <button
     type="button"
     class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border transition-all duration-150 outline-none text-left group {isOpen
-      ? 'border-ant-primary bg-ant-bg ring-1 ring-ant-primary/30 shadow-xs'
-      : 'border-ant-border bg-ant-bg hover:border-ant-primary/40 hover:bg-ant-bg-secondary/40'} {disabled
+      ? 'border-ant-border-secondary dark:border-white/10 bg-ant-bg ring-1 ring-ant-primary/20 shadow-xs'
+      : 'border-ant-border-secondary dark:border-white/5 bg-ant-bg hover:border-ant-border-secondary hover:bg-ant-bg-secondary/40'} {disabled
       ? 'opacity-50 cursor-not-allowed'
       : 'cursor-pointer'}"
     onclick={toggleDropdown}
@@ -114,7 +114,7 @@
           </span>
           {#if activeDevice?.isDefault || !selectedDeviceId}
             <span
-              class="px-1.5 py-0.5 text-[9px] uppercase tracking-wider font-semibold rounded bg-ant-primary/15 text-ant-primary border border-ant-primary/25 flex-shrink-0"
+              class="px-1.5 py-0.5 text-[9px] uppercase tracking-wider font-semibold rounded bg-ant-primary/15 text-ant-primary border-0 flex-shrink-0"
             >
               Default
             </span>
@@ -137,10 +137,10 @@
   <!-- Themed Floating Dropdown Menu -->
   {#if isOpen}
     <div
-      class="absolute top-full left-0 mt-2 w-full bg-ant-bg border border-ant-border rounded-xl shadow-xl z-50 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100"
+      class="absolute top-full left-0 mt-2 w-full bg-ant-bg-secondary border border-ant-border-secondary dark:border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100"
     >
       <!-- Menu Header -->
-      <div class="px-3.5 py-2 border-b border-ant-border/60 bg-ant-bg-secondary flex items-center justify-between text-ant-text">
+      <div class="px-3.5 py-2 border-b border-ant-border-secondary dark:border-white/5 bg-ant-bg flex items-center justify-between text-ant-text">
         <span class="text-[11px] font-medium text-ant-text-secondary">Connected Hardware Inputs</span>
         <span class="text-[10px] text-ant-text-muted">{devices.length} {devices.length === 1 ? 'device' : 'devices'}</span>
       </div>
@@ -153,12 +153,12 @@
           <button
             type="button"
             class="w-full text-left p-2 rounded-lg text-xs transition-all flex items-center justify-between group {isDefaultSelected
-              ? 'bg-ant-primary/15 border border-ant-primary/40 text-ant-text'
-              : 'hover:bg-ant-bg-secondary border border-transparent text-ant-text-secondary hover:text-ant-text'}"
+              ? 'bg-ant-primary/15 text-ant-text'
+              : 'hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-text'}"
             onclick={() => handleSelect('')}
           >
             <div class="flex items-center space-x-2.5 min-w-0 pr-2">
-              <div class="p-1.5 rounded-md bg-ant-bg-tertiary text-ant-primary flex-shrink-0">
+              <div class="p-1.5 rounded-md bg-ant-bg text-ant-primary flex-shrink-0 border border-ant-border-secondary dark:border-white/5">
                 <Sparkles size={13} />
               </div>
               <div class="flex flex-col min-w-0">
@@ -166,7 +166,7 @@
                   <span class="font-medium text-xs {isDefaultSelected ? 'text-ant-primary' : 'text-ant-text'} truncate">
                     Default System Microphone
                   </span>
-                  <span class="px-1 py-0.2 text-[9px] font-medium bg-ant-bg-tertiary text-ant-text-muted rounded">
+                  <span class="px-1 py-0.2 text-[9px] font-medium bg-ant-bg text-ant-text-muted rounded border border-ant-border-secondary dark:border-white/5">
                     System
                   </span>
                 </div>
@@ -182,7 +182,7 @@
         {/if}
 
         {#if devices.length > 0}
-          <div class="h-px bg-ant-border/60 my-1"></div>
+          <div class="h-px bg-ant-border-secondary dark:bg-white/5 my-1"></div>
         {/if}
 
         {#each devices as device}
@@ -191,12 +191,12 @@
           <button
             type="button"
             class="w-full text-left p-2 rounded-lg text-xs transition-all flex items-center justify-between group {isSelected
-              ? 'bg-ant-primary/15 border border-ant-primary/40 text-ant-text'
-              : 'hover:bg-ant-bg-secondary border border-transparent text-ant-text-secondary hover:text-ant-text'}"
+              ? 'bg-ant-primary/15 text-ant-text'
+              : 'hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-text'}"
             onclick={() => handleSelect(device.deviceId)}
           >
             <div class="flex items-center space-x-2.5 min-w-0 pr-2">
-              <div class="p-1.5 rounded-md bg-ant-bg-tertiary text-ant-text-secondary group-hover:text-ant-text flex-shrink-0">
+              <div class="p-1.5 rounded-md bg-ant-bg text-ant-text-secondary group-hover:text-ant-text flex-shrink-0 border border-ant-border-secondary dark:border-white/5">
                 <IconComponent size={13} />
               </div>
               <div class="flex flex-col min-w-0">

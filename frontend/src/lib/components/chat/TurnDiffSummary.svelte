@@ -55,7 +55,7 @@
 </script>
 
 {#if changedFiles.length > 0}
-  <div class="my-2 rounded-xl border border-white/10 bg-ant-bg-secondary/70 overflow-hidden shadow-sm font-sans select-none">
+  <div class="my-2 rounded-xl border border-ant-border-secondary dark:border-white/5 bg-ant-bg-secondary/70 overflow-hidden shadow-sm font-sans select-none">
     <!-- Top Summary Banner -->
     <div
       role="button"

@@ -231,6 +231,33 @@ export namespace grokrunner {
 
 }
 
+export namespace logger {
+	
+	export class LogEntry {
+	    id: string;
+	    timestamp: number;
+	    level: string;
+	    category: string;
+	    message: string;
+	    details?: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new LogEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.timestamp = source["timestamp"];
+	        this.level = source["level"];
+	        this.category = source["category"];
+	        this.message = source["message"];
+	        this.details = source["details"];
+	    }
+	}
+
+}
+
 export namespace permissions {
 	
 	export class AudioDeviceInfo {

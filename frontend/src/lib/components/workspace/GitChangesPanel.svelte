@@ -163,7 +163,7 @@
 
 <div class="flex flex-col h-full bg-ant-bg text-ant-text font-sans text-xs select-none">
   <!-- Header: Branch & Actions -->
-  <div class="p-2.5 border-b border-ant-border bg-ant-bg-secondary flex items-center justify-between shrink-0">
+  <div class="p-2.5 border-b border-ant-border-secondary dark:border-white/5 bg-ant-bg-secondary flex items-center justify-between shrink-0">
     <div class="flex items-center gap-2 min-w-0">
       <GitBranch class="w-3.5 h-3.5 text-ant-primary shrink-0" />
       <span class="font-mono font-medium text-ant-text truncate">
@@ -185,7 +185,7 @@
         onclick={handlePull}
         disabled={isPulling}
         title="Pull latest changes from remote (git pull)"
-        class="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-ant-bg-tertiary text-ant-text hover:bg-ant-primary/10 hover:text-ant-primary border border-ant-border transition-colors disabled:opacity-50"
+        class="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-ant-bg-tertiary text-ant-text hover:bg-ant-primary/10 hover:text-ant-primary border border-ant-border-secondary dark:border-white/5 transition-colors disabled:opacity-50"
       >
         <ArrowDown class="w-3.5 h-3.5 {isPulling ? 'animate-bounce text-ant-primary' : 'text-ant-text-muted'}" />
         <span>{isPulling ? 'Pulling...' : 'Pull'}</span>
@@ -195,7 +195,7 @@
         onclick={() => refreshStatus(false)}
         disabled={isLoading}
         title="Refresh Git status and changes"
-        class="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-ant-bg-tertiary text-ant-text hover:bg-ant-primary/10 hover:text-ant-primary border border-ant-border transition-colors disabled:opacity-50"
+        class="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-ant-bg-tertiary text-ant-text hover:bg-ant-primary/10 hover:text-ant-primary border border-ant-border-secondary dark:border-white/5 transition-colors disabled:opacity-50"
       >
         <RefreshCw class="w-3.5 h-3.5 {isLoading ? 'animate-spin text-ant-primary' : 'text-ant-text-muted'}" />
         <span>{isLoading ? 'Checking...' : 'Refresh'}</span>
@@ -231,7 +231,7 @@
           tabindex="0"
           onclick={() => (selectedDiffFile = change.path)}
           onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (selectedDiffFile = change.path)}
-          class="flex items-center justify-between gap-2 p-1.5 rounded-lg bg-ant-bg-secondary hover:bg-ant-bg-tertiary border border-ant-border cursor-pointer group transition-all"
+          class="flex items-center justify-between gap-2 p-1.5 rounded-lg bg-ant-bg-secondary hover:bg-ant-bg-tertiary border border-ant-border-secondary dark:border-white/5 cursor-pointer group transition-all"
         >
           <div class="flex items-center gap-2 min-w-0 flex-1">
             <span class="font-mono text-[10px] px-1 py-0.2 rounded border font-semibold {badge.bg}">
@@ -257,7 +257,7 @@
 
   <!-- Commit & Push Section -->
   {#if !gitStatus?.isClean && gitStatus?.changedFiles && gitStatus.changedFiles.length > 0}
-    <div class="p-2.5 border-t border-ant-border bg-ant-bg-secondary space-y-2 shrink-0">
+    <div class="p-2.5 border-t border-ant-border-secondary dark:border-white/5 bg-ant-bg-secondary space-y-2 shrink-0">
       {#if actionMessage}
         <div class="text-[11px] px-2 py-1 rounded {actionMessage.type === 'success' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'}">
           {actionMessage.text}
@@ -269,14 +269,14 @@
           bind:value={commitMessage}
           placeholder="Commit message..."
           rows="2"
-          class="w-full bg-ant-bg-tertiary text-ant-text placeholder-ant-text-muted rounded-lg p-2 text-xs border border-ant-border focus:border-ant-primary/40 focus:outline-none resize-none transition-colors"
+          class="w-full bg-ant-bg-tertiary text-ant-text placeholder-ant-text-muted rounded-lg p-2 text-xs border border-ant-border-secondary dark:border-white/5 focus:border-ant-primary/40 focus:outline-none resize-none transition-colors"
         ></textarea>
 
         <div class="flex items-center gap-1.5">
           <button
             onclick={handleCommit}
             disabled={isCommitting || !commitMessage.trim()}
-            class="flex-1 py-1.5 px-3 rounded-lg bg-ant-bg-tertiary hover:bg-ant-primary/15 text-ant-text hover:text-ant-primary text-xs font-medium border border-ant-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+            class="flex-1 py-1.5 px-3 rounded-lg bg-ant-bg-tertiary hover:bg-ant-primary/15 text-ant-text hover:text-ant-primary text-xs font-medium border border-ant-border-secondary dark:border-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
           >
             {#if isCommitting && !isPushing}
               <Loader2 class="w-3.5 h-3.5 animate-spin" />

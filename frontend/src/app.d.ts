@@ -120,6 +120,10 @@ declare global {
           SelectWorkspaceDirectory: () => Promise<string>;
           CheckDirectoryExists: (dirPath: string) => Promise<boolean>;
           SaveMarkdownExport: (defaultFilename: string, content: string) => Promise<string>;
+          SaveLogExport: (defaultFilename: string, content: string, fileType: string) => Promise<string>;
+          AppendSystemLog: (entry: { id: string; timestamp: number; level: string; category: string; message: string; details?: any }) => Promise<void>;
+          LoadPersistedLogs: (limit: number) => Promise<Array<{ id: string; timestamp: number; level: string; category: string; message: string; details?: any }>>;
+          ClearPersistedLogs: () => Promise<void>;
           GetAvailableModels: () => Promise<Array<{ id: string; name: string; description: string; isDefault: boolean }>>;
           // Terminal & Process Management APIs
           CreateTerminal: (sessionId: string, termId: string, cwd: string, shell: string) => Promise<void>;

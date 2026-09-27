@@ -909,7 +909,7 @@
   }
 </script>
 
-<div class="flex flex-col w-full bg-ant-bg-secondary border-t border-ant-border flex-shrink-0 relative z-30">
+<div class="flex flex-col w-full bg-ant-bg-secondary border-t border-ant-border-secondary dark:border-white/5 flex-shrink-0 relative z-30">
   <!-- Interactive Queue Stack Bar -->
   <div class="px-3 pt-2">
     <QueueStackBar
@@ -959,7 +959,7 @@
     />
 
     <div
-      class="relative bg-ant-bg border border-ant-border focus-within:!border-ant-primary/60 focus-within:!ring-1 focus-within:!ring-ant-primary/20 rounded-xl transition-all shadow-xs flex flex-col"
+      class="relative bg-ant-bg border border-ant-border-secondary dark:border-white/5 focus-within:!border-ant-primary/60 focus-within:!ring-1 focus-within:!ring-ant-primary/20 rounded-xl transition-all shadow-xs flex flex-col"
       ondragenter={handleContainerDragEnter}
       ondragover={handleContainerDragOver}
       ondragleave={handleContainerDragLeave}
@@ -1020,14 +1020,14 @@
       ></textarea>
 
       <!-- Compact Reference-Style Prompt Box Bottom Bar -->
-      <div class="flex items-center justify-between px-2.5 py-1.5 border-t border-ant-border/60 bg-ant-bg-secondary/40 text-xs select-none relative z-40 rounded-b-xl">
+      <div class="flex items-center justify-between px-2.5 py-1.5 border-t border-ant-border-secondary dark:border-white/5 bg-ant-bg-secondary/40 text-xs select-none relative z-40 rounded-b-xl">
         <!-- Left Action Cluster -->
         <div class="flex items-center space-x-1.5">
           <!-- Plus (+) Attachment Trigger Menu with Click Outside Support -->
           <div class="relative" bind:this={plusMenuContainerEl}>
             <button
               type="button"
-              class="w-6 h-6 rounded-md flex items-center justify-center text-ant-text-secondary hover:text-ant-primary hover:bg-ant-bg transition border border-transparent hover:border-ant-border"
+              class="w-6 h-6 rounded-md flex items-center justify-center text-ant-text-secondary hover:text-ant-primary hover:bg-ant-bg transition border border-transparent hover:border-ant-border-secondary dark:hover:border-white/5"
               onclick={(e) => { e.stopPropagation(); isPlusMenuOpen = !isPlusMenuOpen; }}
               title="Add files, images, or snapshot"
             >
@@ -1037,7 +1037,7 @@
             {#if isPlusMenuOpen}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <div
-                class="absolute bottom-full left-0 mb-1.5 min-w-[220px] w-max bg-ant-bg border border-ant-border rounded-lg shadow-xl py-1 z-50 text-xs animate-in fade-in zoom-in-95 duration-100"
+                class="absolute bottom-full left-0 mb-1.5 min-w-[220px] w-max bg-ant-bg border border-ant-border-secondary dark:border-white/5 rounded-lg shadow-xl py-1 z-50 text-xs animate-in fade-in zoom-in-95 duration-100"
                 onclick={(e) => e.stopPropagation()}
                 onkeydown={(e) => e.key === 'Escape' && (isPlusMenuOpen = false)}
               >
@@ -1195,7 +1195,7 @@
 
           {#if isWorking}
             <!-- Live Elapsed Execution Timer -->
-            <div class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-ant-bg-tertiary border border-ant-border/60 text-ant-text text-[11px] font-mono shadow-2xs">
+            <div class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-ant-bg-tertiary border border-ant-border-secondary dark:border-white/5 text-ant-text text-[11px] font-mono shadow-2xs">
               <Timer size={11} class="animate-spin text-ant-primary" />
               <span class="font-medium">{formatElapsed(elapsedMs)}</span>
             </div>

@@ -124,7 +124,7 @@
       role="dialog"
       aria-modal="true"
       aria-label="Select Workspace for New Conversation"
-      class="w-full max-w-lg bg-ant-bg-secondary border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 outline-none flex flex-col max-h-[80vh]"
+      class="w-full max-w-lg bg-ant-bg-secondary border border-ant-border-secondary dark:border-white/5 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 outline-none flex flex-col max-h-[80vh]"
       onclick={(e) => e.stopPropagation()}
     >
       <!-- Search & Title Bar -->

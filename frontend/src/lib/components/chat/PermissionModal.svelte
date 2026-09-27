@@ -41,7 +41,7 @@
   aria-modal="true"
 >
   <div
-    class="relative w-full max-w-lg bg-ant-bg-secondary border border-ant-border rounded-xl shadow-2xl overflow-hidden flex flex-col"
+    class="relative w-full max-w-lg bg-ant-bg-secondary border border-ant-border-secondary dark:border-white/5 rounded-xl shadow-2xl overflow-hidden flex flex-col"
     onclick={(e) => e.stopPropagation()}
     role="presentation"
   >
@@ -88,7 +88,7 @@
           <span class="text-ant-text-muted text-[11px] uppercase font-semibold flex items-center gap-1">
             <Terminal size={12} class="text-ant-warning" /> Command / Target Path:
           </span>
-          <div class="p-2.5 rounded-lg bg-ant-bg border border-ant-border text-[11px] font-mono text-ant-text overflow-x-auto max-h-32 scrollbar-thin">
+          <div class="p-2.5 rounded-lg bg-ant-bg border border-ant-border-secondary dark:border-white/5 text-[11px] font-mono text-ant-text overflow-x-auto max-h-32 scrollbar-thin">
             <code>{commandOrPath}</code>
           </div>
         </div>

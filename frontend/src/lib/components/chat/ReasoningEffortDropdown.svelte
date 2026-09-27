@@ -104,7 +104,7 @@
   <!-- Trigger Pill Button -->
   <button
     type="button"
-    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-ant-bg border border-ant-border hover:border-ant-primary/60 text-ant-text hover:bg-ant-bg-tertiary transition-all shadow-sm focus:outline-none focus:ring-1 focus:ring-ant-primary/40 disabled:opacity-50 disabled:cursor-not-allowed group"
+    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-ant-bg border border-ant-border-secondary dark:border-white/5 hover:border-blue-500/40 text-ant-text hover:bg-ant-bg-tertiary transition-all shadow-sm focus:outline-none focus:ring-1 focus:ring-ant-primary/40 disabled:opacity-50 disabled:cursor-not-allowed group"
     onclick={toggleDropdown}
     {disabled}
     title="Select reasoning effort depth"
@@ -124,11 +124,11 @@
   <!-- Dropdown Menu / Popover -->
   {#if isOpen}
     <div
-      class="absolute bottom-full left-0 mb-3 w-64 max-w-[90vw] bg-ant-bg border border-ant-border rounded-xl shadow-2xl z-[100] flex flex-col animate-in fade-in zoom-in-95 duration-150"
+      class="absolute bottom-full left-0 mb-3 w-64 max-w-[90vw] bg-ant-bg border border-ant-border-secondary dark:border-white/5 rounded-xl shadow-2xl z-[100] flex flex-col animate-in fade-in zoom-in-95 duration-150"
       style="box-shadow: 0 20px 40px -4px rgba(0, 0, 0, 0.45), 0 8px 16px -4px rgba(0, 0, 0, 0.25);"
     >
       <!-- Header -->
-      <div class="px-3.5 py-2.5 border-b border-ant-border bg-ant-bg-secondary rounded-t-xl flex items-center justify-between">
+      <div class="px-3.5 py-2.5 border-b border-ant-border-secondary dark:border-white/5 bg-ant-bg-secondary rounded-t-xl flex items-center justify-between">
         <div class="flex items-center gap-1.5 text-[11px] font-semibold text-ant-text">
           <SlidersHorizontal size={12} class="text-ant-primary" />
           <span>Reasoning Effort</span>
@@ -149,7 +149,7 @@
             onclick={() => handleSelect(opt.id)}
           >
             <div class="flex items-start gap-2.5 min-w-0 pr-2">
-              <div class="mt-0.5 p-1 rounded-md bg-ant-bg border border-ant-border {opt.color}">
+              <div class="mt-0.5 p-1 rounded-md bg-ant-bg border border-ant-border-secondary dark:border-white/5 {opt.color}">
                 <IconComponent size={13} />
               </div>
               <div class="flex flex-col min-w-0">
@@ -157,7 +157,7 @@
                   <span class="font-semibold text-[11px] {isSelected ? 'text-ant-primary' : 'text-ant-text'}">
                     {opt.label}
                   </span>
-                  <span class="px-1 py-0.2 text-[9px] font-medium bg-ant-bg-tertiary text-ant-text-muted rounded border border-ant-border-secondary">
+                  <span class="px-1 py-0.2 text-[9px] font-medium bg-ant-bg-tertiary text-ant-text-muted rounded border border-ant-border-secondary dark:border-white/5">
                     {opt.turns}
                   </span>
                 </div>
@@ -177,7 +177,7 @@
       </div>
 
       <!-- Footer Quick Info -->
-      <div class="px-3 py-2 bg-ant-bg-secondary border-t border-ant-border rounded-b-xl text-[10px] text-ant-text-muted">
+      <div class="px-3 py-2 bg-ant-bg-secondary border-t border-ant-border-secondary dark:border-white/5 rounded-b-xl text-[10px] text-ant-text-muted">
         Controls budget for Grok agentic thought turns.
       </div>
     </div>

@@ -350,7 +350,7 @@
   {#if isCollapsed}
     <!-- Slim Collapsed Bar (Session Isolated) -->
     {#if dockPosition === 'bottom'}
-      <div class="h-8 w-full bg-ant-bg-secondary border-t border-ant-border flex items-center justify-between px-3 text-xs text-ant-text-secondary select-none flex-shrink-0 z-20">
+      <div class="h-8 w-full bg-ant-bg-secondary border-t border-ant-border-secondary dark:border-white/5 flex items-center justify-between px-3 text-xs text-ant-text-secondary select-none flex-shrink-0 z-20">
         <!-- Left: Horizontal Clickable Tab Chips -->
         <div class="flex items-center space-x-1.5 overflow-x-auto no-scrollbar flex-1 min-w-0 pr-2">
           {#each activeTerminals as tab (tab.id)}
@@ -363,9 +363,9 @@
                   terminalStore.toggleSessionCollapse(sessionId, false);
                   refitActiveTerminal();
                 }}
-                class="flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono transition border flex-shrink-0 {isActive ? 'bg-ant-bg text-ant-primary border-ant-primary/40 shadow-sm font-medium' : 'text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'}"
+                class="flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono transition border flex-shrink-0 {isActive ? 'bg-blue-500/10 text-blue-400 border-blue-500/30 shadow-sm font-medium' : 'text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'}"
               >
-                <TerminalIcon size={11} class="{isActive ? 'text-ant-primary' : 'text-ant-text-secondary'} flex-shrink-0" />
+                <TerminalIcon size={11} class="{isActive ? 'text-blue-400' : 'text-ant-text-secondary'} flex-shrink-0" />
                 <span class="truncate max-w-[140px] whitespace-nowrap">{tab.title}</span>
               </button>
             </Tooltip>
@@ -414,7 +414,7 @@
       </div>
     {:else}
       <!-- Right Dock Slim Collapsed Bar with Individual Clickable Tab Pills -->
-      <div class="w-9 h-full bg-ant-bg-secondary border-l border-ant-border flex flex-col items-center justify-between py-2 text-xs text-ant-text-secondary select-none flex-shrink-0 z-20">
+      <div class="w-9 h-full bg-ant-bg-secondary border-l border-ant-border-secondary dark:border-white/5 flex flex-col items-center justify-between py-2 text-xs text-ant-text-secondary select-none flex-shrink-0 z-20">
         <!-- Top Tab Stack: Each terminal tab is clickable and focuses that terminal -->
         <div class="flex flex-col items-center space-y-2 overflow-y-auto no-scrollbar w-full px-1">
           {#each activeTerminals as tab (tab.id)}
@@ -427,9 +427,9 @@
                   terminalStore.toggleSessionCollapse(sessionId, false);
                   refitActiveTerminal();
                 }}
-                class="flex flex-col items-center py-2 px-1 rounded-md transition w-full {isActive ? 'bg-ant-primary/15 text-ant-primary font-medium border border-ant-primary/30 shadow-sm' : 'text-ant-text-secondary hover:text-ant-text hover:bg-white/5 border border-transparent'}"
+                class="flex flex-col items-center py-2 px-1 rounded-md transition w-full {isActive ? 'bg-blue-500/10 text-blue-400 font-medium border border-blue-500/30 shadow-sm' : 'text-ant-text-secondary hover:text-ant-text hover:bg-white/5 border border-transparent'}"
               >
-                <TerminalIcon size={12} class="{isActive ? 'text-ant-primary' : 'text-ant-text-secondary'} mb-1.5 flex-shrink-0" />
+                <TerminalIcon size={12} class="{isActive ? 'text-blue-400' : 'text-ant-text-secondary'} mb-1.5 flex-shrink-0" />
                 <span class="text-[10px] font-mono [writing-mode:vertical-rl] tracking-wide truncate max-h-[100px] leading-tight">
                   {tab.title}
                 </span>
@@ -453,7 +453,7 @@
         </div>
 
         <!-- Bottom Controls for Collapsed Strip -->
-        <div class="flex flex-col items-center space-y-1.5 pt-2 border-t border-ant-border/40 w-full">
+        <div class="flex flex-col items-center space-y-1.5 pt-2 border-t border-ant-border-secondary dark:border-white/5 w-full">
           <Tooltip title="Dock to bottom" placement="left">
             <button
               type="button"
@@ -482,7 +482,7 @@
     <!-- Expanded Terminal Viewport (Bottom or Right Dock) -->
     {#if dockPosition === 'bottom'}
       <div
-        class="flex flex-col w-full bg-ant-bg border-t border-ant-border z-20 select-none font-serif transition-all duration-75 flex-shrink-0"
+        class="flex flex-col w-full bg-ant-bg border-t border-ant-border-secondary dark:border-white/5 z-20 select-none font-serif transition-all duration-75 flex-shrink-0"
         style="height: {isMaximized ? 'calc(100vh - 120px)' : `${terminalStore.panelHeight}px`}; min-height: 140px;"
       >
         <!-- Drag Resize Handle (Top border for Bottom dock) -->
@@ -496,7 +496,7 @@
         </div>
 
         <!-- Terminal Header & Multi-Tab Bar -->
-        <div class="flex items-center justify-between px-3 h-8 bg-ant-bg-secondary border-b border-ant-border flex-shrink-0 text-xs text-ant-text">
+        <div class="flex items-center justify-between px-3 h-8 bg-ant-bg-secondary border-b border-ant-border-secondary dark:border-white/5 flex-shrink-0 text-xs text-ant-text">
           <!-- Left: Terminal Sub-Tabs -->
           <div class="flex items-center space-x-1 overflow-x-auto no-scrollbar flex-1 min-w-0 pr-2">
             {#each activeTerminals as tab (tab.id)}
@@ -629,7 +629,7 @@
     {:else}
       <!-- Right Docked Panel -->
       <div
-        class="flex flex-row h-full bg-ant-bg border-l border-ant-border z-20 select-none font-serif transition-all duration-75 flex-shrink-0"
+        class="flex flex-row h-full bg-ant-bg border-l border-ant-border-secondary dark:border-white/5 z-20 select-none font-serif transition-all duration-75 flex-shrink-0"
         style="width: {terminalStore.panelWidth}px; min-width: 260px;"
       >
         <!-- Left Drag Resize Handle for Right Dock -->
@@ -644,7 +644,7 @@
 
         <div class="flex-1 flex flex-col h-full min-w-0 overflow-visible">
           <!-- Terminal Header & Multi-Tab Bar for Right Dock -->
-          <div class="flex items-center justify-between px-2.5 h-8 bg-ant-bg-secondary border-b border-ant-border flex-shrink-0 text-xs text-ant-text relative z-30">
+          <div class="flex items-center justify-between px-2.5 h-8 bg-ant-bg-secondary border-b border-ant-border-secondary dark:border-white/5 flex-shrink-0 text-xs text-ant-text relative z-30">
             <!-- Left: Terminal Sub-Tabs -->
             <div class="flex items-center space-x-1 overflow-x-auto no-scrollbar flex-1 min-w-0 pr-1">
               {#each activeTerminals as tab (tab.id)}

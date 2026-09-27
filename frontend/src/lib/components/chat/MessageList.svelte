@@ -297,7 +297,7 @@
             type="button"
             onclick={loadEarlier}
             disabled={isHydrating}
-            class="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-medium bg-ant-bg-secondary hover:bg-ant-bg-tertiary text-ant-primary border border-white/10 shadow-sm transition-all duration-150 disabled:opacity-50"
+            class="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-medium bg-ant-bg-secondary hover:bg-ant-bg-tertiary text-ant-primary border border-ant-border-secondary dark:border-white/5 shadow-sm transition-all duration-150 disabled:opacity-50"
           >
             {#if isHydrating}
               <Loader2 size={13} class="animate-spin text-ant-primary" />
@@ -322,15 +322,21 @@
         <div class="w-14 h-14 rounded-2xl bg-ant-primary/10 border border-ant-primary/20 flex items-center justify-center text-ant-primary shadow-lg shadow-ant-primary/5">
           <Sparkles size={28} />
         </div>
-        <div class="space-y-1.5">
+        <div class="space-y-2">
           <h3 class="font-serif-display text-xl font-semibold text-ant-text tracking-tight">Start a new conversation</h3>
           <p class="font-serif text-[13.5px] text-ant-text-secondary max-w-md leading-relaxed mx-auto">
             Ask Grok to inspect your code, execute terminal commands, or orchestrate autonomous agent tasks.
           </p>
           {#if activeWs}
-            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/5 text-[11px] font-mono text-ant-text-muted mt-2">
+            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/5 text-[11px] font-mono text-ant-text-muted mt-2">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
               <span class="truncate max-w-[280px]">{activeWs.name} ({activeWs.path})</span>
+            </div>
+          {:else}
+            <div class="pt-2">
+              <span class="text-[12px] text-ant-text-muted">
+                No active workspace selected. Grok will run commands in your default home directory or scratchpad.
+              </span>
             </div>
           {/if}
         </div>
@@ -427,7 +433,7 @@
       <button
         type="button"
         onclick={scrollToBottom}
-        class="pointer-events-auto flex items-center space-x-2 px-3 py-1.5 rounded-full bg-ant-bg-secondary/95 hover:bg-ant-bg-tertiary text-ant-text border border-white/10 shadow-xl backdrop-blur-md transition-all duration-200 hover:scale-105 active:scale-95 group"
+        class="pointer-events-auto flex items-center space-x-2 px-3 py-1.5 rounded-full bg-ant-bg-secondary/95 hover:bg-ant-bg-tertiary text-ant-text border border-ant-border-secondary dark:border-white/5 shadow-xl backdrop-blur-md transition-all duration-200 hover:scale-105 active:scale-95 group"
         title="Scroll to bottom"
       >
         {#if unreadActivityBelow}

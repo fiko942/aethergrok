@@ -81,7 +81,7 @@ export class VoiceRecorderManager {
 
         if (!label) {
           if (matchedNative) {
-            label = matchedNative.Name || (matchedNative as any).name || '';
+            label = (matchedNative as any).Name || matchedNative.name || '';
           } else {
             label = `Microphone ${i + 1}`;
           }

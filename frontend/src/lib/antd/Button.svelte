@@ -45,14 +45,14 @@
       case 'primary':
         return 'bg-ant-primary hover:bg-ant-primary-hover active:bg-ant-primary-active text-white border border-ant-primary shadow-sm hover:shadow-[0_0_12px_rgba(22,119,255,0.35)]';
       case 'dashed':
-        return 'bg-ant-bg-secondary hover:bg-ant-bg-tertiary text-ant-text hover:text-ant-primary-hover border border-dashed border-ant-border hover:border-ant-primary';
+        return 'bg-ant-bg-secondary hover:bg-ant-bg-tertiary text-ant-text hover:text-ant-primary-hover border border-dashed border-ant-border-secondary dark:border-white/10 hover:border-ant-primary';
       case 'text':
         return 'bg-transparent hover:bg-ant-bg-tertiary active:bg-ant-border text-ant-text-secondary hover:text-ant-text border-transparent';
       case 'link':
         return 'bg-transparent hover:underline text-ant-primary hover:text-ant-primary-hover p-0 h-auto border-transparent';
       case 'default':
       default:
-        return 'bg-ant-bg hover:bg-ant-bg-tertiary active:bg-ant-bg-tertiary text-ant-text hover:text-ant-primary border border-ant-border hover:border-ant-primary shadow-2xs';
+        return 'bg-ant-bg hover:bg-ant-bg-tertiary active:bg-ant-bg-tertiary text-ant-text hover:text-ant-primary border border-ant-border-secondary dark:border-white/5 hover:border-blue-500/40 shadow-2xs';
     }
   }
 </script>

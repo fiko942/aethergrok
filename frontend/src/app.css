@@ -215,8 +215,8 @@
   --ant-bg-secondary: #1a1a1a;
   --ant-bg-tertiary: #222222;
 
-  --ant-border: rgba(255, 255, 255, 0.06);
-  --ant-border-secondary: rgba(255, 255, 255, 0.03);
+  --ant-border: rgba(255, 255, 255, 0.04);
+  --ant-border-secondary: rgba(255, 255, 255, 0.02);
 
   --ant-text: rgba(255, 255, 255, 0.85);
   --ant-text-secondary: rgba(255, 255, 255, 0.45);
@@ -576,9 +576,15 @@ pre[class*="language-"] {
   font-family: Fira Code, JetBrains Mono, monospace;
   font-size: 0.825em;
   background-color: var(--ant-bg-tertiary, #222634);
-  color: #a5d6ff;
+  color: #0958d9;
   padding: 0.15em 0.4em;
   border-radius: 0.3em;
+  border: 1px solid var(--ant-border-secondary, rgba(0, 0, 0, 0.08));
+}
+
+[data-theme='dark-antd'] .markdown-chat-body code:not(pre code),
+:root:not([data-theme='light-antd']) .markdown-chat-body code:not(pre code) {
+  color: #a5d6ff;
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 

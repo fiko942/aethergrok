@@ -126,7 +126,7 @@
   <!-- Popover Panel -->
   {#if isOpen}
     <div
-      class="absolute bottom-full left-0 mb-2.5 w-72 bg-ant-bg border border-white/10 rounded-xl shadow-2xl z-50 p-3 select-none text-xs animate-in fade-in zoom-in-95 duration-100 backdrop-blur-md"
+      class="absolute bottom-full left-0 mb-2.5 w-72 bg-ant-bg border border-ant-border-secondary dark:border-white/5 rounded-xl shadow-2xl z-50 p-3 select-none text-xs animate-in fade-in zoom-in-95 duration-100 backdrop-blur-md"
       role="dialog"
       aria-label="Model and Effort"
     >

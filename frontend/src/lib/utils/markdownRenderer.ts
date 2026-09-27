@@ -285,7 +285,7 @@ export function createMarkdownRenderer(existingFilesMap: Record<string, FilePath
     if (existingFilesMap[clean] && existingFilesMap[clean].exists) {
       return renderFileChip(existingFilesMap[clean].fullPath, clean, existingFilesMap[clean].isDir);
     }
-    return `<code class="font-mono text-[11.5px] bg-ant-bg-tertiary px-1.5 py-0.5 rounded text-ant-primary">${text}</code>`;
+    return `<code class="font-mono text-[11.5px] bg-ant-bg-tertiary px-1.5 py-0.5 rounded text-blue-700 dark:text-blue-400 border border-ant-border-secondary dark:border-white/5">${text}</code>`;
   };
 
   // Custom text token renderer: handles marked v18 nested tokens and turns verified file paths in prose into clickable blue chips

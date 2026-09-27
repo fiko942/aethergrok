@@ -77,11 +77,11 @@
 
   // Category Styling Tokens
   const categoryBadges: Record<string, { bg: string; text: string; border: string }> = {
-    Frontend: { bg: 'bg-blue-500/15', text: 'text-blue-500 dark:text-blue-400', border: 'border-blue-500/30' },
-    Backend: { bg: 'bg-emerald-500/15', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/30' },
-    Design: { bg: 'bg-purple-500/15', text: 'text-purple-600 dark:text-purple-400', border: 'border-purple-500/30' },
-    Agents: { bg: 'bg-amber-500/15', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-500/30' },
-    Tools: { bg: 'bg-cyan-500/15', text: 'text-cyan-600 dark:text-cyan-400', border: 'border-cyan-500/30' }
+    Frontend: { bg: 'bg-blue-500/15', text: 'text-blue-700 dark:text-blue-400', border: 'border-blue-500/30' },
+    Backend: { bg: 'bg-emerald-500/15', text: 'text-emerald-700 dark:text-emerald-400', border: 'border-emerald-500/30' },
+    Design: { bg: 'bg-purple-500/15', text: 'text-purple-700 dark:text-purple-400', border: 'border-purple-500/30' },
+    Agents: { bg: 'bg-amber-500/15', text: 'text-amber-800 dark:text-amber-300', border: 'border-amber-500/30' },
+    Tools: { bg: 'bg-cyan-500/15', text: 'text-cyan-800 dark:text-cyan-300', border: 'border-cyan-500/30' }
   };
 
   const previewSkills: SkillItem[] = [
@@ -370,7 +370,7 @@
                           <span class="truncate">{skill.name}</span>
                         </div>
                         <div class="inline-flex items-center gap-1">
-                          <span class="px-1.5 py-0.2 rounded font-mono text-[10px] bg-ant-bg-tertiary text-ant-primary border border-ant-border-secondary">
+                          <span class="px-1.5 py-0.2 rounded font-mono text-[10px] bg-ant-bg-tertiary text-blue-700 dark:text-blue-400 border border-ant-border-secondary">
                             /{skill.name}
                           </span>
                           <span class="text-[9px] uppercase tracking-wider text-ant-text-muted px-1 font-mono">
@@ -410,13 +410,13 @@
                       {#if skill.tags && skill.tags.length > 0}
                         <div class="flex flex-wrap gap-1">
                           {#each skill.tags.slice(0, 2) as tag}
-                            <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] bg-ant-bg-secondary text-ant-text-muted border border-ant-border-secondary">
+                            <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] bg-ant-bg-tertiary text-ant-text-secondary border border-ant-border-secondary">
                               <Tag size={9} class="mr-1 opacity-70" />
                               <span class="truncate max-w-[70px]">{tag}</span>
                             </span>
                           {/each}
                           {#if skill.tags.length > 2}
-                            <span class="text-[9px] text-ant-text-muted self-center">
+                            <span class="text-[9px] text-ant-text-muted self-center font-medium">
                               +{skill.tags.length - 2}
                             </span>
                           {/if}

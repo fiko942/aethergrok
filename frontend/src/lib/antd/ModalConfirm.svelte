@@ -59,7 +59,7 @@
     <div
       role="document"
       tabindex="-1"
-      class="w-full max-w-sm bg-ant-bg-secondary border border-white/10 rounded-2xl shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150 outline-none"
+      class="w-full max-w-sm bg-ant-bg-secondary border border-ant-border-secondary dark:border-white/5 rounded-2xl shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150 outline-none"
       onclick={(e) => e.stopPropagation()}
       onkeydown={(e) => e.stopPropagation()}
     >

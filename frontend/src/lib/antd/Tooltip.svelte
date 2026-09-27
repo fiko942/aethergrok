@@ -64,10 +64,10 @@
       role="tooltip"
       class="absolute z-50 pointer-events-none whitespace-nowrap {placementClasses[placement]} animate-in fade-in zoom-in-95 duration-150"
     >
-      <div class="relative px-2.5 py-1 rounded-md bg-[#18181c]/95 border border-white/10 shadow-2xl backdrop-blur-md flex items-center gap-1.5 text-xs font-serif text-white tracking-wide">
+      <div class="relative px-2.5 py-1 rounded-md bg-[#18181c]/95 border border-ant-border-secondary dark:border-white/5 shadow-2xl backdrop-blur-md flex items-center gap-1.5 text-xs font-serif text-white tracking-wide">
         <span>{title}</span>
         {#if shortcut}
-          <kbd class="px-1.5 py-0.5 text-[10px] font-mono text-ant-text-muted bg-white/10 rounded border border-white/10 leading-none">
+          <kbd class="px-1.5 py-0.5 text-[10px] font-mono text-ant-text-muted bg-white/10 rounded border border-ant-border-secondary dark:border-white/5 leading-none">
             {shortcut}
           </kbd>
         {/if}

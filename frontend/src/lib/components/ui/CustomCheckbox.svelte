@@ -23,8 +23,8 @@
 
 <div
   class="relative inline-flex items-center justify-center {sizeClasses} border transition-all duration-200 ease-out select-none flex-shrink-0 {disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} {checked || indeterminate
-    ? 'bg-indigo-600 border-indigo-500 text-white shadow-sm shadow-indigo-600/30 ring-2 ring-indigo-500/20'
-    : 'bg-[#18181b] border-zinc-700 hover:border-zinc-500 text-transparent'} {className}"
+    ? 'bg-ant-primary border-ant-primary text-white shadow-sm shadow-ant-primary/30 ring-2 ring-ant-primary/20'
+    : 'bg-ant-bg-tertiary border-ant-border hover:border-ant-primary/50 text-transparent'} {className}"
 >
   {#if checked}
     <div class="animate-in zoom-in-50 duration-150 flex items-center justify-center">
