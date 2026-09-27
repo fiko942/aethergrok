@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -104,9 +106,72 @@ func (m *Manager) Create(sessionID, termID, cwd, shell string) error {
 		cwd, _ = os.Getwd()
 	}
 
-	cmd := exec.Command(shell)
+	cmd := exec.Command(shell, "-l")
+	if os.PathSeparator == '\\' {
+		cmd = exec.Command(shell)
+	}
 	cmd.Dir = cwd
-	cmd.Env = append(os.Environ(),
+
+	// Ensure standard dev directories exist in PATH for GUI desktop launches
+	homeDir, _ := os.UserHomeDir()
+	var extraPaths []string
+	if homeDir != "" {
+		extraPaths = append(extraPaths,
+			filepath.Join(homeDir, ".local", "bin"),
+			filepath.Join(homeDir, "Library", "pnpm"),
+			filepath.Join(homeDir, "bin"),
+			filepath.Join(homeDir, "go", "bin"),
+			filepath.Join(homeDir, ".cargo", "bin"),
+		)
+	}
+	extraPaths = append(extraPaths,
+		"/opt/homebrew/bin",
+		"/opt/homebrew/sbin",
+		"/usr/local/bin",
+		"/usr/bin",
+		"/bin",
+		"/usr/sbin",
+		"/sbin",
+	)
+
+	currentPath := os.Getenv("PATH")
+	existingParts := strings.Split(currentPath, string(os.PathListSeparator))
+	seen := make(map[string]bool)
+	for _, p := range existingParts {
+		if p != "" {
+			seen[p] = true
+		}
+	}
+
+	merged := existingParts
+	for _, ep := range extraPaths {
+		if !seen[ep] {
+			merged = append(merged, ep)
+			seen[ep] = true
+		}
+	}
+	newPath := strings.Join(merged, string(os.PathListSeparator))
+
+	pathKey := "PATH="
+	if os.PathSeparator == '\\' {
+		pathKey = "Path="
+	}
+
+	var baseEnv []string
+	foundPath := false
+	for _, e := range os.Environ() {
+		if strings.HasPrefix(strings.ToUpper(e), "PATH=") {
+			baseEnv = append(baseEnv, pathKey+newPath)
+			foundPath = true
+		} else {
+			baseEnv = append(baseEnv, e)
+		}
+	}
+	if !foundPath {
+		baseEnv = append(baseEnv, pathKey+newPath)
+	}
+
+	cmd.Env = append(baseEnv,
 		"TERM=xterm-256color",
 		"COLORTERM=truecolor",
 		"AETHERGROK_TERMINAL=1",
