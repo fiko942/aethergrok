@@ -1,3 +1,5 @@
+import { logger } from './logger.svelte';
+
 export type SessionStatus = 'working' | 'waiting_permission' | 'finished' | 'error' | 'idle';
 
 export interface DiffData {
@@ -231,6 +233,7 @@ class SessionStore {
     // Trigger verification of workspaces and active session hydration on disk
     if (typeof window !== 'undefined') {
       setTimeout(async () => {
+        logger.info('SESSION', 'Starting session and workspace reconciliation cycle');
         await this.verifyAllWorkspaces();
         this.reconcileSessionState();
         await this.verifySessionsOnDisk();
@@ -239,6 +242,7 @@ class SessionStore {
         if (this.activeSessionId) {
           const activeSess = this.sessions.find((s) => s.id === this.activeSessionId);
           if (activeSess) {
+            logger.info('SESSION', `Auto-hydrating active session on launch: ${activeSess.id}`, { title: activeSess.title });
             if (activeSess.messages.length === 0 || activeSess.grokSessionId) {
               await this.loadSessionHistoryFromDisk(activeSess);
             }
@@ -727,7 +731,12 @@ class SessionStore {
   // Open a session in a tab (e.g. clicked from sidebar)
   async openSessionInTab(id: string): Promise<void> {
     const target = this.sessions.find((s) => s.id === id);
-    if (!target) return;
+    if (!target) {
+      logger.warn('UI', `Attempted to open non-existent session ID: ${id}`);
+      return;
+    }
+
+    logger.info('UI', `Opening session in tab: ${target.title} (${id})`);
 
     if (!this.openTabSessionIds.includes(id)) {
       // Limit open tabs to 12 max to prevent visual overflow
@@ -776,8 +785,10 @@ class SessionStore {
             turnCount: stats.turnCount || 0,
             primaryModelId: stats.primaryModelId || ''
           };
+          logger.debug('SESSION', `Loaded session usage: ${session.id}`, { usedTokens: session.usage.usedTokens });
         }
       } catch (err) {
+        logger.error('SESSION', `Failed to load session usage for ${session.id}`, err);
         console.error('Failed to load session usage for', session.id, err);
       }
     }

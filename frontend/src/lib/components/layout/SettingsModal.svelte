@@ -37,7 +37,8 @@
     Trash2,
     HardDrive,
     RefreshCw,
-    Mic
+    Mic,
+    ScrollText
   } from 'lucide-svelte';
   import Button from '$lib/antd/Button.svelte';
   import Card from '$lib/antd/Card.svelte';
@@ -45,6 +46,7 @@
   import Badge from '$lib/antd/Badge.svelte';
   import KeyRecorderModal from '$lib/components/ui/KeyRecorderModal.svelte';
   import MicrophoneSelectDropdown from '$lib/components/layout/MicrophoneSelectDropdown.svelte';
+  import LogsTab from '$lib/components/settings/LogsTab.svelte';
   import { voiceRecorder, type AudioInputDevice } from '$lib/utils/voiceRecorder';
 
   let {
@@ -55,7 +57,7 @@
     onClose: () => void;
   } = $props();
 
-  type TabKey = 'general' | 'models' | 'permissions' | 'voice' | 'theme' | 'shortcuts' | 'about';
+  type TabKey = 'general' | 'models' | 'permissions' | 'voice' | 'theme' | 'shortcuts' | 'logs' | 'about';
   let activeTab = $state<TabKey>('general');
 
   // Local draft state for edits
@@ -208,6 +210,7 @@
     { id: 'voice', label: 'Voice & Dictation', icon: Mic, description: 'Microphone permissions, input device selection, and Grok transcription engine' },
     { id: 'theme', label: 'Theme & Appearance', icon: Palette, description: 'High-contrast, Ant Design light, and dark studio styles' },
     { id: 'shortcuts', label: 'Shortcuts', icon: Keyboard, description: 'Quick access keyboard bindings and interaction triggers' },
+    { id: 'logs', label: 'System Logs', icon: ScrollText, description: 'Full-spectrum interaction logs, technical traces, and export' },
     { id: 'about', label: 'About AetherGrok', icon: Info, description: 'Mission, target audience, open-source repository, and developer portfolio' }
   ];
 
@@ -1401,6 +1404,22 @@
                     {/each}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          {/if}
+
+          <!-- TAB: SYSTEM LOGS -->
+          {#if activeTab === 'logs'}
+            <div class="h-full flex flex-col space-y-4 animate-in fade-in duration-100">
+              <div>
+                <h3 class="font-serif-display text-base font-semibold text-ant-text">System Logs & Diagnostics</h3>
+                <p class="font-serif text-xs text-ant-text-secondary mt-0.5">
+                  Inspect in-memory diagnostic logs, UI user interactions, errors, and export reports.
+                </p>
+              </div>
+
+              <div class="flex-1 min-h-0">
+                <LogsTab />
               </div>
             </div>
           {/if}

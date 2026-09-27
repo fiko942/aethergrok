@@ -2,6 +2,8 @@
  * Terminal state management per session with multi-tab terminal support
  */
 
+import { logger } from './logger.svelte';
+
 export type TerminalDockPosition = 'bottom' | 'right';
 
 export interface TerminalTab {
@@ -81,7 +83,9 @@ export class TerminalStore {
     if (!list) return;
     const tab = list.find((t) => t.id === termId);
     if (tab && newTitle.trim()) {
+      const old = tab.title;
       tab.title = newTitle.trim();
+      logger.info('TERMINAL', `Renamed terminal tab ${termId} from "${old}" to "${tab.title}"`);
     }
   }
 
@@ -100,11 +104,15 @@ export class TerminalStore {
     list.push(tab);
     this.sessionTerminals[sessionId] = list;
     this.activeTerminalIdPerSession[sessionId] = termId;
+    logger.info('TERMINAL', `Created terminal tab: ${tab.title} (${termId}) for session ${sessionId}`);
 
     // Call Go backend to instantiate PTY with isolated Process Group
     if (window.go?.main?.App?.CreateTerminal) {
       window.go.main.App.CreateTerminal(sessionId, termId, cwd, '')
-        .catch((err) => console.error('Failed to create backend terminal:', err));
+        .catch((err) => {
+          logger.error('TERMINAL', `Failed to create backend terminal: ${termId}`, err);
+          console.error('Failed to create backend terminal:', err);
+        });
     }
 
     return tab;
@@ -119,10 +127,15 @@ export class TerminalStore {
     const idx = list.findIndex((t) => t.id === termId);
     if (idx === -1) return;
 
+    logger.info('TERMINAL', `Closing terminal tab: ${termId} for session ${sessionId}`);
+
     // Call Go backend to SIGKILL entire process group
     if (window.go?.main?.App?.CloseTerminal) {
       window.go.main.App.CloseTerminal(termId)
-        .catch((err) => console.error('Failed to close backend terminal:', err));
+        .catch((err) => {
+          logger.error('TERMINAL', `Failed to close backend terminal: ${termId}`, err);
+          console.error('Failed to close backend terminal:', err);
+        });
     }
 
     const updated = list.filter((t) => t.id !== termId);

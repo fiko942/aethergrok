@@ -1,3 +1,5 @@
+import { logger } from './logger.svelte';
+
 export type ThemeMode = 'dark-studio' | 'dark-high-contrast' | 'light-antd';
 export type DefaultModel = '9router' | '9router-general-purpose' | '9router-explore' | '9router-plan' | 'custom' | string;
 export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high' | 'max';
@@ -162,7 +164,9 @@ export class SettingsStore {
         selectedMicrophoneDeviceId: this.selectedMicrophoneDeviceId
       };
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      logger.info('SETTINGS', 'Application settings saved to localStorage', { theme: this.theme, defaultModel: this.defaultModel });
     } catch (err) {
+      logger.error('SETTINGS', 'Failed to save settings to localStorage', err);
       console.warn('Failed to save settings to localStorage:', err);
     }
   }
