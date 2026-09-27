@@ -122,31 +122,31 @@
 <svelte:window onkeydown={handleKeydown} />
 
 {#if isOpen}
-  <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150">
+  <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-md animate-in fade-in duration-150">
     <div
-      class="bg-[#18181b] border border-[#27272a] rounded-xl shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden text-zinc-200 relative z-[101]"
+      class="bg-ant-bg border border-ant-border rounded-xl shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden text-ant-text relative z-[101]"
     >
       <!-- Header -->
-      <div class="px-4 py-3 border-b border-[#27272a] flex items-center justify-between bg-[#141416] shrink-0">
+      <div class="px-4 py-3 border-b border-ant-border flex items-center justify-between bg-ant-bg-secondary shrink-0">
         <div class="flex items-center gap-2 min-w-0">
           <FileIcon ext={ext} name={fileName} class="w-4 h-4" />
-          <span class="font-medium text-sm text-zinc-100 truncate">{fileName}</span>
-          <span class="text-xs text-zinc-500 font-mono truncate hidden sm:inline">{filePath}</span>
+          <span class="font-medium text-sm text-ant-text truncate">{fileName}</span>
+          <span class="text-xs text-ant-text-muted font-mono truncate hidden sm:inline">{filePath}</span>
         </div>
 
         <div class="flex items-center gap-2 shrink-0">
           {#if isMarkdown && !isLargeFilePending && !errorMsg}
-            <div class="flex items-center bg-[#1e1e22] border border-[#27272a] rounded-lg p-0.5 text-xs">
+            <div class="flex items-center bg-ant-bg-tertiary border border-ant-border rounded-lg p-0.5 text-xs">
               <button
                 onclick={() => (viewMode = 'preview')}
-                class="flex items-center gap-1 px-2.5 py-1 rounded-md transition-colors {viewMode === 'preview' ? 'bg-zinc-800 text-zinc-100 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
+                class="flex items-center gap-1 px-2.5 py-1 rounded-md transition-colors {viewMode === 'preview' ? 'bg-ant-bg text-ant-text shadow-sm' : 'text-ant-text-muted hover:text-ant-text'}"
               >
                 <Eye class="w-3.5 h-3.5" />
                 <span>Preview</span>
               </button>
               <button
                 onclick={() => (viewMode = 'code')}
-                class="flex items-center gap-1 px-2.5 py-1 rounded-md transition-colors {viewMode === 'code' ? 'bg-zinc-800 text-zinc-100 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
+                class="flex items-center gap-1 px-2.5 py-1 rounded-md transition-colors {viewMode === 'code' ? 'bg-ant-bg text-ant-text shadow-sm' : 'text-ant-text-muted hover:text-ant-text'}"
               >
                 <Code class="w-3.5 h-3.5" />
                 <span>Raw</span>
@@ -158,13 +158,13 @@
             <button
               onclick={copyContent}
               title="Copy Content"
-              class="flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg border border-[#27272a] bg-[#1e1e22] text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors"
+              class="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg border border-ant-border bg-ant-bg-tertiary text-ant-text hover:border-ant-primary/40 hover:text-ant-primary transition-colors"
             >
               {#if copied}
-                <Check class="w-3.5 h-3.5 text-emerald-400" />
+                <Check class="w-3.5 h-3.5 text-emerald-500" />
                 <span>Copied</span>
               {:else}
-                <Copy class="w-3.5 h-3.5 text-zinc-400" />
+                <Copy class="w-3.5 h-3.5 text-ant-text-muted" />
                 <span>Copy</span>
               {/if}
             </button>
@@ -173,7 +173,7 @@
           <button
             onclick={onClose}
             title="Close (Esc)"
-            class="p-1 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors"
+            class="p-1 rounded-lg text-ant-text-muted hover:text-ant-text hover:bg-ant-bg-tertiary transition-colors"
           >
             <X class="w-4 h-4" />
           </button>
@@ -181,30 +181,30 @@
       </div>
 
       <!-- Content View -->
-      <div class="flex-1 overflow-auto bg-[#0f0f11] custom-scrollbar p-0">
+      <div class="flex-1 overflow-auto bg-ant-bg custom-scrollbar p-0">
         {#if isLoading}
-          <div class="flex items-center justify-center h-full text-zinc-500">
+          <div class="flex items-center justify-center h-full text-ant-text-muted">
             <span class="animate-pulse">Loading file content...</span>
           </div>
         {:else if isLargeFilePending}
           <!-- Large File Confirmation Box -->
           <div class="flex flex-col items-center justify-center h-full p-6 text-center max-w-lg mx-auto animate-in fade-in duration-200">
-            <div class="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-4 text-amber-400 shadow-lg shadow-amber-500/5">
+            <div class="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-4 text-amber-500 shadow-lg shadow-amber-500/5">
               <FileWarning class="w-6 h-6" />
             </div>
             
-            <h3 class="text-base font-semibold text-zinc-100 mb-1.5 font-sans">
+            <h3 class="text-base font-semibold text-ant-text mb-1.5 font-sans">
               Ukuran Berkas Cukup Besar
             </h3>
             
-            <p class="text-xs text-zinc-400 mb-6 leading-relaxed">
-              Berkas <span class="font-mono text-zinc-200 font-semibold">{fileName}</span> berukuran <span class="text-amber-400 font-mono font-semibold">{formatBytes(largeFileSize)}</span>. Membuka berkas berukuran besar dapat membutuhkan waktu render lebih lama.
+            <p class="text-xs text-ant-text-secondary mb-6 leading-relaxed">
+              Berkas <span class="font-mono text-ant-text font-semibold">{fileName}</span> berukuran <span class="text-amber-500 font-mono font-semibold">{formatBytes(largeFileSize)}</span>. Membuka berkas berukuran besar dapat membutuhkan waktu render lebih lama.
             </p>
 
             <div class="flex items-center gap-3">
               <button
                 onclick={onClose}
-                class="px-4 py-2 text-xs font-medium rounded-lg border border-[#27272a] bg-[#1a1a1d] text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors"
+                class="px-4 py-2 text-xs font-medium rounded-lg border border-ant-border bg-ant-bg-secondary text-ant-text hover:bg-ant-bg-tertiary transition-colors"
               >
                 Batal
               </button>
@@ -219,7 +219,7 @@
             </div>
           </div>
         {:else if errorMsg}
-          <div class="flex items-center justify-center h-full text-rose-400 text-xs font-mono p-4">
+          <div class="flex items-center justify-center h-full text-rose-500 text-xs font-mono p-4">
             {errorMsg}
           </div>
         {:else if isMarkdown && viewMode === 'preview'}
@@ -230,14 +230,14 @@
           <!-- Code View with Line Numbers & PrismJS Syntax Highlighting -->
           <div class="flex font-mono text-xs leading-5">
             <!-- Line numbers -->
-            <div class="py-3 px-3 select-none text-zinc-600 text-right bg-[#121214] border-r border-[#222226] shrink-0 font-mono">
+            <div class="py-3 px-3 select-none text-ant-text-muted/60 text-right bg-ant-bg-secondary border-r border-ant-border/40 shrink-0 font-mono">
               {#each content.split('\n') as _, i}
                 <div>{i + 1}</div>
               {/each}
             </div>
 
             <!-- PrismJS Highlighted Code Container -->
-            <div class="py-3 px-4 overflow-x-auto whitespace-pre font-mono text-zinc-200 flex-1 leading-5">
+            <div class="py-3 px-4 overflow-x-auto whitespace-pre font-mono text-ant-text flex-1 leading-5">
               <code>{@html highlightedCodeHtml}</code>
             </div>
           </div>
@@ -245,12 +245,12 @@
       </div>
 
       <!-- Footer -->
-      <div class="px-4 py-2 border-t border-[#27272a] bg-[#141416] flex items-center justify-between text-[11px] text-zinc-500 font-mono shrink-0">
+      <div class="px-4 py-2 border-t border-ant-border bg-ant-bg-secondary flex items-center justify-between text-[11px] text-ant-text-muted font-mono shrink-0">
         <span>Read-Only Mode</span>
         {#if !isLargeFilePending && content}
           <span>{content.split('\n').length} lines &bull; {formatBytes(content.length)}</span>
         {:else if isLargeFilePending}
-          <span class="text-amber-400/80">{formatBytes(largeFileSize)}</span>
+          <span class="text-amber-500">{formatBytes(largeFileSize)}</span>
         {:else}
           <span>0 lines</span>
         {/if}
@@ -268,13 +268,13 @@
     background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #27272a;
+    background: var(--ant-border, #27272a);
     border-radius: 3px;
   }
 
-  /* Full GitHub-Flavored Markdown Typography Styling */
+  /* Full GitHub-Flavored Markdown Typography Styling matching Theme */
   :global(.markdown-rendered-body) {
-    color: #e4e4e7;
+    color: var(--ant-text, #e4e4e7);
     font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
     font-size: 14px;
     line-height: 1.75;
@@ -284,29 +284,29 @@
     font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     font-size: 1.75rem;
     font-weight: 700;
-    color: #fafafa;
+    color: var(--ant-text, #fafafa);
     margin-top: 1.5rem;
     margin-bottom: 0.75rem;
     padding-bottom: 0.35rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid var(--ant-border, rgba(255, 255, 255, 0.1));
   }
 
   :global(.markdown-rendered-body h2) {
     font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     font-size: 1.35rem;
     font-weight: 600;
-    color: #fafafa;
+    color: var(--ant-text, #fafafa);
     margin-top: 1.35rem;
     margin-bottom: 0.5rem;
     padding-bottom: 0.25rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    border-bottom: 1px solid var(--ant-border, rgba(255, 255, 255, 0.07));
   }
 
   :global(.markdown-rendered-body h3) {
     font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     font-size: 1.15rem;
     font-weight: 600;
-    color: #f4f4f5;
+    color: var(--ant-text, #f4f4f5);
     margin-top: 1.15rem;
     margin-bottom: 0.4rem;
   }
@@ -317,7 +317,7 @@
     font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     font-size: 1rem;
     font-weight: 600;
-    color: #e4e4e7;
+    color: var(--ant-text, #e4e4e7);
     margin-top: 1rem;
     margin-bottom: 0.3rem;
   }
@@ -328,12 +328,12 @@
   }
 
   :global(.markdown-rendered-body strong) {
-    color: #ffffff;
+    color: var(--ant-text, #ffffff);
     font-weight: 600;
   }
 
   :global(.markdown-rendered-body em) {
-    color: #d4d4d8;
+    color: var(--ant-text-secondary, #d4d4d8);
   }
 
   :global(.markdown-rendered-body ul) {
@@ -357,20 +357,20 @@
 
   :global(.markdown-rendered-body hr) {
     border: 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    border-top: 1px solid var(--ant-border, rgba(255, 255, 255, 0.12));
     margin-top: 1.5rem;
     margin-bottom: 1.5rem;
   }
 
   :global(.markdown-rendered-body blockquote) {
-    border-left: 3px solid #6366f1;
+    border-left: 3px solid var(--ant-primary, #6366f1);
     padding-left: 1rem;
     margin-left: 0;
     margin-right: 0;
     margin-top: 0.75rem;
     margin-bottom: 0.75rem;
-    color: #a1a1aa;
-    background: rgba(99, 102, 241, 0.05);
+    color: var(--ant-text-secondary, #a1a1aa);
+    background: var(--ant-primary-bg, rgba(99, 102, 241, 0.05));
     border-radius: 0 0.5rem 0.5rem 0;
     padding-top: 0.35rem;
     padding-bottom: 0.35rem;
@@ -379,16 +379,16 @@
   :global(.markdown-rendered-body code) {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     font-size: 0.85em;
-    background-color: rgba(255, 255, 255, 0.08);
-    color: #38bdf8;
+    background-color: var(--ant-bg-tertiary, rgba(255, 255, 255, 0.08));
+    color: var(--ant-primary, #38bdf8);
     padding: 0.15rem 0.35rem;
     border-radius: 0.35rem;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--ant-border, rgba(255, 255, 255, 0.08));
   }
 
   :global(.markdown-rendered-body pre) {
-    background-color: #121215;
-    border: 1px solid #27272a;
+    background-color: var(--ant-bg-secondary, #121215);
+    border: 1px solid var(--ant-border, #27272a);
     border-radius: 0.5rem;
     padding: 0.85rem 1rem;
     overflow-x: auto;
@@ -400,7 +400,7 @@
     background-color: transparent;
     border: none;
     padding: 0;
-    color: #e4e4e7;
+    color: var(--ant-text, #e4e4e7);
     font-size: 0.825rem;
     line-height: 1.6;
   }
@@ -415,31 +415,31 @@
   }
 
   :global(.markdown-rendered-body th) {
-    background-color: #18181c;
-    border: 1px solid #27272a;
+    background-color: var(--ant-bg-secondary, #18181c);
+    border: 1px solid var(--ant-border, #27272a);
     padding: 0.5rem 0.75rem;
     text-align: left;
     font-weight: 600;
-    color: #f4f4f5;
+    color: var(--ant-text, #f4f4f5);
   }
 
   :global(.markdown-rendered-body td) {
-    border: 1px solid #27272a;
+    border: 1px solid var(--ant-border, #27272a);
     padding: 0.45rem 0.75rem;
-    color: #d4d4d8;
+    color: var(--ant-text-secondary, #d4d4d8);
   }
 
   :global(.markdown-rendered-body tr:nth-child(even)) {
-    background-color: rgba(255, 255, 255, 0.02);
+    background-color: var(--ant-bg-tertiary, rgba(255, 255, 255, 0.02));
   }
 
   :global(.markdown-rendered-body a) {
-    color: #60a5fa;
+    color: var(--ant-primary, #60a5fa);
     text-decoration: underline;
     text-underline-offset: 3px;
   }
 
   :global(.markdown-rendered-body a:hover) {
-    color: #93c5fd;
+    color: var(--ant-primary-hover, #93c5fd);
   }
 </style>
