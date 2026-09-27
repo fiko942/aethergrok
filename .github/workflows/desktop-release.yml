@@ -63,14 +63,20 @@ jobs:
       - name: Attach to GitHub Release (macOS ${{ matrix.arch }})
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG_NAME: ${{ github.ref_name || inputs.release_tag }}
+          TAG_NAME: ${{ inputs.release_tag || github.ref_name }}
         run: |
           TARGET_TAG="${TAG_NAME}"
-          if [ -z "$TARGET_TAG" ] && [ -n "${{ inputs.release_tag }}" ]; then
-            TARGET_TAG="${{ inputs.release_tag }}"
+          if [[ "$TARGET_TAG" != v* ]]; then
+            if [ -f "wails.json" ]; then
+              VERSION=$(node -e "console.log(JSON.parse(require('fs').readFileSync('wails.json')).version || '')")
+              if [ -n "$VERSION" ]; then
+                TARGET_TAG="v${VERSION}"
+              fi
+            fi
           fi
+          echo "Target Release Tag: $TARGET_TAG"
           if [ -n "$TARGET_TAG" ]; then
-            gh release upload "$TARGET_TAG" build/bin/*.dmg build/bin/*.tar.gz build/bin/*.sha256 --clobber || echo "No release with tag $TARGET_TAG found"
+            gh release upload "$TARGET_TAG" build/bin/*.dmg build/bin/*.tar.gz build/bin/*.sha256 --clobber || echo "Failed or tag $TARGET_TAG not yet published"
           fi
 
   build-windows:
@@ -154,12 +160,20 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG_NAME: ${{ github.ref_name || inputs.release_tag }}
+          INPUT_TAG: ${{ inputs.release_tag }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          $TargetTag = $env:TAG_NAME
-          if (-not $TargetTag -and $env:RELEASE_TAG_INPUT) {
-            $TargetTag = $env:RELEASE_TAG_INPUT
+          $TargetTag = $env:INPUT_TAG
+          if (-not $TargetTag) {
+            $TargetTag = $env:REF_NAME
           }
+          if ($TargetTag -notmatch '^v\d+') {
+            if (Test-Path "wails.json") {
+              $wailsJson = Get-Content "wails.json" | ConvertFrom-Json
+              if ($wailsJson.version) { $TargetTag = "v$($wailsJson.version)" }
+            }
+          }
+          Write-Host "Target Release Tag: $TargetTag"
           if ($TargetTag) {
             $filesToUpload = Get-ChildItem -Path "build/bin" -File | Where-Object { $_.Extension -in @(".exe", ".zip", ".sha256") } | Select-Object -ExpandProperty FullName
             if ($filesToUpload) {
