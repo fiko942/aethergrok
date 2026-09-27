@@ -130,6 +130,7 @@ declare global {
           WriteTerminal: (termId: string, data: string) => Promise<void>;
           ResizeTerminal: (termId: string, cols: number, rows: number) => Promise<void>;
           CloseTerminal: (termId: string) => Promise<void>;
+          GetTerminalBuffer: (termId: string) => Promise<string>;
           CloseSessionTerminals: (sessionId: string) => Promise<void>;
           GetPlanContent: (planPath: string) => Promise<string>;
 

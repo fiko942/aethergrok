@@ -136,11 +136,11 @@
 </script>
 
 <div class="flex flex-col h-full space-y-3 font-serif">
-  <!-- Top Action & Filter Bar -->
-  <div class="flex flex-wrap items-center justify-between gap-2.5 bg-ant-bg-tertiary/40 p-2.5 rounded-xl border border-ant-border-secondary dark:border-white/5">
+  <!-- Top Unified Action & Filter Bar (Single Row) -->
+  <div class="flex items-center gap-2 bg-ant-bg-tertiary/40 px-3 py-2 rounded-xl border border-ant-border-secondary dark:border-white/5 w-full">
     <!-- Search Input -->
-    <div class="relative flex-1 min-w-[170px]">
-      <Search size={13} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-ant-text-muted" />
+    <div class="relative flex-1 min-w-[140px]">
+      <Search size={13} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-ant-text-muted pointer-events-none" />
       <input
         type="text"
         placeholder="Filter logs or errors..."
@@ -150,12 +150,12 @@
     </div>
 
     <!-- Level Filter Pills -->
-    <div class="flex items-center space-x-1 bg-ant-bg p-0.5 rounded-lg border border-ant-border-secondary dark:border-white/5 text-[11px] font-mono">
+    <div class="flex items-center space-x-0.5 bg-ant-bg p-0.5 rounded-lg border border-ant-border-secondary dark:border-white/5 text-[10.5px] font-mono shrink-0">
       {#each levels as lvl}
         <button
           type="button"
           onclick={() => selectedLevel = lvl}
-          class="px-2 py-1 rounded-md transition font-medium {selectedLevel === lvl
+          class="px-1.5 py-1 rounded-md transition font-medium {selectedLevel === lvl
             ? 'bg-ant-primary/15 text-ant-primary font-semibold'
             : 'text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary'}"
         >
@@ -164,17 +164,17 @@
       {/each}
     </div>
 
-    <!-- Custom Floating Category Filter Dropdown -->
-    <div class="relative" bind:this={categoryDropdownRef}>
+    <!-- Custom Category Filter Dropdown -->
+    <div class="relative shrink-0" bind:this={categoryDropdownRef}>
       <button
         type="button"
         onclick={() => categoryDropdownOpen = !categoryDropdownOpen}
-        class="flex items-center space-x-1.5 px-2.5 py-1.5 bg-ant-bg hover:bg-ant-bg-secondary rounded-lg border border-ant-border-secondary dark:border-white/5 text-xs text-ant-text transition cursor-pointer {categoryDropdownOpen ? 'ring-1 ring-ant-primary/30 border-white/10' : ''}"
+        class="flex items-center space-x-1.5 px-2 py-1.5 bg-ant-bg hover:bg-ant-bg-secondary rounded-lg border border-ant-border-secondary dark:border-white/5 text-xs text-ant-text transition cursor-pointer {categoryDropdownOpen ? 'ring-1 ring-ant-primary/30 border-white/10' : ''}"
         title="Filter by Subsystem Category"
       >
-        <ActiveCategoryIcon size={12.5} class="text-ant-primary" />
-        <span class="font-sans text-[11px] font-medium">{activeCategoryObj.label}</span>
-        <ChevronDown size={12} class="text-ant-text-muted transition-transform duration-150 {categoryDropdownOpen ? 'rotate-180 text-ant-primary' : ''}" />
+        <ActiveCategoryIcon size={12} class="text-ant-primary shrink-0" />
+        <span class="font-sans text-[11px] font-medium max-w-[70px] truncate">{activeCategoryObj.label}</span>
+        <ChevronDown size={11} class="text-ant-text-muted transition-transform duration-150 shrink-0 {categoryDropdownOpen ? 'rotate-180 text-ant-primary' : ''}" />
       </button>
 
       {#if categoryDropdownOpen}
@@ -196,7 +196,7 @@
               }}
             >
               <div class="flex items-center space-x-2 min-w-0">
-                <CatIcon size={12} class="{isSelected ? 'text-ant-primary' : 'text-ant-text-muted'}" />
+                <CatIcon size={12} class={isSelected ? 'text-ant-primary' : 'text-ant-text-muted'} />
                 <span class="truncate font-sans text-[11px]">{cat.label}</span>
               </div>
               {#if isSelected}
@@ -208,19 +208,22 @@
       {/if}
     </div>
 
+    <!-- Vertical Divider -->
+    <div class="h-4 w-[1px] bg-ant-border-secondary dark:bg-white/10 shrink-0"></div>
+
     <!-- Actions (Export, Copy, Clear) -->
-    <div class="flex items-center space-x-1.5">
+    <div class="flex items-center space-x-1 shrink-0">
       <Tooltip title="Copy logs to clipboard" placement="top">
         <button
           type="button"
           onclick={handleCopy}
-          class="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-ant-bg hover:bg-ant-bg-secondary border border-ant-border-secondary dark:border-white/5 text-xs text-ant-text transition"
+          class="flex items-center space-x-1 px-2 py-1.5 rounded-lg bg-ant-bg hover:bg-ant-bg-secondary border border-ant-border-secondary dark:border-white/5 text-xs text-ant-text transition shrink-0"
         >
           {#if copyNotice}
-            <Check size={13} class="text-emerald-400" />
+            <Check size={12} class="text-emerald-400" />
             <span class="text-emerald-400 font-mono text-[11px]">Copied</span>
           {:else}
-            <Copy size={13} class="text-ant-text-secondary" />
+            <Copy size={12} class="text-ant-text-secondary" />
             <span class="text-[11px]">Copy</span>
           {/if}
         </button>
@@ -230,9 +233,9 @@
         <button
           type="button"
           onclick={handleExportJSON}
-          class="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-ant-bg hover:bg-ant-bg-secondary border border-ant-border-secondary dark:border-white/5 text-xs text-ant-text transition"
+          class="flex items-center space-x-1 px-2 py-1.5 rounded-lg bg-ant-bg hover:bg-ant-bg-secondary border border-ant-border-secondary dark:border-white/5 text-xs text-ant-text transition shrink-0"
         >
-          <FileJson size={13} class="text-ant-primary" />
+          <FileJson size={12} class="text-ant-primary" />
           <span class="text-[11px]">JSON</span>
         </button>
       </Tooltip>
@@ -241,9 +244,9 @@
         <button
           type="button"
           onclick={handleExportText}
-          class="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-ant-bg hover:bg-ant-bg-secondary border border-ant-border-secondary dark:border-white/5 text-xs text-ant-text transition"
+          class="flex items-center space-x-1 px-2 py-1.5 rounded-lg bg-ant-bg hover:bg-ant-bg-secondary border border-ant-border-secondary dark:border-white/5 text-xs text-ant-text transition shrink-0"
         >
-          <FileText size={13} class="text-ant-primary" />
+          <FileText size={12} class="text-ant-primary" />
           <span class="text-[11px]">Log</span>
         </button>
       </Tooltip>
@@ -252,9 +255,9 @@
         <button
           type="button"
           onclick={() => logger.clear()}
-          class="p-1.5 rounded-lg bg-ant-bg hover:bg-rose-500/10 border border-ant-border-secondary dark:border-white/5 text-ant-text-muted hover:text-rose-400 transition"
+          class="p-1.5 rounded-lg bg-ant-bg hover:bg-rose-500/10 border border-ant-border-secondary dark:border-white/5 text-ant-text-muted hover:text-rose-400 transition shrink-0"
         >
-          <Trash2 size={13} />
+          <Trash2 size={12} />
         </button>
       </Tooltip>
     </div>

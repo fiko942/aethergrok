@@ -59,6 +59,8 @@ type Instance struct {
 	PtyFile   *osFileWrapper
 	mu        sync.Mutex
 	closed    bool
+	bufferMu  sync.RWMutex
+	history   []byte
 }
 
 // Manager manages active pseudo-terminal instances indexed by ID and SessionID
@@ -187,6 +189,7 @@ func (m *Manager) Create(sessionID, termID, cwd, shell string) error {
 		SessionID: sessionID,
 		Cmd:       cmd,
 		PtyFile:   ptmx,
+		history:   make([]byte, 0, 32768),
 	}
 
 	m.terminals[termID] = inst
@@ -197,7 +200,9 @@ func (m *Manager) Create(sessionID, termID, cwd, shell string) error {
 		for {
 			n, readErr := ptmx.Read(buf)
 			if n > 0 {
-				data := string(buf[:n])
+				chunk := buf[:n]
+				inst.appendHistory(chunk)
+				data := string(chunk)
 				if m.ctx != nil {
 					runtime.EventsEmit(m.ctx, fmt.Sprintf("terminal:data:%s", termID), data)
 				}
@@ -245,6 +250,19 @@ func (m *Manager) Resize(termID string, cols, rows int) error {
 	}
 
 	return inst.Resize(cols, rows)
+}
+
+// GetTerminalBuffer returns accumulated terminal history bytes for restoring state
+func (m *Manager) GetTerminalBuffer(termID string) string {
+	m.mu.RLock()
+	inst, ok := m.terminals[termID]
+	m.mu.RUnlock()
+
+	if !ok || inst == nil {
+		return ""
+	}
+
+	return inst.getHistory()
 }
 
 // Close closes a specific terminal instance and terminates all child processes
@@ -307,6 +325,25 @@ func (inst *Instance) Write(p []byte) error {
 
 	_, err := inst.PtyFile.Write(p)
 	return err
+}
+
+func (inst *Instance) appendHistory(p []byte) {
+	inst.bufferMu.Lock()
+	defer inst.bufferMu.Unlock()
+
+	// Keep up to 256KB of recent output history for seamless re-render
+	const maxHistory = 262144
+	inst.history = append(inst.history, p...)
+	if len(inst.history) > maxHistory {
+		excess := len(inst.history) - maxHistory
+		inst.history = inst.history[excess:]
+	}
+}
+
+func (inst *Instance) getHistory() string {
+	inst.bufferMu.RLock()
+	defer inst.bufferMu.RUnlock()
+	return string(inst.history)
 }
 
 func (inst *Instance) Resize(cols, rows int) error {

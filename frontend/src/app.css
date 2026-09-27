@@ -576,10 +576,28 @@ pre[class*="language-"] {
   font-family: Fira Code, JetBrains Mono, monospace;
   font-size: 0.825em;
   background-color: var(--ant-bg-tertiary, #222634);
-  color: #0958d9;
+  color: #0b3a82;
+  font-weight: 600;
   padding: 0.15em 0.4em;
   border-radius: 0.3em;
   border: 1px solid var(--ant-border-secondary, rgba(0, 0, 0, 0.08));
+}
+
+[data-theme='light-antd'] .markdown-chat-body code:not(pre code) {
+  background-color: #f1f5f9;
+  color: #093c78;
+  border-color: #cbd5e1;
+}
+
+[data-theme='light-antd'] .markdown-chat-body .inline-file-chip {
+  background-color: #e0f2fe;
+  color: #03446a;
+  border-color: #7dd3fc;
+}
+
+[data-theme='light-antd'] .markdown-chat-body .inline-file-chip:hover {
+  background-color: #bae6fd;
+  border-color: #38bdf8;
 }
 
 [data-theme='dark-antd'] .markdown-chat-body code:not(pre code),

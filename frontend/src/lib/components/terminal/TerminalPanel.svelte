@@ -242,22 +242,34 @@
     refitAllSplitTerminals();
   }
 
-  function refitAllSplitTerminals() {
-    tick().then(() => {
-      const activeSplit = terminalStore.getActiveSplitGroup(sessionId);
-      if (!activeSplit) return;
-      for (const termId of activeSplit.paneTermIds) {
-        if (terminalInstances.has(termId)) {
-          const inst = terminalInstances.get(termId)!;
-          try {
-            inst.fitAddon.fit();
-            if (window.go?.main?.App?.ResizeTerminal) {
-              window.go.main.App.ResizeTerminal(termId, inst.term.cols, inst.term.rows);
-            }
-          } catch (e) {}
-        }
+  // Debounced xterm refit to prevent jank, layout thrashing, and backend PTY spam
+  const pendingFitMap = new Map<string, number>();
+
+  function scheduleXtermFit(termId: string) {
+    if (pendingFitMap.has(termId)) {
+      cancelAnimationFrame(pendingFitMap.get(termId)!);
+    }
+    const id = requestAnimationFrame(() => {
+      pendingFitMap.delete(termId);
+      if (terminalInstances.has(termId)) {
+        const inst = terminalInstances.get(termId)!;
+        try {
+          inst.fitAddon.fit();
+          if (window.go?.main?.App?.ResizeTerminal) {
+            window.go.main.App.ResizeTerminal(termId, inst.term.cols, inst.term.rows);
+          }
+        } catch (e) {}
       }
     });
+    pendingFitMap.set(termId, id);
+  }
+
+  function refitAllSplitTerminals() {
+    const activeSplit = terminalStore.getActiveSplitGroup(sessionId);
+    if (!activeSplit) return;
+    for (const termId of activeSplit.paneTermIds) {
+      scheduleXtermFit(termId);
+    }
   }
 
   // Interactive Split Divider dragging
@@ -266,6 +278,7 @@
   let dividerStartPos = 0;
   let dividerInitialSizes: number[] = [];
   let dividerContainerSize = 0;
+  let dividerRafId: number | null = null;
 
   function handleSplitDividerStart(e: MouseEvent, index: number, isVertical: boolean, containerEl: HTMLElement) {
     e.preventDefault();
@@ -289,28 +302,39 @@
 
     const onMove = (moveEvt: MouseEvent) => {
       if (!isDraggingSplitDivider || activeDividerIndex === null) return;
-      const currentPos = isVertical ? moveEvt.clientY : moveEvt.clientX;
-      const deltaPx = currentPos - dividerStartPos;
-      const deltaPercent = (deltaPx / Math.max(1, dividerContainerSize)) * 100;
+      if (dividerRafId) return;
 
-      const newSizes = [...dividerInitialSizes];
-      const i = activeDividerIndex;
-      const minPercent = 15; // Minimum size for any pane
+      dividerRafId = requestAnimationFrame(() => {
+        dividerRafId = null;
+        if (!isDraggingSplitDivider || activeDividerIndex === null) return;
 
-      if (newSizes[i] + deltaPercent >= minPercent && newSizes[i + 1] - deltaPercent >= minPercent) {
-        newSizes[i] += deltaPercent;
-        newSizes[i + 1] -= deltaPercent;
+        const currentPos = isVertical ? moveEvt.clientY : moveEvt.clientX;
+        const deltaPx = currentPos - dividerStartPos;
+        const deltaPercent = (deltaPx / Math.max(1, dividerContainerSize)) * 100;
 
-        if (activeSplit) {
-          terminalStore.setGroupPaneSizes(sessionId, activeSplit.id, newSizes);
-          refitAllSplitTerminals();
+        const newSizes = [...dividerInitialSizes];
+        const i = activeDividerIndex;
+        const minPercent = 12; // Minimum size for any pane
+
+        if (newSizes[i] + deltaPercent >= minPercent && newSizes[i + 1] - deltaPercent >= minPercent) {
+          newSizes[i] += deltaPercent;
+          newSizes[i + 1] -= deltaPercent;
+
+          if (activeSplit) {
+            terminalStore.setGroupPaneSizes(sessionId, activeSplit.id, newSizes);
+            refitAllSplitTerminals();
+          }
         }
-      }
+      });
     };
 
     const onEnd = () => {
       isDraggingSplitDivider = false;
       activeDividerIndex = null;
+      if (dividerRafId) {
+        cancelAnimationFrame(dividerRafId);
+        dividerRafId = null;
+      }
       document.body.style.userSelect = '';
       document.body.style.cursor = '';
       window.removeEventListener('mousemove', onMove);
@@ -326,17 +350,9 @@
     termContainerMap.set(termId, node);
     initXterm(termId, node);
 
-    // Attach ResizeObserver to auto-fit xterm whenever pane dimensions change
+    // Attach ResizeObserver with debounced requestAnimationFrame to avoid jank
     const ro = new ResizeObserver(() => {
-      if (terminalInstances.has(termId)) {
-        const inst = terminalInstances.get(termId)!;
-        try {
-          inst.fitAddon.fit();
-          if (window.go?.main?.App?.ResizeTerminal) {
-            window.go.main.App.ResizeTerminal(termId, inst.term.cols, inst.term.rows);
-          }
-        } catch (e) {}
-      }
+      scheduleXtermFit(termId);
     });
     ro.observe(node);
     resizeObservers.set(termId, ro);
@@ -347,6 +363,10 @@
         if (obs) {
           obs.disconnect();
           resizeObservers.delete(termId);
+        }
+        if (pendingFitMap.has(termId)) {
+          cancelAnimationFrame(pendingFitMap.get(termId)!);
+          pendingFitMap.delete(termId);
         }
         termContainerMap.delete(termId);
         cleanupXterm(termId);
@@ -402,6 +422,17 @@
     }
 
     terminalInstances.set(termId, { term, fitAddon, unsub });
+
+    // Fetch any prior terminal buffer history (e.g. initial shell prompt or pre-rendered output)
+    if (window.go?.main?.App?.GetTerminalBuffer) {
+      window.go.main.App.GetTerminalBuffer(termId)
+        .then((buf: string) => {
+          if (buf) {
+            term.write(buf);
+          }
+        })
+        .catch(() => {});
+    }
   }
 
   function cleanupXterm(termId: string) {
@@ -530,6 +561,12 @@
     // When switching active tab, refit the newly focused terminal
     if (activeTermId) {
       refitActiveTerminal();
+      // Ensure focus on active terminal
+      if (terminalInstances.has(activeTermId)) {
+        setTimeout(() => {
+          terminalInstances.get(activeTermId)?.term.focus();
+        }, 30);
+      }
     }
   });
 
@@ -679,7 +716,7 @@
     <!-- Expanded Terminal Viewport (Bottom or Right Dock) -->
     {#if dockPosition === 'bottom'}
       <div
-        class="flex flex-col w-full bg-ant-bg border-t border-ant-border-secondary dark:border-white/5 z-20 select-none font-serif transition-all duration-75 flex-shrink-0"
+        class="flex flex-col w-full bg-ant-bg border-t border-ant-border-secondary dark:border-white/5 z-20 select-none font-serif flex-shrink-0"
         style="height: {isMaximized ? 'calc(100vh - 120px)' : `${terminalStore.panelHeight}px`}; min-height: 140px;"
       >
         <!-- Drag Resize Handle (Top border for Bottom dock) -->
@@ -866,7 +903,7 @@
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div
-                  class="relative flex flex-col min-w-0 min-h-0 rounded-lg overflow-hidden border transition-all {isPaneFocused ? 'border-ant-primary shadow-sm shadow-ant-primary/10' : 'border-ant-border-secondary dark:border-white/5'}"
+                  class="relative flex flex-col min-w-0 min-h-0 rounded-lg overflow-hidden border {isPaneFocused ? 'border-ant-primary shadow-sm shadow-ant-primary/10' : 'border-ant-border-secondary dark:border-white/5'}"
                   style="{splitGroup?.splitDirection === 'vertical' ? `height: ${panePct}%;` : `width: ${panePct}%;`}"
                   onclick={() => terminalStore.setFocusedPaneId(sessionId, termId)}
                   ondragover={(e) => handlePaneDragOver(e, termId)}
@@ -945,7 +982,7 @@
     {:else}
       <!-- Right Docked Panel -->
       <div
-        class="flex flex-row h-full bg-ant-bg border-l border-ant-border-secondary dark:border-white/5 z-20 select-none font-serif transition-all duration-75 flex-shrink-0"
+        class="flex flex-row h-full bg-ant-bg border-l border-ant-border-secondary dark:border-white/5 z-20 select-none font-serif flex-shrink-0"
         style="width: {terminalStore.panelWidth}px; min-width: 260px;"
       >
         <!-- Left Drag Resize Handle for Right Dock -->
@@ -1114,7 +1151,7 @@
                   <!-- svelte-ignore a11y_click_events_have_key_events -->
                   <!-- svelte-ignore a11y_no_static_element_interactions -->
                   <div
-                    class="relative flex flex-col min-w-0 min-h-0 rounded-lg overflow-hidden border transition-all {isPaneFocused ? 'border-ant-primary shadow-sm shadow-ant-primary/10' : 'border-ant-border-secondary dark:border-white/5'}"
+                    class="relative flex flex-col min-w-0 min-h-0 rounded-lg overflow-hidden border {isPaneFocused ? 'border-ant-primary shadow-sm shadow-ant-primary/10' : 'border-ant-border-secondary dark:border-white/5'}"
                     style="height: {panePct}%;"
                     onclick={() => terminalStore.setFocusedPaneId(sessionId, termId)}
                     ondragover={(e) => handlePaneDragOver(e, termId)}

@@ -439,6 +439,14 @@ func (a *App) CloseTerminal(termID string) error {
 	return a.terminalMgr.Close(termID)
 }
 
+// GetTerminalBuffer retrieves recent output history for a terminal instance
+func (a *App) GetTerminalBuffer(termID string) string {
+	if a.terminalMgr == nil {
+		return ""
+	}
+	return a.terminalMgr.GetTerminalBuffer(termID)
+}
+
 // CloseSessionTerminals terminates all terminals belonging to a session
 func (a *App) CloseSessionTerminals(sessionID string) error {
 	if a.terminalMgr == nil {

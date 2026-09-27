@@ -110,6 +110,10 @@ export function GetSystemAudioInputDevices() {
   return window['go']['main']['App']['GetSystemAudioInputDevices']();
 }
 
+export function GetTerminalBuffer(arg1) {
+  return window['go']['main']['App']['GetTerminalBuffer'](arg1);
+}
+
 export function GetWorkspaceFileDiff(arg1, arg2) {
   return window['go']['main']['App']['GetWorkspaceFileDiff'](arg1, arg2);
 }
