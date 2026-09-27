@@ -426,10 +426,10 @@
   >
     <!-- Modal Container -->
     <div
-      class="w-full max-w-4xl h-[680px] max-h-[90vh] flex flex-col bg-ant-bg-secondary border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+      class="w-full max-w-4xl h-[680px] max-h-[90vh] flex flex-col bg-ant-bg-secondary border border-ant-border rounded-2xl shadow-2xl overflow-hidden"
     >
       <!-- Header -->
-      <div class="px-6 py-4 border-b border-white/5 flex items-center justify-between bg-ant-bg-secondary flex-shrink-0">
+      <div class="px-6 py-4 border-b border-ant-border flex items-center justify-between bg-ant-bg-secondary flex-shrink-0">
         <div class="flex items-center space-x-3">
           <div class="w-8 h-8 rounded-lg bg-ant-primary/10 flex items-center justify-center text-ant-primary shadow-sm">
             <Settings size={18} />
@@ -473,7 +473,7 @@
       <!-- Main Body: Sidebar + Content -->
       <div class="flex flex-1 min-h-0 overflow-hidden">
         <!-- Sidebar Navigation Tabs -->
-        <nav class="w-56 bg-ant-bg border-r border-white/5 flex flex-col p-2 space-y-1 flex-shrink-0" aria-label="Settings navigation">
+        <nav class="w-56 bg-ant-bg border-r border-ant-border flex flex-col p-2 space-y-1 flex-shrink-0" aria-label="Settings navigation">
           {#each tabs as tab}
             {@const IconComponent = tab.icon}
             <button
@@ -488,7 +488,7 @@
             </button>
           {/each}
 
-          <div class="mt-auto pt-4 border-t border-white/5 px-2 pb-2">
+          <div class="mt-auto pt-4 border-t border-ant-border px-2 pb-2">
             <button
               type="button"
               onclick={() => openExternal('https://github.com/fiko942/grok-build')}
@@ -505,7 +505,7 @@
         </nav>
 
         <!-- Tab Content Viewport -->
-        <div class="flex-1 min-h-0 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-ant-bg-secondary/60">
+        <div class="flex-1 min-h-0 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-ant-bg-layout/50">
           
           <!-- TAB 1: GENERAL & SNAPSHOT -->
           {#if activeTab === 'general'}
@@ -539,7 +539,7 @@
                     type="text"
                     bind:value={editGrokBinaryPath}
                     placeholder="/Users/fiko942/.local/bin/grok"
-                    class="w-full px-3 py-2 text-xs font-mono bg-ant-bg border border-white/10 rounded-lg text-ant-text focus:outline-none focus:border-ant-primary focus:ring-1 focus:ring-ant-primary transition"
+                    class="w-full px-3 py-2 text-xs font-mono bg-ant-bg border border-ant-border rounded-lg text-ant-text focus:outline-none focus:border-ant-primary focus:ring-1 focus:ring-ant-primary transition shadow-2xs"
                   />
                 </div>
               </Card>
@@ -547,7 +547,7 @@
               <!-- Smart Screen Snapshot Settings Card -->
               <Card>
                 <div class="space-y-4">
-                  <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                  <div class="flex items-center justify-between border-b border-ant-border/60 pb-2">
                     <div class="flex items-center gap-2">
                       <Camera size={16} class="text-ant-primary" />
                       <div class="text-xs font-semibold text-ant-text">Non-Intrusive Smart Snapshot (macOS & Windows)</div>
@@ -556,7 +556,7 @@
                   </div>
 
                   <!-- Snapshot Shortcut Key Binding -->
-                  <div class="space-y-2 pt-2 border-t border-white/5">
+                  <div class="space-y-2 pt-2 border-t border-ant-border/60">
                     <div class="flex items-center justify-between">
                       <div class="space-y-0.5">
                         <div class="text-xs font-medium text-ant-text flex items-center gap-1.5">
@@ -569,7 +569,7 @@
                       </div>
                       <div class="flex items-center gap-1.5 flex-wrap">
                         {#each currentSnapshotKeys as keySegment}
-                          <kbd class="px-2 py-0.5 text-xs font-mono font-medium text-ant-primary bg-ant-primary/10 rounded">
+                          <kbd class="px-2 py-0.5 text-xs font-mono font-medium text-ant-primary bg-ant-primary/10 rounded border border-ant-primary/20">
                             {keySegment}
                           </kbd>
                         {/each}
@@ -580,14 +580,14 @@
                       <button
                         type="button"
                         onclick={() => isRecordingShortcut = true}
-                        class="flex-1 px-3 py-1.5 text-xs font-serif rounded-lg bg-ant-primary/10 hover:bg-ant-primary/20 text-ant-primary transition flex items-center justify-center gap-2"
+                        class="flex-1 px-3 py-1.5 text-xs font-serif rounded-lg bg-ant-primary/10 hover:bg-ant-primary/20 text-ant-primary border border-ant-primary/25 transition flex items-center justify-center gap-2"
                       >
                         <Keyboard size={14} />
                         Record / Change Shortcut
                       </button>
                       <button
                         type="button"
-                        class="px-2.5 py-1.5 text-xs rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-ant-text-secondary hover:text-ant-text transition"
+                        class="px-2.5 py-1.5 text-xs rounded-lg bg-ant-bg border border-ant-border hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-text transition"
                         onclick={() => editSnapshotShortcut = 'CmdOrCtrl+Shift+S'}
                       >
                         Reset Default
@@ -613,7 +613,7 @@
                   </div>
 
                   <!-- Audio Shutter Sound Toggle -->
-                  <div class="flex items-center justify-between pt-2 border-t border-white/5">
+                  <div class="flex items-center justify-between pt-2 border-t border-ant-border/60 pb-1">
                     <div class="space-y-0.5">
                       <div class="text-xs font-medium text-ant-text flex items-center gap-1.5">
                         <Volume2 size={13} class="text-ant-primary" />
@@ -630,7 +630,7 @@
                   </div>
 
                   <!-- Screen Flash FX Toggle -->
-                  <div class="flex items-center justify-between pt-2 border-t border-white/5">
+                  <div class="flex items-center justify-between pt-2 border-t border-ant-border/60 pb-1">
                     <div class="space-y-0.5">
                       <div class="text-xs font-medium text-ant-text flex items-center gap-1.5">
                         <Zap size={13} class="text-ant-warning" />
@@ -647,7 +647,7 @@
                   </div>
 
                   <!-- Auto-Attach to Composer Toggle -->
-                  <div class="flex items-center justify-between pt-2 border-t border-white/5">
+                  <div class="flex items-center justify-between pt-2 border-t border-ant-border/60 pb-1">
                     <div class="space-y-0.5">
                       <div class="text-xs font-medium text-ant-text flex items-center gap-1.5">
                         <ImageIcon size={13} class="text-ant-success" />
@@ -664,7 +664,7 @@
                   </div>
 
                   <!-- Compositor Delay Slider -->
-                  <div class="space-y-2 pt-2 border-t border-white/5">
+                  <div class="space-y-2 pt-2 border-t border-ant-border/60">
                     <div class="flex items-center justify-between">
                       <div>
                         <div class="text-xs font-medium text-ant-text">OS Compositor Flush Delay</div>
@@ -709,25 +709,25 @@
                       </p>
                     </div>
 
-                    <div class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-ant-bg border border-white/5 font-mono text-xs shrink-0 self-start">
+                    <div class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-ant-bg border border-ant-border font-mono text-xs shrink-0 self-start shadow-2xs">
                       <span class="font-semibold text-ant-text">{cacheStats.formattedSize}</span>
                       <span class="text-ant-text-muted text-[11px]">({cacheStats.fileCount} {cacheStats.fileCount === 1 ? 'file' : 'files'})</span>
                     </div>
                   </div>
 
                   {#if cacheClearNotice}
-                    <div class="px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] font-mono text-emerald-400 flex items-center gap-2 animate-in fade-in duration-150">
-                      <CheckCircle2 size={13} class="text-emerald-400 shrink-0" />
+                    <div class="px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-[11px] font-mono text-emerald-600 dark:text-emerald-400 flex items-center gap-2 animate-in fade-in duration-150">
+                      <CheckCircle2 size={13} class="text-emerald-600 dark:text-emerald-400 shrink-0" />
                       <span>{cacheClearNotice}</span>
                     </div>
                   {/if}
 
                   <!-- Action Bar: Clean inline layout with clear affordance -->
-                  <div class="pt-2.5 border-t border-white/5 flex items-center justify-between gap-3">
+                  <div class="pt-2.5 border-t border-ant-border/60 flex items-center justify-between gap-3">
                     <button
                       type="button"
                       onclick={refreshCacheStats}
-                      class="px-2.5 py-1.5 rounded-lg text-xs font-serif text-ant-text-secondary hover:text-ant-text hover:bg-white/5 transition flex items-center gap-1.5"
+                      class="px-2.5 py-1.5 rounded-lg text-xs font-serif text-ant-text-secondary hover:text-ant-text bg-ant-bg border border-ant-border hover:bg-ant-bg-tertiary transition flex items-center gap-1.5"
                     >
                       <RefreshCw size={12} class={isClearingCache ? 'animate-spin text-ant-primary' : ''} />
                       <span>Refresh Size</span>
@@ -739,8 +739,8 @@
                       disabled={isClearingCache || cacheStats.fileCount === 0}
                       class="px-3.5 py-1.5 rounded-lg text-xs font-serif font-medium transition flex items-center gap-1.5 {
                         cacheStats.fileCount === 0
-                          ? 'bg-white/5 text-ant-text-muted/60 border border-transparent cursor-not-allowed opacity-60'
-                          : 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 active:scale-95'
+                          ? 'bg-ant-bg-secondary text-ant-text-muted border border-ant-border/60 cursor-not-allowed opacity-60'
+                          : 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 active:scale-95'
                       }"
                     >
                       <Trash2 size={12} class={isClearingCache ? 'animate-spin' : ''} />
@@ -797,19 +797,19 @@
                 <button
                   type="button"
                   class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router'
-                    ? 'border-blue-500 bg-blue-500/10 shadow-sm'
-                    : 'border-white/5 bg-ant-bg hover:border-white/20'}"
+                    ? 'border-ant-primary bg-ant-primary/10 shadow-xs'
+                    : 'border-ant-border bg-ant-bg hover:border-ant-primary/40'}"
                   onclick={() => editDefaultModel = '9router'}
                 >
                   <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold flex items-center gap-1.5 {editDefaultModel === '9router' ? 'text-blue-400' : 'text-ant-text'}">
-                      <Sparkles size={14} class={editDefaultModel === '9router' ? 'text-blue-400' : 'text-ant-primary'} /> 9router (Default)
+                    <span class="text-xs font-bold flex items-center gap-1.5 {editDefaultModel === '9router' ? 'text-ant-primary' : 'text-ant-text'}">
+                      <Sparkles size={14} class={editDefaultModel === '9router' ? 'text-ant-primary' : 'text-ant-primary'} /> 9router (Default)
                     </span>
                     {#if editDefaultModel === '9router'}
-                      <CheckCircle2 size={15} class="text-blue-400" />
+                      <CheckCircle2 size={15} class="text-ant-primary" />
                     {/if}
                   </div>
-                  <p class="text-[11px] {editDefaultModel === '9router' ? 'text-blue-200/80' : 'text-ant-text-secondary'} leading-relaxed">
+                  <p class="text-[11px] {editDefaultModel === '9router' ? 'text-ant-text' : 'text-ant-text-secondary'} leading-relaxed">
                     Primary multi-provider gateway supporting ultra-fast streaming, reasoning synthesis, and vision multimodal inputs.
                   </p>
                 </button>
@@ -817,19 +817,19 @@
                 <button
                   type="button"
                   class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router-general-purpose'
-                    ? 'border-blue-500 bg-blue-500/10 shadow-sm'
-                    : 'border-white/5 bg-ant-bg hover:border-white/20'}"
+                    ? 'border-ant-primary bg-ant-primary/10 shadow-xs'
+                    : 'border-ant-border bg-ant-bg hover:border-ant-primary/40'}"
                   onclick={() => editDefaultModel = '9router-general-purpose'}
                 >
                   <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold flex items-center gap-1.5 {editDefaultModel === '9router-general-purpose' ? 'text-blue-400' : 'text-ant-text'}">
-                      <Brain size={14} class={editDefaultModel === '9router-general-purpose' ? 'text-blue-400' : 'text-ant-primary'} /> 9router General Purpose
+                    <span class="text-xs font-bold flex items-center gap-1.5 {editDefaultModel === '9router-general-purpose' ? 'text-ant-primary' : 'text-ant-text'}">
+                      <Brain size={14} class={editDefaultModel === '9router-general-purpose' ? 'text-ant-primary' : 'text-ant-primary'} /> 9router General Purpose
                     </span>
                     {#if editDefaultModel === '9router-general-purpose'}
-                      <CheckCircle2 size={15} class="text-blue-400" />
+                      <CheckCircle2 size={15} class="text-ant-primary" />
                     {/if}
                   </div>
-                  <p class="text-[11px] {editDefaultModel === '9router-general-purpose' ? 'text-blue-200/80' : 'text-ant-text-secondary'} leading-relaxed">
+                  <p class="text-[11px] {editDefaultModel === '9router-general-purpose' ? 'text-ant-text' : 'text-ant-text-secondary'} leading-relaxed">
                     Balanced configuration for broad tasks, planning, refactoring, and general desktop workflows.
                   </p>
                 </button>
@@ -837,19 +837,19 @@
                 <button
                   type="button"
                   class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router-explore'
-                    ? 'border-blue-500 bg-blue-500/10 shadow-sm'
-                    : 'border-white/5 bg-ant-bg hover:border-white/20'}"
+                    ? 'border-ant-primary bg-ant-primary/10 shadow-xs'
+                    : 'border-ant-border bg-ant-bg hover:border-ant-primary/40'}"
                   onclick={() => editDefaultModel = '9router-explore'}
                 >
                   <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold flex items-center gap-1.5 {editDefaultModel === '9router-explore' ? 'text-blue-400' : 'text-ant-text'}">
-                      <Sparkles size={14} class={editDefaultModel === '9router-explore' ? 'text-blue-400' : 'text-ant-primary'} /> 9router Explore
+                    <span class="text-xs font-bold flex items-center gap-1.5 {editDefaultModel === '9router-explore' ? 'text-ant-primary' : 'text-ant-text'}">
+                      <Sparkles size={14} class={editDefaultModel === '9router-explore' ? 'text-ant-primary' : 'text-ant-primary'} /> 9router Explore
                     </span>
                     {#if editDefaultModel === '9router-explore'}
-                      <CheckCircle2 size={15} class="text-blue-400" />
+                      <CheckCircle2 size={15} class="text-ant-primary" />
                     {/if}
                   </div>
-                  <p class="text-[11px] {editDefaultModel === '9router-explore' ? 'text-blue-200/80' : 'text-ant-text-secondary'} leading-relaxed">
+                  <p class="text-[11px] {editDefaultModel === '9router-explore' ? 'text-ant-text' : 'text-ant-text-secondary'} leading-relaxed">
                     Fast exploratory model for rapid codebase search, syntax checks, and file discovery.
                   </p>
                 </button>
@@ -857,19 +857,19 @@
                 <button
                   type="button"
                   class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router-plan'
-                    ? 'border-blue-500 bg-blue-500/10 shadow-sm'
-                    : 'border-white/5 bg-ant-bg hover:border-white/20'}"
+                    ? 'border-ant-primary bg-ant-primary/10 shadow-xs'
+                    : 'border-ant-border bg-ant-bg hover:border-ant-primary/40'}"
                   onclick={() => editDefaultModel = '9router-plan'}
                 >
                   <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold flex items-center gap-1.5 {editDefaultModel === '9router-plan' ? 'text-blue-400' : 'text-ant-text'}">
-                      <Brain size={14} class={editDefaultModel === '9router-plan' ? 'text-blue-400' : 'text-ant-primary'} /> 9router Plan
+                    <span class="text-xs font-bold flex items-center gap-1.5 {editDefaultModel === '9router-plan' ? 'text-ant-primary' : 'text-ant-text'}">
+                      <Brain size={14} class={editDefaultModel === '9router-plan' ? 'text-ant-primary' : 'text-ant-primary'} /> 9router Plan
                     </span>
                     {#if editDefaultModel === '9router-plan'}
-                      <CheckCircle2 size={15} class="text-blue-400" />
+                      <CheckCircle2 size={15} class="text-ant-primary" />
                     {/if}
                   </div>
-                  <p class="text-[11px] {editDefaultModel === '9router-plan' ? 'text-blue-200/80' : 'text-ant-text-secondary'} leading-relaxed">
+                  <p class="text-[11px] {editDefaultModel === '9router-plan' ? 'text-ant-text' : 'text-ant-text-secondary'} leading-relaxed">
                     Architectural planning model dedicated to breaking down complex engineering requirements.
                   </p>
                 </button>
@@ -891,7 +891,7 @@
                         type="button"
                         class="px-3 py-2 rounded-lg text-xs font-medium border capitalize transition {editDefaultReasoningEffort === effort
                           ? 'bg-ant-primary text-white border-ant-primary shadow-sm'
-                          : 'bg-ant-bg text-ant-text-secondary border-white/5 hover:text-ant-text hover:bg-ant-bg-tertiary'}"
+                          : 'bg-ant-bg text-ant-text-secondary border-ant-border hover:text-ant-text hover:bg-ant-bg-tertiary'}"
                         onclick={() => editDefaultReasoningEffort = effort as ReasoningEffort}
                       >
                         {effort}
@@ -930,8 +930,8 @@
                       <button
                         type="button"
                         class="p-2.5 rounded-lg border text-left transition {editMaxContextTokens === preset.value
-                          ? 'bg-ant-primary/15 border-ant-primary text-ant-text font-semibold shadow-sm'
-                          : 'bg-ant-bg border-white/5 text-ant-text-secondary hover:border-white/15 hover:text-ant-text'}"
+                          ? 'bg-ant-primary/15 border-ant-primary text-ant-text font-semibold shadow-2xs'
+                          : 'bg-ant-bg border-ant-border text-ant-text-secondary hover:border-ant-primary/40 hover:text-ant-text'}"
                         onclick={() => editMaxContextTokens = preset.value}
                       >
                         <div class="text-xs font-bold {editMaxContextTokens === preset.value ? 'text-ant-primary' : 'text-ant-text'}">{preset.label}</div>
@@ -941,7 +941,7 @@
                   </div>
 
                   <!-- Custom Numeric Token Limit Input -->
-                  <div class="pt-2 border-t border-white/5 flex items-center gap-3">
+                  <div class="pt-2 border-t border-ant-border/60 flex items-center gap-3">
                     <div class="text-[11px] text-ant-text-secondary whitespace-nowrap">
                       Custom Token Limit:
                     </div>
@@ -951,12 +951,12 @@
                       max="2000000"
                       step="1000"
                       bind:value={editMaxContextTokens}
-                      class="flex-1 px-3 py-1.5 text-xs font-mono bg-ant-bg border border-white/10 rounded-lg text-ant-text focus:outline-none focus:border-ant-primary focus:ring-1 focus:ring-ant-primary transition"
+                      class="flex-1 px-3 py-1.5 text-xs font-mono bg-ant-bg border border-ant-border rounded-lg text-ant-text focus:outline-none focus:border-ant-primary focus:ring-1 focus:ring-ant-primary transition shadow-2xs"
                       placeholder="200000"
                     />
                     <button
                       type="button"
-                      class="px-2.5 py-1.5 text-xs rounded-lg border border-white/10 bg-ant-bg hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-text transition"
+                      class="px-2.5 py-1.5 text-xs rounded-lg border border-ant-border bg-ant-bg hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-text transition"
                       onclick={() => editMaxContextTokens = 200000}
                     >
                       Reset 200k
@@ -979,7 +979,7 @@
                   </div>
                   <button
                     type="button"
-                    class="px-3 py-1.5 rounded-lg bg-ant-bg-tertiary hover:bg-ant-primary/15 text-ant-text hover:text-ant-primary text-xs font-medium border border-white/5 hover:border-ant-primary/30 transition-all flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap shadow-xs active:scale-[0.98]"
+                    class="px-3 py-1.5 rounded-lg bg-ant-bg border border-ant-border hover:border-ant-primary/40 hover:bg-ant-bg-tertiary text-ant-text hover:text-ant-primary text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap shadow-2xs active:scale-[0.98]"
                     onclick={async () => {
                       try {
                         if (window.go?.main?.App?.RevealGrokConfigFile) {
@@ -1030,8 +1030,8 @@
                     <button
                       type="button"
                       class="p-3 rounded-lg border text-left transition {editPlanGateMode === 'active'
-                        ? 'bg-ant-primary/15 border-ant-primary text-ant-text shadow-sm'
-                        : 'bg-ant-bg border-white/5 text-ant-text-secondary hover:border-white/15 hover:text-ant-text'}"
+                        ? 'bg-ant-primary/10 border-ant-primary text-ant-text shadow-2xs'
+                        : 'bg-ant-bg border-ant-border text-ant-text-secondary hover:border-ant-primary/40 hover:text-ant-text'}"
                       onclick={() => editPlanGateMode = 'active'}
                     >
                       <div class="flex items-center justify-between">
@@ -1048,14 +1048,14 @@
                     <button
                       type="button"
                       class="p-3 rounded-lg border text-left transition {editPlanGateMode === 'bypass'
-                        ? 'bg-amber-500/15 border-amber-500 text-ant-text shadow-sm'
-                        : 'bg-ant-bg border-white/5 text-ant-text-secondary hover:border-white/15 hover:text-ant-text'}"
+                        ? 'bg-amber-500/10 border-amber-500 text-ant-text shadow-2xs'
+                        : 'bg-ant-bg border-ant-border text-ant-text-secondary hover:border-amber-500/50 hover:text-ant-text'}"
                       onclick={() => editPlanGateMode = 'bypass'}
                     >
                       <div class="flex items-center justify-between">
-                        <div class="text-xs font-semibold text-amber-300">Bypass (Auto-Approve)</div>
+                        <div class="text-xs font-semibold text-amber-600 dark:text-amber-400">Bypass (Auto-Approve)</div>
                         {#if editPlanGateMode === 'bypass'}
-                          <CheckCircle2 size={14} class="text-amber-400" />
+                          <CheckCircle2 size={14} class="text-amber-600 dark:text-amber-400" />
                         {/if}
                       </div>
                       <div class="text-[10px] text-ant-text-muted mt-1 leading-relaxed">
@@ -1072,13 +1072,13 @@
                   <button
                     type="button"
                     class="w-full p-4 rounded-xl border text-left transition {editPermissionMode === modeKey
-                      ? 'border-blue-500 bg-blue-500/10 shadow-sm'
-                      : 'border-white/5 bg-ant-bg hover:border-white/20'}"
+                      ? 'border-ant-primary bg-ant-primary/10 shadow-2xs'
+                      : 'border-ant-border bg-ant-bg hover:border-ant-primary/40'}"
                     onclick={() => editPermissionMode = modeKey}
                   >
                     <div class="flex items-center justify-between mb-2">
                       <div class="flex items-center space-x-2">
-                        <span class="text-xs font-bold {editPermissionMode === modeKey ? 'text-blue-400' : 'text-ant-text'}">{mode.title}</span>
+                        <span class="text-xs font-bold {editPermissionMode === modeKey ? 'text-ant-primary' : 'text-ant-text'}">{mode.title}</span>
                         <Badge
                           status={mode.badge === 'safe' ? 'success' : mode.badge === 'balanced' ? 'processing' : mode.badge === 'autonomous' ? 'warning' : 'error'}
                         >
@@ -1086,15 +1086,15 @@
                         </Badge>
                       </div>
                       {#if editPermissionMode === modeKey}
-                        <CheckCircle2 size={16} class="text-blue-400" />
+                        <CheckCircle2 size={16} class="text-ant-primary" />
                       {/if}
                     </div>
 
-                    <p class="text-[11px] {editPermissionMode === modeKey ? 'text-blue-200/80' : 'text-ant-text-secondary'} mb-2">
+                    <p class="text-[11px] {editPermissionMode === modeKey ? 'text-ant-text' : 'text-ant-text-secondary'} mb-2">
                       {mode.summary}
                     </p>
 
-                    <ul class="space-y-1 pl-4 border-l-2 {editPermissionMode === modeKey ? 'border-blue-500/30 text-blue-200/70' : 'border-white/10 text-ant-text-secondary'} text-[10px]">
+                    <ul class="space-y-1 pl-4 border-l-2 {editPermissionMode === modeKey ? 'border-ant-primary/40 text-ant-text' : 'border-ant-border text-ant-text-secondary'} text-[10px]">
                       {#each mode.details as detail}
                         <li>• {detail}</li>
                       {/each}
@@ -1118,15 +1118,15 @@
               <!-- macOS Permission Status Card -->
               <Card title="Microphone Permission">
                 <div class="space-y-4">
-                  <div class="flex items-center justify-between p-3.5 rounded-xl border border-white/5 bg-ant-bg">
+                  <div class="flex items-center justify-between p-3.5 rounded-xl border border-ant-border bg-ant-bg shadow-2xs">
                     <div class="flex items-center space-x-3">
-                      <div class="w-8 h-8 rounded-lg flex items-center justify-center {micPermissionStatus.granted ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}">
+                      <div class="w-8 h-8 rounded-lg flex items-center justify-center {micPermissionStatus.granted ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'}">
                         <Mic size={16} />
                       </div>
                       <div>
                         <div class="flex items-center space-x-2">
                           <span class="text-xs font-semibold text-ant-text">System Microphone Access</span>
-                          <span class="text-[10px] px-2 py-0.5 rounded-full font-mono font-medium {micPermissionStatus.granted ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/15 text-amber-400 border border-amber-500/20'}">
+                          <span class="text-[10px] px-2 py-0.5 rounded-full font-mono font-medium {micPermissionStatus.granted ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30'}">
                             {micPermissionStatus.granted ? 'GRANTED' : 'RESTRICTED / DENIED'}
                           </span>
                         </div>
@@ -1139,7 +1139,7 @@
                     <div class="flex items-center space-x-2">
                       <button
                         type="button"
-                        class="px-3 py-1.5 rounded-lg border border-white/10 bg-ant-bg-secondary text-xs font-serif text-ant-text hover:bg-white/5 hover:border-white/20 transition flex items-center space-x-1.5"
+                        class="px-3 py-1.5 rounded-lg border border-ant-border bg-ant-bg hover:bg-ant-bg-tertiary text-xs font-serif text-ant-text hover:border-ant-primary/40 transition flex items-center space-x-1.5 shadow-2xs"
                         onclick={checkMicPermissionAndDevices}
                         disabled={isCheckingMic}
                       >
@@ -1150,14 +1150,14 @@
                       {#if !micPermissionStatus.granted}
                         <button
                           type="button"
-                          class="px-3 py-1.5 rounded-lg bg-ant-primary text-white text-xs font-serif hover:bg-ant-primary-hover transition"
+                          class="px-3 py-1.5 rounded-lg bg-ant-primary text-white text-xs font-serif hover:bg-ant-primary-hover transition shadow-2xs"
                           onclick={handleRequestMicPermission}
                         >
                           Request Permission
                         </button>
                         <button
                           type="button"
-                          class="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-serif text-ant-text-secondary hover:text-ant-text hover:bg-white/5 transition"
+                          class="px-3 py-1.5 rounded-lg border border-ant-border bg-ant-bg hover:bg-ant-bg-tertiary text-xs font-serif text-ant-text-secondary hover:text-ant-text transition shadow-2xs"
                           onclick={handleOpenMicSystemSettings}
                         >
                           Open System Settings
@@ -1192,7 +1192,7 @@
 
               <!-- Voice Dictation Engine Info -->
               <Card title="Voice Transcription Engine">
-                <div class="p-3.5 rounded-xl border border-white/5 bg-ant-bg space-y-2 text-xs">
+                <div class="p-3.5 rounded-xl border border-ant-border bg-ant-bg space-y-2 text-xs shadow-2xs">
                   <div class="flex items-center space-x-2 text-ant-text font-medium">
                     <Sparkles size={14} class="text-ant-warning" />
                     <span>Programmer-Optimized Grok Voice Transcriber</span>
@@ -1220,22 +1220,22 @@
                 <button
                   type="button"
                   class="group p-4 rounded-xl border text-left transition-all duration-150 flex flex-col justify-between space-y-3.5 relative overflow-hidden {editTheme === 'dark-studio'
-                    ? 'border-blue-500 bg-blue-500/10 shadow-sm'
-                    : 'border-white/5 bg-ant-bg hover:border-white/20 hover:bg-ant-bg-tertiary/40'}"
+                    ? 'border-ant-primary bg-ant-primary/10 shadow-2xs'
+                    : 'border-ant-border bg-ant-bg hover:border-ant-primary/40 hover:bg-ant-bg-tertiary/40'}"
                   onclick={() => handleThemeChange('dark-studio')}
                 >
                   <div class="flex items-center justify-between w-full">
                     <div class="flex items-center space-x-2">
                       <span class="w-2.5 h-2.5 rounded-full bg-[#1677FF]"></span>
-                      <span class="text-xs font-bold {editTheme === 'dark-studio' ? 'text-blue-400' : 'text-ant-text'}">Dark Studio</span>
+                      <span class="text-xs font-bold {editTheme === 'dark-studio' ? 'text-ant-primary' : 'text-ant-text'}">Dark Studio</span>
                     </div>
                     {#if editTheme === 'dark-studio'}
-                      <CheckCircle2 size={16} class="text-blue-400" />
+                      <CheckCircle2 size={16} class="text-ant-primary" />
                     {/if}
                   </div>
 
                   <!-- Theme Swatches & Mini Window Mockup -->
-                  <div class="h-20 rounded-lg bg-[#0F1117] border border-white/5 p-2.5 flex flex-col justify-between shadow-inner w-full">
+                  <div class="h-20 rounded-lg bg-[#0F1117] border border-white/10 p-2.5 flex flex-col justify-between shadow-inner w-full">
                     <div class="flex items-center justify-between">
                       <div class="flex space-x-1.5">
                         <div class="w-2.5 h-2.5 rounded-full bg-[#FF5F56]"></div>
@@ -1245,12 +1245,12 @@
                       <span class="text-[9px] font-mono text-[#4096FF]">#0F1117</span>
                     </div>
                     <div class="space-y-1.5">
-                      <div class="h-2 w-24 bg-[#181B26] rounded border border-white/5"></div>
+                      <div class="h-2 w-24 bg-[#181B26] rounded border border-white/10"></div>
                       <div class="h-1.5 w-16 bg-[#1677FF]/40 rounded"></div>
                     </div>
                   </div>
 
-                  <p class="text-[11px] {editTheme === 'dark-studio' ? 'text-blue-200/80' : 'text-ant-text-secondary'} leading-relaxed">
+                  <p class="text-[11px] {editTheme === 'dark-studio' ? 'text-ant-text' : 'text-ant-text-secondary'} leading-relaxed">
                     Deep slate canvas with neon cyan & vibrant blue accents. Ideal for long coding sessions.
                   </p>
                 </button>
@@ -1259,22 +1259,22 @@
                 <button
                   type="button"
                   class="group p-4 rounded-xl border text-left transition-all duration-150 flex flex-col justify-between space-y-3.5 relative overflow-hidden {editTheme === 'dark-high-contrast'
-                    ? 'border-blue-500 bg-blue-500/10 shadow-sm'
-                    : 'border-white/5 bg-ant-bg hover:border-white/20 hover:bg-ant-bg-tertiary/40'}"
+                    ? 'border-ant-primary bg-ant-primary/10 shadow-2xs'
+                    : 'border-ant-border bg-ant-bg hover:border-ant-primary/40 hover:bg-ant-bg-tertiary/40'}"
                   onclick={() => handleThemeChange('dark-high-contrast')}
                 >
                   <div class="flex items-center justify-between w-full">
                     <div class="flex items-center space-x-2">
                       <span class="w-2.5 h-2.5 rounded-full bg-[#388BFD]"></span>
-                      <span class="text-xs font-bold {editTheme === 'dark-high-contrast' ? 'text-blue-400' : 'text-ant-text'}">High Contrast OLED</span>
+                      <span class="text-xs font-bold {editTheme === 'dark-high-contrast' ? 'text-ant-primary' : 'text-ant-text'}">High Contrast OLED</span>
                     </div>
                     {#if editTheme === 'dark-high-contrast'}
-                      <CheckCircle2 size={16} class="text-blue-400" />
+                      <CheckCircle2 size={16} class="text-ant-primary" />
                     {/if}
                   </div>
 
                   <!-- Theme Swatches & Mini Window Mockup -->
-                  <div class="h-20 rounded-lg bg-[#000000] border border-white/5 p-2.5 flex flex-col justify-between shadow-inner w-full">
+                  <div class="h-20 rounded-lg bg-[#000000] border border-white/10 p-2.5 flex flex-col justify-between shadow-inner w-full">
                     <div class="flex items-center justify-between">
                       <div class="flex space-x-1.5">
                         <div class="w-2.5 h-2.5 rounded-full bg-[#F85149]"></div>
@@ -1284,12 +1284,12 @@
                       <span class="text-[9px] font-mono text-[#58A6FF]">#000000</span>
                     </div>
                     <div class="space-y-1.5">
-                      <div class="h-2 w-24 bg-[#1C1C1F] rounded border border-white/5"></div>
+                      <div class="h-2 w-24 bg-[#1C1C1F] rounded border border-white/10"></div>
                       <div class="h-1.5 w-16 bg-[#388BFD]/50 rounded"></div>
                     </div>
                   </div>
 
-                  <p class="text-[11px] {editTheme === 'dark-high-contrast' ? 'text-blue-200/80' : 'text-ant-text-secondary'} leading-relaxed">
+                  <p class="text-[11px] {editTheme === 'dark-high-contrast' ? 'text-ant-text' : 'text-ant-text-secondary'} leading-relaxed">
                     True black OLED background with stark high-contrast typography for maximum clarity.
                   </p>
                 </button>
@@ -1298,38 +1298,38 @@
                 <button
                   type="button"
                   class="group p-4 rounded-xl border text-left transition-all duration-150 flex flex-col justify-between space-y-3.5 relative overflow-hidden {editTheme === 'light-antd'
-                    ? 'border-blue-500 bg-blue-500/10 shadow-sm'
-                    : 'border-white/5 bg-ant-bg hover:border-white/20 hover:bg-ant-bg-tertiary/40'}"
+                    ? 'border-ant-primary bg-ant-primary/10 shadow-2xs'
+                    : 'border-ant-border bg-ant-bg hover:border-ant-primary/40 hover:bg-ant-bg-tertiary/40'}"
                   onclick={() => handleThemeChange('light-antd')}
                 >
                   <div class="flex items-center justify-between w-full">
                     <div class="flex items-center space-x-2">
                       <span class="w-2.5 h-2.5 rounded-full bg-[#1677FF]"></span>
-                      <span class="text-xs font-bold {editTheme === 'light-antd' ? 'text-blue-400' : 'text-ant-text'}">Clean Light</span>
+                      <span class="text-xs font-bold {editTheme === 'light-antd' ? 'text-ant-primary' : 'text-ant-text'}">Clean Light</span>
                     </div>
                     {#if editTheme === 'light-antd'}
-                      <CheckCircle2 size={16} class="text-blue-400" />
+                      <CheckCircle2 size={16} class="text-ant-primary" />
                     {/if}
                   </div>
 
                   <!-- Theme Swatches & Mini Window Mockup -->
-                  <div class="h-20 rounded-lg bg-[#F5F5F5] border border-white/10 p-2.5 flex flex-col justify-between shadow-inner w-full">
+                  <div class="h-20 rounded-lg bg-[#E5E9F0] border border-ant-border p-2.5 flex flex-col justify-between shadow-inner w-full">
                     <div class="flex items-center justify-between">
                       <div class="flex space-x-1.5">
                         <div class="w-2.5 h-2.5 rounded-full bg-[#FF4D4F]"></div>
                         <div class="w-2.5 h-2.5 rounded-full bg-[#FAAD14]"></div>
                         <div class="w-2.5 h-2.5 rounded-full bg-[#52C41A]"></div>
                       </div>
-                      <span class="text-[9px] font-mono text-[#0958D9]">#FFFFFF</span>
+                      <span class="text-[9px] font-mono text-[#1677FF] font-semibold">#EEF1F6</span>
                     </div>
                     <div class="space-y-1.5">
-                      <div class="h-2 w-24 bg-[#FFFFFF] rounded border border-white/10"></div>
-                      <div class="h-1.5 w-16 bg-[#1677FF]/30 rounded"></div>
+                      <div class="h-2 w-24 bg-[#FFFFFF] rounded border border-ant-border"></div>
+                      <div class="h-1.5 w-16 bg-[#1677FF]/40 rounded"></div>
                     </div>
                   </div>
 
-                  <p class="text-[11px] text-ant-text-secondary leading-relaxed">
-                    Crisp paper-white theme designed for bright rooms and daytime productivity.
+                  <p class="text-[11px] {editTheme === 'light-antd' ? 'text-ant-text' : 'text-ant-text-secondary'} leading-relaxed">
+                    Crisp paper-white cards with soft slate-tinted canvas for high contrast and readability.
                   </p>
                 </button>
               </div>
@@ -1365,22 +1365,22 @@
                 </p>
               </div>
 
-              <div class="rounded-xl overflow-hidden bg-ant-bg">
+              <div class="rounded-xl overflow-hidden bg-ant-bg border border-ant-border shadow-2xs">
                 <table class="w-full text-left border-collapse text-xs">
                   <thead>
-                    <tr class="bg-ant-bg-tertiary/40">
+                    <tr class="bg-ant-bg-secondary border-b border-ant-border">
                       <th class="px-4 py-2.5 font-semibold text-ant-text">Key Combination</th>
                       <th class="px-4 py-2.5 font-semibold text-ant-text">Action Trigger</th>
                       <th class="px-4 py-2.5 font-semibold text-ant-text-secondary">Scope</th>
                     </tr>
                   </thead>
-                  <tbody class="divide-y divide-white/5">
+                  <tbody class="divide-y divide-ant-border/60">
                     {#each keyboardShortcuts as shortcut}
-                      <tr class="hover:bg-ant-bg-secondary/40 transition">
+                      <tr class="hover:bg-ant-bg-secondary/60 transition">
                         <td class="px-4 py-2.5">
                           <div class="flex items-center gap-1.5 flex-wrap">
                             {#each shortcut.keys as k, i}
-                              <kbd class="px-2 py-0.5 text-xs font-mono font-medium text-ant-primary bg-ant-primary/10 rounded">
+                              <kbd class="px-2 py-0.5 text-xs font-mono font-medium text-ant-primary bg-ant-primary/10 rounded border border-ant-primary/20">
                                 {k}
                               </kbd>
                               {#if i < shortcut.keys.length - 1}
@@ -1391,7 +1391,7 @@
                         </td>
                         <td class="px-4 py-2.5 text-ant-text font-serif">{shortcut.action}</td>
                         <td class="px-4 py-2.5 text-ant-text-secondary">
-                          <span class="px-2 py-0.5 text-[10px] font-medium bg-white/[0.04] text-ant-text-secondary rounded">
+                          <span class="px-2 py-0.5 text-[10px] font-medium bg-ant-bg-tertiary text-ant-text-secondary rounded border border-ant-border/40">
                             {shortcut.scope}
                           </span>
                         </td>
@@ -1417,7 +1417,7 @@
               </div>
 
               <!-- Human Crafted Dedication Card -->
-              <div class="p-4 rounded-xl bg-ant-bg space-y-2">
+              <div class="p-4 rounded-xl bg-ant-bg border border-ant-border space-y-2 shadow-2xs">
                 <div class="flex items-center gap-2 text-ant-text text-xs font-serif font-medium">
                   <Heart size={14} class="text-rose-500 fill-rose-500/20" />
                   <span>Made with love by Wiji Fiko Teren</span>
@@ -1433,7 +1433,7 @@
                 <button
                   type="button"
                   onclick={() => openExternal('https://github.com/fiko942/grok-build')}
-                  class="p-4 rounded-xl bg-ant-bg hover:bg-ant-bg-tertiary/40 space-y-3 flex flex-col justify-between transition text-left cursor-pointer group"
+                  class="p-4 rounded-xl bg-ant-bg border border-ant-border hover:border-ant-primary/40 hover:bg-ant-bg-secondary/40 space-y-3 flex flex-col justify-between transition text-left cursor-pointer group shadow-2xs"
                 >
                   <div class="space-y-1.5">
                     <div class="flex items-center space-x-2 text-ant-text group-hover:text-ant-primary transition-colors">
@@ -1444,7 +1444,7 @@
                       Source code, issue tracking, and contributions on GitHub.
                     </p>
                   </div>
-                  <div class="inline-flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-mono bg-ant-bg-secondary group-hover:bg-white/5 text-ant-text transition">
+                  <div class="inline-flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-mono bg-ant-bg-secondary border border-ant-border/60 group-hover:border-ant-primary/30 text-ant-text transition">
                     <span class="truncate">github.com/fiko942/grok-build</span>
                     <ExternalLink size={12} class="opacity-60 group-hover:opacity-100 ml-1.5 flex-shrink-0" />
                   </div>
@@ -1454,7 +1454,7 @@
                 <button
                   type="button"
                   onclick={() => openExternal('https://wijifikoteren.streampeg.com')}
-                  class="p-4 rounded-xl bg-ant-bg hover:bg-ant-bg-tertiary/40 space-y-3 flex flex-col justify-between transition text-left cursor-pointer group"
+                  class="p-4 rounded-xl bg-ant-bg border border-ant-border hover:border-ant-primary/40 hover:bg-ant-bg-secondary/40 space-y-3 flex flex-col justify-between transition text-left cursor-pointer group shadow-2xs"
                 >
                   <div class="space-y-1.5">
                     <div class="flex items-center space-x-2 text-ant-text group-hover:text-ant-primary transition-colors">
@@ -1465,7 +1465,7 @@
                       Personal portfolio, software projects, design experiments, and writing.
                     </p>
                   </div>
-                  <div class="inline-flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-mono bg-ant-primary/10 group-hover:bg-ant-primary/20 text-ant-primary transition">
+                  <div class="inline-flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-mono bg-ant-primary/10 border border-ant-primary/25 group-hover:bg-ant-primary/20 text-ant-primary transition">
                     <span class="truncate">wijifikoteren.streampeg.com</span>
                     <ExternalLink size={12} class="opacity-80 group-hover:opacity-100 ml-1.5 flex-shrink-0" />
                   </div>
@@ -1473,14 +1473,14 @@
               </div>
 
               <!-- Clean Engineering Overview -->
-              <div class="p-3.5 rounded-xl bg-ant-bg space-y-2 text-xs">
+              <div class="p-3.5 rounded-xl bg-ant-bg border border-ant-border space-y-2 text-xs shadow-2xs">
                 <div class="font-serif font-medium text-ant-text">Core Capabilities</div>
                 <div class="grid grid-cols-2 gap-2 text-[11px] text-ant-text-secondary font-serif">
-                  <div class="p-2 rounded-lg bg-ant-bg-secondary/60">
+                  <div class="p-2.5 rounded-lg bg-ant-bg-secondary border border-ant-border/60">
                     <div class="font-sans font-semibold text-ant-text mb-0.5">Tactile Desktop Speed</div>
                     Direct Go process management with low-latency streaming and zero telemetry bloat.
                   </div>
-                  <div class="p-2 rounded-lg bg-ant-bg-secondary/60">
+                  <div class="p-2.5 rounded-lg bg-ant-bg-secondary border border-ant-border/60">
                     <div class="font-sans font-semibold text-ant-text mb-0.5">Smart Screen Capture</div>
                     Non-intrusive full-display snapshots with auto-window exclusion for visual grounding.
                   </div>
@@ -1502,7 +1502,7 @@
       </div>
 
       <!-- Footer Action Toolbar -->
-      <div class="px-6 py-3 border-t border-white/5 flex items-center justify-between bg-ant-bg-secondary flex-shrink-0">
+      <div class="px-6 py-3 border-t border-ant-border flex items-center justify-between bg-ant-bg flex-shrink-0">
         <button
           type="button"
           class="text-xs text-ant-text-secondary hover:text-ant-text flex items-center gap-1.5 transition"

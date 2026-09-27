@@ -1285,35 +1285,56 @@
       <SessionTabs />
 
       {#if sessionStore.activeSession}
-        <!-- Chat Feed Viewport (10-Turn Windowing) -->
-        <div class="flex-1 overflow-hidden relative">
-          <MessageList
-            bind:this={messageListRef}
-            onEditLastTurn={handleEditLastTurn}
-            onPlanAction={handlePlanAction}
-          />
+        <!-- Main Chat & Right-Docked Terminal Container -->
+        <div class="flex-1 flex min-h-0 overflow-hidden relative">
+          <!-- Left Column: Chat Feed & Bottom Terminal & Composer -->
+          <div class="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden relative">
+            <!-- Chat Feed Viewport (10-Turn Windowing) -->
+            <div class="flex-1 overflow-hidden relative">
+              <MessageList
+                bind:this={messageListRef}
+                onEditLastTurn={handleEditLastTurn}
+                onPlanAction={handlePlanAction}
+              />
+            </div>
+
+            <!-- Bottom Docked Terminal Panel -->
+            {#if terminalStore.getDockPosition(sessionStore.activeSession.id) === 'bottom'}
+              <TerminalPanel
+                sessionId={sessionStore.activeSession.id}
+                workspacePath={sessionStore.activeWorkspace?.path || ''}
+                onAttachLogToComposer={(logText) => {
+                  if (composerRef) {
+                    composerRef.appendPrompt(logText);
+                  }
+                }}
+              />
+            {/if}
+
+            <!-- Rich Prompt Composer with Snapshot & Model Selectors -->
+            <Composer
+              bind:this={composerRef}
+              {isWorking}
+              onSend={handleSendMessage}
+              onSteer={handleSteerPrompt}
+              onCancel={handleCancelSession}
+              onOpenSkillsCatalog={() => skillsCatalogVisible = true}
+            />
+          </div>
+
+          <!-- Right Docked Terminal Panel -->
+          {#if terminalStore.getDockPosition(sessionStore.activeSession.id) === 'right'}
+            <TerminalPanel
+              sessionId={sessionStore.activeSession.id}
+              workspacePath={sessionStore.activeWorkspace?.path || ''}
+              onAttachLogToComposer={(logText) => {
+                if (composerRef) {
+                  composerRef.appendPrompt(logText);
+                }
+              }}
+            />
+          {/if}
         </div>
-
-        <!-- Tab-Isolated Multi-Tab Terminal Panel -->
-        <TerminalPanel
-          sessionId={sessionStore.activeSession.id}
-          workspacePath={sessionStore.activeWorkspace?.path || ''}
-          onAttachLogToComposer={(logText) => {
-            if (composerRef) {
-              composerRef.appendPrompt(logText);
-            }
-          }}
-        />
-
-        <!-- Rich Prompt Composer with Snapshot & Model Selectors -->
-        <Composer
-          bind:this={composerRef}
-          {isWorking}
-          onSend={handleSendMessage}
-          onSteer={handleSteerPrompt}
-          onCancel={handleCancelSession}
-          onOpenSkillsCatalog={() => skillsCatalogVisible = true}
-        />
       {:else}
         <!-- Zero-Tab Empty Workspace State -->
         <div class="flex-1 flex flex-col items-center justify-center p-8 select-none text-center bg-radial from-ant-bg-secondary/40 via-ant-bg to-ant-bg">

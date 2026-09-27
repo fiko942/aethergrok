@@ -222,15 +222,27 @@
   <!-- Right Actions: Terminal Toggle + New Session Action Button -->
   <div class="relative flex items-center space-x-1 flex-shrink-0 z-30">
     <!-- Tab-Isolated Terminal Toggle Button -->
-    <button
-      type="button"
-      onclick={() => terminalStore.toggleOpen()}
-      class="flex items-center space-x-1 px-2 h-7 rounded text-xs transition border {terminalStore.isOpen ? 'bg-ant-primary/20 text-ant-primary border-ant-primary/40 font-medium' : 'text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'}"
-      title="Toggle Session Terminal (Multi-tab PTY with full process cleanup)"
-    >
-      <Terminal size={13} />
-      <span class="text-[11px]">Terminal</span>
-    </button>
+    {#if sessionStore.activeSession}
+      {@const activeSessionId = sessionStore.activeSession.id}
+      {@const hasTerminals = terminalStore.getTerminalTabs(activeSessionId).length > 0}
+      {@const isCollapsed = terminalStore.isSessionCollapsed(activeSessionId)}
+      <button
+        type="button"
+        onclick={() => {
+          if (!hasTerminals) {
+            terminalStore.createTerminal(activeSessionId, sessionStore.activeWorkspace?.path || '');
+            terminalStore.toggleSessionCollapse(activeSessionId, false);
+          } else {
+            terminalStore.toggleSessionCollapse(activeSessionId);
+          }
+        }}
+        class="flex items-center space-x-1 px-2 h-7 rounded text-xs transition border {hasTerminals && !isCollapsed ? 'bg-ant-primary/20 text-ant-primary border-ant-primary/40 font-medium' : 'text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary border-transparent'}"
+        title="Toggle Session Terminal (Multi-tab PTY with full process cleanup)"
+      >
+        <Terminal size={13} />
+        <span class="text-[11px]">Terminal</span>
+      </button>
+    {/if}
 
     <!-- New Session Action Button with Workspace Dropdown Picker -->
     <button

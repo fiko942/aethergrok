@@ -268,25 +268,33 @@
   --ant-primary-bg: #e6f4ff;
   --ant-primary-border: #91caff;
 
-  --ant-bg-layout: #f5f5f5;
+  --ant-bg-layout: #eef1f6;
   --ant-bg: #ffffff;
-  --ant-bg-secondary: #fcfcfd;
-  --ant-bg-tertiary: #f0f2f5;
+  --ant-bg-secondary: #f4f6f9;
+  --ant-bg-tertiary: #e5e9f0;
 
-  --ant-border: #e5e7eb;
-  --ant-border-secondary: #f3f4f6;
+  --ant-border: #d0d7de;
+  --ant-border-secondary: #e1e4e8;
 
-  --ant-text: #1f1f1f;
-  --ant-text-secondary: #595959;
-  --ant-text-muted: #8c8c8c;
+  --ant-text: #0f172a;
+  --ant-text-secondary: #475569;
+  --ant-text-muted: #64748b;
 
-  --ant-success: #52c41a;
-  --ant-warning: #faad14;
-  --ant-error: #ff4d4f;
-  --ant-info: #1677ff;
+  --ant-success: #16a34a;
+  --ant-warning: #d97706;
+  --ant-error: #dc2626;
+  --ant-info: #2563eb;
 
-  --scrollbar-thumb: #d9d9d9;
-  --scrollbar-thumb-hover: #bfbfbf;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
+}
+
+/* Ensure border utilities respond cleanly in both dark and light modes */
+.border-border-theme {
+  border-color: var(--ant-border, rgba(255, 255, 255, 0.08));
+}
+.border-border-subtle {
+  border-color: var(--ant-border-secondary, rgba(255, 255, 255, 0.05));
 }
 
 body {

@@ -51,7 +51,7 @@
 
 <div
   role="presentation"
-  class="relative inline-flex w-full"
+  class="relative inline-flex items-center justify-center"
   onmouseenter={show}
   onmouseleave={hide}
   onfocusin={show}

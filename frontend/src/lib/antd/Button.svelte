@@ -52,7 +52,7 @@
         return 'bg-transparent hover:underline text-ant-primary hover:text-ant-primary-hover p-0 h-auto border-transparent';
       case 'default':
       default:
-        return 'bg-ant-bg-secondary hover:bg-ant-bg-tertiary active:bg-ant-bg-tertiary text-ant-text hover:text-ant-primary-hover border border-ant-border-secondary hover:border-ant-border';
+        return 'bg-ant-bg hover:bg-ant-bg-tertiary active:bg-ant-bg-tertiary text-ant-text hover:text-ant-primary border border-ant-border hover:border-ant-primary shadow-2xs';
     }
   }
 </script>
