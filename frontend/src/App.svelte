@@ -23,6 +23,7 @@
   import { playCameraShutterSound } from '$lib/utils/audio';
   import { settingsStore } from '$lib/stores/settings.svelte';
   import { updaterStore } from '$lib/stores/updater.svelte';
+  import { ShortcutDetector, type DictationTriggerEvent } from '$lib/utils/shortcutDetector';
   import type { SkillItem, SnapshotResult } from './app.d';
   import {
     sessionStore,
@@ -61,6 +62,17 @@
   let emptyStateDropdownOpen = $state(false);
   let flashActive = $state(false);
   const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
+  // Shortcut detector for dictation triggers (push-to-talk & double-tap lock)
+  const shortcutDetector = new ShortcutDetector({
+    holdThresholdMs: settingsStore.dictationHoldThresholdMs || 300,
+    doubleTapThresholdMs: 350,
+    onTrigger: (event: DictationTriggerEvent) => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('aethergrok:dictation-trigger', { detail: event }));
+      }
+    }
+  });
 
   // Global Session Drag and Drop Overlay State
   let isSessionDragOver = $state(false);
@@ -804,6 +816,12 @@
 
   // Global Keyboard Shortcuts Handler
   function handleGlobalKeyDown(e: KeyboardEvent) {
+    // Feed dictation shortcut detector
+    const dictationEvent = shortcutDetector.feedKeyDown(e, settingsStore.dictationShortcut);
+    if (dictationEvent) {
+      window.dispatchEvent(new CustomEvent('aethergrok:dictation-trigger', { detail: dictationEvent }));
+    }
+
     const isMetaOrCtrl = e.metaKey || e.ctrlKey;
 
     // Smart Screen Snapshot (Customizable via settingsStore.snapshotShortcut)
@@ -878,6 +896,13 @@
     }
   }
 
+  function handleGlobalKeyUp(e: KeyboardEvent) {
+    const dictationEvent = shortcutDetector.feedKeyUp(e, settingsStore.dictationShortcut);
+    if (dictationEvent) {
+      window.dispatchEvent(new CustomEvent('aethergrok:dictation-trigger', { detail: dictationEvent }));
+    }
+  }
+
   // Global link click interceptor: ensures any external link clicked in the webview
   // opens in default OS browser (macOS Safari/Chrome/etc.) rather than navigating the app window
   function handleGlobalDocumentClick(e: MouseEvent) {
@@ -922,6 +947,7 @@
   onMount(() => {
     window.addEventListener('click', handleGlobalDocumentClick, true);
     window.addEventListener('keydown', handleGlobalKeyDown);
+    window.addEventListener('keyup', handleGlobalKeyUp);
     window.addEventListener('resize', handleWindowResize);
     handleWindowResize();
 
@@ -1093,6 +1119,7 @@
   onDestroy(() => {
     window.removeEventListener('click', handleGlobalDocumentClick, true);
     window.removeEventListener('keydown', handleGlobalKeyDown);
+    window.removeEventListener('keyup', handleGlobalKeyUp);
     window.removeEventListener('resize', handleWindowResize);
     window.removeEventListener('mousemove', handleResizeMove);
     window.removeEventListener('mouseup', handleResizeEnd);
@@ -1224,6 +1251,7 @@
           title="Settings"
           shortcut={isMac ? '⌘,' : 'Ctrl+,'}
           placement="top"
+          class="w-full block"
         >
           <button
             type="button"

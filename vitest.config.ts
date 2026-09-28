@@ -21,7 +21,7 @@ export default defineConfig({
     // "216 of 217" is not 216 passed and 1 failed, and a gate that can drop a
     // file silently is not a gate.
     reporters: ["default", "./test-support/complete-accounting.mjs"],
-    include: ["test/**/*.test.ts"],
+    include: ["test/**/*.test.ts", "frontend/src/lib/utils/**/*.test.ts"],
     // Electron e2e lives under test/desktop and needs a real BrowserWindow —
     // run via `npm run test:desktop` only (not npm test / CI unit job).
     exclude: [
