@@ -7,9 +7,9 @@
     {
       "version": "1.0.4",
       "tag": "v1.0.4",
-      "date": "2026-09-28T10:47:31.044Z",
+      "date": "2026-09-28T10:49:00.709Z",
       "title": "AetherGrok 1.0.4 - macOS Gatekeeper Guide, Saweria Donations & UI Refinements",
-      "targetCommit": "22ee690",
+      "targetCommit": "35e7613",
       "previousCommit": "fce40da",
       "highlights": [
         "Add dedicated macOS Gatekeeper & Quarantine guides with automated unquarantine in install-app.sh",
@@ -19,6 +19,10 @@
         "Auto-detect live releases on marketing website without manual edits"
       ],
       "commits": [
+        {
+          "hash": "35e7613",
+          "message": "chore(release): v1.0.4 - AetherGrok 1.0.4 - macOS Gatekeeper Guide, Saweria Donations & UI Refinements"
+        },
         {
           "hash": "22ee690",
           "message": "fix(release): export homebrew path for go in release pre-flight checks"
