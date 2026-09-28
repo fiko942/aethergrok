@@ -284,28 +284,33 @@ async function main() {
       });
     }
 
-    // 3. Prompt for Next Release Version
-    console.log('\n' + c('yellow', '3. Select New Release Version:'));
-    const patchVer = bumpVersion(currentVersion, 'patch');
-    const minorVer = bumpVersion(currentVersion, 'minor');
-    const majorVer = bumpVersion(currentVersion, 'major');
+    const inputVersion = process.env.RELEASE_VERSION;
+    const inputTitleEnv = process.env.RELEASE_TITLE;
+    const inputHighlightsEnv = process.env.RELEASE_HIGHLIGHTS;
+    const autoConfirmEnv = process.env.RELEASE_CONFIRM === 'yes' || process.env.RELEASE_CONFIRM === 'y';
 
-    console.log(`   [1] Patch: ${c('bold', patchVer)} (Bug fixes & small improvements)`);
-    console.log(`   [2] Minor: ${c('bold', minorVer)} (New features & enhancements)`);
-    console.log(`   [3] Major: ${c('bold', majorVer)} (Breaking changes / major overhaul)`);
-    console.log(`   [4] Custom input`);
+    let nextVersion = patchVer;
 
-    const verChoice = (await ask(rl, c('cyan', '\n👉 Choose option [1-4] or enter version (default: 2): '))).trim() || '2';
-    let nextVersion = minorVer;
-    if (verChoice === '1') nextVersion = patchVer;
-    else if (verChoice === '2') nextVersion = minorVer;
-    else if (verChoice === '3') nextVersion = majorVer;
-    else if (verChoice === '4' || /^\d+\.\d+\.\d+/.test(verChoice)) {
-      if (/^\d+\.\d+\.\d+/.test(verChoice)) {
-        nextVersion = verChoice.replace(/^v/, '');
-      } else {
-        const custom = (await ask(rl, '   Enter custom SemVer version (e.g. 1.2.0): ')).trim();
-        nextVersion = custom.replace(/^v/, '') || minorVer;
+    if (inputVersion) {
+      nextVersion = inputVersion.replace(/^v/, '');
+    } else {
+      console.log('\n' + c('yellow', '3. Select New Release Version:'));
+      console.log(`   [1] Patch: ${c('bold', patchVer)} (Bug fixes & small improvements)`);
+      console.log(`   [2] Minor: ${c('bold', minorVer)} (New features & enhancements)`);
+      console.log(`   [3] Major: ${c('bold', majorVer)} (Breaking changes / major overhaul)`);
+      console.log(`   [4] Custom input`);
+
+      const verChoice = (await ask(rl, c('cyan', '\n👉 Choose option [1-4] or enter version (default: 1): '))).trim() || '1';
+      if (verChoice === '1') nextVersion = patchVer;
+      else if (verChoice === '2') nextVersion = minorVer;
+      else if (verChoice === '3') nextVersion = majorVer;
+      else if (verChoice === '4' || /^\d+\.\d+\.\d+/.test(verChoice)) {
+        if (/^\d+\.\d+\.\d+/.test(verChoice)) {
+          nextVersion = verChoice.replace(/^v/, '');
+        } else {
+          const custom = (await ask(rl, '   Enter custom SemVer version (e.g. 1.2.0): ')).trim();
+          nextVersion = custom.replace(/^v/, '') || patchVer;
+        }
       }
     }
 
@@ -313,24 +318,33 @@ async function main() {
     console.log(c('green', `\n✓ Target release version set to: `) + c('bold', nextTag));
 
     // 4. Prompt for Release Title & Highlights
-    console.log('\n' + c('yellow', '4. Enter Release Title & Highlights:'));
     const defaultTitle = `AetherGrok ${nextVersion} - Release`;
-    const inputTitle = (await ask(rl, c('cyan', `👉 Release title [${defaultTitle}]: `))).trim() || defaultTitle;
-
-    console.log(c('cyan', '\n👉 Enter Changelog highlights (Bullet points, enter an empty line when finished):'));
+    let inputTitle = defaultTitle;
     const highlights = [];
-    let highlightIdx = 1;
-    while (true) {
-      const line = (await ask(rl, `   ${highlightIdx}. `)).trim();
-      if (!line) {
-        if (highlights.length === 0) {
-          // Default highlight from commits
-          highlights.push(commitList[0]?.message || 'General performance and stability improvements');
-        }
-        break;
+
+    if (inputTitleEnv) {
+      inputTitle = inputTitleEnv;
+      if (inputHighlightsEnv) {
+        inputHighlightsEnv.split('\n').map((h) => h.trim()).filter(Boolean).forEach((h) => highlights.push(h));
       }
-      highlights.push(line);
-      highlightIdx++;
+    } else {
+      console.log('\n' + c('yellow', '4. Enter Release Title & Highlights:'));
+      inputTitle = (await ask(rl, c('cyan', `👉 Release title [${defaultTitle}]: `))).trim() || defaultTitle;
+
+      console.log(c('cyan', '\n👉 Enter Changelog highlights (Bullet points, enter an empty line when finished):'));
+      let highlightIdx = 1;
+      while (true) {
+        const line = (await ask(rl, `   ${highlightIdx}. `)).trim();
+        if (!line) {
+          if (highlights.length === 0) {
+            // Default highlight from commits
+            highlights.push(commitList[0]?.message || 'General performance and stability improvements');
+          }
+          break;
+        }
+        highlights.push(line);
+        highlightIdx++;
+      }
     }
 
     // 5. Build Artifact Names & URLs
@@ -358,7 +372,10 @@ async function main() {
     highlights.forEach((h) => console.log(`  • ${h}`));
     console.log(c('cyan', '════════════════════════════════════════════════════════════════'));
 
-    const confirm = (await ask(rl, c('yellow', '\n⚠️  Ready to commit, tag, and publish release to GitHub? (y/N): '))).trim().toLowerCase();
+    let confirm = 'y';
+    if (!autoConfirmEnv) {
+      confirm = (await ask(rl, c('yellow', '\n⚠️  Ready to commit, tag, and publish release to GitHub? (y/N): '))).trim().toLowerCase();
+    }
     if (confirm !== 'y' && confirm !== 'yes') {
       console.log(c('red', 'Release aborted by user.'));
       rl.close();
