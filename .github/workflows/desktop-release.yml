@@ -105,7 +105,13 @@ jobs:
           cache: pnpm
 
       - name: Install NSIS
-        run: choco install nsis -y
+        shell: pwsh
+        run: |
+          choco install nsis -y
+          $nsisPath = "C:\Program Files (x86)\NSIS"
+          if (Test-Path "C:\Program Files\NSIS") { $nsisPath = "C:\Program Files\NSIS" }
+          Write-Host "Adding NSIS to PATH: $nsisPath"
+          echo "$nsisPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
@@ -116,6 +122,9 @@ jobs:
       - name: Build Windows Executable & Installer (${{ matrix.arch }})
         shell: pwsh
         run: |
+          if (Test-Path "C:\Program Files (x86)\NSIS") { $env:PATH += ";C:\Program Files (x86)\NSIS" }
+          if (Test-Path "C:\Program Files\NSIS") { $env:PATH += ";C:\Program Files\NSIS" }
+
           $Version = "1.0.0"
           if (Test-Path "wails.json") {
             $wailsJson = Get-Content "wails.json" | ConvertFrom-Json
@@ -133,10 +142,12 @@ jobs:
           Compress-Archive -Path $TargetExe -DestinationPath "build/bin/$PortableName" -Force
           
           # Standardize Installer Name if exists
-          $Installer = Get-Item "build/bin/*installer*.exe" -ErrorAction SilentlyContinue
+          $Installer = Get-ChildItem -Path "build/bin" -File | Where-Object { $_.Name -like "*installer*.exe" -or $_.Name -like "*setup*.exe" } | Select-Object -First 1
           if ($Installer) {
             $StandardInstallerName = "AetherGrok-${Version}-windows-${{ matrix.arch }}-setup.exe"
-            Rename-Item -Path $Installer.FullName -NewName $StandardInstallerName -Force
+            if ($Installer.Name -ne $StandardInstallerName) {
+              Rename-Item -Path $Installer.FullName -NewName $StandardInstallerName -Force
+            }
           }
           
           # Generate Checksums
