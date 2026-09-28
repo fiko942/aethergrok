@@ -30,6 +30,9 @@
     const parts: string[] = [];
 
     // Distinct standalone modifier handling when pressed individually
+    if (e.key === 'Fn' || e.code === 'Fn' || e.key === 'Globe' || e.code === 'Globe') {
+      return { code: 'Fn', displayParts: [isMac ? 'Fn / Globe' : 'Fn'] };
+    }
     if (e.code === 'MetaLeft') {
       return { code: 'MetaLeft', displayParts: [isMac ? '⌘ Left' : 'Win Left'] };
     }
@@ -223,15 +226,60 @@
         </div>
       </div>
 
+      <!-- Quick Presets & Tips -->
+      <div class="space-y-2">
+        <div class="text-[11px] font-medium text-ant-text-secondary flex items-center justify-between">
+          <span>Popular Presets:</span>
+          <span class="text-[10px] text-ant-text-muted">Click any preset to select</span>
+        </div>
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <button
+            type="button"
+            onclick={() => { recordedCode = 'Fn'; recordedParts = [isMac ? 'Fn / Globe' : 'Fn']; }}
+            class="px-2 py-1 text-[11px] font-mono rounded-lg bg-ant-bg border border-ant-border-secondary hover:border-ant-primary/40 hover:text-ant-primary transition text-ant-text-secondary"
+          >
+            {isMac ? 'Fn / Globe' : 'Fn'}
+          </button>
+          <button
+            type="button"
+            onclick={() => { recordedCode = 'RightOption'; recordedParts = [isMac ? 'Right ⌥' : 'Right Alt']; }}
+            class="px-2 py-1 text-[11px] font-mono rounded-lg bg-ant-bg border border-ant-border-secondary hover:border-ant-primary/40 hover:text-ant-primary transition text-ant-text-secondary"
+          >
+            {isMac ? 'Right ⌥' : 'Right Alt'}
+          </button>
+          <button
+            type="button"
+            onclick={() => { recordedCode = 'ShiftRight'; recordedParts = ['Right Shift']; }}
+            class="px-2 py-1 text-[11px] font-mono rounded-lg bg-ant-bg border border-ant-border-secondary hover:border-ant-primary/40 hover:text-ant-primary transition text-ant-text-secondary"
+          >
+            Right Shift
+          </button>
+          <button
+            type="button"
+            onclick={() => { recordedCode = 'CmdOrCtrl+D'; recordedParts = [isMac ? 'Cmd' : 'Ctrl', 'D']; }}
+            class="px-2 py-1 text-[11px] font-mono rounded-lg bg-ant-bg border border-ant-border-secondary hover:border-ant-primary/40 hover:text-ant-primary transition text-ant-text-secondary"
+          >
+            {isMac ? '⌘D' : 'Ctrl+D'}
+          </button>
+          <button
+            type="button"
+            onclick={() => { recordedCode = 'CmdOrCtrl+Shift+D'; recordedParts = [isMac ? 'Cmd' : 'Ctrl', 'Shift', 'D']; }}
+            class="px-2 py-1 text-[11px] font-mono rounded-lg bg-ant-bg border border-ant-border-secondary hover:border-ant-primary/40 hover:text-ant-primary transition text-ant-text-secondary"
+          >
+            {isMac ? '⌘⇧D' : 'Ctrl+Shift+D'}
+          </button>
+        </div>
+      </div>
+
       <!-- Quick Tips -->
       <div class="grid grid-cols-2 gap-2 text-[10.5px] font-serif text-ant-text-secondary">
         <div class="p-2 rounded-lg bg-ant-bg/60 space-y-0.5">
           <div class="text-ant-text font-sans font-medium">Single Modifier Support</div>
-          <span>Supports Shift (Left/Right) or Cmd (Left/Right) standalone.</span>
+          <span>Supports Shift (Left/Right), Option, or Cmd standalone.</span>
         </div>
         <div class="p-2 rounded-lg bg-ant-bg/60 space-y-0.5">
-          <div class="text-ant-text font-sans font-medium">Single Key Trigger</div>
-          <span>Supports standalone characters like '/', 'Delete', 'F1-F12'.</span>
+          <div class="text-ant-text font-sans font-medium">Hardware Fn Key</div>
+          <span>macOS intercepts Fn key at OS level; click the Fn preset above if needed.</span>
         </div>
       </div>
 
