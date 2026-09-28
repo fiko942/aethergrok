@@ -1,27 +1,27 @@
 <svg width="660" height="420" viewBox="0 0 660 420" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <!-- Background Gradient (Slate to Deep Carbon) -->
+    <!-- Background Gradient -->
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#161922" />
-      <stop offset="50%" stop-color="#1b202c" />
-      <stop offset="100%" stop-color="#11141a" />
+      <stop offset="0%" stop-color="#141720" />
+      <stop offset="50%" stop-color="#1a1f2b" />
+      <stop offset="100%" stop-color="#0f1218" />
     </linearGradient>
 
-    <!-- Metallic Card Border Gradient -->
-    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.25" />
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.06" />
-    </linearGradient>
-
-    <!-- Vibrant Arrow Gradient -->
+    <!-- Subtle Arrow Glow Gradient -->
     <linearGradient id="arrowGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.4" />
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.3" />
       <stop offset="50%" stop-color="#60a5fa" stop-opacity="1" />
-      <stop offset="100%" stop-color="#93c5fd" stop-opacity="0.7" />
+      <stop offset="100%" stop-color="#93c5fd" stop-opacity="0.8" />
+    </linearGradient>
+
+    <!-- Border Gradient -->
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.05" />
     </linearGradient>
 
     <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feGaussianBlur stdDeviation="3.5" result="blur" />
       <feComposite in="SourceGraphic" in2="blur" operator="over" />
     </filter>
   </defs>
@@ -29,43 +29,29 @@
   <!-- Background Base -->
   <rect width="660" height="420" fill="url(#bgGrad)" />
 
-  <!-- Subtle Radial Ambient Lighting behind App & Applications -->
-  <circle cx="170" cy="205" r="140" fill="#3b82f6" opacity="0.12" />
-  <circle cx="490" cy="205" r="140" fill="#0284c7" opacity="0.12" />
+  <!-- Inner Studio Border Frame -->
+  <rect x="14" y="14" width="632" height="392" rx="18" fill="none" stroke="url(#borderGrad)" stroke-width="1.5" />
 
-  <!-- Inner Studio Border -->
-  <rect x="12" y="12" width="636" height="396" rx="16" fill="none" stroke="url(#borderGrad)" stroke-width="1.5" />
-
-  <!-- Header Branding (High Contrast Pure White & Vivid Ice Blue) -->
-  <g transform="translate(330, 52)" text-anchor="middle">
-    <text font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif" font-size="20" font-weight="700" fill="#ffffff" letter-spacing="0.8">AetherGrok Desktop Studio</text>
-    <text y="24" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif" font-size="12.5" font-weight="500" fill="#cbd5e1" letter-spacing="0.3">Drag AetherGrok into Applications to complete installation</text>
+  <!-- Header Title & Drag Guide Instruction -->
+  <g transform="translate(330, 60)" text-anchor="middle">
+    <text font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif" font-size="22" font-weight="700" fill="#ffffff" letter-spacing="0.5">AetherGrok Desktop Studio</text>
+    <text y="26" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif" font-size="13" font-weight="500" fill="#94a3b8" letter-spacing="0.2">Drag AetherGrok to the Applications folder to install</text>
   </g>
 
-  <!-- Left Slot Target Backdrop (App) -->
-  <g transform="translate(170, 205)">
-    <rect x="-70" y="-70" width="140" height="140" rx="24" fill="#1e2533" fill-opacity="0.65" stroke="#ffffff" stroke-opacity="0.15" stroke-width="1.5" stroke-dasharray="5 5" />
-  </g>
-
-  <!-- Right Slot Target Backdrop (Applications) -->
-  <g transform="translate(490, 205)">
-    <rect x="-70" y="-70" width="140" height="140" rx="24" fill="#1e2533" fill-opacity="0.65" stroke="#ffffff" stroke-opacity="0.15" stroke-width="1.5" stroke-dasharray="5 5" />
-  </g>
-
-  <!-- Directional Drag Arrow Graphic in Center -->
-  <g transform="translate(330, 205)">
-    <!-- Main Center Bar -->
-    <line x1="-55" y1="0" x2="45" y2="0" stroke="url(#arrowGrad)" stroke-width="3.5" stroke-linecap="round" filter="url(#glow)" />
+  <!-- Directional Drag Arrow in the Center -->
+  <g transform="translate(330, 215)">
+    <!-- Ambient Connecting Line -->
+    <line x1="-50" y1="0" x2="45" y2="0" stroke="url(#arrowGrad)" stroke-width="3" stroke-linecap="round" filter="url(#glow)" />
     <!-- Chevrons -->
-    <path d="M 15 -12 L 32 0 L 15 12" fill="none" stroke="#60a5fa" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
-    <path d="M 33 -12 L 50 0 L 33 12" fill="none" stroke="#bfdbfe" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
-    <!-- Decorative Dots -->
-    <circle cx="-35" cy="0" r="3" fill="#60a5fa" opacity="0.8" />
-    <circle cx="-10" cy="0" r="3" fill="#60a5fa" opacity="0.9" />
+    <path d="M 16 -11 L 32 0 L 16 11" fill="none" stroke="#60a5fa" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M 33 -11 L 49 0 L 33 11" fill="none" stroke="#bfdbfe" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+    <!-- Pulse Dots -->
+    <circle cx="-32" cy="0" r="3" fill="#60a5fa" opacity="0.7" />
+    <circle cx="-8" cy="0" r="3.5" fill="#60a5fa" opacity="0.9" />
   </g>
 
-  <!-- Bottom Details / Label Indicators (High Contrast) -->
+  <!-- Footer Tag -->
   <g transform="translate(330, 385)" text-anchor="middle">
-    <text font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" font-size="11" font-weight="500" fill="#94a3b8" letter-spacing="0.3">v1.0.1 • Universal macOS Application</text>
+    <text font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" font-size="11" font-weight="500" fill="#64748b" letter-spacing="0.3">v1.0.1 • Universal macOS Application</text>
   </g>
 </svg>

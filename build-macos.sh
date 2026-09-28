@@ -135,6 +135,9 @@ ln -s /Applications "$DMG_STAGE_DIR/Applications"
 
 # Add custom background folder
 mkdir -p "$DMG_STAGE_DIR/.background"
+if [ -f "$PROJECT_ROOT/resources/dmg-background.tiff" ]; then
+  cp "$PROJECT_ROOT/resources/dmg-background.tiff" "$DMG_STAGE_DIR/.background/background.tiff"
+fi
 if [ -f "$PROJECT_ROOT/resources/dmg-background.png" ]; then
   cp "$PROJECT_ROOT/resources/dmg-background.png" "$DMG_STAGE_DIR/.background/background.png"
 fi
@@ -153,13 +156,18 @@ rm -rf "$DMG_STAGE_DIR"
 
 # Mount the temporary image to apply Finder view layout & icon coordinates
 echo "Mounting disk image to configure Finder layout..."
-hdiutil attach "$DMG_TMP" -noverify -noautoopen
+ATTACH_OUTPUT=$(hdiutil attach "$DMG_TMP" -noverify -noautoopen)
+DEV_NODE=$(echo "$ATTACH_OUTPUT" | grep -oE '/dev/disk[0-9]+' | head -n 1)
+MOUNT_POINT=$(echo "$ATTACH_OUTPUT" | grep -oE '/Volumes/[^ ]+' | tail -n 1)
+VOL_NAME=$(basename "$MOUNT_POINT")
 
-# AppleScript to configure Finder presentation (Window size 660x420, icon 110, left: 170, right: 490)
+echo "Mounted on $MOUNT_POINT ($DEV_NODE), Volume: $VOL_NAME"
+
+# AppleScript to configure Finder presentation (Window size 660x420, icon 120, left: 170, right: 490)
 echo "Applying custom Finder view options, bounds, and icon positions..."
 osascript -e "
 tell application \"Finder\"
-  set theDisk to disk \"$APP_NAME\"
+  set theDisk to disk \"$VOL_NAME\"
   open theDisk
   set theWindow to container window of theDisk
   set current view of theWindow to icon view
@@ -168,23 +176,27 @@ tell application \"Finder\"
   set the bounds of theWindow to {300, 100, 960, 520}
   set opts to the icon view options of theWindow
   set arrangement of opts to not arranged
-  set icon size of opts to 110
+  set icon size of opts to 120
   set label position of opts to bottom
   set text size of opts to 12
-  if exists file \".background:background.png\" of theDisk then
+  if exists file \".background:background.tiff\" of theDisk then
+    set background picture of opts to file \".background:background.tiff\" of theDisk
+  else if exists file \".background:background.png\" of theDisk then
     set background picture of opts to file \".background:background.png\" of theDisk
   end if
-  set position of item \"AetherGrok.app\" of theDisk to {170, 205}
-  set position of item \"Applications\" of theDisk to {490, 205}
+  set position of item \"AetherGrok.app\" of theDisk to {170, 215}
+  set position of item \"Applications\" of theDisk to {490, 215}
   update theDisk without registering applications
   delay 1
   close theWindow
 end tell
 " || true
 
-# Sync disk and detach
+# Sync disk and detach cleanly
 sync
-hdiutil detach "/Volumes/$APP_NAME" -force || true
+sleep 1
+hdiutil detach "$DEV_NODE" -force || true
+sleep 1
 
 # Convert temporary read-write image to compressed read-only production DMG (UDZO)
 echo "Converting to compressed read-only DMG installer..."
