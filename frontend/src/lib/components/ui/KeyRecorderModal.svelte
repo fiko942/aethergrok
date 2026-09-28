@@ -16,6 +16,8 @@
   let recordedParts = $state<string[]>([]);
   let isListening = $state<boolean>(true);
 
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
   // Helper to parse existing string into parts
   $effect(() => {
     if (open) {
@@ -26,7 +28,6 @@
   });
 
   function normalizeKey(e: KeyboardEvent): { code: string; displayParts: string[] } {
-    const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
     const parts: string[] = [];
 
     // Distinct standalone modifier handling when pressed individually
