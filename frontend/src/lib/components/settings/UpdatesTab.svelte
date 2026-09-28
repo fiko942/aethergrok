@@ -101,8 +101,8 @@
 
 <div class="flex flex-col h-full space-y-5 font-serif">
   <!-- Top Bar: Title & Live Header Actions -->
-  <div class="flex items-center justify-between pb-1">
-    <div>
+  <div class="flex items-center justify-between gap-4 pb-1">
+    <div class="min-w-0 flex-1">
       <h3 class="font-serif-display text-base font-semibold text-ant-text flex items-center gap-2.5">
         <span>Updates & Release Manager</span>
         <span class="px-2 py-0.5 text-[10.5px] font-mono font-medium bg-ant-primary/15 text-ant-primary rounded-full">
@@ -114,21 +114,21 @@
       </p>
     </div>
 
-    <div class="flex items-center space-x-2">
+    <div class="flex items-center space-x-2 flex-shrink-0">
       <button
         type="button"
         onclick={() => updaterStore.checkForUpdates(false)}
         disabled={updaterStore.checking || updaterStore.isInstalling}
-        class="px-3 py-1.5 rounded-lg text-xs font-serif font-medium bg-ant-primary text-white hover:bg-ant-primary-hover active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2 shadow-xs cursor-pointer"
+        class="px-3.5 py-1.5 rounded-lg text-xs font-serif font-medium bg-ant-primary text-white hover:bg-ant-primary-hover active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2 shadow-xs cursor-pointer whitespace-nowrap flex-shrink-0"
       >
         <RotateCw size={13} class={updaterStore.checking ? 'animate-spin' : ''} />
-        <span>{updaterStore.checking ? 'Checking...' : 'Check for Updates'}</span>
+        <span class="whitespace-nowrap">{updaterStore.checking ? 'Checking...' : 'Check for Updates'}</span>
       </button>
 
       <button
         type="button"
         onclick={() => updaterStore.openDownload('https://github.com/fiko942/grok-build/releases')}
-        class="px-2.5 py-1.5 rounded-lg text-xs font-serif text-ant-text-secondary hover:text-ant-text bg-ant-bg-secondary hover:bg-ant-bg-tertiary transition flex items-center gap-1.5 cursor-pointer"
+        class="px-2.5 py-1.5 rounded-lg text-xs font-serif text-ant-text-secondary hover:text-ant-text bg-ant-bg-secondary hover:bg-ant-bg-tertiary transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap flex-shrink-0"
         title="View repository releases on GitHub"
       >
         <ExternalLink size={12} class="text-ant-primary" />
@@ -383,10 +383,10 @@
             <button
               type="button"
               onclick={() => toggleExpand(release.version)}
-              class="w-full px-4 py-3 flex items-center justify-between text-left cursor-pointer select-none transition"
+              class="w-full px-4 py-3 flex items-center justify-between gap-4 text-left cursor-pointer select-none transition"
             >
-              <div class="flex items-center space-x-3 flex-wrap gap-y-1">
-                <span class="font-mono text-xs font-bold px-2 py-0.5 rounded-md {
+              <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                <span class="font-mono text-xs font-bold px-2 py-0.5 rounded-md flex-shrink-0 {
                   isNewer
                     ? 'bg-amber-500 text-white'
                     : isCurrent
@@ -396,32 +396,32 @@
                   v{release.version}
                 </span>
 
-                <span class="text-xs font-semibold text-ant-text font-serif">
+                <span class="text-xs font-semibold text-ant-text font-serif truncate">
                   {release.title || `Release v${release.version}`}
                 </span>
 
                 {#if isCurrent}
-                  <span class="px-2 py-0.2 text-[10px] font-mono bg-ant-primary/20 text-ant-primary rounded-full flex items-center gap-1">
+                  <span class="px-2 py-0.5 text-[10px] font-mono bg-ant-primary/20 text-ant-primary rounded-full flex items-center gap-1 flex-shrink-0">
                     <Check size={9} /> Installed
                   </span>
                 {/if}
 
                 {#if isNewer}
-                  <span class="px-2 py-0.2 text-[10px] font-mono bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-full">
+                  <span class="px-2 py-0.5 text-[10px] font-mono font-medium tracking-wide bg-amber-500/20 text-amber-500 border border-amber-500/30 rounded-full flex-shrink-0">
                     Latest
                   </span>
                 {/if}
               </div>
 
-              <div class="flex items-center space-x-3">
+              <div class="flex items-center space-x-3 flex-shrink-0">
                 {#if release.publishedAt}
-                  <span class="text-[11px] text-ant-text-secondary font-mono flex items-center gap-1">
-                    <Calendar size={11} />
-                    {formatDate(release.publishedAt)}
+                  <span class="text-[11px] text-ant-text-secondary font-mono whitespace-nowrap flex items-center gap-1.5">
+                    <Calendar size={12} class="flex-shrink-0 opacity-70" />
+                    <span>{formatDate(release.publishedAt)}</span>
                   </span>
                 {/if}
 
-                <div class="text-ant-text-secondary">
+                <div class="text-ant-text-secondary flex-shrink-0">
                   {#if isExpanded}
                     <ChevronUp size={15} />
                   {:else}

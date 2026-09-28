@@ -18,6 +18,10 @@ export function CaptureScreenExcludingSelf(arg1) {
   return window['go']['main']['App']['CaptureScreenExcludingSelf'](arg1);
 }
 
+export function CheckAllSystemPermissions() {
+  return window['go']['main']['App']['CheckAllSystemPermissions']();
+}
+
 export function CheckAndRequestAccessibilityPermissions() {
   return window['go']['main']['App']['CheckAndRequestAccessibilityPermissions']();
 }
@@ -40,6 +44,10 @@ export function CheckMicrophonePermission() {
 
 export function CheckMultipleFilesExists(arg1, arg2) {
   return window['go']['main']['App']['CheckMultipleFilesExists'](arg1, arg2);
+}
+
+export function CheckScreenCapturePermission() {
+  return window['go']['main']['App']['CheckScreenCapturePermission']();
 }
 
 export function CleanupSkillImportTemp(arg1) {
@@ -186,6 +194,10 @@ export function OpenPathInSystem(arg1) {
   return window['go']['main']['App']['OpenPathInSystem'](arg1);
 }
 
+export function OpenScreenCaptureSettings() {
+  return window['go']['main']['App']['OpenScreenCaptureSettings']();
+}
+
 export function PullWorkspaceChanges(arg1) {
   return window['go']['main']['App']['PullWorkspaceChanges'](arg1);
 }
@@ -208,6 +220,10 @@ export function RegisterGlobalSnapshotShortcut(arg1) {
 
 export function RequestMicrophonePermission() {
   return window['go']['main']['App']['RequestMicrophonePermission']();
+}
+
+export function RequestScreenCapturePermission() {
+  return window['go']['main']['App']['RequestScreenCapturePermission']();
 }
 
 export function ResizeTerminal(arg1, arg2, arg3) {

@@ -18,6 +18,8 @@ export function CancelUpdateDownload():Promise<void>;
 
 export function CaptureScreenExcludingSelf(arg1:number):Promise<screen.SnapshotResult>;
 
+export function CheckAllSystemPermissions():Promise<permissions.AllPermissionsStatus>;
+
 export function CheckAndRequestAccessibilityPermissions():Promise<permissions.Status>;
 
 export function CheckDirectoryExists(arg1:string):Promise<boolean>;
@@ -29,6 +31,8 @@ export function CheckForUpdates(arg1:string):Promise<updater.UpdateCheckResult>;
 export function CheckMicrophonePermission():Promise<permissions.Status>;
 
 export function CheckMultipleFilesExists(arg1:string,arg2:Array<string>):Promise<Record<string, workspace.FileCheckResult>>;
+
+export function CheckScreenCapturePermission():Promise<permissions.Status>;
 
 export function CleanupSkillImportTemp(arg1:string):Promise<void>;
 
@@ -102,6 +106,8 @@ export function OpenMicrophoneSettings():Promise<void>;
 
 export function OpenPathInSystem(arg1:string):Promise<void>;
 
+export function OpenScreenCaptureSettings():Promise<void>;
+
 export function PullWorkspaceChanges(arg1:string):Promise<string>;
 
 export function PushWorkspaceChanges(arg1:string):Promise<string>;
@@ -113,6 +119,8 @@ export function ReadWorkspaceFileContent(arg1:string,arg2:string,arg3:boolean):P
 export function RegisterGlobalSnapshotShortcut(arg1:string):Promise<void>;
 
 export function RequestMicrophonePermission():Promise<permissions.Status>;
+
+export function RequestScreenCapturePermission():Promise<permissions.Status>;
 
 export function ResizeTerminal(arg1:string,arg2:number,arg3:number):Promise<void>;
 

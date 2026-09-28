@@ -10,6 +10,8 @@
   import MessageList from '$lib/components/chat/MessageList.svelte';
   import Composer from '$lib/components/chat/Composer.svelte';
   import PermissionModal from '$lib/components/chat/PermissionModal.svelte';
+  import PermissionSetupModal from '$lib/components/setup/PermissionSetupModal.svelte';
+  import GrokInstallModal from '$lib/components/setup/GrokInstallModal.svelte';
   import SkillCatalog from '$lib/components/skills/SkillCatalog.svelte';
   import SettingsModal from '$lib/components/layout/SettingsModal.svelte';
   import FileViewerModal from '$lib/components/workspace/FileViewerModal.svelte';
@@ -61,6 +63,8 @@
   let workspacePickerModalVisible = $state(false);
   let emptyStateDropdownOpen = $state(false);
   let flashActive = $state(false);
+  let showPermissionSetup = $state(false);
+  let showGrokInstallModal = $state(false);
   const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
   // Shortcut detector for dictation triggers (push-to-talk & double-tap lock)
@@ -974,8 +978,31 @@
     // Initialize auto-update background polling on startup
     updaterStore.initPeriodicCheck();
 
-    // Check and request macOS Accessibility / Input Monitoring permissions on startup
-    if (window.go?.main?.App?.CheckAndRequestAccessibilityPermissions) {
+    // Check Grok CLI installation on startup
+    if (window.go?.main?.App?.CheckGrokInstallation) {
+      window.go.main.App.CheckGrokInstallation()
+        .then((status) => {
+          if (status && !status.installed) {
+            showGrokInstallModal = true;
+          }
+        })
+        .catch((err: unknown) => {
+          console.error('Error checking Grok CLI installation:', err);
+        });
+    }
+
+    // Check system permissions on macOS on startup
+    if (window.go?.main?.App?.CheckAllSystemPermissions) {
+      window.go.main.App.CheckAllSystemPermissions()
+        .then((status) => {
+          if (status && status.platform === 'darwin' && !status.allGranted) {
+            showPermissionSetup = true;
+          }
+        })
+        .catch((err: unknown) => {
+          console.error('Error checking system permissions:', err);
+        });
+    } else if (window.go?.main?.App?.CheckAndRequestAccessibilityPermissions) {
       window.go.main.App.CheckAndRequestAccessibilityPermissions()
         .then((status: { granted: boolean; message: string; platform: string }) => {
           if (!status.granted && status.platform === 'darwin') {
@@ -1511,5 +1538,15 @@
       workspacePath={dialogStore.fileViewerState.workspacePath || currentSessionWorkspace?.path || ''}
       onClose={() => dialogStore.closeFileViewer()}
     />
+  {/if}
+
+  <!-- macOS Permissions Onboarding Setup Modal -->
+  {#if showPermissionSetup}
+    <PermissionSetupModal onComplete={() => (showPermissionSetup = false)} />
+  {/if}
+
+  <!-- Grok CLI Automated Installation Modal -->
+  {#if showGrokInstallModal}
+    <GrokInstallModal onComplete={() => { showGrokInstallModal = false; }} />
   {/if}
 </div>

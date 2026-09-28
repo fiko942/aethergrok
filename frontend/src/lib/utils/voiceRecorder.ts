@@ -317,19 +317,14 @@ export class VoiceRecorderManager {
       this.recordingTimer = null;
     }
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       // If recorder hasn't started or is already inactive
       if (!this.mediaRecorder || this.mediaRecorder.state === 'inactive') {
         const mime = 'audio/webm';
         const ext = 'webm';
-        if (this.audioChunks.length > 0) {
-          const audioBlob = new Blob(this.audioChunks, { type: mime });
-          this.cleanupStream();
-          resolve({ blob: audioBlob, ext });
-        } else {
-          this.cleanupStream();
-          resolve({ blob: new Blob([], { type: mime }), ext });
-        }
+        const audioBlob = new Blob(this.audioChunks, { type: mime });
+        this.cleanupStream();
+        resolve({ blob: audioBlob, ext });
         return;
       }
 
@@ -343,6 +338,14 @@ export class VoiceRecorderManager {
       };
 
       try {
+        // Request any remaining audio data slice before stopping
+        if (typeof (this.mediaRecorder as any).requestData === 'function') {
+          try {
+            (this.mediaRecorder as any).requestData();
+          } catch {
+            // ignore
+          }
+        }
         this.mediaRecorder.stop();
       } catch (err) {
         this.cleanupStream();
@@ -476,7 +479,12 @@ export class VoiceRecorderManager {
       throw new Error('Backend transcription bridge is not available');
     }
 
-    // 1. Convert to Base64
+    // 1. Validate audio blob before attempting transcription
+    if (!blob || blob.size < 64) {
+      throw new Error('Recording was too short or contained no audio');
+    }
+
+    // 2. Convert to Base64
     const base64Data = await this.blobToBase64(blob);
 
     // 2. Save scratch audio recording file

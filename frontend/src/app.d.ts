@@ -5,6 +5,21 @@ declare global {
   const __APP_VERSION__: string;
 }
 
+export interface GrokInstallStatus {
+  installed: boolean;
+  version: string;
+  binaryPath: string;
+  platform: string;
+  error?: string;
+}
+
+export interface GrokInstallProgress {
+  stage: 'preparing' | 'downloading' | 'installing' | 'verifying' | 'completed' | 'error';
+  percent: number;
+  message: string;
+  logLine?: string;
+}
+
 export interface SnapshotResult {
   filePath: string;
   dataUrl: string;
@@ -101,6 +116,21 @@ export interface ReleaseInfo {
   isLatest: boolean;
 }
 
+export interface SystemPermissionItem {
+  id: string; // 'accessibility' | 'microphone' | 'screen_capture'
+  title: string;
+  description: string;
+  granted: boolean;
+  message: string;
+  required: boolean;
+}
+
+export interface AllPermissionsStatus {
+  platform: string;
+  allGranted: boolean;
+  items: SystemPermissionItem[];
+}
+
 export interface UpdateProgress {
   downloadedBytes: number;
   totalBytes: number;
@@ -194,6 +224,10 @@ declare global {
           RequestMicrophonePermission: () => Promise<{ granted: boolean; message: string; platform: string }>;
           GetSystemAudioInputDevices: () => Promise<Array<{ name: string; isDefault: boolean; transport: string; manufacturer: string }>>;
           OpenMicrophoneSettings: () => Promise<void>;
+          CheckScreenCapturePermission: () => Promise<{ granted: boolean; message: string; platform: string }>;
+          RequestScreenCapturePermission: () => Promise<{ granted: boolean; message: string; platform: string }>;
+          OpenScreenCaptureSettings: () => Promise<void>;
+          CheckAllSystemPermissions: () => Promise<AllPermissionsStatus>;
           MuteSystemVolume: () => Promise<{ originalVolume: number; wasMuted: boolean }>;
           RestoreSystemVolume: (prevVolume: number, wasMuted: boolean) => Promise<void>;
           SaveVoiceAudioRecording: (base64Data: string, ext: string) => Promise<string>;
@@ -208,6 +242,8 @@ declare global {
           GetChangelogHistory?: () => Promise<ReleaseInfo[]>;
           DownloadAndInstallUpdate?: (assetURL: string, sha256URL: string) => Promise<void>;
           CancelUpdateDownload?: () => Promise<void>;
+          CheckGrokInstallation: () => Promise<GrokInstallStatus>;
+          InstallGrokCLI: () => Promise<GrokInstallStatus>;
         };
       };
     };

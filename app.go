@@ -378,6 +378,20 @@ func (a *App) CompactSession(workspacePath, sessionID string) (*grokrunner.Sessi
 	return grokrunner.CompactSession(a.ctx, a.runner.GetBinaryPath(), workspacePath, sessionID)
 }
 
+// CheckGrokInstallation returns the detection status of the Grok CLI
+func (a *App) CheckGrokInstallation() grokrunner.GrokInstallStatus {
+	return grokrunner.DetectGrokInstallation()
+}
+
+// InstallGrokCLI triggers the automated installer and emits progress events to the frontend
+func (a *App) InstallGrokCLI() (*grokrunner.GrokInstallStatus, error) {
+	return grokrunner.InstallGrokCLI(a.ctx, func(progress grokrunner.GrokInstallProgress) {
+		if a.ctx != nil {
+			wailsRuntime.EventsEmit(a.ctx, "grok:install_progress", progress)
+		}
+	})
+}
+
 // OpenPathInSystem opens a folder or file in macOS Finder or Windows Explorer
 func (a *App) OpenPathInSystem(targetPath string) error {
 	if strings.TrimSpace(targetPath) == "" {
@@ -753,6 +767,26 @@ func (a *App) RequestMicrophonePermission() permissions.Status {
 	return permissions.RequestMicrophonePermission()
 }
 
+// CheckScreenCapturePermission inspects if screen capture / recording access is authorized
+func (a *App) CheckScreenCapturePermission() permissions.Status {
+	return permissions.CheckScreenCapturePermission()
+}
+
+// RequestScreenCapturePermission triggers macOS system prompt or preflight for screen capture
+func (a *App) RequestScreenCapturePermission() permissions.Status {
+	return permissions.RequestScreenCapturePermission()
+}
+
+// OpenScreenCaptureSettings opens macOS System Settings to Screen Recording panel
+func (a *App) OpenScreenCaptureSettings() error {
+	return permissions.OpenScreenCapturePreferences()
+}
+
+// CheckAllSystemPermissions inspects and aggregates the status of all required system permissions
+func (a *App) CheckAllSystemPermissions() permissions.AllPermissionsStatus {
+	return permissions.CheckAllSystemPermissions()
+}
+
 // GetSystemAudioInputDevices returns the list of physical and virtual microphone input devices
 func (a *App) GetSystemAudioInputDevices() ([]permissions.AudioDeviceInfo, error) {
 	return permissions.GetAudioInputDevices()
@@ -898,17 +932,20 @@ func (a *App) TranscribeAudioWithGrok(workspacePath, audioFilePath string) (stri
 		return text
 	}
 
-	transcript, err := a.transcribeAudioViaSTTEndpoint(endpointURL, apiKey, audioFilePath)
-	if err == nil && strings.TrimSpace(transcript) != "" {
+	// 1. Direct multimodal audio chat completions via gateway
+	// Prioritize models that support audio input and fast response:
+	// ag/gemini-3.7-flash-low, ag/gemini-3.8-flash-low, gemini/gemini-3.7-flash, ag/gemini-3.8-flash
+	transcript, errChat := a.transcribeAudioViaChatCompletions(endpointURL, apiKey, audioFilePath)
+	if errChat == nil && strings.TrimSpace(transcript) != "" {
 		cleaned := cleanTranscript(transcript)
 		if cleaned != "" {
 			return cleaned, nil
 		}
 	}
 
-	// 2. Second priority: Try multimodal audio chat completions via gateway (ag/gemini-3.8-flash / gemini-3.7-flash)
-	transcript, errChat := a.transcribeAudioViaChatCompletions(endpointURL, apiKey, audioFilePath)
-	if errChat == nil && strings.TrimSpace(transcript) != "" {
+	// 2. Secondary fallback: Speech-to-text multipart endpoint
+	transcript, errSTT := a.transcribeAudioViaSTTEndpoint(endpointURL, apiKey, audioFilePath)
+	if errSTT == nil && strings.TrimSpace(transcript) != "" {
 		cleaned := cleanTranscript(transcript)
 		if cleaned != "" {
 			return cleaned, nil
@@ -941,11 +978,11 @@ func (a *App) TranscribeAudioWithGrok(workspacePath, audioFilePath string) (stri
 	out, errExec := cmd.CombinedOutput()
 	if errExec != nil {
 		var detailErrs []string
-		if err != nil {
-			detailErrs = append(detailErrs, fmt.Sprintf("STT Error: %v", err))
-		}
 		if errChat != nil {
 			detailErrs = append(detailErrs, fmt.Sprintf("Chat Audio Error: %v", errChat))
+		}
+		if errSTT != nil {
+			detailErrs = append(detailErrs, fmt.Sprintf("STT Error: %v", errSTT))
 		}
 		if ctx.Err() == context.DeadlineExceeded {
 			detailErrs = append(detailErrs, "Grok CLI timed out after 20s")
@@ -1060,8 +1097,8 @@ func (a *App) transcribeAudioViaChatCompletions(baseURL, apiKey, audioFilePath s
 	promptText := "Kamu adalah transcriber audio programmer yang sangat akurat. Dengarkan rekaman audio teknis ini secara verbatim. Transkripsikan dengan jelas, gunakan istilah teknis, nama variabel, fungsi, bahasa pemrograman, dan tanda baca yang tepat. PENTING: Keluarkan HANYA teks transkripsi murni. Jangan menambahkan kalimat pembuka (seperti 'Berikut adalah transkripsi...', 'Here is the transcription...'), jangan menambahkan tanda petik di awal/akhir, dan jangan menambahkan penjelasan apa pun."
 
 	// Fast transcription candidate models with 1000k context window:
-	// ag/gemini-3.7-flash-low completes in ~3s, ag/gemini-3.8-flash-low in ~4s
-	candidateModels := []string{"ag/gemini-3.7-flash-low", "ag/gemini-3.8-flash-low", "ag/gemini-3.8-flash"}
+	// ag/gemini-3.7-flash-low, ag/gemini-3.8-flash-low, gemini/gemini-3.7-flash
+	candidateModels := []string{"ag/gemini-3.7-flash-low", "ag/gemini-3.8-flash-low", "gemini/gemini-3.7-flash", "ag/gemini-3.7-flash-high", "ag/gemini-3.8-flash"}
 
 	var lastErr error
 	for _, modelID := range candidateModels {
