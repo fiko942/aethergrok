@@ -2,8 +2,184 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "AetherGrok Release Changelog",
   "description": "Central single source of truth for all AetherGrok releases, commit ranges, and download artifacts.",
-  "latest": "1.0.1",
+  "latest": "1.0.2",
   "releases": [
+    {
+      "version": "1.0.2",
+      "tag": "v1.0.2",
+      "date": "2026-09-28T08:52:05.217Z",
+      "title": "AetherGrok 1.0.2 - Voice Dictation Equalizer, macOS Permissions Wizard & Grok Auto-Installer",
+      "targetCommit": "a47bd25",
+      "previousCommit": "3c65c17",
+      "highlights": [
+        "Dual-mode voice dictation shortcuts (Push-to-Talk & Double-Tap Lock) with automated system audio mute ducking and a real-time 4-bar dynamic equalizer",
+        "Anti-Gravity inspired macOS system permissions onboarding wizard with real-time 3-second polling and window focus auto-refresh.",
+        "Automatic Grok CLI runtime detection with 1-click in-app installer and persistent diagnostic logging to ~/.grok/logs/aethergrok.log.",
+        "Dark mode styling refinements removing harsh white borders, alongside single-line layout alignment for updates and changelog history cards."
+      ],
+      "commits": [
+        {
+          "hash": "a47bd25",
+          "message": "feat: add macOS permissions wizard and automatic Grok CLI detection with installer"
+        },
+        {
+          "hash": "d1ec114",
+          "message": "feat(voice): replace dictation text badges with real-time 4-bar audio volume visualizer"
+        },
+        {
+          "hash": "ec86c80",
+          "message": "fix(dictation): eliminate microphone startup latency and fix stop state race condition"
+        },
+        {
+          "hash": "2ed6003",
+          "message": "fix(shortcuts): prevent mac beep on dictation key and ensure active session for trigger"
+        },
+        {
+          "hash": "47e8ae7",
+          "message": "fix(dictation): change default shortcut to backslash and remove fn preset"
+        },
+        {
+          "hash": "327f057",
+          "message": "fix(ui): hoist isMac variable to component scope in KeyRecorderModal"
+        },
+        {
+          "hash": "af2f74d",
+          "message": "feat: implement dual-mode voice dictation shortcuts with system audio ducking"
+        },
+        {
+          "hash": "d465920",
+          "message": "fix(ui): add 1-click preset selector pills including Fn/Globe and modifier combos in KeyRecorderModal"
+        },
+        {
+          "hash": "9c13425",
+          "message": "feat(ui): add dictation shortcut controls and polished recording badge"
+        },
+        {
+          "hash": "5c2d9f4",
+          "message": "feat(dictation): integrate system volume ducking with composer voice workflow"
+        },
+        {
+          "hash": "7f2dd56",
+          "message": "feat(shortcuts): add double-tap lock and push-to-talk keyboard detector"
+        },
+        {
+          "hash": "ef044c9",
+          "message": "feat(settings): add dictation shortcut and audio ducking persistence"
+        },
+        {
+          "hash": "a15ef18",
+          "message": "feat(system): add cross-platform system audio volume mute and restore service"
+        },
+        {
+          "hash": "1a73e11",
+          "message": "docs(superpowers): add implementation plan for voice dictation shortcuts and audio ducking"
+        },
+        {
+          "hash": "d92f23f",
+          "message": "docs(superpowers): add voice dictation shortcuts and system audio mute ducking spec"
+        },
+        {
+          "hash": "7490fe4",
+          "message": "feat(ui): redesign UpdatesTab with humanized package badges, OS branding, and robust platform matching"
+        },
+        {
+          "hash": "2bab4eb",
+          "message": "fix(ui): eliminate harsh white borders and redundant dividers in dark mode"
+        },
+        {
+          "hash": "908b399",
+          "message": "feat(updater): implement 1-click in-app auto-download, sha256 verification, native self-installer, and animated telemetry UI"
+        },
+        {
+          "hash": "354f984",
+          "message": "docs: add 1-click in-app auto-installer implementation plan"
+        },
+        {
+          "hash": "47d55ef",
+          "message": "docs(superpowers): record in-app auto-update and version changelog history specs"
+        },
+        {
+          "hash": "dcf3e5e",
+          "message": "feat(settings): add Updates & Version Changelog history tab with live GitHub release integration"
+        },
+        {
+          "hash": "f143c81",
+          "message": "feat(frontend): create reactive updater store for GitHub releases"
+        },
+        {
+          "hash": "8751522",
+          "message": "feat(updater): implement pure-Go GitHub release update checker and changelog parser"
+        },
+        {
+          "hash": "5120021",
+          "message": "docs: add in-app auto-update and changelog implementation plan"
+        },
+        {
+          "hash": "110f7b4",
+          "message": "docs(superpowers): record multiplatform packaging, clean DMG layout, and Windows installer specs"
+        },
+        {
+          "hash": "aa38b1d",
+          "message": "docs: add Windows setup installer implementation plan"
+        },
+        {
+          "hash": "6b87613",
+          "message": "ci(windows): ensure makensis is on PATH and output standard setup installer"
+        },
+        {
+          "hash": "037062e",
+          "message": "feat(windows): configure NSIS installer template and application metadata"
+        },
+        {
+          "hash": "2afd809",
+          "message": "feat(dmg): switch to clean native 2-icon layout without custom background"
+        },
+        {
+          "hash": "e64010d",
+          "message": "fix(dmg): fix DMG Finder window bounds, background alias, and icon text labels"
+        },
+        {
+          "hash": "ea7d10f",
+          "message": "fix(dmg): use multi-resolution TIFF background and clean volume detachment for Finder layout"
+        },
+        {
+          "hash": "11a21e5",
+          "message": "fix(dmg): enhance DMG background contrast, typography hierarchy, and icon sizing"
+        },
+        {
+          "hash": "6c6a87e",
+          "message": "feat(macos): implement custom dark-studio styled DMG installer with background branding and symlink layout"
+        },
+        {
+          "hash": "b474806",
+          "message": "chore(release): remove macOS portable tar archives from build and release matrix"
+        },
+        {
+          "hash": "f952cf4",
+          "message": "fix(bundle-id): update macOS bundle identifier to com.fiko942.aethergrok"
+        },
+        {
+          "hash": "fcf4b5f",
+          "message": "fix(signing): ensure explicit designated requirement codesign after plist modification"
+        },
+        {
+          "hash": "1cc12c8",
+          "message": "fix(ci): robust release tag resolution for desktop release workflow"
+        },
+        {
+          "hash": "00af6c5",
+          "message": "fix(release): fix hdiutil resource busy retry and windows sha256 globbing in CI"
+        }
+      ],
+      "downloads": {
+        "macos_arm64_dmg": "https://github.com/fiko942/grok-build/releases/download/v1.0.2/AetherGrok-1.0.2-macOS-arm64.dmg",
+        "macos_x64_dmg": "https://github.com/fiko942/grok-build/releases/download/v1.0.2/AetherGrok-1.0.2-macOS-amd64.dmg",
+        "windows_x64_setup": "https://github.com/fiko942/grok-build/releases/download/v1.0.2/AetherGrok-1.0.2-windows-amd64-setup.exe",
+        "windows_x64_portable": "https://github.com/fiko942/grok-build/releases/download/v1.0.2/AetherGrok-1.0.2-windows-amd64-portable.zip",
+        "windows_arm64_setup": "https://github.com/fiko942/grok-build/releases/download/v1.0.2/AetherGrok-1.0.2-windows-arm64-setup.exe",
+        "windows_arm64_portable": "https://github.com/fiko942/grok-build/releases/download/v1.0.2/AetherGrok-1.0.2-windows-arm64-portable.zip"
+      }
+    },
     {
       "version": "1.0.1",
       "tag": "v1.0.1",
