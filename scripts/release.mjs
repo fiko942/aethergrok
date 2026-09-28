@@ -284,6 +284,10 @@ async function main() {
       });
     }
 
+    const patchVer = bumpVersion(currentVersion, 'patch');
+    const minorVer = bumpVersion(currentVersion, 'minor');
+    const majorVer = bumpVersion(currentVersion, 'major');
+
     const inputVersion = process.env.RELEASE_VERSION;
     const inputTitleEnv = process.env.RELEASE_TITLE;
     const inputHighlightsEnv = process.env.RELEASE_HIGHLIGHTS;
