@@ -25,9 +25,9 @@
     <!-- Brand / Logo -->
     <a href="/" class="flex items-center gap-3 group focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg p-1">
       <img
-        src="./favicon.svg"
+        src="./app-icon.png"
         alt="AetherGrok Logo"
-        class="w-9 h-9 rounded-xl shadow-subtle group-hover:scale-105 transition-transform duration-200"
+        class="w-9 h-9 rounded-xl shadow-subtle group-hover:scale-105 transition-transform duration-200 object-contain"
       />
       <div class="flex items-center gap-2">
         <span class="text-xl font-bold tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">

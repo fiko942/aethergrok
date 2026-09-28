@@ -10,9 +10,9 @@
       <div class="md:col-span-2 space-y-4">
         <div class="flex items-center gap-2.5">
           <img
-            src="./favicon.svg"
+            src="./app-icon.png"
             alt="AetherGrok Logo"
-            class="w-8 h-8 rounded-lg shadow-sm"
+            class="w-8 h-8 rounded-lg shadow-sm object-contain"
           />
           <span class="text-xl font-bold text-white tracking-tight">
             AetherGrok Desktop
