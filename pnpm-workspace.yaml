@@ -1,6 +1,7 @@
 packages:
   - "."
   - "frontend"
+  - "web"
 
 allowBuilds:
   "@vscode/vsce-sign": true

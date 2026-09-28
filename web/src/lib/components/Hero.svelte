@@ -23,7 +23,7 @@
     releaseInfo = await fetchLiveLatestRelease();
   });
 
-  const displayVersion = $derived(releaseInfo?.tagName || 'v1.0.4');
+  const displayVersion = $derived(releaseInfo?.tagName || 'v1.0.5');
   const macArmUrl = $derived(
     releaseInfo?.assets.find((a) => a.name.includes('arm64') && a.name.endsWith('.dmg'))?.browser_download_url ||
     `${githubRepo}/releases/latest`

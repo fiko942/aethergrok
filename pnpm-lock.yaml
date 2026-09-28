@@ -116,6 +116,40 @@ importers:
         specifier: ^6.1.1
         version: 6.4.3(@types/node@22.20.4)(jiti@1.21.7)
 
+  web:
+    dependencies:
+      lucide-svelte:
+        specifier: ^0.475.0
+        version: 0.475.0(svelte@5.57.1)
+    devDependencies:
+      '@sveltejs/vite-plugin-svelte':
+        specifier: ^5.0.3
+        version: 5.1.1(supports-color@9.4.0)(svelte@5.57.1)(vite@6.4.3(@types/node@22.20.4)(jiti@1.21.7))
+      '@types/node':
+        specifier: ^22.13.5
+        version: 22.20.4
+      autoprefixer:
+        specifier: ^10.4.20
+        version: 10.6.1(postcss@8.5.28)
+      postcss:
+        specifier: ^8.5.3
+        version: 8.5.28
+      svelte:
+        specifier: ^5.20.2
+        version: 5.57.1
+      svelte-check:
+        specifier: ^4.1.4
+        version: 4.7.6(picomatch@4.0.7)(svelte@5.57.1)(typescript@5.9.3)
+      tailwindcss:
+        specifier: ^3.4.17
+        version: 3.4.19
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vite:
+        specifier: ^6.1.1
+        version: 6.4.3(@types/node@22.20.4)(jiti@1.21.7)
+
 packages:
 
   '@agentclientprotocol/claude-agent-acp@0.76.0':
@@ -4176,7 +4210,7 @@ snapshots:
 
   buffer-image-size@0.6.4:
     dependencies:
-      '@types/node': 20.19.43
+      '@types/node': 22.20.4
 
   buffer@5.7.1:
     dependencies:

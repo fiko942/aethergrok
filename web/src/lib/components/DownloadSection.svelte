@@ -27,7 +27,7 @@
     loadingRelease = false;
   });
 
-  const displayVersion = $derived(releaseInfo?.tagName || 'v1.0.4');
+  const displayVersion = $derived(releaseInfo?.tagName || 'v1.0.5');
   const publishedDate = $derived(
     releaseInfo?.publishedAt
       ? new Date(releaseInfo.publishedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
