@@ -25,6 +25,9 @@ export interface AppSettings {
   sidebarWidth: number;
   sidebarCollapsed: boolean;
   selectedMicrophoneDeviceId: string;
+  dictationShortcut: string;
+  dictationMuteSystemAudio: boolean;
+  dictationHoldThresholdMs: number;
 }
 
 const STORAGE_KEY = 'aethergrok_settings_v1';
@@ -47,7 +50,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   maxContextTokens: 200000,
   sidebarWidth: 288,
   sidebarCollapsed: false,
-  selectedMicrophoneDeviceId: ''
+  selectedMicrophoneDeviceId: '',
+  dictationShortcut: 'Fn',
+  dictationMuteSystemAudio: true,
+  dictationHoldThresholdMs: 300
 };
 
 export class SettingsStore {
@@ -70,6 +76,9 @@ export class SettingsStore {
   sidebarWidth = $state<number>(DEFAULT_SETTINGS.sidebarWidth);
   sidebarCollapsed = $state<boolean>(DEFAULT_SETTINGS.sidebarCollapsed);
   selectedMicrophoneDeviceId = $state<string>(DEFAULT_SETTINGS.selectedMicrophoneDeviceId);
+  dictationShortcut = $state<string>(DEFAULT_SETTINGS.dictationShortcut);
+  dictationMuteSystemAudio = $state<boolean>(DEFAULT_SETTINGS.dictationMuteSystemAudio);
+  dictationHoldThresholdMs = $state<number>(DEFAULT_SETTINGS.dictationHoldThresholdMs);
 
   private saveTimeout: any = null;
 
@@ -163,6 +172,15 @@ export class SettingsStore {
     if (typeof parsed.selectedMicrophoneDeviceId === 'string') {
       this.selectedMicrophoneDeviceId = parsed.selectedMicrophoneDeviceId;
     }
+    if (typeof parsed.dictationShortcut === 'string' && parsed.dictationShortcut.trim().length > 0) {
+      this.dictationShortcut = parsed.dictationShortcut;
+    }
+    if (typeof parsed.dictationMuteSystemAudio === 'boolean') {
+      this.dictationMuteSystemAudio = parsed.dictationMuteSystemAudio;
+    }
+    if (typeof parsed.dictationHoldThresholdMs === 'number' && Number.isFinite(parsed.dictationHoldThresholdMs) && parsed.dictationHoldThresholdMs > 0) {
+      this.dictationHoldThresholdMs = parsed.dictationHoldThresholdMs;
+    }
   }
 
   loadFromStorage(): void {
@@ -196,7 +214,10 @@ export class SettingsStore {
       maxContextTokens: this.maxContextTokens,
       sidebarWidth: this.sidebarWidth,
       sidebarCollapsed: this.sidebarCollapsed,
-      selectedMicrophoneDeviceId: this.selectedMicrophoneDeviceId
+      selectedMicrophoneDeviceId: this.selectedMicrophoneDeviceId,
+      dictationShortcut: this.dictationShortcut,
+      dictationMuteSystemAudio: this.dictationMuteSystemAudio,
+      dictationHoldThresholdMs: this.dictationHoldThresholdMs
     };
 
     // 1. Fallback save to localStorage for offline cache
@@ -234,6 +255,9 @@ export class SettingsStore {
     if (partial.maxContextTokens !== undefined) this.maxContextTokens = partial.maxContextTokens;
     if (partial.sidebarWidth !== undefined) this.sidebarWidth = Math.min(480, Math.max(220, partial.sidebarWidth));
     if (partial.sidebarCollapsed !== undefined) this.sidebarCollapsed = partial.sidebarCollapsed;
+    if (partial.dictationShortcut !== undefined) this.dictationShortcut = partial.dictationShortcut;
+    if (partial.dictationMuteSystemAudio !== undefined) this.dictationMuteSystemAudio = partial.dictationMuteSystemAudio;
+    if (partial.dictationHoldThresholdMs !== undefined) this.dictationHoldThresholdMs = partial.dictationHoldThresholdMs;
     this.saveToStorage();
   }
 
@@ -250,6 +274,9 @@ export class SettingsStore {
     this.snapshotFlashEnabled = DEFAULT_SETTINGS.snapshotFlashEnabled;
     this.snapshotAutoAttach = DEFAULT_SETTINGS.snapshotAutoAttach;
     this.activeWindowTurnCount = DEFAULT_SETTINGS.activeWindowTurnCount;
+    this.dictationShortcut = DEFAULT_SETTINGS.dictationShortcut;
+    this.dictationMuteSystemAudio = DEFAULT_SETTINGS.dictationMuteSystemAudio;
+    this.dictationHoldThresholdMs = DEFAULT_SETTINGS.dictationHoldThresholdMs;
     this.saveToStorage();
   }
 }
