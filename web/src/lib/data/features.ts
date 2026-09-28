@@ -2,72 +2,102 @@ export interface FeatureItem {
   id: string;
   title: string;
   badge: string;
+  category: string;
   tagline: string;
   description: string;
   bullets: string[];
-  screenshot: string;
-  imageAlt: string;
+  techSpec: string;
 }
 
 export const featuresData: FeatureItem[] = [
   {
-    id: 'studio',
-    title: 'Native Studio Workspace',
-    badge: 'Core Environment',
-    tagline: 'Multi-session project management with zero memory bloat.',
+    id: 'windowing',
+    title: '10-Turn DOM Windowing',
+    badge: 'Virtualization Engine',
+    category: 'Performance',
+    tagline: 'Infinite session length with zero memory bloat or UI lag.',
     description:
-      'Manage multiple active workspaces, project trees, and live sessions simultaneously. Built with Go 1.24 and Svelte 5 to guarantee constant memory usage and instantaneous tab switching.',
+      'Long autonomous workflows create hundreds of turns with complex syntax-highlighted diffs and terminal outputs. AetherGrok dynamically virtualizes the DOM tree, retaining only the active 10 conversational turns in memory while preserving fluid scroll anchor locks.',
     bullets: [
-      'Multi-project sidebar navigation with automatic workspace discovery',
-      'Unified conversation view with 10-turn progressive DOM windowing',
-      'Real-time token streaming with 16ms frame-rate batching',
+      'Constant ~35 MB baseline memory footprint across 100+ turns',
+      'Smooth 60 FPS viewport scrolling without frame skips or GC pauses',
+      'Frame-aligned 16ms NDJSON token batching eliminates streaming micro-stutters',
     ],
-    screenshot: './screenshots/desktop-hero.webp',
-    imageAlt: 'AetherGrok Native Studio Workspace and multi-session interface',
+    techSpec: 'Go 1.24 Concurrent Parser • Svelte 5 Virtual Windowing',
+  },
+  {
+    id: 'process-group',
+    title: 'Process Group Supervision',
+    badge: 'Process Isolation',
+    category: 'Reliability',
+    tagline: 'Zero orphaned background tasks and mid-turn live steering.',
+    description:
+      'Standard subprocess runners frequently leave background bash commands orphaned when turns are cancelled. AetherGrok binds CLI workers with POSIX process groups (setpgid) and Windows Job Objects, ensuring complete sub-process lifecycle control and instantaneous steering injection.',
+    bullets: [
+      'POSIX setpgid and Windows Job Objects process tree containment',
+      'Live mid-turn prompt steering without abrupt process termination',
+      'Robust graceful kill handling with escalating signals (SIGTERM / SIGKILL)',
+    ],
+    techSpec: 'POSIX setpgid • Windows Job Objects • SysProcAttr',
+  },
+  {
+    id: 'vision',
+    title: 'Compositor-Synced Vision Capture',
+    badge: 'Multimodal Input',
+    category: 'Ergonomics',
+    tagline: 'Non-intrusive full-screen capture without capturing itself.',
+    description:
+      'Capture any window, UI glitch, or browser layout instantly. AetherGrok temporarily yields to the OS compositor (50ms on macOS, 80ms on Windows) to snap your entire desktop display natively, then refocuses and attaches the screenshot directly into your prompt chip bar.',
+    bullets: [
+      'Global shortcut Cmd+Alt+S / Ctrl+Alt+S with instant composer chip injection',
+      'Guaranteed panic-safe window restoration with deferred OS handlers',
+      'Direct multimodal vision support for Grok 4.6 and image-to-code workflows',
+    ],
+    techSpec: 'macOS screencapture • Windows GDI32 • CoreGraphics',
   },
   {
     id: 'voice',
-    title: 'Push-to-Talk Voice & Equalizer',
-    badge: 'Audio Ergonomics',
-    tagline: 'Custom keyboard shortcuts with system audio ducking.',
+    title: 'Push-to-Talk Voice & Audio Ducking',
+    badge: 'Voice Dictation',
+    category: 'Input Audio',
+    tagline: 'Speak directly to your agent while music automatically fades.',
     description:
-      'Configure custom push-to-talk hold and double-tap shortcuts. Features a real-time 4-bar dynamic audio volume equalizer that automatically mutes system audio playback during active speech recording.',
+      'Engineered with a real-time 4-bar dynamic audio volume equalizer. Hold down your shortcut or double-tap to speak. Active system audio playback is automatically muted to 0% during speech recording and seamlessly restored upon completion.',
     bullets: [
-      'Configurable custom keyboard shortcut trigger with double-tap support',
-      'Real-time 4-bar dynamic audio volume visualizer',
-      'Automatic system audio ducking to 0% during voice recording',
+      'Hardware-accelerated native audio worklet with zero transcription lag',
+      'Configurable push-to-talk hold and double-tap toggle keyboard shortcuts',
+      'Automatic system volume ducking to eliminate background audio interference',
     ],
-    screenshot: './screenshots/voice_mode.png',
-    imageAlt: 'AetherGrok Push-to-Talk Voice Dictation and Shortcut Settings',
+    techSpec: 'CoreAudio / AppleScript • Windows CoreAudio API',
   },
   {
-    id: 'permissions',
-    title: 'macOS Security & Permissions Gate',
-    badge: 'System Integration',
-    tagline: 'Automated 1-click permission auditing and status monitoring.',
+    id: 'diffs',
+    title: 'Rich Syntax-Highlighted Diffs',
+    badge: 'Code Review Studio',
+    category: 'Code Quality',
+    tagline: 'Audit agent modifications with precision side-by-side reviews.',
     description:
-      'AetherGrok automatically audits required macOS TCC permissions (Screen Recording, Accessibility, and Microphone) with live 3-second status refreshes and 1-click system settings deep links.',
+      'Say goodbye to flat ANSI terminal text. Review file additions, deletions, and inline modifications with side-by-side diff views, syntax coloring, line numbering, and one-click accept/rejection controls.',
     bullets: [
-      'Real-time system permission status detection with auto-refresh polling',
-      'One-click direct links to macOS Privacy & Security Settings panels',
-      'Clean light/dark mode UI tokens styled with Ant Design precision',
+      'Interactive Diff2Html engine with side-by-side and unified viewing modes',
+      'Collapsible diff cards with file mutation statistics (+N / -N lines)',
+      'Direct integration with git worktrees and multi-session isolation',
     ],
-    screenshot: './screenshots/permission_diff.png',
-    imageAlt: 'AetherGrok System Permissions and Security Gate Modal',
+    techSpec: 'Diff2Html • PrismJS Syntax Tokenizer • KaTeX Expressions',
   },
   {
-    id: 'updates',
-    title: 'In-App Updates & Changelog',
-    badge: 'Lifecycle Management',
-    tagline: 'Automatic GitHub Release synchronization and SemVer detection.',
+    id: 'toolchain',
+    title: '1-Click Toolchain Setup Gate',
+    badge: 'Environment Setup',
+    category: 'Bootstrapping',
+    tagline: 'Automatic Grok CLI detection and background installation.',
     description:
-      'Stay current with in-app update checks connected directly to the official GitHub repository (`fiko942/aethergrok`). Inspect formatted release notes and download installers directly from the app.',
+      'Never suffer from missing CLI toolchain errors. On initial launch, AetherGrok inspects your system PATH and local binaries. If Grok Build is missing, it provides a 1-click installer gate executing Homebrew or native shell scripts directly from the UI.',
     bullets: [
-      'Direct synchronization with official fiko942/aethergrok GitHub Releases',
-      'In-app Markdown release notes and version history viewer',
-      'One-click direct platform package downloads for macOS and Windows',
+      'Automatic PATH and ~/.grok/bin binary verification on startup',
+      'Integrated 1-click Homebrew and curl installation pipeline with live log output',
+      'Zero manual terminal bootstrapping required for new developers',
     ],
-    screenshot: './screenshots/agent_modes.png',
-    imageAlt: 'AetherGrok In-App Check for Updates and Version History Modal',
+    techSpec: 'Homebrew CLI API • Shell Subprocess Runner • Live Diagnostics',
   },
 ];

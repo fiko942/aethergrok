@@ -1,93 +1,80 @@
 <script lang="ts">
   import { featuresData } from '../data/features';
-  import { CheckCircle2, ChevronRight } from 'lucide-svelte';
+  import {
+    Activity,
+    Layers,
+    Eye,
+    Mic,
+    FileCode,
+    Sparkles,
+    CheckCircle2,
+    Cpu,
+    ArrowUpRight
+  } from 'lucide-svelte';
 
-  let activeTabId = $state(featuresData[0].id);
-
-  let activeFeature = $derived(
-    featuresData.find((f) => f.id === activeTabId) || featuresData[0]
-  );
+  const iconMap: Record<string, any> = {
+    windowing: Layers,
+    'process-group': Cpu,
+    vision: Eye,
+    voice: Mic,
+    diffs: FileCode,
+    toolchain: Sparkles,
+  };
 </script>
 
 <section id="features" class="py-20 md:py-32 bg-white">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="text-center max-w-3xl mx-auto mb-16">
       <h2 class="text-xs font-bold uppercase tracking-widest text-blue-600 mb-2">
-        Feature Breakdown
+        Core Capabilities
       </h2>
       <p class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-        Everything Built for High-Stakes Development
+        Engineered for Sustained Developer Velocity
       </p>
       <p class="mt-4 text-base sm:text-lg text-slate-600">
-        Explore the deep capabilities that make AetherGrok a distinct, production-grade desktop client.
+        AetherGrok replaces terminal friction with high-performance desktop engineering. Every component is optimized for speed, precision, and reliability.
       </p>
     </div>
 
-    <!-- Feature Navigation Tabs -->
-    <div class="flex items-center justify-center gap-2 overflow-x-auto pb-4 mb-12 scrollbar-none">
-      <div class="inline-flex p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200/80">
-        {#each featuresData as feature}
-          <button
-            onclick={() => (activeTabId = feature.id)}
-            class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-150 whitespace-nowrap flex items-center gap-2 {activeTabId === feature.id
-              ? 'bg-white text-blue-700 shadow-sm border border-slate-200/60'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'}"
-          >
-            <span>{feature.title}</span>
-          </button>
-        {/each}
-      </div>
-    </div>
-
-    <!-- Active Feature Display Card -->
-    <div class="bg-slate-50 border border-slate-200/80 rounded-3xl p-6 sm:p-10 lg:p-12 shadow-sm">
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
-        <!-- Left: Text Content -->
-        <div class="lg:col-span-5 space-y-6">
-          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100/80 text-blue-800 border border-blue-200">
-            {activeFeature.badge}
-          </div>
-
-          <h3 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            {activeFeature.tagline}
-          </h3>
-
-          <p class="text-slate-600 text-sm sm:text-base leading-relaxed">
-            {activeFeature.description}
-          </p>
-
-          <!-- Bullet Points -->
-          <div class="pt-2 space-y-3">
-            {#each activeFeature.bullets as bullet}
-              <div class="flex items-start gap-3">
-                <CheckCircle2 class="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-                <span class="text-sm text-slate-700 font-medium">{bullet}</span>
+    <!-- 6-Card Feature Grid (Pure Code, Typography, & Architecture) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      {#each featuresData as feature}
+        {@const IconComponent = iconMap[feature.id] || Layers}
+        <div class="bg-slate-50/60 border border-slate-200/90 rounded-2xl p-7 flex flex-col justify-between hover:border-blue-300 hover:shadow-md hover:bg-white transition-all duration-200 group">
+          <div>
+            <div class="flex items-center justify-between mb-5">
+              <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-105 group-hover:bg-blue-600 group-hover:text-white transition-all duration-200">
+                <IconComponent class="w-6 h-6" />
               </div>
-            {/each}
-          </div>
-        </div>
-
-        <!-- Right: Screenshot Preview -->
-        <div class="lg:col-span-7">
-          <div class="relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-300 shadow-xl">
-            <div class="h-8 bg-slate-800/90 px-3.5 flex items-center gap-1.5 border-b border-slate-700">
-              <div class="w-2.5 h-2.5 rounded-full bg-slate-600"></div>
-              <div class="w-2.5 h-2.5 rounded-full bg-slate-600"></div>
-              <div class="w-2.5 h-2.5 rounded-full bg-slate-600"></div>
-              <span class="text-[11px] font-mono text-slate-400 ml-2 truncate">
-                {activeFeature.title} — AetherGrok Live View
+              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-white text-slate-700 border border-slate-200 shadow-2xs">
+                {feature.category}
               </span>
             </div>
 
-            <img
-              src="{activeFeature.screenshot}"
-              alt="{activeFeature.imageAlt}"
-              class="w-full h-auto object-cover max-h-[440px] block"
-              loading="lazy"
-            />
+            <h3 class="text-xl font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">
+              {feature.title}
+            </h3>
+
+            <p class="text-slate-600 text-sm leading-relaxed mb-6">
+              {feature.description}
+            </p>
+
+            <div class="space-y-2.5 border-t border-slate-200/80 pt-5 mb-6">
+              {#each feature.bullets as bullet}
+                <div class="flex items-start gap-2.5 text-xs text-slate-700">
+                  <CheckCircle2 class="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                  <span class="font-medium leading-relaxed">{bullet}</span>
+                </div>
+              {/each}
+            </div>
+          </div>
+
+          <div class="pt-4 border-t border-slate-200/60 flex items-center justify-between text-[11px] font-mono text-slate-500">
+            <span class="truncate">{feature.techSpec}</span>
+            <span class="inline-block w-1.5 h-1.5 rounded-full bg-blue-500"></span>
           </div>
         </div>
-      </div>
+      {/each}
     </div>
   </div>
 </section>
