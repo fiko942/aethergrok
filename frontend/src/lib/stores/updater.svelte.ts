@@ -153,10 +153,44 @@ export class UpdaterStore {
         throw new Error('DownloadAndInstallUpdate IPC bridge not available');
       }
 
-      // If a checksum asset exists (.sha256 or .sha256sum) in assets, extract its URL
+      // If a checksum asset exists (.sha256 or .sha256sum) matching the target asset, extract its URL
       let sha256Url = '';
-      if (this.latestRelease?.assets) {
-        const shaAsset = this.latestRelease.assets.find(a => a.name.endsWith('.sha256') || a.name.endsWith('.sha256sum') || a.name.includes('checksum'));
+      if (this.latestRelease?.assets && targetUrl) {
+        const targetFilename = targetUrl.split('/').pop()?.toLowerCase() || '';
+        // 1. Try to find exact match: <targetFilename>.sha256 or <targetFilename>.sha256sum
+        let shaAsset = this.latestRelease.assets.find(a => {
+          const lowerName = a.name.toLowerCase();
+          return lowerName === `${targetFilename}.sha256` || lowerName === `${targetFilename}.sha256sum`;
+        });
+
+        // 2. If no exact filename extension match, match by platform/arch substring
+        if (!shaAsset && targetFilename) {
+          const isArm64 = targetFilename.includes('arm64') || targetFilename.includes('aarch64');
+          const isAmd64 = targetFilename.includes('amd64') || targetFilename.includes('x64') || targetFilename.includes('intel');
+          const isDmg = targetFilename.endsWith('.dmg');
+          const isExe = targetFilename.endsWith('.exe');
+          const isZip = targetFilename.endsWith('.zip');
+
+          shaAsset = this.latestRelease.assets.find(a => {
+            const lowerName = a.name.toLowerCase();
+            const isChecksum = lowerName.endsWith('.sha256') || lowerName.endsWith('.sha256sum') || lowerName.includes('checksum');
+            if (!isChecksum) return false;
+
+            if (isDmg && !lowerName.includes('.dmg')) return false;
+            if (isExe && !lowerName.includes('.exe') && !lowerName.includes('setup')) return false;
+            if (isZip && !lowerName.includes('.zip')) return false;
+
+            if (isArm64 && (lowerName.includes('arm64') || lowerName.includes('aarch64'))) return true;
+            if (isAmd64 && (lowerName.includes('amd64') || lowerName.includes('x64') || lowerName.includes('intel'))) return true;
+            return false;
+          });
+        }
+
+        // 3. Fallback to generic checksum asset only if nothing else matched
+        if (!shaAsset) {
+          shaAsset = this.latestRelease.assets.find(a => a.name.endsWith('.sha256') || a.name.endsWith('.sha256sum') || a.name.includes('checksum'));
+        }
+
         if (shaAsset) {
           sha256Url = shaAsset.downloadUrl;
         }
