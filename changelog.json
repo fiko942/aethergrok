@@ -2,8 +2,101 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "AetherGrok Release Changelog",
   "description": "Central single source of truth for all AetherGrok releases, commit ranges, and download artifacts.",
-  "latest": "1.0.3",
+  "latest": "1.0.4",
   "releases": [
+    {
+      "version": "1.0.4",
+      "tag": "v1.0.4",
+      "date": "2026-09-28T10:47:31.044Z",
+      "title": "AetherGrok 1.0.4 - macOS Gatekeeper Guide, Saweria Donations & UI Refinements",
+      "targetCommit": "22ee690",
+      "previousCommit": "fce40da",
+      "highlights": [
+        "Add dedicated macOS Gatekeeper & Quarantine guides with automated unquarantine in install-app.sh",
+        "Integrate Saweria QRIS and E-Wallet donation modal with header heart button",
+        "Add official website link cards to desktop About AetherGrok modal",
+        "Upgrade comparison table with category filtering and high-contrast design",
+        "Auto-detect live releases on marketing website without manual edits"
+      ],
+      "commits": [
+        {
+          "hash": "22ee690",
+          "message": "fix(release): export homebrew path for go in release pre-flight checks"
+        },
+        {
+          "hash": "1124b3a",
+          "message": "feat(about): add official website link card to About AetherGrok modal"
+        },
+        {
+          "hash": "fb275fd",
+          "message": "style(ui): align donate heart button styling with standard header icon buttons"
+        },
+        {
+          "hash": "8313379",
+          "message": "feat(ui): add heart donate button to top header with dedicated Saweria popup modal"
+        },
+        {
+          "hash": "b02e11e",
+          "message": "style: translate Saweria donation card in SettingsModal to English"
+        },
+        {
+          "hash": "b7f93b8",
+          "message": "feat(installer): auto-remove macOS quarantine attributes in install-app.sh and update docs"
+        },
+        {
+          "hash": "c69f546",
+          "message": "feat: enhance comparison table, add macOS Gatekeeper & Quarantine guides to web and README"
+        },
+        {
+          "hash": "877f0ff",
+          "message": "feat: make release version and downloads live-synced from GitHub API, provide working 1-line install-app script, and switch repo to public"
+        },
+        {
+          "hash": "18e5ad6",
+          "message": "feat: integrate Saweria donation across app, web, and GitHub, and fix production favicon suite"
+        },
+        {
+          "hash": "5ec4621",
+          "message": "docs(superpowers): save official repo migration, release automation, and web landing page architecture plan"
+        },
+        {
+          "hash": "29c0dbd",
+          "message": "refactor(web): replace screenshot images with clean interactive terminal studio and structured 6-card feature grid"
+        },
+        {
+          "hash": "4a1c040",
+          "message": "fix(web): use authentic AetherGrok application UI screenshots in hero mockup and feature tabs"
+        },
+        {
+          "hash": "4d3a06b",
+          "message": "fix(web): replace favicon.ico and app icons with authentic AetherGrok metallic star emblem"
+        },
+        {
+          "hash": "29462f0",
+          "message": "fix(web): use official application icon.ico for favicon and update logo assets to appicon.png"
+        },
+        {
+          "hash": "3886a20",
+          "message": "feat(web): add single-page marketing landing page in web/ using Svelte 5 and Tailwind"
+        },
+        {
+          "hash": "05d44fe",
+          "message": "docs: balance comparison matrix and tone down toolchain descriptions to neutral architecture facts"
+        },
+        {
+          "hash": "abe412c",
+          "message": "docs: restructure README with direct binary downloads, architecture, and agent comparison matrix"
+        }
+      ],
+      "downloads": {
+        "macos_arm64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.0.4/AetherGrok-1.0.4-macOS-arm64.dmg",
+        "macos_x64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.0.4/AetherGrok-1.0.4-macOS-amd64.dmg",
+        "windows_x64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.0.4/AetherGrok-1.0.4-windows-amd64-setup.exe",
+        "windows_x64_portable": "https://github.com/fiko942/aethergrok/releases/download/v1.0.4/AetherGrok-1.0.4-windows-amd64-portable.zip",
+        "windows_arm64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.0.4/AetherGrok-1.0.4-windows-arm64-setup.exe",
+        "windows_arm64_portable": "https://github.com/fiko942/aethergrok/releases/download/v1.0.4/AetherGrok-1.0.4-windows-arm64-portable.zip"
+      }
+    },
     {
       "version": "1.0.3",
       "tag": "v1.0.3",
