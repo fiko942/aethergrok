@@ -23,6 +23,7 @@
   import { playCameraShutterSound } from '$lib/utils/audio';
   import { settingsStore } from '$lib/stores/settings.svelte';
   import { updaterStore } from '$lib/stores/updater.svelte';
+  import { ShortcutDetector, type DictationTriggerEvent } from '$lib/utils/shortcutDetector';
   import type { SkillItem, SnapshotResult } from './app.d';
   import {
     sessionStore,
@@ -61,6 +62,17 @@
   let emptyStateDropdownOpen = $state(false);
   let flashActive = $state(false);
   const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
+  // Shortcut detector for dictation triggers (push-to-talk & double-tap lock)
+  const shortcutDetector = new ShortcutDetector({
+    holdThresholdMs: settingsStore.dictationHoldThresholdMs || 300,
+    doubleTapThresholdMs: 350,
+    onTrigger: (event: DictationTriggerEvent) => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('aethergrok:dictation-trigger', { detail: event }));
+      }
+    }
+  });
 
   // Global Session Drag and Drop Overlay State
   let isSessionDragOver = $state(false);
@@ -242,7 +254,7 @@
   });
 
   function handleSelectSkill(skill: SkillItem) {
-    if (composerRef) {
+    if (composerRef && composerRef.appendText) {
       composerRef.appendText(`/${skill.name}`);
     }
   }
@@ -311,14 +323,18 @@
 
     // Attach image to composer vision context
     if (snapshotResult && settingsStore.snapshotAutoAttach && composerRef) {
-      composerRef.attachImage({
-        id: 'snap_' + Date.now(),
-        dataUrl: snapshotResult.dataUrl,
-        filePath: snapshotResult.filePath || `Screen Snapshot (${new Date().toLocaleTimeString()}).jpg`,
-        sizeBytes: snapshotResult.sizeBytes || Math.round((snapshotResult.dataUrl.length - (snapshotResult.dataUrl.indexOf(',') + 1)) * 0.75),
-        timestamp: Date.now()
-      });
-      composerRef.focusInput();
+      if (composerRef.attachImage) {
+        composerRef.attachImage({
+          id: 'snap_' + Date.now(),
+          dataUrl: snapshotResult.dataUrl,
+          filePath: snapshotResult.filePath || `Screen Snapshot (${new Date().toLocaleTimeString()}).jpg`,
+          sizeBytes: snapshotResult.sizeBytes || Math.round((snapshotResult.dataUrl.length - (snapshotResult.dataUrl.indexOf(',') + 1)) * 0.75),
+          timestamp: Date.now()
+        });
+      }
+      if (composerRef.focusInput) {
+        composerRef.focusInput();
+      }
     }
   }
 
@@ -554,7 +570,7 @@
     }
 
     // 4. Restore text, images, and attachments back into composer
-    if (composerRef) {
+    if (composerRef && composerRef.restorePrompt) {
       composerRef.restorePrompt({
         text: rollback.text,
         images: rollback.images,
@@ -804,6 +820,12 @@
 
   // Global Keyboard Shortcuts Handler
   function handleGlobalKeyDown(e: KeyboardEvent) {
+    // Feed dictation shortcut detector
+    const dictationEvent = shortcutDetector.feedKeyDown(e, settingsStore.dictationShortcut);
+    if (dictationEvent) {
+      window.dispatchEvent(new CustomEvent('aethergrok:dictation-trigger', { detail: dictationEvent }));
+    }
+
     const isMetaOrCtrl = e.metaKey || e.ctrlKey;
 
     // Smart Screen Snapshot (Customizable via settingsStore.snapshotShortcut)
@@ -878,6 +900,13 @@
     }
   }
 
+  function handleGlobalKeyUp(e: KeyboardEvent) {
+    const dictationEvent = shortcutDetector.feedKeyUp(e, settingsStore.dictationShortcut);
+    if (dictationEvent) {
+      window.dispatchEvent(new CustomEvent('aethergrok:dictation-trigger', { detail: dictationEvent }));
+    }
+  }
+
   // Global link click interceptor: ensures any external link clicked in the webview
   // opens in default OS browser (macOS Safari/Chrome/etc.) rather than navigating the app window
   function handleGlobalDocumentClick(e: MouseEvent) {
@@ -922,6 +951,7 @@
   onMount(() => {
     window.addEventListener('click', handleGlobalDocumentClick, true);
     window.addEventListener('keydown', handleGlobalKeyDown);
+    window.addEventListener('keyup', handleGlobalKeyUp);
     window.addEventListener('resize', handleWindowResize);
     handleWindowResize();
 
@@ -1093,6 +1123,7 @@
   onDestroy(() => {
     window.removeEventListener('click', handleGlobalDocumentClick, true);
     window.removeEventListener('keydown', handleGlobalKeyDown);
+    window.removeEventListener('keyup', handleGlobalKeyUp);
     window.removeEventListener('resize', handleWindowResize);
     window.removeEventListener('mousemove', handleResizeMove);
     window.removeEventListener('mouseup', handleResizeEnd);
@@ -1327,7 +1358,7 @@
                 sessionId={sessionStore.activeSession.id}
                 workspacePath={sessionStore.activeWorkspace?.path || ''}
                 onAttachLogToComposer={(logText) => {
-                  if (composerRef) {
+                  if (composerRef && composerRef.appendPrompt) {
                     composerRef.appendPrompt(logText);
                   }
                 }}
@@ -1351,7 +1382,7 @@
               sessionId={sessionStore.activeSession.id}
               workspacePath={sessionStore.activeWorkspace?.path || ''}
               onAttachLogToComposer={(logText) => {
-                if (composerRef) {
+                if (composerRef && composerRef.appendPrompt) {
                   composerRef.appendPrompt(logText);
                 }
               }}

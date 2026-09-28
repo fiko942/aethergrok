@@ -112,7 +112,32 @@
   let voiceErrorMessage = $state('');
   let voiceErrorDetails = $state('');
 
-  async function handleToggleVoiceRecording() {
+  let duckedVolumeState: { originalVolume: number; wasMuted: boolean } | null = null;
+  let dictationMode = $state<'idle' | 'hold' | 'locked'>('idle');
+
+  async function handleMuteSystemVolume() {
+    try {
+      if (settingsStore.dictationMuteSystemAudio && window.go?.main?.App?.MuteSystemVolume) {
+        duckedVolumeState = await window.go.main.App.MuteSystemVolume();
+      }
+    } catch (err) {
+      console.warn('Failed to mute system volume for dictation:', err);
+    }
+  }
+
+  async function handleRestoreSystemVolume() {
+    try {
+      if (duckedVolumeState && window.go?.main?.App?.RestoreSystemVolume) {
+        await window.go.main.App.RestoreSystemVolume(duckedVolumeState.originalVolume, duckedVolumeState.wasMuted);
+      }
+    } catch (err) {
+      console.warn('Failed to restore system volume after dictation:', err);
+    } finally {
+      duckedVolumeState = null;
+    }
+  }
+
+  async function startVoiceRecording(mode: 'hold' | 'locked' = 'locked') {
     if (voiceState === 'recording') {
       await handleStopVoiceRecording();
       return;
@@ -123,8 +148,12 @@
     }
 
     voiceError = null;
+    dictationMode = mode;
     voiceState = 'checking_permission';
     voiceStatusText = 'Checking microphone...';
+
+    // Mute system volume if enabled
+    await handleMuteSystemVolume();
 
     try {
       await voiceRecorder.startRecording(settingsStore.selectedMicrophoneDeviceId, (progress) => {
@@ -138,6 +167,8 @@
       });
     } catch (err: any) {
       voiceState = 'error';
+      dictationMode = 'idle';
+      await handleRestoreSystemVolume();
       const msg = err?.message || 'Failed to start microphone recording';
       voiceError = msg;
       voiceErrorMessage = 'Microphone recording could not be started.';
@@ -148,6 +179,14 @@
           voiceError = null;
         }
       }, 5000);
+    }
+  }
+
+  async function handleToggleVoiceRecording() {
+    if (voiceState === 'recording') {
+      await handleStopVoiceRecording();
+    } else {
+      await startVoiceRecording('locked');
     }
   }
 
@@ -205,14 +244,22 @@
           voiceError = null;
         }
       }, 5000);
+    } finally {
+      dictationMode = 'idle';
+      await handleRestoreSystemVolume();
     }
   }
 
   function handleCancelVoiceRecording() {
-    voiceRecorder.cancelRecording();
-    voiceState = 'idle';
-    voiceStatusText = '';
-    voiceError = null;
+    try {
+      voiceRecorder.cancelRecording();
+    } finally {
+      voiceState = 'idle';
+      voiceStatusText = '';
+      voiceError = null;
+      dictationMode = 'idle';
+      handleRestoreSystemVolume();
+    }
   }
 
   // Click outside listener for plus menu
@@ -222,12 +269,46 @@
     }
   }
 
+  // Event listeners for window click, blur, and dictation trigger
+  function handleDictationTrigger(e: Event) {
+    const customEvt = e as CustomEvent<{ type: string }>;
+    const eventType = customEvt.detail?.type;
+
+    if (eventType === 'hold-start') {
+      if (voiceState === 'idle') {
+        startVoiceRecording('hold');
+      }
+    } else if (eventType === 'hold-release') {
+      if (dictationMode === 'hold' && voiceState === 'recording') {
+        handleStopVoiceRecording();
+      }
+    } else if (eventType === 'double-tap-lock') {
+      if (voiceState === 'idle') {
+        startVoiceRecording('locked');
+      }
+    } else if (eventType === 'single-tap-unlock') {
+      if (dictationMode === 'locked' && voiceState === 'recording') {
+        handleStopVoiceRecording();
+      }
+    }
+  }
+
+  function handleWindowBlur() {
+    if (dictationMode === 'hold' && voiceState === 'recording') {
+      handleStopVoiceRecording();
+    }
+  }
+
   onMount(() => {
     window.addEventListener('click', handleWindowClick);
+    window.addEventListener('aethergrok:dictation-trigger', handleDictationTrigger);
+    window.addEventListener('blur', handleWindowBlur);
   });
 
   onDestroy(() => {
     window.removeEventListener('click', handleWindowClick);
+    window.removeEventListener('aethergrok:dictation-trigger', handleDictationTrigger);
+    window.removeEventListener('blur', handleWindowBlur);
   });
 
   // Elapsed execution timer state (in milliseconds and seconds)
@@ -1098,14 +1179,20 @@
               type="button"
               class="w-6 h-6 rounded-md flex items-center justify-center text-ant-text-muted hover:text-ant-text hover:bg-ant-bg-secondary transition border border-transparent hover:border-white/5"
               onclick={handleToggleVoiceRecording}
-              title="Voice Dictation (Talk to type via Grok)"
+              title={`Voice Dictation (${settingsStore.dictationShortcut ? `Double ${settingsStore.dictationShortcut} or Hold ${settingsStore.dictationShortcut}` : 'Talk to type'})`}
             >
               <Mic size={14} />
             </button>
           {:else if voiceState === 'recording'}
-            <div class="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/25 text-rose-400 text-[11px] font-mono animate-in fade-in duration-150">
-              <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
-              <span>{Math.floor(voiceSeconds / 60)}:{String(voiceSeconds % 60).padStart(2, '0')}</span>
+            <div class="flex items-center space-x-2 px-2.5 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/25 text-rose-400 text-[11px] font-mono animate-in fade-in duration-150 shadow-xs">
+              <span class="relative flex h-2 w-2">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+              </span>
+              <span class="px-1.5 py-0.2 rounded text-[9.5px] font-semibold tracking-wider uppercase {dictationMode === 'hold' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}">
+                {dictationMode === 'hold' ? 'PUSH-TO-TALK' : 'HANDS-FREE'}
+              </span>
+              <span class="font-medium text-rose-200">{Math.floor(voiceSeconds / 60)}:{String(voiceSeconds % 60).padStart(2, '0')}</span>
               <button
                 type="button"
                 onclick={handleStopVoiceRecording}

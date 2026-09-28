@@ -29,6 +29,9 @@ type AppSettings struct {
 	SidebarWidth               int     `json:"sidebarWidth"`
 	SidebarCollapsed           bool    `json:"sidebarCollapsed"`
 	SelectedMicrophoneDeviceID string  `json:"selectedMicrophoneDeviceId"`
+	DictationShortcut          string  `json:"dictationShortcut,omitempty"`
+	DictationMuteSystemAudio   *bool   `json:"dictationMuteSystemAudio,omitempty"`
+	DictationHoldThresholdMs   int     `json:"dictationHoldThresholdMs,omitempty"`
 	UpdatedAt                  int64   `json:"updatedAt,omitempty"`
 }
 
@@ -78,8 +81,15 @@ func DefaultSettings() AppSettings {
 		SidebarWidth:               288,
 		SidebarCollapsed:           false,
 		SelectedMicrophoneDeviceID: "",
+		DictationShortcut:          "Fn",
+		DictationMuteSystemAudio:   boolPtr(true),
+		DictationHoldThresholdMs:   300,
 		UpdatedAt:                  time.Now().UnixMilli(),
 	}
+}
+
+func boolPtr(b bool) *bool {
+	return &b
 }
 
 // NewStorageManager initializes or creates storage files under baseDir (or ~/.grok/)
@@ -141,6 +151,17 @@ func (sm *StorageManager) GetSettings() (AppSettings, error) {
 
 	if !found {
 		return DefaultSettings(), nil
+	}
+
+	// Apply default fallbacks for newly added fields if unset in stored entry
+	if latest.DictationShortcut == "" {
+		latest.DictationShortcut = "Fn"
+	}
+	if latest.DictationMuteSystemAudio == nil {
+		latest.DictationMuteSystemAudio = boolPtr(true)
+	}
+	if latest.DictationHoldThresholdMs <= 0 {
+		latest.DictationHoldThresholdMs = 300
 	}
 
 	return latest, nil

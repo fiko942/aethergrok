@@ -1,5 +1,5 @@
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
-export type LogCategory = 'UI' | 'SESSION' | 'TERMINAL' | 'VOICE' | 'BACKEND' | 'SETTINGS' | 'SYSTEM';
+export type LogCategory = 'UI' | 'SESSION' | 'TERMINAL' | 'VOICE' | 'BACKEND' | 'SETTINGS' | 'SYSTEM' | 'UPDATER';
 
 export interface LogEntry {
   id: string;

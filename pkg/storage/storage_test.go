@@ -25,11 +25,18 @@ func TestStorageManager_Settings(t *testing.T) {
 	if settings.Theme != "dark-studio" || settings.DefaultModel != "9router" {
 		t.Errorf("expected default settings, got %+v", settings)
 	}
+	if settings.DictationShortcut != "Fn" || settings.DictationMuteSystemAudio == nil || !*settings.DictationMuteSystemAudio || settings.DictationHoldThresholdMs != 300 {
+		t.Errorf("expected default dictation settings, got %+v", settings)
+	}
 
 	// 2. Save modified settings
 	settings.Theme = "light-antd"
 	settings.DefaultModel = "custom-model"
 	settings.PermissionMode = "bypassPermissions"
+	settings.DictationShortcut = "Cmd+D"
+	muteFalse := false
+	settings.DictationMuteSystemAudio = &muteFalse
+	settings.DictationHoldThresholdMs = 500
 	if err := sm.SaveSettings(settings); err != nil {
 		t.Fatalf("SaveSettings failed: %v", err)
 	}
@@ -41,6 +48,42 @@ func TestStorageManager_Settings(t *testing.T) {
 	}
 	if reloaded.Theme != "light-antd" || reloaded.DefaultModel != "custom-model" || reloaded.PermissionMode != "bypassPermissions" {
 		t.Errorf("expected updated settings, got %+v", reloaded)
+	}
+	if reloaded.DictationShortcut != "Cmd+D" || reloaded.DictationMuteSystemAudio == nil || *reloaded.DictationMuteSystemAudio != false || reloaded.DictationHoldThresholdMs != 500 {
+		t.Errorf("expected updated dictation settings, got %+v", reloaded)
+	}
+}
+
+func TestStorageManager_Settings_DictationFallback(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "aethergrok_storage_fallback_test_*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	sm, err := NewStorageManager(tempDir)
+	if err != nil {
+		t.Fatalf("failed to init storage: %v", err)
+	}
+
+	// Write raw legacy settings line missing dictation fields
+	legacyJSON := `{"theme":"dark-studio","defaultModel":"9router"}` + "\n"
+	if err := os.WriteFile(sm.settingsFile, []byte(legacyJSON), 0644); err != nil {
+		t.Fatalf("failed to write legacy settings: %v", err)
+	}
+
+	loaded, err := sm.GetSettings()
+	if err != nil {
+		t.Fatalf("GetSettings failed: %v", err)
+	}
+	if loaded.DictationShortcut != "Fn" {
+		t.Errorf("expected DictationShortcut 'Fn', got %q", loaded.DictationShortcut)
+	}
+	if loaded.DictationMuteSystemAudio == nil || !*loaded.DictationMuteSystemAudio {
+		t.Errorf("expected DictationMuteSystemAudio true, got %v", loaded.DictationMuteSystemAudio)
+	}
+	if loaded.DictationHoldThresholdMs != 300 {
+		t.Errorf("expected DictationHoldThresholdMs 300, got %d", loaded.DictationHoldThresholdMs)
 	}
 }
 

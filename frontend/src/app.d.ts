@@ -194,6 +194,8 @@ declare global {
           RequestMicrophonePermission: () => Promise<{ granted: boolean; message: string; platform: string }>;
           GetSystemAudioInputDevices: () => Promise<Array<{ name: string; isDefault: boolean; transport: string; manufacturer: string }>>;
           OpenMicrophoneSettings: () => Promise<void>;
+          MuteSystemVolume: () => Promise<{ originalVolume: number; wasMuted: boolean }>;
+          RestoreSystemVolume: (prevVolume: number, wasMuted: boolean) => Promise<void>;
           SaveVoiceAudioRecording: (base64Data: string, ext: string) => Promise<string>;
           DeleteVoiceAudioRecording: (filePath: string) => Promise<void>;
           TranscribeAudioWithGrok: (workspacePath: string, audioFilePath: string) => Promise<string>;
