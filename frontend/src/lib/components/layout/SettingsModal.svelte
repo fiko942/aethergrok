@@ -1583,26 +1583,47 @@
                 </button>
               </div>
 
-              <!-- Open Source & Developer Portfolio Links -->
-              <div class="grid grid-cols-2 gap-3.5">
+              <!-- Links Grid (Website, GitHub, Developer Portfolio) -->
+              <div class="grid grid-cols-3 gap-3">
+                <!-- Official Landing Page Card -->
+                <button
+                  type="button"
+                  onclick={() => openExternal('https://aethergrok.streampeg.com')}
+                  class="p-3.5 rounded-xl bg-ant-bg border border-ant-border-secondary hover:border-ant-primary/40 hover:bg-ant-bg-secondary/40 space-y-2.5 flex flex-col justify-between transition text-left cursor-pointer group shadow-2xs"
+                >
+                  <div class="space-y-1">
+                    <div class="flex items-center space-x-1.5 text-ant-text group-hover:text-ant-primary transition-colors">
+                      <Globe size={15} class="text-ant-primary" />
+                      <span class="text-xs font-semibold">Official Website</span>
+                    </div>
+                    <p class="text-[10.5px] text-ant-text-secondary leading-relaxed">
+                      Product landing page, live releases, downloads, and documentation.
+                    </p>
+                  </div>
+                  <div class="inline-flex items-center justify-between w-full px-2.5 py-1.5 rounded-lg text-[11px] font-mono bg-ant-primary/10 border-0 group-hover:bg-ant-primary/20 text-ant-primary transition">
+                    <span class="truncate">aethergrok.streampeg.com</span>
+                    <ExternalLink size={11} class="opacity-80 group-hover:opacity-100 ml-1 flex-shrink-0" />
+                  </div>
+                </button>
+
                 <!-- GitHub Repository Card -->
                 <button
                   type="button"
                   onclick={() => openExternal('https://github.com/fiko942/aethergrok')}
-                  class="p-4 rounded-xl bg-ant-bg border border-ant-border-secondary hover:border-ant-primary/40 hover:bg-ant-bg-secondary/40 space-y-3 flex flex-col justify-between transition text-left cursor-pointer group shadow-2xs"
+                  class="p-3.5 rounded-xl bg-ant-bg border border-ant-border-secondary hover:border-ant-primary/40 hover:bg-ant-bg-secondary/40 space-y-2.5 flex flex-col justify-between transition text-left cursor-pointer group shadow-2xs"
                 >
-                  <div class="space-y-1.5">
-                    <div class="flex items-center space-x-2 text-ant-text group-hover:text-ant-primary transition-colors">
-                      <Github size={16} class="text-ant-primary" />
-                      <span class="text-xs font-semibold">Open-Source Project</span>
+                  <div class="space-y-1">
+                    <div class="flex items-center space-x-1.5 text-ant-text group-hover:text-ant-primary transition-colors">
+                      <Github size={15} class="text-ant-primary" />
+                      <span class="text-xs font-semibold">GitHub Repository</span>
                     </div>
-                    <p class="text-[11px] text-ant-text-secondary leading-relaxed">
+                    <p class="text-[10.5px] text-ant-text-secondary leading-relaxed">
                       Source code, issue tracking, and contributions on GitHub.
                     </p>
                   </div>
-                  <div class="inline-flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-mono bg-ant-bg-secondary border-0 text-ant-text transition">
+                  <div class="inline-flex items-center justify-between w-full px-2.5 py-1.5 rounded-lg text-[11px] font-mono bg-ant-bg-secondary border-0 text-ant-text transition">
                     <span class="truncate">github.com/fiko942/aethergrok</span>
-                    <ExternalLink size={12} class="opacity-60 group-hover:opacity-100 ml-1.5 flex-shrink-0" />
+                    <ExternalLink size={11} class="opacity-60 group-hover:opacity-100 ml-1 flex-shrink-0" />
                   </div>
                 </button>
 
@@ -1610,20 +1631,20 @@
                 <button
                   type="button"
                   onclick={() => openExternal('https://wijifikoteren.streampeg.com')}
-                  class="p-4 rounded-xl bg-ant-bg border border-ant-border-secondary hover:border-ant-primary/40 hover:bg-ant-bg-secondary/40 space-y-3 flex flex-col justify-between transition text-left cursor-pointer group shadow-2xs"
+                  class="p-3.5 rounded-xl bg-ant-bg border border-ant-border-secondary hover:border-ant-primary/40 hover:bg-ant-bg-secondary/40 space-y-2.5 flex flex-col justify-between transition text-left cursor-pointer group shadow-2xs"
                 >
-                  <div class="space-y-1.5">
-                    <div class="flex items-center space-x-2 text-ant-text group-hover:text-ant-primary transition-colors">
-                      <Globe size={16} class="text-ant-primary" />
+                  <div class="space-y-1">
+                    <div class="flex items-center space-x-1.5 text-ant-text group-hover:text-ant-primary transition-colors">
+                      <Sparkles size={15} class="text-amber-500" />
                       <span class="text-xs font-semibold">Developer Portfolio</span>
                     </div>
-                    <p class="text-[11px] text-ant-text-secondary leading-relaxed">
+                    <p class="text-[10.5px] text-ant-text-secondary leading-relaxed">
                       Personal portfolio, software projects, design experiments, and writing.
                     </p>
                   </div>
-                  <div class="inline-flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-mono bg-ant-primary/10 border-0 group-hover:bg-ant-primary/20 text-ant-primary transition">
+                  <div class="inline-flex items-center justify-between w-full px-2.5 py-1.5 rounded-lg text-[11px] font-mono bg-ant-bg-secondary border-0 text-ant-text group-hover:text-ant-primary transition">
                     <span class="truncate">wijifikoteren.streampeg.com</span>
-                    <ExternalLink size={12} class="opacity-80 group-hover:opacity-100 ml-1.5 flex-shrink-0" />
+                    <ExternalLink size={11} class="opacity-60 group-hover:opacity-100 ml-1 flex-shrink-0" />
                   </div>
                 </button>
               </div>
