@@ -542,7 +542,10 @@
     "build:mac": "./build-macos.sh",
     "release": "node scripts/release.mjs",
     "wails:dev": "wails dev",
-    "wails:build": "wails build"
+    "wails:build": "wails build",
+    "web:dev": "npm --prefix web run dev",
+    "web:build": "npm --prefix web run build",
+    "web:preview": "npm --prefix web run preview"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
