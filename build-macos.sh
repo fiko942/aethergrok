@@ -118,40 +118,82 @@ echo -e "\n${YELLOW}Signing macOS Application bundle with Designated Requirement
 codesign --force --deep --sign - --requirements '= designated => identifier "com.fiko942.aethergrok"' "$APP_BUNDLE" || true
 codesign -vvv "$APP_BUNDLE" || true
 
-# 4. Prepare and package .dmg Installer
-echo -e "\n${YELLOW}Step 4/6: Creating macOS .dmg Installer...${NC}"
+# 4. Prepare and package .dmg Installer with Custom Styling & Layout
+echo -e "\n${YELLOW}Step 4/5: Creating Styled macOS .dmg Installer...${NC}"
+
+DMG_TMP="$BUILD_DIR/AetherGrok_tmp_${TARGET_ARCH}.dmg"
+DMG_OUTPUT="$BUILD_DIR/AetherGrok-${VERSION}-macOS-${TARGET_ARCH}.dmg"
+rm -f "$DMG_TMP" "$DMG_OUTPUT"
 
 DMG_STAGE_DIR="$BUILD_DIR/dmg_stage_${TARGET_ARCH}"
 rm -rf "$DMG_STAGE_DIR"
 mkdir -p "$DMG_STAGE_DIR"
 
-DMG_OUTPUT="$BUILD_DIR/AetherGrok-${VERSION}-macOS-${TARGET_ARCH}.dmg"
-rm -f "$DMG_OUTPUT"
-
-echo "Staging application bundle..."
+echo "Staging application bundle and background image..."
 cp -R "$APP_BUNDLE" "$DMG_STAGE_DIR/AetherGrok.app"
+ln -s /Applications "$DMG_STAGE_DIR/Applications"
 
-echo "Creating compressed DMG installer with hdiutil..."
-for attempt in 1 2 3; do
-  if hdiutil create \
-    -volname "$APP_NAME" \
-    -srcfolder "$DMG_STAGE_DIR" \
-    -ov \
-    -format UDZO \
-    -noanyowners \
-    "$DMG_OUTPUT"; then
-    break
-  fi
-  echo -e "${YELLOW}hdiutil create attempt $attempt failed, retrying in 2 seconds...${NC}"
-  sleep 2
-done
+# Add custom background folder
+mkdir -p "$DMG_STAGE_DIR/.background"
+if [ -f "$PROJECT_ROOT/resources/dmg-background.png" ]; then
+  cp "$PROJECT_ROOT/resources/dmg-background.png" "$DMG_STAGE_DIR/.background/background.png"
+fi
+
+# Create a writable temporary disk image
+echo "Creating writable disk image..."
+hdiutil create \
+  -volname "$APP_NAME" \
+  -srcfolder "$DMG_STAGE_DIR" \
+  -ov \
+  -fs HFS+ \
+  -format UDRW \
+  "$DMG_TMP"
 
 rm -rf "$DMG_STAGE_DIR"
+
+# Mount the temporary image to apply Finder view layout & icon coordinates
+echo "Mounting disk image to configure Finder layout..."
+hdiutil attach "$DMG_TMP" -noverify -noautoopen
+
+# AppleScript to configure Finder presentation (Window size 660x420, icon 128, left: 180, right: 480)
+echo "Applying custom Finder view options, bounds, and icon positions..."
+osascript -e "
+tell application \"Finder\"
+  set theDisk to disk \"$APP_NAME\"
+  open theDisk
+  set theWindow to container window of theDisk
+  set current view of theWindow to icon view
+  set toolbar visible of theWindow to false
+  set statusbar visible of theWindow to false
+  set the bounds of theWindow to {400, 100, 1060, 520}
+  set opts to the icon view options of theWindow
+  set arrangement of opts to not arranged
+  set icon size of opts to 128
+  if exists file \".background:background.png\" of theDisk then
+    set background picture of opts to file \".background:background.png\" of theDisk
+  end if
+  set position of item \"AetherGrok.app\" of theDisk to {180, 220}
+  set position of item \"Applications\" of theDisk to {480, 220}
+  update theDisk without registering applications
+  delay 1
+  close theWindow
+end tell
+" || true
+
+# Sync disk and detach
+sync
+hdiutil detach "/Volumes/$APP_NAME" -force || true
+
+# Convert temporary read-write image to compressed read-only production DMG (UDZO)
+echo "Converting to compressed read-only DMG installer..."
+hdiutil convert "$DMG_TMP" -format UDZO -imagekey zlib-level=9 -o "$DMG_OUTPUT" -ov
+rm -f "$DMG_TMP"
+
 if [ ! -f "$DMG_OUTPUT" ]; then
   echo -e "${RED}Error: Failed to create DMG installer.${NC}"
   exit 1
 fi
-echo -e "${GREEN}✓ DMG Installer package ready: $(basename "$DMG_OUTPUT")${NC}"
+echo -e "${GREEN}✓ Styled DMG Installer package ready: $(basename "$DMG_OUTPUT")${NC}"
 
 # 5. Generate Checksums
 echo -e "\n${YELLOW}Step 5/5: Generating SHA256 Checksums...${NC}"
