@@ -115,7 +115,7 @@ fi
 
 # Resign bundle with explicit Designated Requirement (avoids Gatekeeper broken signature after Plist injection)
 echo -e "\n${YELLOW}Signing macOS Application bundle with Designated Requirement...${NC}"
-codesign --force --deep --sign - --requirements '= designated => identifier "com.wails.aethergrok"' "$APP_BUNDLE" || true
+codesign --force --deep --sign - --requirements '= designated => identifier "com.fiko942.aethergrok"' "$APP_BUNDLE" || true
 codesign -vvv "$APP_BUNDLE" || true
 
 # 4. Prepare and package .dmg Installer

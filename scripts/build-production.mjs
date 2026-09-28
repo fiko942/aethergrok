@@ -169,11 +169,11 @@ function postProcessMacBundle() {
         { stdio: 'ignore' }
       );
 
-      // Re-sign the app bundle with a persistent designated requirement (DR) tied to identifier "com.wails.aethergrok"
+      // Re-sign the app bundle with a persistent designated requirement (DR) tied to identifier "com.fiko942.aethergrok"
       // This ensures macOS TCC preserves granted permissions across app updates and rebuilds
       spawnSync(
         'codesign',
-        ['--force', '--deep', '--sign', '-', '--requirements', '= designated => identifier "com.wails.aethergrok"', appBundle],
+        ['--force', '--deep', '--sign', '-', '--requirements', '= designated => identifier "com.fiko942.aethergrok"', appBundle],
         { stdio: 'ignore' }
       );
     } catch {
