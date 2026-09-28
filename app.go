@@ -24,6 +24,7 @@ import (
 	"aethergrok/pkg/screen"
 	"aethergrok/pkg/skills"
 	"aethergrok/pkg/storage"
+	"aethergrok/pkg/system"
 	"aethergrok/pkg/terminal"
 	"aethergrok/pkg/updater"
 	"aethergrok/pkg/workspace"
@@ -760,6 +761,32 @@ func (a *App) GetSystemAudioInputDevices() ([]permissions.AudioDeviceInfo, error
 // OpenMicrophoneSettings opens macOS System Settings to Microphone panel
 func (a *App) OpenMicrophoneSettings() error {
 	return permissions.OpenMicrophonePreferences()
+}
+
+// VolumeMuteResult stores the system audio state prior to muting
+type VolumeMuteResult struct {
+	OriginalVolume int  `json:"originalVolume"`
+	WasMuted       bool `json:"wasMuted"`
+}
+
+// MuteSystemVolume mutes the system audio master output and returns the previous volume state
+func (a *App) MuteSystemVolume() (*VolumeMuteResult, error) {
+	state, err := system.MuteSystemVolume()
+	if err != nil {
+		return nil, err
+	}
+	return &VolumeMuteResult{
+		OriginalVolume: state.OriginalVolume,
+		WasMuted:       state.WasMuted,
+	}, nil
+}
+
+// RestoreSystemVolume restores the system audio volume to its previous state
+func (a *App) RestoreSystemVolume(prevVolume int, wasMuted bool) error {
+	return system.RestoreSystemVolume(system.SystemVolumeState{
+		OriginalVolume: prevVolume,
+		WasMuted:       wasMuted,
+	})
 }
 
 // SaveVoiceAudioRecording writes recorded base64 audio data to a temporary file in ~/.grok/voice_cache
