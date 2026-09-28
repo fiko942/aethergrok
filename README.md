@@ -50,38 +50,39 @@ Download the latest signed release directly for macOS and Windows.
 
 ## 🎯 Why AetherGrok? The Problem & Solution
 
-### The Friction in Contemporary AI Coding
-Autonomous coding agents operating purely inside terminal emulators or webviews face distinct operational limitations:
-1. **DOM Degradation & Memory Leaks**: Rendering long conversational turns with dozens of diff blocks and terminal outputs degrades webviews and Electron apps after continuous sessions.
-2. **Terminal Visual Occlusion**: CLI agents cannot display inline rich graphical diffs, side-by-side file comparisons, drag-and-drop screenshots, or interactive skill catalogs alongside terminal executions.
-3. **Flaky Background Process Management**: Stopping or steering an agent mid-turn in standard wrappers often leaves orphaned bash processes running or terminates child processes abruptly without state synchronization.
-4. **Environment Bootstrapping Hassle**: Developers without pre-installed CLI toolchains encounter cryptic setup errors instead of managed dependency resolution.
+### Focused Operational Considerations
+Different autonomous coding and agent environments are built with distinct architectural priorities:
+1. **Long-Session UI Responsiveness**: Continuous multi-step agent conversations produce high volumes of rich diffs and terminal logs. Managing DOM memory pressure and scroll positioning is essential for long-running workflows.
+2. **Visual & Rich Media Ergonomics**: Terminal workflows excel at raw text input, while graphical interfaces provide complementary inline side-by-side diff viewers, drag-and-drop vision snapshots, and visual skill discovery catalogs.
+3. **Subprocess Lifecycle Control**: Managing background subprocess trees cleanly across cancellations, steering prompts, and session resets requires robust OS-level process management.
+4. **Environment Setup**: Different developer tools utilize distinct distribution channels (package managers, binary downloads, or containerized environments).
 
-### The AetherGrok Solution
-AetherGrok bridges high-throughput Go backend engineering with Svelte 5 fine-grained reactivity to produce a native desktop GUI:
-- **Low Memory Footprint**: Uses OS-native webview rendering through Wails v2 without bundling multi-hundred megabyte Chromium runtimes.
-- **10-Turn Windowing Engine**: Maintains constant memory consumption across 100+ turn conversations by dynamically virtualizing DOM nodes while preserving viewport scroll anchors.
-- **Mid-Turn Live Steering & Process Group Supervision**: Direct Unix process group isolation (`Setpgid`) and 16ms token batching enable zero-lag steering without process death.
-- **Automated 1-Click Toolchain Detection & Installer**: Detects missing `grok` CLI binaries on startup and executes automated background Homebrew or shell installations directly from the UI.
+### The AetherGrok Architecture
+AetherGrok pairs a lightweight Go backend with Svelte 5 fine-grained reactivity:
+- **Low Resource Usage**: Uses native OS webviews via Wails v2 (~35 MB baseline RAM) with Go concurrency.
+- **10-Turn Windowing Engine**: Renders active conversational turns in a virtualized DOM window with scroll anchor preservation.
+- **Subprocess Group Supervision**: Manages process groups with POSIX `setpgid` and Windows Job Objects alongside a 16ms token stream buffer.
+- **In-App CLI Detection**: Checks for local CLI availability on startup with integrated setup assistance.
 
 ---
 
 ## 📊 Technical Comparison Matrix
 
-A factual comparison of desktop capabilities, architecture, resource usage, and interaction models across autonomous coding tools:
+An objective overview of architectural approaches and design characteristics across developer environments:
 
-| Feature / Metric | **AetherGrok Desktop** | **Anthropic Claude Code** | **OpenAI Codex CLI** | **Google Antigravity / CUA** |
+| Metric / Dimension | **AetherGrok Desktop** | **Anthropic Claude Code** | **OpenAI Codex CLI** | **Antigravity / CUA Agents** |
 | :--- | :--- | :--- | :--- | :--- |
-| **Primary Interface** | Native Desktop GUI (Wails v2 + Svelte 5) | Terminal CLI (Node.js) | Terminal CLI / ACP Wrapper | Desktop CUA / Web Sandbox |
-| **Runtime Footprint** | ~35 MB RAM (Go + Native OS Webview) | ~180 MB RAM (Node.js runtime) | ~140 MB RAM (Python / Node) | ~450+ MB RAM (Electron / PyAutoGUI) |
-| **Long Session Performance** | **10-Turn DOM Windowing** (Zero lag at 100+ turns) | Terminal scrollback buffer limit | Terminal stdout buffer limit | High DOM/Canvas re-render load |
-| **Live Mid-Turn Steering** | **Supported** (Inject prompt while working) | Requires turn interrupt / cancellation | Partial support via ACP | Limited by UI action queue |
-| **Process Group Control** | **POSIX `setpgid` & Windows Job Objects** | `child_process` process tree | System subprocess | OS accessibility input injection |
-| **Screen Snapshot & Vision** | **Non-Intrusive OS-Exclusion Capture** | Manual file path reference | Manual file path reference | Full screen grab + OS pixel automation |
-| **Voice Dictation & Push-to-Talk**| **Supported** (Real-time live audio bars & auto-mute)| Not supported | Not supported | Audio input dependent on host |
-| **Visual Diff Viewer** | **Syntax-highlighted Side-by-Side & Unified Diffs**| Unified terminal ANSI diffs | Unified terminal ANSI diffs | Screenshot comparison |
-| **Skills & Extensions Catalog** | **Visual Catalog (`~/.grok/skills`)** | CLI slash commands | Config file hooks | Pre-recorded automation graphs |
-| **Toolchain Auto-Install** | **1-Click Built-in Installer Gate** | Manual `npm install -g` | Manual setup | Manual Docker / environment setup |
+| **Primary Interaction Mode** | Desktop Studio (Wails v2 + Svelte 5) | Terminal REPL (Node.js CLI) | Terminal CLI / ACP Wrapper | Desktop & Web Automation Agent |
+| **Interface Style** | Graphical UI with Visual Diffs & Chat | Terminal Text Interface | Terminal Text Interface | Visual Canvas & OS Interaction |
+| **Host Environment** | Standalone Native Binary (Go + Webview) | Global Node.js Package (`npm`) | Python / CLI Executable | Native / Electron / Python Runner |
+| **Long Session Handling** | 10-Turn DOM Virtualization Windowing | Terminal Buffer Management | Terminal Buffer Management | Session History Management |
+| **Mid-Turn Steerability** | In-flight message injection & queue | Turn pause and re-prompt | ACP method protocol | Action queue adjustment |
+| **Process Management** | POSIX `setpgid` & Windows Job Objects | Node.js `child_process` tree | Standard system subprocess | OS Accessibility & Input APIs |
+| **Screen Context Input** | Compositor-synced OS snapshot | File reference / attachment | File reference / attachment | Native OS Screen Pixels / CUA |
+| **Voice Input Support** | Integrated Push-to-Talk with visualizer | Host terminal audio dependent | Host terminal audio dependent | Host environment dependent |
+| **Diff Presentation** | Visual Side-by-Side & Unified Diffs | Terminal ANSI colored diffs | Terminal ANSI colored diffs | Visual inspection / file view |
+| **Ecosystem Extensibility** | Visual Skills Hub (`~/.grok/skills`) | CLI Slash Commands & Markdown | Configuration Hooks & APIs | Predefined Automation Workflows |
+| **Setup & Installation** | Standalone DMG / Setup + CLI Helper | `npm install -g @anthropic-ai/claude-code` | Package manager / CLI binary | Environment setup / Python packages |
 
 ---
 
