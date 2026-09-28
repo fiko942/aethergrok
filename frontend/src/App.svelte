@@ -1233,16 +1233,16 @@
     </div>
 
     <div class="flex items-center space-x-2 shrink-0" style="--wails-draggable:no-drag">
-      <!-- Donate Heart Button (Left of Snapshot) -->
+      <!-- Donate Heart Button (Aligned with Ant Design icon button design system) -->
       <Tooltip title="Support Developer (Saweria & QRIS)" placement="bottom">
-        <button
-          type="button"
+        <Button
+          size="small"
+          type="default"
           onclick={() => donateModalVisible = true}
-          class="h-6.5 px-2 rounded-md bg-rose-500/10 hover:bg-rose-500/20 active:scale-95 text-rose-500 dark:text-rose-400 border border-rose-500/30 flex items-center justify-center transition-all cursor-pointer shadow-2xs group"
-          aria-label="Support Developer"
+          class="!px-2 !h-6.5 group hover:!border-rose-500/40 relative"
         >
-          <Heart size={13} class="fill-rose-500/20 group-hover:fill-rose-500 transition-colors" />
-        </button>
+          <Heart size={14} class="text-ant-text-secondary group-hover:text-rose-400 group-hover:fill-rose-500/25 transition-colors" />
+        </Button>
       </Tooltip>
 
       <Button size="small" type="primary" onclick={performGlobalSnapshot}>
