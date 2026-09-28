@@ -116,6 +116,29 @@
   let dictationMode = $state<'idle' | 'hold' | 'locked'>('idle');
   let pendingStopRequested = false;
 
+  // Real-time 4-bar volume visualizer state
+  let volumeLevels = $state<[number, number, number, number]>([0.2, 0.25, 0.3, 0.2]);
+  let visualizerAnimFrame: number | null = null;
+
+  function startVolumeVisualizer() {
+    if (visualizerAnimFrame) cancelAnimationFrame(visualizerAnimFrame);
+    const tickAnim = () => {
+      if (voiceState === 'recording') {
+        volumeLevels = voiceRecorder.getVolumeLevels();
+        visualizerAnimFrame = requestAnimationFrame(tickAnim);
+      }
+    };
+    visualizerAnimFrame = requestAnimationFrame(tickAnim);
+  }
+
+  function stopVolumeVisualizer() {
+    if (visualizerAnimFrame) {
+      cancelAnimationFrame(visualizerAnimFrame);
+      visualizerAnimFrame = null;
+    }
+    volumeLevels = [0.2, 0.25, 0.3, 0.2];
+  }
+
   async function handleMuteSystemVolume() {
     try {
       if (settingsStore.dictationMuteSystemAudio && window.go?.main?.App?.MuteSystemVolume) {
@@ -168,12 +191,15 @@
         }
       });
 
+      startVolumeVisualizer();
+
       // If user already released the key while microphone was initializing, stop immediately
       if (pendingStopRequested) {
         pendingStopRequested = false;
         await handleStopVoiceRecording();
       }
     } catch (err: any) {
+      stopVolumeVisualizer();
       voiceState = 'error';
       dictationMode = 'idle';
       pendingStopRequested = false;
@@ -200,6 +226,7 @@
   }
 
   async function handleStopVoiceRecording() {
+    stopVolumeVisualizer();
     try {
       const { blob, ext } = await voiceRecorder.stopRecording();
       voiceState = 'transcribing';
@@ -260,6 +287,7 @@
   }
 
   function handleCancelVoiceRecording() {
+    stopVolumeVisualizer();
     try {
       voiceRecorder.cancelRecording();
     } finally {
@@ -1201,15 +1229,27 @@
               <Mic size={14} />
             </button>
           {:else if voiceState === 'recording'}
-            <div class="flex items-center space-x-2 px-2.5 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/25 text-rose-400 text-[11px] font-mono animate-in fade-in duration-150 shadow-xs">
-              <span class="relative flex h-2 w-2">
+            <div class="flex items-center space-x-2 px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/25 text-rose-300 text-[11px] font-mono animate-in fade-in duration-150 shadow-xs">
+              <!-- Pulsing recording dot -->
+              <span class="relative flex h-2 w-2 flex-shrink-0">
                 <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75"></span>
                 <span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
               </span>
-              <span class="px-1.5 py-0.2 rounded text-[9.5px] font-semibold tracking-wider uppercase {dictationMode === 'hold' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}">
-                {dictationMode === 'hold' ? 'PUSH-TO-TALK' : 'HANDS-FREE'}
-              </span>
-              <span class="font-medium text-rose-200">{Math.floor(voiceSeconds / 60)}:{String(voiceSeconds % 60).padStart(2, '0')}</span>
+
+              <!-- 4-Bar Dynamic Audio Volume Equalizer -->
+              <div class="flex items-center gap-[2.5px] h-3.5 px-0.5" title="Microphone input level">
+                {#each volumeLevels as level, idx}
+                  <span
+                    class="w-[2.5px] rounded-full bg-rose-400 transition-all duration-75 ease-out shadow-[0_0_6px_rgba(244,63,94,0.4)]"
+                    style="height: {Math.max(3, Math.min(14, Math.round(level * 14)))}px;"
+                  ></span>
+                {/each}
+              </div>
+
+              <!-- Duration Counter -->
+              <span class="font-mono font-medium text-rose-200 tabular-nums">{Math.floor(voiceSeconds / 60)}:{String(voiceSeconds % 60).padStart(2, '0')}</span>
+
+              <!-- Stop Button -->
               <button
                 type="button"
                 onclick={handleStopVoiceRecording}

@@ -36,6 +36,9 @@ export class VoiceRecorderManager {
   private audioChunks: Blob[] = [];
   private recordingTimer: number | null = null;
   private startTime: number = 0;
+  private audioCtx: AudioContext | null = null;
+  private analyser: AnalyserNode | null = null;
+  private dataArray: Uint8Array<ArrayBuffer> | null = null;
 
   /**
    * Enumerate connected audio input devices (microphones) with dual-layer native & browser metadata
@@ -266,6 +269,22 @@ export class VoiceRecorderManager {
       }
     };
 
+    // Initialize Web Audio API AnalyserNode for real-time 4-bar equalizer
+    try {
+      const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtxClass && this.audioStream) {
+        this.audioCtx = new AudioCtxClass();
+        const source = this.audioCtx.createMediaStreamSource(this.audioStream);
+        this.analyser = this.audioCtx.createAnalyser();
+        this.analyser.fftSize = 64;
+        this.analyser.smoothingTimeConstant = 0.5;
+        source.connect(this.analyser);
+        this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+      }
+    } catch (err) {
+      console.warn('Failed to initialize voice analyzer:', err);
+    }
+
     this.startTime = Date.now();
     this.mediaRecorder.start(250); // Slice every 250ms
 
@@ -355,8 +374,58 @@ export class VoiceRecorderManager {
       this.audioStream.getTracks().forEach((track) => track.stop());
       this.audioStream = null;
     }
+    if (this.audioCtx) {
+      try {
+        this.audioCtx.close();
+      } catch {
+        // ignore
+      }
+      this.audioCtx = null;
+    }
+    this.analyser = null;
+    this.dataArray = null;
     this.mediaRecorder = null;
     this.audioChunks = [];
+  }
+
+  /**
+   * Samples current audio stream and returns 4 normalized frequency bar heights (0.0 to 1.0)
+   */
+  getVolumeLevels(): [number, number, number, number] {
+    if (!this.analyser || !this.dataArray) {
+      return [0.15, 0.2, 0.2, 0.15];
+    }
+
+    try {
+      this.analyser.getByteFrequencyData(this.dataArray as any);
+      const bins = this.dataArray;
+      const binCount = bins.length; // 32 bins with fftSize 64
+
+      // Divide into 4 bands: Sub/Bass, Low-Mid Voice, Core Voice, High Presence
+      const q = Math.floor(binCount / 4);
+      const b1 = this.avgBand(bins, 0, q);
+      const b2 = this.avgBand(bins, q, q * 2);
+      const b3 = this.avgBand(bins, q * 2, q * 3);
+      const b4 = this.avgBand(bins, q * 3, binCount);
+
+      return [
+        Math.max(0.1, Math.min(1.0, b1 / 180)),
+        Math.max(0.15, Math.min(1.0, b2 / 160)),
+        Math.max(0.15, Math.min(1.0, b3 / 160)),
+        Math.max(0.1, Math.min(1.0, b4 / 180)),
+      ];
+    } catch {
+      return [0.15, 0.2, 0.2, 0.15];
+    }
+  }
+
+  private avgBand(bins: Uint8Array, start: number, end: number): number {
+    let sum = 0;
+    const len = Math.max(1, end - start);
+    for (let i = start; i < end && i < bins.length; i++) {
+      sum += bins[i];
+    }
+    return sum / len;
   }
 
   /**
