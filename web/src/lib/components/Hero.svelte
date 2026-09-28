@@ -11,13 +11,26 @@
     Terminal,
     Code,
     Cpu,
-    Play,
     Check
   } from 'lucide-svelte';
-  import { releaseVersion, githubRepo } from '../data/downloads';
+  import { githubRepo, fetchLiveLatestRelease, type LatestReleaseInfo } from '../data/downloads';
+  import { onMount } from 'svelte';
 
-  const defaultMacUrl = `${githubRepo}/releases/download/v${releaseVersion}/AetherGrok-${releaseVersion}-macOS-arm64.dmg`;
-  const defaultWinUrl = `${githubRepo}/releases/download/v${releaseVersion}/AetherGrok-${releaseVersion}-windows-amd64-setup.exe`;
+  let releaseInfo = $state<LatestReleaseInfo | null>(null);
+
+  onMount(async () => {
+    releaseInfo = await fetchLiveLatestRelease();
+  });
+
+  const displayVersion = $derived(releaseInfo?.tagName || 'v1.0.3');
+  const macArmUrl = $derived(
+    releaseInfo?.assets.find((a) => a.name.includes('arm64') && a.name.endsWith('.dmg'))?.browser_download_url ||
+    `${githubRepo}/releases/latest`
+  );
+  const winSetupUrl = $derived(
+    releaseInfo?.assets.find((a) => a.name.includes('setup.exe') || a.name.endsWith('.exe'))?.browser_download_url ||
+    `${githubRepo}/releases/latest`
+  );
 </script>
 
 <section class="relative pt-12 pb-20 md:pt-20 md:pb-28 overflow-hidden bg-gradient-to-b from-slate-50 via-white to-white">
@@ -29,9 +42,9 @@
       <!-- Announcement Pill -->
       <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-blue-50 text-blue-800 border border-blue-200/80 mb-8 shadow-sm">
         <Sparkles class="w-4 h-4 text-blue-600" />
-        <span>AetherGrok v{releaseVersion} is live with Full Repo Auto-Updates</span>
+        <span>AetherGrok {displayVersion} is live on GitHub Releases</span>
         <a href="#downloads" class="font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-0.5 ml-1">
-          Get it <ArrowRight class="w-3.5 h-3.5" />
+          Downloads <ArrowRight class="w-3.5 h-3.5" />
         </a>
       </div>
 
@@ -49,22 +62,22 @@
         Autonomous software engineering without terminal friction or memory bloat. Engineered with Go 1.24 and Svelte 5, delivering 10-turn DOM windowing, live mid-turn steering, visual code reviews, and instant vision snapshots.
       </p>
 
-      <!-- CTA Buttons -->
+      <!-- CTA Buttons (Direct to Latest Releases dynamically) -->
       <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
         <a
-          href="{defaultMacUrl}"
+          href="{macArmUrl}"
           class="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 text-base font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.99] rounded-xl shadow-md hover:shadow-lg transition-all duration-150 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         >
           <Download class="w-5 h-5" />
-          <span>Download for macOS (Apple Silicon)</span>
+          <span>Download for macOS (Latest)</span>
         </a>
 
         <a
-          href="{defaultWinUrl}"
+          href="{winSetupUrl}"
           class="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 text-base font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-xl shadow-sm hover:shadow transition-all duration-150 focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
         >
           <Download class="w-5 h-5 text-slate-500" />
-          <span>Windows Setup (.exe)</span>
+          <span>Windows Releases</span>
         </a>
 
         <a
@@ -94,12 +107,12 @@
         </div>
         <div class="flex items-center gap-1.5">
           <ShieldCheck class="w-4 h-4 text-indigo-500" />
-          <span>Signed macOS & Windows Binaries</span>
+          <span>Public GitHub Releases</span>
         </div>
       </div>
     </div>
 
-    <!-- Clean Interactive Code & Architecture Studio Preview (No Screenshot) -->
+    <!-- Clean Interactive Code & Architecture Studio Preview -->
     <div class="mt-16 sm:mt-20 max-w-4xl mx-auto">
       <div class="rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden">
         <!-- Studio Chrome / Title Bar -->
@@ -165,7 +178,7 @@
             <span>•</span>
             <span>ducking: enabled</span>
             <span>•</span>
-            <span>diff-engine: diff2html</span>
+            <span>release: {displayVersion}</span>
           </div>
         </div>
       </div>

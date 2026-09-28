@@ -1,6 +1,15 @@
 <script lang="ts">
-  import { githubRepo, releaseVersion } from '../data/downloads';
-  import { Github, Heart, Shield, Terminal } from 'lucide-svelte';
+  import { githubRepo, fetchLiveLatestRelease, type LatestReleaseInfo } from '../data/downloads';
+  import { Github, Heart, Shield, Terminal, Coffee } from 'lucide-svelte';
+  import { onMount } from 'svelte';
+
+  let releaseInfo = $state<LatestReleaseInfo | null>(null);
+
+  onMount(async () => {
+    releaseInfo = await fetchLiveLatestRelease();
+  });
+
+  const displayVersion = $derived(releaseInfo?.tagName || 'v1.0.3');
 </script>
 
 <footer class="bg-slate-900 text-slate-400 py-12 sm:py-16 border-t border-slate-800">
@@ -36,7 +45,7 @@
           <li><a href="#features" class="hover:text-white transition-colors">Vision Screen Capture</a></li>
           <li><a href="#features" class="hover:text-white transition-colors">Voice Push-to-Talk</a></li>
           <li><a href="#comparison" class="hover:text-white transition-colors">Comparison Matrix</a></li>
-          <li><a href="#downloads" class="hover:text-white transition-colors">Latest Release (v{releaseVersion})</a></li>
+          <li><a href="#downloads" class="hover:text-white transition-colors">Latest Release ({displayVersion})</a></li>
         </ul>
       </div>
 
@@ -59,12 +68,23 @@
           </li>
           <li>
             <a
-              href="{githubRepo}/releases"
+              href="{githubRepo}/releases/latest"
               target="_blank"
               rel="noopener noreferrer"
               class="hover:text-white transition-colors"
             >
-              Release Notes & History
+              Latest Release ({displayVersion})
+            </a>
+          </li>
+          <li>
+            <a
+              href="https://saweria.co/wijifikoteren"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="hover:text-amber-400 flex items-center gap-1 text-amber-400 font-medium transition-colors"
+            >
+              <Coffee class="w-4 h-4" />
+              <span>Donasi Saweria</span>
             </a>
           </li>
           <li>
@@ -75,14 +95,6 @@
               class="hover:text-white transition-colors"
             >
               Issue Tracker
-            </a>
-          </li>
-          <li>
-            <a
-              href="#sponsors"
-              class="hover:text-white transition-colors"
-            >
-              Sponsors & Backers
             </a>
           </li>
         </ul>

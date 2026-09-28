@@ -5,11 +5,20 @@
     Sparkles,
     Menu,
     X,
-    ExternalLink
+    ExternalLink,
+    Coffee
   } from 'lucide-svelte';
-  import { releaseVersion, githubRepo } from '../data/downloads';
+  import { githubRepo, fetchLiveLatestRelease, type LatestReleaseInfo } from '../data/downloads';
+  import { onMount } from 'svelte';
 
+  let releaseInfo = $state<LatestReleaseInfo | null>(null);
   let mobileMenuOpen = $state(false);
+
+  onMount(async () => {
+    releaseInfo = await fetchLiveLatestRelease();
+  });
+
+  const displayVersion = $derived(releaseInfo?.tagName || 'v1.0.3');
 
   function toggleMobileMenu() {
     mobileMenuOpen = !mobileMenuOpen;
@@ -34,7 +43,7 @@
           AetherGrok
         </span>
         <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-          v{releaseVersion}
+          {displayVersion}
         </span>
       </div>
     </a>
@@ -50,8 +59,9 @@
       <a href="#downloads" class="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
         Downloads
       </a>
-      <a href="#sponsors" class="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
-        Sponsors
+      <a href="#sponsors" class="text-sm font-medium text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition-colors">
+        <Coffee class="w-4 h-4 text-amber-500" />
+        <span>Donasi (Saweria)</span>
       </a>
       <a
         href="{githubRepo}"
@@ -72,7 +82,7 @@
         class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm hover:shadow transition-all duration-150 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
       >
         <Download class="w-4 h-4" />
-        <span>Get AetherGrok</span>
+        <span>Download {displayVersion}</span>
       </a>
     </div>
 
@@ -114,14 +124,14 @@
         onclick={closeMobileMenu}
         class="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-50"
       >
-        Downloads
+        Downloads ({displayVersion})
       </a>
       <a
         href="#sponsors"
         onclick={closeMobileMenu}
-        class="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-50"
+        class="block px-3 py-2 rounded-md text-base font-medium text-amber-700 hover:text-amber-800 hover:bg-amber-50"
       >
-        Sponsors
+        Donasi Saweria
       </a>
       <a
         href="{githubRepo}"
@@ -139,7 +149,7 @@
           class="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-base font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm"
         >
           <Download class="w-5 h-5" />
-          <span>Download App</span>
+          <span>Download App ({displayVersion})</span>
         </a>
       </div>
     </div>

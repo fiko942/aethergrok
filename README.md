@@ -30,21 +30,23 @@
 
 ## 📦 Direct Binary Downloads
 
-Download the latest signed release directly for macOS and Windows.
+Download the latest signed release directly for macOS and Windows from the [Latest GitHub Release](https://github.com/fiko942/aethergrok/releases/latest).
 
 ### macOS Installers (macOS 11+)
-| Architecture | Format | Download Link | Checksum |
+| Architecture | Format | Direct Download (Latest Release) | Checksum |
 | :--- | :--- | :--- | :--- |
-| **Apple Silicon (M1 / M2 / M3 / M4)** | Styled `.dmg` | [Download `AetherGrok-1.0.3-macOS-arm64.dmg`](https://github.com/fiko942/aethergrok/releases/download/v1.0.3/AetherGrok-1.0.3-macOS-arm64.dmg) | [SHA256](https://github.com/fiko942/aethergrok/releases/download/v1.0.3/AetherGrok-1.0.3-macOS-arm64.dmg.sha256) |
-| **Intel x86_64** | Styled `.dmg` | [Download `AetherGrok-1.0.3-macOS-amd64.dmg`](https://github.com/fiko942/aethergrok/releases/download/v1.0.3/AetherGrok-1.0.3-macOS-amd64.dmg) | [SHA256](https://github.com/fiko942/aethergrok/releases/download/v1.0.3/AetherGrok-1.0.3-macOS-amd64.dmg.sha256) |
+| **Apple Silicon (M1 / M2 / M3 / M4)** | Styled `.dmg` | [Download macOS ARM64 DMG (Latest)](https://github.com/fiko942/aethergrok/releases/latest) | [Verify Checksum](https://github.com/fiko942/aethergrok/releases/latest) |
+| **Intel x86_64** | Styled `.dmg` | [Download macOS AMD64 DMG (Latest)](https://github.com/fiko942/aethergrok/releases/latest) | [Verify Checksum](https://github.com/fiko942/aethergrok/releases/latest) |
+
+### Quick Terminal Install (macOS / Linux)
+```bash
+curl -fsSL https://raw.githubusercontent.com/fiko942/aethergrok/main/scripts/install-app.sh | bash
+```
 
 ### Windows Packages (Windows 10 / 11 64-bit)
-| Architecture | Format | Download Link | Checksum |
-| :--- | :--- | :--- | :--- |
-| **x64 (AMD64)** | Setup Installer `.exe` | [Download `AetherGrok-1.0.3-windows-amd64-setup.exe`](https://github.com/fiko942/aethergrok/releases/download/v1.0.3/AetherGrok-1.0.3-windows-amd64-setup.exe) | [Release Assets](https://github.com/fiko942/aethergrok/releases/tag/v1.0.3) |
-| **x64 (AMD64)** | Standalone Portable `.zip` | [Download `AetherGrok-1.0.3-windows-amd64-portable.zip`](https://github.com/fiko942/aethergrok/releases/download/v1.0.3/AetherGrok-1.0.3-windows-amd64-portable.zip) | [Release Assets](https://github.com/fiko942/aethergrok/releases/tag/v1.0.3) |
-| **ARM64** | Setup Installer `.exe` | [Download `AetherGrok-1.0.3-windows-arm64-setup.exe`](https://github.com/fiko942/aethergrok/releases/download/v1.0.3/AetherGrok-1.0.3-windows-arm64-setup.exe) | [Release Assets](https://github.com/fiko942/aethergrok/releases/tag/v1.0.3) |
-| **ARM64** | Standalone Portable `.zip` | [Download `AetherGrok-1.0.3-windows-arm64-portable.zip`](https://github.com/fiko942/aethergrok/releases/download/v1.0.3/AetherGrok-1.0.3-windows-arm64-portable.zip) | [Release Assets](https://github.com/fiko942/aethergrok/releases/tag/v1.0.3) |
+| Architecture | Format | Download Link |
+| :--- | :--- | :--- |
+| **x64 / ARM64** | Setup Installer & Portable Zip | [Browse Latest Windows Releases](https://github.com/fiko942/aethergrok/releases/latest) |
 
 > 💡 **Auto-Update**: AetherGrok includes built-in background update notifications and one-click GitHub Release synchronization.
 
