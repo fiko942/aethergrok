@@ -127,7 +127,7 @@
 
       <button
         type="button"
-        onclick={() => updaterStore.openDownload('https://github.com/fiko942/grok-build/releases')}
+        onclick={() => updaterStore.openDownload('https://github.com/fiko942/aethergrok/releases')}
         class="px-2.5 py-1.5 rounded-lg text-xs font-serif text-ant-text-secondary hover:text-ant-text bg-ant-bg-secondary hover:bg-ant-bg-tertiary transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap flex-shrink-0"
         title="View repository releases on GitHub"
       >
@@ -303,7 +303,7 @@
 
         <button
           type="button"
-          onclick={() => updaterStore.openDownload(`https://github.com/fiko942/grok-build/releases/tag/${updaterStore.latestRelease?.tagName}`)}
+          onclick={() => updaterStore.openDownload(`https://github.com/fiko942/aethergrok/releases/tag/${updaterStore.latestRelease?.tagName}`)}
           class="text-xs text-ant-text-secondary hover:text-ant-primary transition flex items-center gap-1 cursor-pointer font-sans"
         >
           <span>Full Release Notes</span>

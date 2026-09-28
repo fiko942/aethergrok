@@ -309,7 +309,7 @@ func loadLocalChangelog() ([]ReleaseInfo, error) {
 // FetchReleases retrieves release info from GitHub API with local fallback
 func FetchReleases(repo string) ([]ReleaseInfo, error) {
 	if repo == "" {
-		repo = "fiko942/grok-build"
+		repo = "fiko942/aethergrok"
 	}
 
 	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/releases?per_page=20", repo)

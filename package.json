@@ -9,13 +9,13 @@
     "url": "https://www.productcompass.pm"
   },
   "license": "FSL-1.1-MIT",
-  "homepage": "https://github.com/phuryn/grok-build-vscode",
+  "homepage": "https://github.com/fiko942/aethergrok",
   "bugs": {
-    "url": "https://github.com/phuryn/grok-build-vscode/issues"
+    "url": "https://github.com/fiko942/aethergrok/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/phuryn/grok-build-vscode"
+    "url": "https://github.com/fiko942/aethergrok"
   },
   "engines": {
     "vscode": "^1.106.0"

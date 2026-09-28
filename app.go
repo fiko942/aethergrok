@@ -1202,12 +1202,12 @@ func (a *App) PullWorkspaceChanges(workspacePath string) (string, error) {
 func (a *App) CheckForUpdates(currentVersion string) (*updater.UpdateCheckResult, error) {
 	osName := runtime.GOOS
 	arch := runtime.GOARCH
-	return updater.CheckForUpdates(currentVersion, "fiko942/grok-build", osName, arch)
+	return updater.CheckForUpdates(currentVersion, "fiko942/aethergrok", osName, arch)
 }
 
 // GetChangelogHistory retrieves parsed release history and changelog notes
 func (a *App) GetChangelogHistory() ([]updater.ReleaseInfo, error) {
-	return updater.FetchReleases("fiko942/grok-build")
+	return updater.FetchReleases("fiko942/aethergrok")
 }
 
 // DownloadAndInstallUpdate coordinates streaming download, checksum verification, and native installation

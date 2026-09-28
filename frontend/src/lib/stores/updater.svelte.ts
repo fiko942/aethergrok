@@ -193,7 +193,7 @@ export class UpdaterStore {
   }
 
   async openDownload(url?: string): Promise<void> {
-    const targetUrl = url || this.matchedAsset?.downloadUrl || (this.latestRelease ? `https://github.com/fiko942/grok-build/releases/tag/${this.latestRelease.tagName}` : undefined);
+    const targetUrl = url || this.matchedAsset?.downloadUrl || (this.latestRelease ? `https://github.com/fiko942/aethergrok/releases/tag/${this.latestRelease.tagName}` : undefined);
     
     if (!targetUrl) {
       logger.warn('UI', 'No download URL available to open');

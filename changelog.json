@@ -172,12 +172,12 @@
         }
       ],
       "downloads": {
-        "macos_arm64_dmg": "https://github.com/fiko942/grok-build/releases/download/v1.0.2/AetherGrok-1.0.2-macOS-arm64.dmg",
-        "macos_x64_dmg": "https://github.com/fiko942/grok-build/releases/download/v1.0.2/AetherGrok-1.0.2-macOS-amd64.dmg",
-        "windows_x64_setup": "https://github.com/fiko942/grok-build/releases/download/v1.0.2/AetherGrok-1.0.2-windows-amd64-setup.exe",
-        "windows_x64_portable": "https://github.com/fiko942/grok-build/releases/download/v1.0.2/AetherGrok-1.0.2-windows-amd64-portable.zip",
-        "windows_arm64_setup": "https://github.com/fiko942/grok-build/releases/download/v1.0.2/AetherGrok-1.0.2-windows-arm64-setup.exe",
-        "windows_arm64_portable": "https://github.com/fiko942/grok-build/releases/download/v1.0.2/AetherGrok-1.0.2-windows-arm64-portable.zip"
+        "macos_arm64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.0.2/AetherGrok-1.0.2-macOS-arm64.dmg",
+        "macos_x64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.0.2/AetherGrok-1.0.2-macOS-amd64.dmg",
+        "windows_x64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.0.2/AetherGrok-1.0.2-windows-amd64-setup.exe",
+        "windows_x64_portable": "https://github.com/fiko942/aethergrok/releases/download/v1.0.2/AetherGrok-1.0.2-windows-amd64-portable.zip",
+        "windows_arm64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.0.2/AetherGrok-1.0.2-windows-arm64-setup.exe",
+        "windows_arm64_portable": "https://github.com/fiko942/aethergrok/releases/download/v1.0.2/AetherGrok-1.0.2-windows-arm64-portable.zip"
       }
     },
     {
@@ -236,14 +236,14 @@
         }
       ],
       "downloads": {
-        "macos_arm64_dmg": "https://github.com/fiko942/grok-build/releases/download/v1.0.1/AetherGrok-1.0.1-macOS-arm64.dmg",
-        "macos_arm64_portable": "https://github.com/fiko942/grok-build/releases/download/v1.0.1/AetherGrok-1.0.1-macOS-arm64-portable.tar.gz",
-        "macos_x64_dmg": "https://github.com/fiko942/grok-build/releases/download/v1.0.1/AetherGrok-1.0.1-macOS-x64.dmg",
-        "macos_x64_portable": "https://github.com/fiko942/grok-build/releases/download/v1.0.1/AetherGrok-1.0.1-macOS-x64-portable.tar.gz",
-        "windows_x64_setup": "https://github.com/fiko942/grok-build/releases/download/v1.0.1/AetherGrok-1.0.1-windows-x64-setup.exe",
-        "windows_x64_portable": "https://github.com/fiko942/grok-build/releases/download/v1.0.1/AetherGrok-1.0.1-windows-x64-portable.zip",
-        "windows_arm64_setup": "https://github.com/fiko942/grok-build/releases/download/v1.0.1/AetherGrok-1.0.1-windows-arm64-setup.exe",
-        "windows_arm64_portable": "https://github.com/fiko942/grok-build/releases/download/v1.0.1/AetherGrok-1.0.1-windows-arm64-portable.zip"
+        "macos_arm64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.0.1/AetherGrok-1.0.1-macOS-arm64.dmg",
+        "macos_arm64_portable": "https://github.com/fiko942/aethergrok/releases/download/v1.0.1/AetherGrok-1.0.1-macOS-arm64-portable.tar.gz",
+        "macos_x64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.0.1/AetherGrok-1.0.1-macOS-x64.dmg",
+        "macos_x64_portable": "https://github.com/fiko942/aethergrok/releases/download/v1.0.1/AetherGrok-1.0.1-macOS-x64-portable.tar.gz",
+        "windows_x64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.0.1/AetherGrok-1.0.1-windows-x64-setup.exe",
+        "windows_x64_portable": "https://github.com/fiko942/aethergrok/releases/download/v1.0.1/AetherGrok-1.0.1-windows-x64-portable.zip",
+        "windows_arm64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.0.1/AetherGrok-1.0.1-windows-arm64-setup.exe",
+        "windows_arm64_portable": "https://github.com/fiko942/aethergrok/releases/download/v1.0.1/AetherGrok-1.0.1-windows-arm64-portable.zip"
       }
     },
     {
@@ -274,14 +274,14 @@
         }
       ],
       "downloads": {
-        "macos_arm64_dmg": "https://github.com/fiko942/grok-build/releases/download/v1.0.0/AetherGrok-1.0.0-macOS-arm64.dmg",
-        "macos_arm64_portable": "https://github.com/fiko942/grok-build/releases/download/v1.0.0/AetherGrok-1.0.0-macOS-arm64-portable.tar.gz",
-        "macos_x64_dmg": "https://github.com/fiko942/grok-build/releases/download/v1.0.0/AetherGrok-1.0.0-macOS-x64.dmg",
-        "macos_x64_portable": "https://github.com/fiko942/grok-build/releases/download/v1.0.0/AetherGrok-1.0.0-macOS-x64-portable.tar.gz",
-        "windows_x64_setup": "https://github.com/fiko942/grok-build/releases/download/v1.0.0/AetherGrok-1.0.0-windows-x64-setup.exe",
-        "windows_x64_portable": "https://github.com/fiko942/grok-build/releases/download/v1.0.0/AetherGrok-1.0.0-windows-x64-portable.zip",
-        "windows_arm64_setup": "https://github.com/fiko942/grok-build/releases/download/v1.0.0/AetherGrok-1.0.0-windows-arm64-setup.exe",
-        "windows_arm64_portable": "https://github.com/fiko942/grok-build/releases/download/v1.0.0/AetherGrok-1.0.0-windows-arm64-portable.zip"
+        "macos_arm64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.0.0/AetherGrok-1.0.0-macOS-arm64.dmg",
+        "macos_arm64_portable": "https://github.com/fiko942/aethergrok/releases/download/v1.0.0/AetherGrok-1.0.0-macOS-arm64-portable.tar.gz",
+        "macos_x64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.0.0/AetherGrok-1.0.0-macOS-x64.dmg",
+        "macos_x64_portable": "https://github.com/fiko942/aethergrok/releases/download/v1.0.0/AetherGrok-1.0.0-macOS-x64-portable.tar.gz",
+        "windows_x64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.0.0/AetherGrok-1.0.0-windows-x64-setup.exe",
+        "windows_x64_portable": "https://github.com/fiko942/aethergrok/releases/download/v1.0.0/AetherGrok-1.0.0-windows-x64-portable.zip",
+        "windows_arm64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.0.0/AetherGrok-1.0.0-windows-arm64-setup.exe",
+        "windows_arm64_portable": "https://github.com/fiko942/aethergrok/releases/download/v1.0.0/AetherGrok-1.0.0-windows-arm64-portable.zip"
       }
     }
   ]

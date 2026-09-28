@@ -159,7 +159,7 @@ function getRepoInfo() {
   if (match) {
     return { owner: match[1], repo: match[2] };
   }
-  return { owner: 'fiko942', repo: 'grok-build' };
+  return { owner: 'fiko942', repo: 'aethergrok' };
 }
 
 // SemVer Bump Helper

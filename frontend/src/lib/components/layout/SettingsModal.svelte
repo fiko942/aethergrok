@@ -461,7 +461,7 @@
               Settings & Workspace Preferences
               <button
                 type="button"
-                onclick={() => openExternal('https://github.com/fiko942/grok-build')}
+                onclick={() => openExternal('https://github.com/fiko942/aethergrok')}
                 class="px-2 py-0.5 text-[10px] font-serif font-medium bg-ant-primary/15 hover:bg-ant-primary/25 text-ant-primary rounded-full transition cursor-pointer flex items-center gap-1 border-0"
                 title="View AetherGrok repository on GitHub"
               >
@@ -1566,7 +1566,7 @@
                 <!-- GitHub Repository Card -->
                 <button
                   type="button"
-                  onclick={() => openExternal('https://github.com/fiko942/grok-build')}
+                  onclick={() => openExternal('https://github.com/fiko942/aethergrok')}
                   class="p-4 rounded-xl bg-ant-bg border border-ant-border-secondary hover:border-ant-primary/40 hover:bg-ant-bg-secondary/40 space-y-3 flex flex-col justify-between transition text-left cursor-pointer group shadow-2xs"
                 >
                   <div class="space-y-1.5">
@@ -1579,7 +1579,7 @@
                     </p>
                   </div>
                   <div class="inline-flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-mono bg-ant-bg-secondary border-0 text-ant-text transition">
-                    <span class="truncate">github.com/fiko942/grok-build</span>
+                    <span class="truncate">github.com/fiko942/aethergrok</span>
                     <ExternalLink size={12} class="opacity-60 group-hover:opacity-100 ml-1.5 flex-shrink-0" />
                   </div>
                 </button>
