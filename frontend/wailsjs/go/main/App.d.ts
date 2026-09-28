@@ -8,6 +8,7 @@ import {updater} from '../models';
 import {grokrunner} from '../models';
 import {storage} from '../models';
 import {skills} from '../models';
+import {main} from '../models';
 
 export function AppendSystemLog(arg1:logger.LogEntry):Promise<void>;
 
@@ -91,6 +92,8 @@ export function LoadGrokSessionHistory(arg1:string,arg2:string):Promise<Array<gr
 
 export function LoadPersistedLogs(arg1:number):Promise<Array<logger.LogEntry>>;
 
+export function MuteSystemVolume():Promise<main.VolumeMuteResult>;
+
 export function OpenAccessibilitySettings():Promise<void>;
 
 export function OpenExternalURL(arg1:string):Promise<void>;
@@ -114,6 +117,8 @@ export function RequestMicrophonePermission():Promise<permissions.Status>;
 export function ResizeTerminal(arg1:string,arg2:number,arg3:number):Promise<void>;
 
 export function RespondPermission(arg1:grokrunner.PermissionResponse):Promise<void>;
+
+export function RestoreSystemVolume(arg1:number,arg2:boolean):Promise<void>;
 
 export function RevealGrokConfigFile():Promise<void>;
 

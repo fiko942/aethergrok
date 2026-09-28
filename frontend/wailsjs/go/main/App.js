@@ -166,6 +166,10 @@ export function LoadPersistedLogs(arg1) {
   return window['go']['main']['App']['LoadPersistedLogs'](arg1);
 }
 
+export function MuteSystemVolume() {
+  return window['go']['main']['App']['MuteSystemVolume']();
+}
+
 export function OpenAccessibilitySettings() {
   return window['go']['main']['App']['OpenAccessibilitySettings']();
 }
@@ -212,6 +216,10 @@ export function ResizeTerminal(arg1, arg2, arg3) {
 
 export function RespondPermission(arg1) {
   return window['go']['main']['App']['RespondPermission'](arg1);
+}
+
+export function RestoreSystemVolume(arg1, arg2) {
+  return window['go']['main']['App']['RestoreSystemVolume'](arg1, arg2);
 }
 
 export function RevealGrokConfigFile() {

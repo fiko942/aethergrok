@@ -381,7 +381,7 @@
     settingsStore.updateSettings({
       grokBinaryPath: editGrokBinaryPath.trim() || '/Users/fiko942/.local/bin/grok',
       snapshotShortcut: editSnapshotShortcut.trim() || 'CmdOrCtrl+Shift+S',
-      dictationShortcut: editDictationShortcut.trim() || 'Fn',
+      dictationShortcut: editDictationShortcut.trim() || '\\',
       dictationMuteSystemAudio: editDictationMuteSystemAudio,
       snapshotDelayMs: Math.max(10, Math.min(2000, Number(editSnapshotDelayMs) || 50)),
       snapshotAutoHideWindow: editSnapshotAutoHide,
@@ -1265,9 +1265,9 @@
                       <button
                         type="button"
                         class="px-2.5 py-1.5 text-xs rounded-lg bg-ant-bg border border-ant-border-secondary hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-text transition"
-                        onclick={() => editDictationShortcut = 'Fn'}
+                        onclick={() => editDictationShortcut = '\\'}
                       >
-                        Reset Default (Fn)
+                        Reset Default (\)
                       </button>
                     </div>
                   </div>

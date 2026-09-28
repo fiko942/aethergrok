@@ -25,7 +25,7 @@ func TestStorageManager_Settings(t *testing.T) {
 	if settings.Theme != "dark-studio" || settings.DefaultModel != "9router" {
 		t.Errorf("expected default settings, got %+v", settings)
 	}
-	if settings.DictationShortcut != "Fn" || settings.DictationMuteSystemAudio == nil || !*settings.DictationMuteSystemAudio || settings.DictationHoldThresholdMs != 300 {
+	if settings.DictationShortcut != "\\" || settings.DictationMuteSystemAudio == nil || !*settings.DictationMuteSystemAudio || settings.DictationHoldThresholdMs != 300 {
 		t.Errorf("expected default dictation settings, got %+v", settings)
 	}
 
@@ -76,7 +76,7 @@ func TestStorageManager_Settings_DictationFallback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetSettings failed: %v", err)
 	}
-	if loaded.DictationShortcut != "Fn" {
+	if loaded.DictationShortcut != "\\" {
 		t.Errorf("expected DictationShortcut 'Fn', got %q", loaded.DictationShortcut)
 	}
 	if loaded.DictationMuteSystemAudio == nil || !*loaded.DictationMuteSystemAudio {

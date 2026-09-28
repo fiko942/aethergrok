@@ -38,11 +38,8 @@ describe('ShortcutDetector', () => {
 
   describe('Shortcut Matching', () => {
     it('matches Fn / Globe key in various browser representations', () => {
-      expect(detector.matchesShortcut(createKeyEvent({ key: 'Fn' }), 'Fn')).toBe(true);
-      expect(detector.matchesShortcut(createKeyEvent({ code: 'Fn' }), 'Fn')).toBe(true);
-      expect(detector.matchesShortcut(createKeyEvent({ key: 'Globe' }), 'Fn')).toBe(true);
-      expect(detector.matchesShortcut(createKeyEvent({ key: 'Function' }), 'Fn')).toBe(true);
-      expect(detector.matchesShortcut(createKeyEvent({ key: 'a' }), 'Fn')).toBe(false);
+      expect(detector.matchesShortcut(createKeyEvent({ code: 'Backslash', key: '\\' }), '\\')).toBe(true);
+      expect(detector.matchesShortcut(createKeyEvent({ key: 'a' }), '\\')).toBe(false);
     });
 
     it('matches single modifier keys like ShiftLeft or ControlRight', () => {

@@ -258,6 +258,25 @@ export namespace logger {
 
 }
 
+export namespace main {
+	
+	export class VolumeMuteResult {
+	    originalVolume: number;
+	    wasMuted: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new VolumeMuteResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.originalVolume = source["originalVolume"];
+	        this.wasMuted = source["wasMuted"];
+	    }
+	}
+
+}
+
 export namespace permissions {
 	
 	export class AudioDeviceInfo {
@@ -514,6 +533,9 @@ export namespace storage {
 	    sidebarWidth: number;
 	    sidebarCollapsed: boolean;
 	    selectedMicrophoneDeviceId: string;
+	    dictationShortcut?: string;
+	    dictationMuteSystemAudio?: boolean;
+	    dictationHoldThresholdMs?: number;
 	    updatedAt?: number;
 	
 	    static createFrom(source: any = {}) {
@@ -540,6 +562,9 @@ export namespace storage {
 	        this.sidebarWidth = source["sidebarWidth"];
 	        this.sidebarCollapsed = source["sidebarCollapsed"];
 	        this.selectedMicrophoneDeviceId = source["selectedMicrophoneDeviceId"];
+	        this.dictationShortcut = source["dictationShortcut"];
+	        this.dictationMuteSystemAudio = source["dictationMuteSystemAudio"];
+	        this.dictationHoldThresholdMs = source["dictationHoldThresholdMs"];
 	        this.updatedAt = source["updatedAt"];
 	    }
 	}

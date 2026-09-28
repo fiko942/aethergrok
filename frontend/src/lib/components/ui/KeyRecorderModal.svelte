@@ -236,10 +236,10 @@
         <div class="flex items-center gap-1.5 flex-wrap">
           <button
             type="button"
-            onclick={() => { recordedCode = 'Fn'; recordedParts = [isMac ? 'Fn / Globe' : 'Fn']; }}
-            class="px-2 py-1 text-[11px] font-mono rounded-lg bg-ant-bg border border-ant-border-secondary hover:border-ant-primary/40 hover:text-ant-primary transition text-ant-text-secondary"
+            onclick={() => { recordedCode = '\\'; recordedParts = ['\\']; }}
+            class="px-2.5 py-1 text-[11px] font-mono rounded-lg bg-ant-bg border border-ant-border-secondary hover:border-ant-primary/40 hover:text-ant-primary transition text-ant-text-secondary"
           >
-            {isMac ? 'Fn / Globe' : 'Fn'}
+            \ (Backslash)
           </button>
           <button
             type="button"
@@ -279,8 +279,8 @@
           <span>Supports Shift (Left/Right), Option, or Cmd standalone.</span>
         </div>
         <div class="p-2 rounded-lg bg-ant-bg/60 space-y-0.5">
-          <div class="text-ant-text font-sans font-medium">Hardware Fn Key</div>
-          <span>macOS intercepts Fn key at OS level; click the Fn preset above if needed.</span>
+          <div class="text-ant-text font-sans font-medium">Direct Key Trigger</div>
+          <span>Supports single keys like '\', '/', 'Delete', or combo keys.</span>
         </div>
       </div>
 

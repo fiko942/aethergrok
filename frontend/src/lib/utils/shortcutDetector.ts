@@ -52,17 +52,9 @@ export class ShortcutDetector {
     const normKey = (e.key || '').toLowerCase().replace(/[\s_-]/g, '');
     const normShortcut = shortcutStr.toLowerCase().replace(/[\s_-]/g, '');
 
-    // 1. Fn / Globe key handling
-    const isFnKeyShortcut = normShortcut === 'fn' || normShortcut === 'globe' || normShortcut === 'function';
-    if (isFnKeyShortcut) {
-      if (
-        normKey === 'fn' ||
-        normCode === 'fn' ||
-        normKey === 'globe' ||
-        normCode === 'globe' ||
-        normKey === 'function' ||
-        normCode === 'function'
-      ) {
+    // 1. Single character / Backslash handling
+    if (normShortcut === '\\' || normShortcut === 'backslash') {
+      if (e.key === '\\' || e.code === 'Backslash') {
         return true;
       }
       return false;

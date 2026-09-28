@@ -51,7 +51,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sidebarWidth: 288,
   sidebarCollapsed: false,
   selectedMicrophoneDeviceId: '',
-  dictationShortcut: 'Fn',
+  dictationShortcut: '\\',
   dictationMuteSystemAudio: true,
   dictationHoldThresholdMs: 300
 };

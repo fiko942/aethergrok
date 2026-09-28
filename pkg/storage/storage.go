@@ -81,7 +81,7 @@ func DefaultSettings() AppSettings {
 		SidebarWidth:               288,
 		SidebarCollapsed:           false,
 		SelectedMicrophoneDeviceID: "",
-		DictationShortcut:          "Fn",
+		DictationShortcut:          "\\",
 		DictationMuteSystemAudio:   boolPtr(true),
 		DictationHoldThresholdMs:   300,
 		UpdatedAt:                  time.Now().UnixMilli(),
@@ -155,7 +155,7 @@ func (sm *StorageManager) GetSettings() (AppSettings, error) {
 
 	// Apply default fallbacks for newly added fields if unset in stored entry
 	if latest.DictationShortcut == "" {
-		latest.DictationShortcut = "Fn"
+		latest.DictationShortcut = "\\"
 	}
 	if latest.DictationMuteSystemAudio == nil {
 		latest.DictationMuteSystemAudio = boolPtr(true)
