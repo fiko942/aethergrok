@@ -1,5 +1,5 @@
 import { logger } from './logger.svelte';
-import type { ReleaseInfo, ReleaseAsset, UpdateCheckResult } from '../../app';
+import type { ReleaseInfo, ReleaseAsset, UpdateCheckResult, UpdateProgress } from '../../app';
 
 export class UpdaterStore {
   checking = $state<boolean>(false);
@@ -12,12 +12,46 @@ export class UpdaterStore {
   lastChecked = $state<string | null>(null);
   error = $state<string | null>(null);
 
+  // Download & Installation state
+  isInstalling = $state<boolean>(false);
+  installProgress = $state<UpdateProgress>({
+    downloadedBytes: 0,
+    totalBytes: 0,
+    percent: 0,
+    speedFormatted: '0 KB/s',
+    stage: 'idle',
+    message: ''
+  });
+  installError = $state<string | null>(null);
+
   private intervalId: any = null;
+  private unlistenProgress: (() => void) | null = null;
 
   constructor() {
     if (typeof __APP_VERSION__ !== 'undefined' && __APP_VERSION__) {
       this.currentVersion = __APP_VERSION__;
       this.latestVersion = __APP_VERSION__;
+    }
+    this.setupEventListener();
+  }
+
+  private setupEventListener(): void {
+    if (typeof window !== 'undefined' && (window as any).runtime?.EventsOn) {
+      this.unlistenProgress = (window as any).runtime.EventsOn('updater:progress', (progress: UpdateProgress) => {
+        if (!progress) return;
+        this.installProgress = { ...progress };
+        if (progress.stage === 'error') {
+          this.isInstalling = false;
+          this.installError = progress.message;
+          logger.error('UPDATER', `Update error: ${progress.message}`);
+        } else if (progress.stage === 'ready') {
+          this.isInstalling = true;
+          logger.info('UPDATER', `Update completed. System restarting...`);
+        } else if (progress.stage === 'downloading' || progress.stage === 'verifying' || progress.stage === 'installing') {
+          this.isInstalling = true;
+          this.installError = null;
+        }
+      });
     }
   }
 
@@ -93,8 +127,73 @@ export class UpdaterStore {
     }
   }
 
+  async startDownloadAndInstall(customAssetUrl?: string): Promise<void> {
+    const targetUrl = customAssetUrl || this.matchedAsset?.downloadUrl;
+    if (!targetUrl) {
+      this.installError = 'No downloadable binary asset found for your platform';
+      return;
+    }
+
+    this.isInstalling = true;
+    this.installError = null;
+    this.installProgress = {
+      downloadedBytes: 0,
+      totalBytes: this.matchedAsset?.size || 0,
+      percent: 0,
+      speedFormatted: '0 KB/s',
+      stage: 'downloading',
+      message: 'Initiating download...'
+    };
+
+    logger.info('UPDATER', `Starting in-app download and installation: ${targetUrl}`);
+
+    try {
+      const win = typeof window !== 'undefined' ? (window as any) : null;
+      if (!win?.go?.main?.App?.DownloadAndInstallUpdate) {
+        throw new Error('DownloadAndInstallUpdate IPC bridge not available');
+      }
+
+      // If a checksum asset exists (.sha256 or .sha256sum) in assets, extract its URL
+      let sha256Url = '';
+      if (this.latestRelease?.assets) {
+        const shaAsset = this.latestRelease.assets.find(a => a.name.endsWith('.sha256') || a.name.endsWith('.sha256sum') || a.name.includes('checksum'));
+        if (shaAsset) {
+          sha256Url = shaAsset.downloadUrl;
+        }
+      }
+
+      await win.go.main.App.DownloadAndInstallUpdate(targetUrl, sha256Url);
+    } catch (err: any) {
+      const errMsg = err?.message || String(err);
+      this.isInstalling = false;
+      this.installError = errMsg;
+      logger.error('UPDATER', `In-app update failed: ${errMsg}`, err);
+    }
+  }
+
+  async cancelDownload(): Promise<void> {
+    try {
+      const win = typeof window !== 'undefined' ? (window as any) : null;
+      if (win?.go?.main?.App?.CancelUpdateDownload) {
+        await win.go.main.App.CancelUpdateDownload();
+      }
+      this.isInstalling = false;
+      this.installProgress = {
+        downloadedBytes: 0,
+        totalBytes: 0,
+        percent: 0,
+        speedFormatted: '0 KB/s',
+        stage: 'idle',
+        message: 'Download cancelled'
+      };
+      logger.info('UPDATER', 'Download was cancelled by user');
+    } catch (err: any) {
+      logger.error('UPDATER', `Failed to cancel download: ${err?.message || err}`, err);
+    }
+  }
+
   async openDownload(url?: string): Promise<void> {
-    const targetUrl = url || this.matchedAsset?.downloadUrl || (this.latestRelease ? `https://github.com/aethercode/grok-desktop/releases/tag/${this.latestRelease.tagName}` : undefined);
+    const targetUrl = url || this.matchedAsset?.downloadUrl || (this.latestRelease ? `https://github.com/fiko942/grok-build/releases/tag/${this.latestRelease.tagName}` : undefined);
     
     if (!targetUrl) {
       logger.warn('UI', 'No download URL available to open');

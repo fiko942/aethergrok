@@ -1146,3 +1146,119 @@ func (a *App) GetChangelogHistory() ([]updater.ReleaseInfo, error) {
 	return updater.FetchReleases("fiko942/grok-build")
 }
 
+// DownloadAndInstallUpdate coordinates streaming download, checksum verification, and native installation
+func (a *App) DownloadAndInstallUpdate(assetURL, sha256URL string) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	updater.GlobalDownloadManager.SetCancel(cancel)
+	defer updater.GlobalDownloadManager.SetCancel(nil)
+
+	emitProgress := func(p updater.UpdateProgress) {
+		if a.ctx != nil {
+			wailsRuntime.EventsEmit(a.ctx, "updater:progress", p)
+		}
+	}
+
+	emitProgress(updater.UpdateProgress{
+		Stage:   "downloading",
+		Percent: 0,
+		Message: "Connecting to update server...",
+	})
+
+	// 1. Download asset with real-time progress callbacks
+	filePath, err := updater.DownloadAssetWithProgress(ctx, assetURL, "", emitProgress)
+	if err != nil {
+		if ctx.Err() == context.Canceled {
+			emitProgress(updater.UpdateProgress{
+				Stage:   "error",
+				Percent: 0,
+				Message: "Download cancelled",
+			})
+			return fmt.Errorf("download cancelled by user")
+		}
+		emitProgress(updater.UpdateProgress{
+			Stage:   "error",
+			Percent: 0,
+			Message: fmt.Sprintf("Download failed: %v", err),
+		})
+		return err
+	}
+
+	// 2. Checksum verification
+	emitProgress(updater.UpdateProgress{
+		Stage:   "verifying",
+		Percent: 100,
+		Message: "Verifying package integrity...",
+	})
+
+	valid, err := updater.VerifyChecksum(filePath, sha256URL)
+	if err != nil || !valid {
+		emitProgress(updater.UpdateProgress{
+			Stage:   "error",
+			Percent: 100,
+			Message: fmt.Sprintf("Integrity check failed: %v", err),
+		})
+		return fmt.Errorf("integrity check failed: %w", err)
+	}
+
+	// 3. Platform-specific native installer
+	emitProgress(updater.UpdateProgress{
+		Stage:   "installing",
+		Percent: 100,
+		Message: "Installing update...",
+	})
+
+	switch runtime.GOOS {
+	case "darwin":
+		if err := updater.ApplyUpdateMacOS(filePath, emitProgress); err != nil {
+			emitProgress(updater.UpdateProgress{
+				Stage:   "error",
+				Percent: 100,
+				Message: fmt.Sprintf("Installation failed: %v", err),
+			})
+			return err
+		}
+		// Allow helper script to start before quitting Wails
+		go func() {
+			time.Sleep(800 * time.Millisecond)
+			if a.ctx != nil {
+				wailsRuntime.Quit(a.ctx)
+			}
+		}()
+		return nil
+
+	case "windows":
+		if err := updater.ApplyUpdateWindows(filePath, emitProgress); err != nil {
+			emitProgress(updater.UpdateProgress{
+				Stage:   "error",
+				Percent: 100,
+				Message: fmt.Sprintf("Installation failed: %v", err),
+			})
+			return err
+		}
+		// Allow NSIS to spin up before quitting Wails
+		go func() {
+			time.Sleep(800 * time.Millisecond)
+			if a.ctx != nil {
+				wailsRuntime.Quit(a.ctx)
+			}
+		}()
+		return nil
+
+	default:
+		return fmt.Errorf("automatic installation is not supported on %s yet. Please download manually", runtime.GOOS)
+	}
+}
+
+// CancelUpdateDownload stops any ongoing background update download
+func (a *App) CancelUpdateDownload() error {
+	updater.GlobalDownloadManager.CancelActive()
+	if a.ctx != nil {
+		wailsRuntime.EventsEmit(a.ctx, "updater:progress", updater.UpdateProgress{
+			Stage:   "idle",
+			Percent: 0,
+			Message: "Download cancelled",
+		})
+	}
+	return nil
+}
+

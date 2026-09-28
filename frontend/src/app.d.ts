@@ -101,6 +101,15 @@ export interface ReleaseInfo {
   isLatest: boolean;
 }
 
+export interface UpdateProgress {
+  downloadedBytes: number;
+  totalBytes: number;
+  percent: number;
+  speedFormatted: string;
+  stage: 'idle' | 'downloading' | 'verifying' | 'installing' | 'ready' | 'error';
+  message: string;
+}
+
 export interface UpdateCheckResult {
   updateAvailable: boolean;
   currentVersion: string;
@@ -195,6 +204,8 @@ declare global {
           DeleteSessionTempFiles?: (filePaths: string[]) => Promise<void>;
           CheckForUpdates?: (currentVersion: string) => Promise<UpdateCheckResult>;
           GetChangelogHistory?: () => Promise<ReleaseInfo[]>;
+          DownloadAndInstallUpdate?: (assetURL: string, sha256URL: string) => Promise<void>;
+          CancelUpdateDownload?: () => Promise<void>;
         };
       };
     };
