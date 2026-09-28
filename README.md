@@ -9,6 +9,7 @@
 <p align="center">
   <a href="https://github.com/fiko942/aethergrok/releases/latest"><img src="https://img.shields.io/github/v/release/fiko942/aethergrok?color=1677ff&label=Latest%20Release" alt="Release" /></a>
   <a href="https://github.com/fiko942/aethergrok/releases"><img src="https://img.shields.io/github/downloads/fiko942/aethergrok/total?color=52c41a&label=Downloads" alt="Downloads" /></a>
+  <a href="https://saweria.co/wijifikoteren"><img src="https://img.shields.io/badge/Saweria-Dukung%20Developer-E5A823?logo=coffeescript&logoColor=white" alt="Saweria" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License" /></a>
   <a href="https://go.dev"><img src="https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go&logoColor=white" alt="Go" /></a>
   <a href="https://svelte.dev"><img src="https://img.shields.io/badge/Svelte-5.x-FF3E00?logo=svelte&logoColor=white" alt="Svelte" /></a>
@@ -21,6 +22,7 @@
   <a href="#-technical-comparison-matrix">Comparison Matrix</a> •
   <a href="#-architecture--engine-flow">Architecture</a> •
   <a href="#-key-features">Features</a> •
+  <a href="#-sponsorship--donations">Donate</a> •
   <a href="#-building-from-source">Build</a>
 </p>
 
@@ -137,6 +139,15 @@ An objective overview of architectural approaches and design characteristics acr
 
 ### 🔄 5. In-App Updates & Changelog Viewer
 - **GitHub Releases Integration**: Queries `fiko942/aethergrok` for updates, compares SemVer tags, and provides single-click downloads and formatted release notes.
+
+---
+
+## ☕ Sponsorship & Donations
+
+AetherGrok is developed independently as a high-performance open-source studio. If you find the software useful, consider supporting its maintenance and development:
+
+- **Saweria (Indonesia / QRIS / GoPay / OVO / Dana)**: [saweria.co/wijifikoteren](https://saweria.co/wijifikoteren)
+- **GitHub Sponsors (International)**: [github.com/sponsors/fiko942](https://github.com/sponsors/fiko942)
 
 ---
 

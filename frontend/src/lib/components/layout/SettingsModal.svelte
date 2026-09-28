@@ -1561,6 +1561,28 @@
                 </p>
               </div>
 
+              <!-- Support & Donation Card (Saweria) -->
+              <div class="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 flex items-center justify-between shadow-2xs">
+                <div class="space-y-1">
+                  <div class="flex items-center space-x-2 text-ant-text font-serif font-semibold text-xs">
+                    <Sparkles size={14} class="text-amber-500" />
+                    <span>Dukung Developer via Saweria</span>
+                    <span class="px-1.5 py-0.5 rounded text-[10px] font-sans font-bold bg-amber-500/20 text-amber-600 dark:text-amber-400">QRIS / E-Wallet</span>
+                  </div>
+                  <p class="text-[11px] text-ant-text-secondary font-serif">
+                    Dukung pemeliharaan dan pengembangan AetherGrok melalui Saweria (GoPay, OVO, Dana, ShopeePay, QRIS).
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onclick={() => openExternal('https://saweria.co/wijifikoteren')}
+                  class="ml-3 px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-sans font-bold text-xs flex items-center gap-1.5 transition flex-shrink-0 cursor-pointer shadow-sm"
+                >
+                  <span>Saweria</span>
+                  <ExternalLink size={12} />
+                </button>
+              </div>
+
               <!-- Open Source & Developer Portfolio Links -->
               <div class="grid grid-cols-2 gap-3.5">
                 <!-- GitHub Repository Card -->
