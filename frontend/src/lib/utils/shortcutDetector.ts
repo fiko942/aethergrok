@@ -54,10 +54,13 @@ export class ShortcutDetector {
 
     // 1. Single character / Backslash handling
     if (normShortcut === '\\' || normShortcut === 'backslash') {
-      if (e.key === '\\' || e.code === 'Backslash') {
-        return true;
-      }
-      return false;
+      return (
+        e.key === '\\' ||
+        e.code === 'Backslash' ||
+        e.keyCode === 220 ||
+        normKey === '\\' ||
+        normCode === 'backslash'
+      );
     }
 
     // 2. Direct single key / single modifier code check

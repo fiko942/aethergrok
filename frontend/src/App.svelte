@@ -820,10 +820,21 @@
 
   // Global Keyboard Shortcuts Handler
   function handleGlobalKeyDown(e: KeyboardEvent) {
-    // Feed dictation shortcut detector
-    const dictationEvent = shortcutDetector.feedKeyDown(e, settingsStore.dictationShortcut);
-    if (dictationEvent) {
-      window.dispatchEvent(new CustomEvent('aethergrok:dictation-trigger', { detail: dictationEvent }));
+    // Intercept dictation shortcut early and call preventDefault to eliminate macOS system NSBeep()
+    if (shortcutDetector.matchesShortcut(e, settingsStore.dictationShortcut)) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // If no active session is open, auto-create one so Composer mounts
+      if (!sessionStore.activeSession && sessionStore.activeWorkspace) {
+        sessionStore.createSession(sessionStore.activeWorkspace.id, 'Voice Dictation');
+      }
+
+      const dictationEvent = shortcutDetector.feedKeyDown(e, settingsStore.dictationShortcut);
+      if (dictationEvent) {
+        window.dispatchEvent(new CustomEvent('aethergrok:dictation-trigger', { detail: dictationEvent }));
+      }
+      return;
     }
 
     const isMetaOrCtrl = e.metaKey || e.ctrlKey;
@@ -873,7 +884,7 @@
     }
 
     // Cmd/Ctrl + B: Toggle left sidebar collapse
-    if (isMetaOrCtrl && !e.shiftKey && !e.altKey && (e.key.toLowerCase() === 'b' || e.key === '\\')) {
+    if (isMetaOrCtrl && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'b') {
       e.preventDefault();
       toggleSidebar();
       return;
@@ -901,9 +912,14 @@
   }
 
   function handleGlobalKeyUp(e: KeyboardEvent) {
-    const dictationEvent = shortcutDetector.feedKeyUp(e, settingsStore.dictationShortcut);
-    if (dictationEvent) {
-      window.dispatchEvent(new CustomEvent('aethergrok:dictation-trigger', { detail: dictationEvent }));
+    if (shortcutDetector.matchesShortcut(e, settingsStore.dictationShortcut)) {
+      e.preventDefault();
+      e.stopPropagation();
+      const dictationEvent = shortcutDetector.feedKeyUp(e, settingsStore.dictationShortcut);
+      if (dictationEvent) {
+        window.dispatchEvent(new CustomEvent('aethergrok:dictation-trigger', { detail: dictationEvent }));
+      }
+      return;
     }
   }
 
