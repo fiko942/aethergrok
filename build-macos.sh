@@ -155,7 +155,7 @@ rm -rf "$DMG_STAGE_DIR"
 echo "Mounting disk image to configure Finder layout..."
 hdiutil attach "$DMG_TMP" -noverify -noautoopen
 
-# AppleScript to configure Finder presentation (Window size 660x420, icon 128, left: 180, right: 480)
+# AppleScript to configure Finder presentation (Window size 660x420, icon 110, left: 170, right: 490)
 echo "Applying custom Finder view options, bounds, and icon positions..."
 osascript -e "
 tell application \"Finder\"
@@ -165,15 +165,17 @@ tell application \"Finder\"
   set current view of theWindow to icon view
   set toolbar visible of theWindow to false
   set statusbar visible of theWindow to false
-  set the bounds of theWindow to {400, 100, 1060, 520}
+  set the bounds of theWindow to {300, 100, 960, 520}
   set opts to the icon view options of theWindow
   set arrangement of opts to not arranged
-  set icon size of opts to 128
+  set icon size of opts to 110
+  set label position of opts to bottom
+  set text size of opts to 12
   if exists file \".background:background.png\" of theDisk then
     set background picture of opts to file \".background:background.png\" of theDisk
   end if
-  set position of item \"AetherGrok.app\" of theDisk to {180, 220}
-  set position of item \"Applications\" of theDisk to {480, 220}
+  set position of item \"AetherGrok.app\" of theDisk to {170, 205}
+  set position of item \"Applications\" of theDisk to {490, 205}
   update theDisk without registering applications
   delay 1
   close theWindow

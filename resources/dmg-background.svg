@@ -1,71 +1,71 @@
-<svg width="1320" height="840" viewBox="0 0 1320 840" xmlns="http://www.w3.org/2000/svg">
+<svg width="660" height="420" viewBox="0 0 660 420" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <!-- Background Gradient -->
+    <!-- Background Gradient (Slate to Deep Carbon) -->
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0f1115" />
-      <stop offset="50%" stop-color="#141820" />
-      <stop offset="100%" stop-color="#0c0e12" />
+      <stop offset="0%" stop-color="#161922" />
+      <stop offset="50%" stop-color="#1b202c" />
+      <stop offset="100%" stop-color="#11141a" />
     </linearGradient>
 
     <!-- Metallic Card Border Gradient -->
     <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.15" />
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.03" />
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.06" />
     </linearGradient>
 
-    <!-- Subtle Glow for Arrow -->
+    <!-- Vibrant Arrow Gradient -->
     <linearGradient id="arrowGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.2" />
-      <stop offset="50%" stop-color="#60a5fa" stop-opacity="0.9" />
-      <stop offset="100%" stop-color="#93c5fd" stop-opacity="0.4" />
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.4" />
+      <stop offset="50%" stop-color="#60a5fa" stop-opacity="1" />
+      <stop offset="100%" stop-color="#93c5fd" stop-opacity="0.7" />
     </linearGradient>
 
     <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feGaussianBlur stdDeviation="4" result="blur" />
       <feComposite in="SourceGraphic" in2="blur" operator="over" />
     </filter>
   </defs>
 
   <!-- Background Base -->
-  <rect width="1320" height="840" fill="url(#bgGrad)" />
+  <rect width="660" height="420" fill="url(#bgGrad)" />
 
   <!-- Subtle Radial Ambient Lighting behind App & Applications -->
-  <circle cx="360" cy="440" r="260" fill="#2563eb" opacity="0.08" />
-  <circle cx="960" cy="440" r="260" fill="#38bdf8" opacity="0.08" />
+  <circle cx="170" cy="205" r="140" fill="#3b82f6" opacity="0.12" />
+  <circle cx="490" cy="205" r="140" fill="#0284c7" opacity="0.12" />
 
   <!-- Inner Studio Border -->
-  <rect x="24" y="24" width="1272" height="792" rx="28" fill="none" stroke="url(#borderGrad)" stroke-width="2" />
+  <rect x="12" y="12" width="636" height="396" rx="16" fill="none" stroke="url(#borderGrad)" stroke-width="1.5" />
 
-  <!-- Header Branding -->
-  <g transform="translate(660, 110)" text-anchor="middle">
-    <text font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif" font-size="34" font-weight="700" fill="#ffffff" letter-spacing="1">AETHERGROK DESKTOP STUDIO</text>
-    <text y="38" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="400" fill="#94a3b8" letter-spacing="0.5">Drag AetherGrok to Applications to install</text>
+  <!-- Header Branding (High Contrast Pure White & Vivid Ice Blue) -->
+  <g transform="translate(330, 52)" text-anchor="middle">
+    <text font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif" font-size="20" font-weight="700" fill="#ffffff" letter-spacing="0.8">AetherGrok Desktop Studio</text>
+    <text y="24" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif" font-size="12.5" font-weight="500" fill="#cbd5e1" letter-spacing="0.3">Drag AetherGrok into Applications to complete installation</text>
   </g>
 
-  <!-- Left Slot Indicator (App) -->
-  <g transform="translate(360, 440)">
-    <rect x="-130" y="-130" width="260" height="260" rx="36" fill="#1e2430" fill-opacity="0.4" stroke="#ffffff" stroke-opacity="0.08" stroke-width="2" stroke-dasharray="6 6" />
+  <!-- Left Slot Target Backdrop (App) -->
+  <g transform="translate(170, 205)">
+    <rect x="-70" y="-70" width="140" height="140" rx="24" fill="#1e2533" fill-opacity="0.65" stroke="#ffffff" stroke-opacity="0.15" stroke-width="1.5" stroke-dasharray="5 5" />
   </g>
 
-  <!-- Right Slot Indicator (Applications) -->
-  <g transform="translate(960, 440)">
-    <rect x="-130" y="-130" width="260" height="260" rx="36" fill="#1e2430" fill-opacity="0.4" stroke="#ffffff" stroke-opacity="0.08" stroke-width="2" stroke-dasharray="6 6" />
+  <!-- Right Slot Target Backdrop (Applications) -->
+  <g transform="translate(490, 205)">
+    <rect x="-70" y="-70" width="140" height="140" rx="24" fill="#1e2533" fill-opacity="0.65" stroke="#ffffff" stroke-opacity="0.15" stroke-width="1.5" stroke-dasharray="5 5" />
   </g>
 
-  <!-- High-Tech Directional Drag Arrow -->
-  <g transform="translate(660, 440)">
-    <!-- Ambient Line -->
-    <line x1="-120" y1="0" x2="110" y2="0" stroke="url(#arrowGrad)" stroke-width="4" stroke-linecap="round" filter="url(#glow)" />
+  <!-- Directional Drag Arrow Graphic in Center -->
+  <g transform="translate(330, 205)">
+    <!-- Main Center Bar -->
+    <line x1="-55" y1="0" x2="45" y2="0" stroke="url(#arrowGrad)" stroke-width="3.5" stroke-linecap="round" filter="url(#glow)" />
     <!-- Chevrons -->
-    <path d="M 40 -18 L 65 0 L 40 18" fill="none" stroke="#60a5fa" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
-    <path d="M 85 -18 L 110 0 L 85 18" fill="none" stroke="#93c5fd" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
-    <!-- Pulse Dots -->
-    <circle cx="-60" cy="0" r="4" fill="#60a5fa" opacity="0.6" />
-    <circle cx="-10" cy="0" r="4" fill="#60a5fa" opacity="0.8" />
+    <path d="M 15 -12 L 32 0 L 15 12" fill="none" stroke="#60a5fa" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M 33 -12 L 50 0 L 33 12" fill="none" stroke="#bfdbfe" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+    <!-- Decorative Dots -->
+    <circle cx="-35" cy="0" r="3" fill="#60a5fa" opacity="0.8" />
+    <circle cx="-10" cy="0" r="3" fill="#60a5fa" opacity="0.9" />
   </g>
 
-  <!-- Bottom Details -->
-  <g transform="translate(660, 770)" text-anchor="middle">
-    <text font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" font-size="13" font-weight="500" fill="#64748b" letter-spacing="0.4">Powered by Wails v2 &amp; xAI Grok Studio Runtime</text>
+  <!-- Bottom Details / Label Indicators (High Contrast) -->
+  <g transform="translate(330, 385)" text-anchor="middle">
+    <text font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" font-size="11" font-weight="500" fill="#94a3b8" letter-spacing="0.3">v1.0.1 • Universal macOS Application</text>
   </g>
 </svg>
