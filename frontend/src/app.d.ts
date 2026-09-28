@@ -83,6 +83,34 @@ export interface SkillInstallResult {
   errors?: string[];
 }
 
+export interface ReleaseAsset {
+  name: string;
+  size: number;
+  downloadUrl: string;
+  contentType: string;
+}
+
+export interface ReleaseInfo {
+  version: string;
+  tagName: string;
+  title: string;
+  publishedAt: string;
+  body: string;
+  highlights: string[];
+  assets: ReleaseAsset[];
+  isLatest: boolean;
+}
+
+export interface UpdateCheckResult {
+  updateAvailable: boolean;
+  currentVersion: string;
+  latestVersion: string;
+  latestRelease: ReleaseInfo | null;
+  allReleases: ReleaseInfo[];
+  platformAsset: ReleaseAsset | null;
+  checkedAt: string;
+}
+
 declare global {
   interface Window {
     runtime?: {
@@ -165,6 +193,8 @@ declare global {
           ClearSnapshotCache?: () => Promise<{ freedBytes: number; deletedCount: number; formattedSize: string }>;
           SaveTemporaryImage?: (base64Data: string, mimeType: string) => Promise<{ filePath: string; dataUrl: string; base64: string; width: number; height: number; sizeBytes: number; timestamp: number }>;
           DeleteSessionTempFiles?: (filePaths: string[]) => Promise<void>;
+          CheckForUpdates?: (currentVersion: string) => Promise<UpdateCheckResult>;
+          GetChangelogHistory?: () => Promise<ReleaseInfo[]>;
         };
       };
     };

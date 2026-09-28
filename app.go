@@ -25,6 +25,7 @@ import (
 	"aethergrok/pkg/skills"
 	"aethergrok/pkg/storage"
 	"aethergrok/pkg/terminal"
+	"aethergrok/pkg/updater"
 	"aethergrok/pkg/workspace"
 
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -1132,3 +1133,16 @@ func (a *App) transcribeAudioViaChatCompletions(baseURL, apiKey, audioFilePath s
 func (a *App) PullWorkspaceChanges(workspacePath string) (string, error) {
 	return workspace.ExecutePull(workspacePath)
 }
+
+// CheckForUpdates inspects GitHub Releases and local changelog for available application updates
+func (a *App) CheckForUpdates(currentVersion string) (*updater.UpdateCheckResult, error) {
+	osName := runtime.GOOS
+	arch := runtime.GOARCH
+	return updater.CheckForUpdates(currentVersion, "fiko942/grok-build", osName, arch)
+}
+
+// GetChangelogHistory retrieves parsed release history and changelog notes
+func (a *App) GetChangelogHistory() ([]updater.ReleaseInfo, error) {
+	return updater.FetchReleases("fiko942/grok-build")
+}
+
