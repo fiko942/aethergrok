@@ -4,6 +4,7 @@ import {logger} from '../models';
 import {screen} from '../models';
 import {permissions} from '../models';
 import {workspace} from '../models';
+import {updater} from '../models';
 import {grokrunner} from '../models';
 import {storage} from '../models';
 import {skills} from '../models';
@@ -12,6 +13,8 @@ export function AppendSystemLog(arg1:logger.LogEntry):Promise<void>;
 
 export function CancelSession(arg1:string):Promise<void>;
 
+export function CancelUpdateDownload():Promise<void>;
+
 export function CaptureScreenExcludingSelf(arg1:number):Promise<screen.SnapshotResult>;
 
 export function CheckAndRequestAccessibilityPermissions():Promise<permissions.Status>;
@@ -19,6 +22,8 @@ export function CheckAndRequestAccessibilityPermissions():Promise<permissions.St
 export function CheckDirectoryExists(arg1:string):Promise<boolean>;
 
 export function CheckFileExists(arg1:string,arg2:string):Promise<workspace.FileCheckResult>;
+
+export function CheckForUpdates(arg1:string):Promise<updater.UpdateCheckResult>;
 
 export function CheckMicrophonePermission():Promise<permissions.Status>;
 
@@ -48,11 +53,15 @@ export function DeleteVoiceAudioRecording(arg1:string):Promise<void>;
 
 export function DiscoverGrokSessions(arg1:string):Promise<Array<grokrunner.GrokSessionMetadata>>;
 
+export function DownloadAndInstallUpdate(arg1:string,arg2:string):Promise<void>;
+
 export function ExecuteSkillSetupCommand(arg1:string,arg2:string):Promise<void>;
 
 export function GetAppSettings():Promise<storage.AppSettings>;
 
 export function GetAvailableModels():Promise<Array<grokrunner.ModelInfo>>;
+
+export function GetChangelogHistory():Promise<Array<updater.ReleaseInfo>>;
 
 export function GetInstalledSkills():Promise<Array<skills.Skill>>;
 

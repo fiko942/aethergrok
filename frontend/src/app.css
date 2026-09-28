@@ -215,8 +215,8 @@
   --ant-bg-secondary: #1a1a1a;
   --ant-bg-tertiary: #222222;
 
-  --ant-border: rgba(255, 255, 255, 0.04);
-  --ant-border-secondary: rgba(255, 255, 255, 0.02);
+  --ant-border: rgba(255, 255, 255, 0.05);
+  --ant-border-secondary: rgba(255, 255, 255, 0.03);
 
   --ant-text: rgba(255, 255, 255, 0.85);
   --ant-text-secondary: rgba(255, 255, 255, 0.45);

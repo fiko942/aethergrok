@@ -10,6 +10,10 @@ export function CancelSession(arg1) {
   return window['go']['main']['App']['CancelSession'](arg1);
 }
 
+export function CancelUpdateDownload() {
+  return window['go']['main']['App']['CancelUpdateDownload']();
+}
+
 export function CaptureScreenExcludingSelf(arg1) {
   return window['go']['main']['App']['CaptureScreenExcludingSelf'](arg1);
 }
@@ -24,6 +28,10 @@ export function CheckDirectoryExists(arg1) {
 
 export function CheckFileExists(arg1, arg2) {
   return window['go']['main']['App']['CheckFileExists'](arg1, arg2);
+}
+
+export function CheckForUpdates(arg1) {
+  return window['go']['main']['App']['CheckForUpdates'](arg1);
 }
 
 export function CheckMicrophonePermission() {
@@ -82,6 +90,10 @@ export function DiscoverGrokSessions(arg1) {
   return window['go']['main']['App']['DiscoverGrokSessions'](arg1);
 }
 
+export function DownloadAndInstallUpdate(arg1, arg2) {
+  return window['go']['main']['App']['DownloadAndInstallUpdate'](arg1, arg2);
+}
+
 export function ExecuteSkillSetupCommand(arg1, arg2) {
   return window['go']['main']['App']['ExecuteSkillSetupCommand'](arg1, arg2);
 }
@@ -92,6 +104,10 @@ export function GetAppSettings() {
 
 export function GetAvailableModels() {
   return window['go']['main']['App']['GetAvailableModels']();
+}
+
+export function GetChangelogHistory() {
+  return window['go']['main']['App']['GetChangelogHistory']();
 }
 
 export function GetInstalledSkills() {

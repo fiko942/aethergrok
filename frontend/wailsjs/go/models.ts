@@ -582,6 +582,115 @@ export namespace storage {
 
 }
 
+export namespace updater {
+	
+	export class ReleaseAsset {
+	    name: string;
+	    size: number;
+	    downloadUrl: string;
+	    contentType: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ReleaseAsset(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.size = source["size"];
+	        this.downloadUrl = source["downloadUrl"];
+	        this.contentType = source["contentType"];
+	    }
+	}
+	export class ReleaseInfo {
+	    version: string;
+	    tagName: string;
+	    title: string;
+	    publishedAt: string;
+	    body: string;
+	    highlights: string[];
+	    assets: ReleaseAsset[];
+	    isLatest: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ReleaseInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.version = source["version"];
+	        this.tagName = source["tagName"];
+	        this.title = source["title"];
+	        this.publishedAt = source["publishedAt"];
+	        this.body = source["body"];
+	        this.highlights = source["highlights"];
+	        this.assets = this.convertValues(source["assets"], ReleaseAsset);
+	        this.isLatest = source["isLatest"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class UpdateCheckResult {
+	    updateAvailable: boolean;
+	    currentVersion: string;
+	    latestVersion: string;
+	    latestRelease?: ReleaseInfo;
+	    allReleases: ReleaseInfo[];
+	    platformAsset?: ReleaseAsset;
+	    checkedAt: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateCheckResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.updateAvailable = source["updateAvailable"];
+	        this.currentVersion = source["currentVersion"];
+	        this.latestVersion = source["latestVersion"];
+	        this.latestRelease = this.convertValues(source["latestRelease"], ReleaseInfo);
+	        this.allReleases = this.convertValues(source["allReleases"], ReleaseInfo);
+	        this.platformAsset = this.convertValues(source["platformAsset"], ReleaseAsset);
+	        this.checkedAt = source["checkedAt"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace workspace {
 	
 	export class FileCheckResult {

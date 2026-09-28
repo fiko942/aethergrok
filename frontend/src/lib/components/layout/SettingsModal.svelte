@@ -433,10 +433,10 @@
   >
     <!-- Modal Container -->
     <div
-      class="w-full max-w-4xl h-[680px] max-h-[90vh] flex flex-col bg-ant-bg-secondary border border-ant-border-secondary dark:border-white/5 rounded-2xl shadow-2xl overflow-hidden"
+      class="w-full max-w-4xl h-[680px] max-h-[90vh] flex flex-col bg-ant-bg-secondary border border-ant-border-secondary rounded-2xl shadow-2xl overflow-hidden"
     >
       <!-- Header -->
-      <div class="px-6 py-4 border-b border-ant-border-secondary dark:border-white/5 flex items-center justify-between bg-ant-bg-secondary flex-shrink-0">
+      <div class="px-6 py-4 border-b border-ant-border-secondary flex items-center justify-between bg-ant-bg-secondary flex-shrink-0">
         <div class="flex items-center space-x-3">
           <div class="w-8 h-8 rounded-lg bg-ant-primary/10 flex items-center justify-center text-ant-primary shadow-sm">
             <Settings size={18} />
@@ -480,7 +480,7 @@
       <!-- Main Body: Sidebar + Content -->
       <div class="flex flex-1 min-h-0 overflow-hidden">
         <!-- Sidebar Navigation Tabs -->
-        <nav class="w-56 bg-ant-bg border-r border-ant-border-secondary dark:border-white/5 flex flex-col p-2 space-y-1 flex-shrink-0" aria-label="Settings navigation">
+        <nav class="w-56 bg-ant-bg border-r border-ant-border-secondary flex flex-col p-2 space-y-1 flex-shrink-0" aria-label="Settings navigation">
           {#each tabs as tab}
             {@const IconComponent = tab.icon}
             {@const isUpdates = tab.id === 'updates'}
@@ -501,7 +501,7 @@
             </button>
           {/each}
 
-          <div class="mt-auto pt-4 border-t border-ant-border-secondary dark:border-white/5 px-2 pb-2">
+          <div class="mt-auto pt-4 border-t border-ant-border-secondary px-2 pb-2">
             <button
               type="button"
               onclick={() => activeTab = 'updates'}
@@ -561,7 +561,7 @@
                     type="text"
                     bind:value={editGrokBinaryPath}
                     placeholder="/Users/fiko942/.local/bin/grok"
-                    class="w-full px-3 py-2 text-xs font-mono bg-ant-bg border border-ant-border-secondary dark:border-white/5 rounded-lg text-ant-text focus:outline-none focus:border-ant-primary focus:ring-1 focus:ring-ant-primary transition shadow-2xs"
+                    class="w-full px-3 py-2 text-xs font-mono bg-ant-bg border border-ant-border-secondary rounded-lg text-ant-text focus:outline-none focus:border-ant-primary focus:ring-1 focus:ring-ant-primary transition shadow-2xs"
                   />
                 </div>
               </Card>
@@ -569,7 +569,7 @@
               <!-- Smart Screen Snapshot Settings Card -->
               <Card>
                 <div class="space-y-4">
-                  <div class="flex items-center justify-between border-b border-ant-border-secondary dark:border-white/5 pb-2">
+                  <div class="flex items-center justify-between border-b border-ant-border-secondary pb-2">
                     <div class="flex items-center gap-2">
                       <Camera size={16} class="text-ant-primary" />
                       <div class="text-xs font-semibold text-ant-text">Non-Intrusive Smart Snapshot (macOS & Windows)</div>
@@ -578,7 +578,7 @@
                   </div>
 
                   <!-- Snapshot Shortcut Key Binding -->
-                  <div class="space-y-2 pt-2 border-t border-ant-border-secondary dark:border-white/5">
+                  <div class="space-y-2 pt-2 border-t border-ant-border-secondary ">
                     <div class="flex items-center justify-between">
                       <div class="space-y-0.5">
                         <div class="text-xs font-medium text-ant-text flex items-center gap-1.5">
@@ -609,7 +609,7 @@
                       </button>
                       <button
                         type="button"
-                        class="px-2.5 py-1.5 text-xs rounded-lg bg-ant-bg border border-ant-border-secondary dark:border-white/5 hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-text transition"
+                        class="px-2.5 py-1.5 text-xs rounded-lg bg-ant-bg border border-ant-border-secondary hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-text transition"
                         onclick={() => editSnapshotShortcut = 'CmdOrCtrl+Shift+S'}
                       >
                         Reset Default
@@ -635,7 +635,7 @@
                   </div>
 
                   <!-- Audio Shutter Sound Toggle -->
-                  <div class="flex items-center justify-between pt-2 border-t border-ant-border-secondary dark:border-white/5 pb-1">
+                  <div class="flex items-center justify-between pt-2 border-t border-ant-border-secondary pb-1">
                     <div class="space-y-0.5">
                       <div class="text-xs font-medium text-ant-text flex items-center gap-1.5">
                         <Volume2 size={13} class="text-ant-primary" />
@@ -652,7 +652,7 @@
                   </div>
 
                   <!-- Screen Flash FX Toggle -->
-                  <div class="flex items-center justify-between pt-2 border-t border-ant-border-secondary dark:border-white/5 pb-1">
+                  <div class="flex items-center justify-between pt-2 border-t border-ant-border-secondary pb-1">
                     <div class="space-y-0.5">
                       <div class="text-xs font-medium text-ant-text flex items-center gap-1.5">
                         <Zap size={13} class="text-ant-warning" />
@@ -669,7 +669,7 @@
                   </div>
 
                   <!-- Auto-Attach to Composer Toggle -->
-                  <div class="flex items-center justify-between pt-2 border-t border-ant-border-secondary dark:border-white/5 pb-1">
+                  <div class="flex items-center justify-between pt-2 border-t border-ant-border-secondary pb-1">
                     <div class="space-y-0.5">
                       <div class="text-xs font-medium text-ant-text flex items-center gap-1.5">
                         <ImageIcon size={13} class="text-ant-success" />
@@ -686,7 +686,7 @@
                   </div>
 
                   <!-- Compositor Delay Slider -->
-                  <div class="space-y-2 pt-2 border-t border-ant-border-secondary dark:border-white/5">
+                  <div class="space-y-2 pt-2 border-t border-ant-border-secondary ">
                     <div class="flex items-center justify-between">
                       <div>
                         <div class="text-xs font-medium text-ant-text">OS Compositor Flush Delay</div>
@@ -731,7 +731,7 @@
                       </p>
                     </div>
 
-                    <div class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-ant-bg border border-ant-border-secondary dark:border-white/5 font-mono text-xs shrink-0 self-start shadow-2xs">
+                    <div class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-ant-bg border border-ant-border-secondary font-mono text-xs shrink-0 self-start shadow-2xs">
                       <span class="font-semibold text-ant-text">{cacheStats.formattedSize}</span>
                       <span class="text-ant-text-muted text-[11px]">({cacheStats.fileCount} {cacheStats.fileCount === 1 ? 'file' : 'files'})</span>
                     </div>
@@ -745,11 +745,11 @@
                   {/if}
 
                   <!-- Action Bar: Clean inline layout with clear affordance -->
-                  <div class="pt-2.5 border-t border-ant-border-secondary dark:border-white/5 flex items-center justify-between gap-3">
+                  <div class="pt-2.5 border-t border-ant-border-secondary flex items-center justify-between gap-3">
                     <button
                       type="button"
                       onclick={refreshCacheStats}
-                      class="px-2.5 py-1.5 rounded-lg text-xs font-serif text-ant-text-secondary hover:text-ant-text bg-ant-bg border border-ant-border-secondary dark:border-white/5 hover:bg-ant-bg-tertiary transition flex items-center gap-1.5"
+                      class="px-2.5 py-1.5 rounded-lg text-xs font-serif text-ant-text-secondary hover:text-ant-text bg-ant-bg border border-ant-border-secondary hover:bg-ant-bg-tertiary transition flex items-center gap-1.5"
                     >
                       <RefreshCw size={12} class={isClearingCache ? 'animate-spin text-ant-primary' : ''} />
                       <span>Refresh Size</span>
@@ -761,7 +761,7 @@
                       disabled={isClearingCache || cacheStats.fileCount === 0}
                       class="px-3.5 py-1.5 rounded-lg text-xs font-serif font-medium transition flex items-center gap-1.5 {
                         cacheStats.fileCount === 0
-                          ? 'bg-ant-bg-secondary text-ant-text-muted border border-ant-border-secondary dark:border-white/5 cursor-not-allowed opacity-60'
+                          ? 'bg-ant-bg-secondary text-ant-text-muted border border-ant-border-secondary cursor-not-allowed opacity-60'
                           : 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 active:scale-95'
                       }"
                     >
@@ -820,7 +820,7 @@
                   type="button"
                   class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router'
                     ? 'border-blue-500/40 bg-blue-500/10 shadow-xs'
-                    : 'border-ant-border-secondary dark:border-white/5 bg-ant-bg hover:border-blue-500/40'}"
+                    : 'border-ant-border-secondary bg-ant-bg hover:border-blue-500/40'}"
                   onclick={() => editDefaultModel = '9router'}
                 >
                   <div class="flex items-center justify-between mb-1">
@@ -840,7 +840,7 @@
                   type="button"
                   class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router-general-purpose'
                     ? 'border-blue-500/40 bg-blue-500/10 shadow-xs'
-                    : 'border-ant-border-secondary dark:border-white/5 bg-ant-bg hover:border-blue-500/40'}"
+                    : 'border-ant-border-secondary bg-ant-bg hover:border-blue-500/40'}"
                   onclick={() => editDefaultModel = '9router-general-purpose'}
                 >
                   <div class="flex items-center justify-between mb-1">
@@ -860,7 +860,7 @@
                   type="button"
                   class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router-explore'
                     ? 'border-blue-500/40 bg-blue-500/10 shadow-xs'
-                    : 'border-ant-border-secondary dark:border-white/5 bg-ant-bg hover:border-blue-500/40'}"
+                    : 'border-ant-border-secondary bg-ant-bg hover:border-blue-500/40'}"
                   onclick={() => editDefaultModel = '9router-explore'}
                 >
                   <div class="flex items-center justify-between mb-1">
@@ -880,7 +880,7 @@
                   type="button"
                   class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router-plan'
                     ? 'border-blue-500/40 bg-blue-500/10 shadow-xs'
-                    : 'border-ant-border-secondary dark:border-white/5 bg-ant-bg hover:border-blue-500/40'}"
+                    : 'border-ant-border-secondary bg-ant-bg hover:border-blue-500/40'}"
                   onclick={() => editDefaultModel = '9router-plan'}
                 >
                   <div class="flex items-center justify-between mb-1">
@@ -913,7 +913,7 @@
                         type="button"
                         class="px-3 py-2 rounded-lg text-xs font-medium border capitalize transition {editDefaultReasoningEffort === effort
                           ? 'bg-ant-primary text-white border-ant-primary shadow-sm'
-                          : 'bg-ant-bg text-ant-text-secondary border-ant-border-secondary dark:border-white/5 hover:text-ant-text hover:bg-ant-bg-tertiary'}"
+                          : 'bg-ant-bg text-ant-text-secondary border-ant-border-secondary hover:text-ant-text hover:bg-ant-bg-tertiary'}"
                         onclick={() => editDefaultReasoningEffort = effort as ReasoningEffort}
                       >
                         {effort}
@@ -953,7 +953,7 @@
                         type="button"
                         class="p-2.5 rounded-lg border text-left transition {editMaxContextTokens === preset.value
                           ? 'bg-blue-500/10 border-blue-500/40 text-blue-400 font-semibold shadow-2xs'
-                          : 'bg-ant-bg border-ant-border-secondary dark:border-white/5 text-ant-text-secondary hover:border-blue-500/40 hover:text-ant-text'}"
+                          : 'bg-ant-bg border-ant-border-secondary text-ant-text-secondary hover:border-blue-500/40 hover:text-ant-text'}"
                         onclick={() => editMaxContextTokens = preset.value}
                       >
                         <div class="text-xs font-bold {editMaxContextTokens === preset.value ? 'text-ant-primary' : 'text-ant-text'}">{preset.label}</div>
@@ -963,7 +963,7 @@
                   </div>
 
                   <!-- Custom Numeric Token Limit Input -->
-                  <div class="pt-2 border-t border-ant-border-secondary dark:border-white/5 flex items-center gap-3">
+                  <div class="pt-2 border-t border-ant-border-secondary flex items-center gap-3">
                     <div class="text-[11px] text-ant-text-secondary whitespace-nowrap">
                       Custom Token Limit:
                     </div>
@@ -973,12 +973,12 @@
                       max="2000000"
                       step="1000"
                       bind:value={editMaxContextTokens}
-                      class="flex-1 px-3 py-1.5 text-xs font-mono bg-ant-bg border border-ant-border-secondary dark:border-white/5 rounded-lg text-ant-text focus:outline-none focus:border-ant-primary focus:ring-1 focus:ring-ant-primary transition shadow-2xs"
+                      class="flex-1 px-3 py-1.5 text-xs font-mono bg-ant-bg border border-ant-border-secondary rounded-lg text-ant-text focus:outline-none focus:border-ant-primary focus:ring-1 focus:ring-ant-primary transition shadow-2xs"
                       placeholder="200000"
                     />
                     <button
                       type="button"
-                      class="px-2.5 py-1.5 text-xs rounded-lg border border-ant-border-secondary dark:border-white/5 bg-ant-bg hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-text transition"
+                      class="px-2.5 py-1.5 text-xs rounded-lg border border-ant-border-secondary bg-ant-bg hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-text transition"
                       onclick={() => editMaxContextTokens = 200000}
                     >
                       Reset 200k
@@ -1001,7 +1001,7 @@
                   </div>
                   <button
                     type="button"
-                    class="px-3 py-1.5 rounded-lg bg-ant-bg border border-ant-border-secondary dark:border-white/5 hover:border-blue-500/40 hover:bg-ant-bg-tertiary text-ant-text hover:text-ant-primary text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap shadow-2xs active:scale-[0.98]"
+                    class="px-3 py-1.5 rounded-lg bg-ant-bg border border-ant-border-secondary hover:border-blue-500/40 hover:bg-ant-bg-tertiary text-ant-text hover:text-ant-primary text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap shadow-2xs active:scale-[0.98]"
                     onclick={async () => {
                       try {
                         if (window.go?.main?.App?.RevealGrokConfigFile) {
@@ -1053,7 +1053,7 @@
                       type="button"
                       class="p-3 rounded-lg border text-left transition {editPlanGateMode === 'active'
                         ? 'bg-blue-500/10 border-blue-500/40 text-ant-text shadow-2xs'
-                        : 'bg-ant-bg border-ant-border-secondary dark:border-white/5 text-ant-text-secondary hover:border-blue-500/40 hover:text-ant-text'}"
+                        : 'bg-ant-bg border-ant-border-secondary text-ant-text-secondary hover:border-blue-500/40 hover:text-ant-text'}"
                       onclick={() => editPlanGateMode = 'active'}
                     >
                       <div class="flex items-center justify-between">
@@ -1071,7 +1071,7 @@
                       type="button"
                       class="p-3 rounded-lg border text-left transition {editPlanGateMode === 'bypass'
                         ? 'bg-amber-500/10 border-amber-500/40 text-ant-text shadow-2xs'
-                        : 'bg-ant-bg border-ant-border-secondary dark:border-white/5 text-ant-text-secondary hover:border-amber-500/40 hover:text-ant-text'}"
+                        : 'bg-ant-bg border-ant-border-secondary text-ant-text-secondary hover:border-amber-500/40 hover:text-ant-text'}"
                       onclick={() => editPlanGateMode = 'bypass'}
                     >
                       <div class="flex items-center justify-between">
@@ -1095,7 +1095,7 @@
                     type="button"
                     class="w-full p-4 rounded-xl border text-left transition {editPermissionMode === modeKey
                       ? 'border-blue-500/40 bg-blue-500/10 shadow-2xs'
-                      : 'border-ant-border-secondary dark:border-white/5 bg-ant-bg hover:border-blue-500/40'}"
+                      : 'border-ant-border-secondary bg-ant-bg hover:border-blue-500/40'}"
                     onclick={() => editPermissionMode = modeKey}
                   >
                     <div class="flex items-center justify-between mb-2">
@@ -1116,7 +1116,7 @@
                       {mode.summary}
                     </p>
 
-                    <ul class="space-y-1 pl-4 border-l-2 {editPermissionMode === modeKey ? 'border-blue-500/40 text-ant-text' : 'border-ant-border-secondary dark:border-white/5 text-ant-text-secondary'} text-[10px]">
+                    <ul class="space-y-1 pl-4 border-l-2 {editPermissionMode === modeKey ? 'border-blue-500/40 text-ant-text' : 'border-ant-border-secondary text-ant-text-secondary'} text-[10px]">
                       {#each mode.details as detail}
                         <li>• {detail}</li>
                       {/each}
@@ -1140,7 +1140,7 @@
               <!-- macOS Permission Status Card -->
               <Card title="Microphone Permission">
                 <div class="space-y-4">
-                  <div class="p-3.5 rounded-xl border border-ant-border-secondary dark:border-white/5 bg-ant-bg shadow-2xs space-y-3">
+                  <div class="p-3.5 rounded-xl border border-ant-border-secondary bg-ant-bg shadow-2xs space-y-3">
                     <div class="flex items-center justify-between gap-3 flex-wrap">
                       <div class="flex items-center space-x-3 min-w-0">
                         <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 {micPermissionStatus.granted ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'}">
@@ -1162,7 +1162,7 @@
                       <div class="flex items-center space-x-2 flex-shrink-0 ml-auto">
                         <button
                           type="button"
-                          class="px-2.5 py-1.5 rounded-lg border border-ant-border-secondary dark:border-white/5 bg-ant-bg hover:bg-ant-bg-tertiary text-xs font-serif text-ant-text hover:border-ant-primary/40 transition flex items-center space-x-1.5 shadow-2xs whitespace-nowrap"
+                          class="px-2.5 py-1.5 rounded-lg border border-ant-border-secondary bg-ant-bg hover:bg-ant-bg-tertiary text-xs font-serif text-ant-text hover:border-ant-primary/40 transition flex items-center space-x-1.5 shadow-2xs whitespace-nowrap"
                           onclick={checkMicPermissionAndDevices}
                           disabled={isCheckingMic}
                         >
@@ -1180,7 +1180,7 @@
                           </button>
                           <button
                             type="button"
-                            class="px-3 py-1.5 rounded-lg border border-ant-border-secondary dark:border-white/5 bg-ant-bg hover:bg-ant-bg-tertiary text-xs font-serif text-ant-text-secondary hover:text-ant-text transition shadow-2xs whitespace-nowrap"
+                            class="px-3 py-1.5 rounded-lg border border-ant-border-secondary bg-ant-bg hover:bg-ant-bg-tertiary text-xs font-serif text-ant-text-secondary hover:text-ant-text transition shadow-2xs whitespace-nowrap"
                             onclick={handleOpenMicSystemSettings}
                           >
                             Open System Settings
@@ -1216,7 +1216,7 @@
 
               <!-- Voice Dictation Engine Info -->
               <Card title="Voice Transcription Engine">
-                <div class="p-3.5 rounded-xl border border-ant-border-secondary dark:border-white/5 bg-ant-bg space-y-2 text-xs shadow-2xs">
+                <div class="p-3.5 rounded-xl border border-ant-border-secondary bg-ant-bg space-y-2 text-xs shadow-2xs">
                   <div class="flex items-center space-x-2 text-ant-text font-medium">
                     <Sparkles size={14} class="text-ant-warning" />
                     <span>Programmer-Optimized Grok Voice Transcriber</span>
@@ -1245,7 +1245,7 @@
                   type="button"
                   class="group p-4 rounded-xl border text-left transition-all duration-150 flex flex-col justify-between space-y-3.5 relative overflow-hidden {editTheme === 'dark-studio'
                     ? 'border-ant-primary bg-ant-primary/10 shadow-2xs'
-                    : 'border-ant-border-secondary dark:border-white/5 bg-ant-bg hover:border-ant-primary/40 hover:bg-ant-bg-tertiary/40'}"
+                    : 'border-ant-border-secondary bg-ant-bg hover:border-ant-primary/40 hover:bg-ant-bg-tertiary/40'}"
                   onclick={() => handleThemeChange('dark-studio')}
                 >
                   <div class="flex items-center justify-between w-full">
@@ -1284,7 +1284,7 @@
                   type="button"
                   class="group p-4 rounded-xl border text-left transition-all duration-150 flex flex-col justify-between space-y-3.5 relative overflow-hidden {editTheme === 'dark-high-contrast'
                     ? 'border-ant-primary bg-ant-primary/10 shadow-2xs'
-                    : 'border-ant-border-secondary dark:border-white/5 bg-ant-bg hover:border-ant-primary/40 hover:bg-ant-bg-tertiary/40'}"
+                    : 'border-ant-border-secondary bg-ant-bg hover:border-ant-primary/40 hover:bg-ant-bg-tertiary/40'}"
                   onclick={() => handleThemeChange('dark-high-contrast')}
                 >
                   <div class="flex items-center justify-between w-full">
@@ -1323,7 +1323,7 @@
                   type="button"
                   class="group p-4 rounded-xl border text-left transition-all duration-150 flex flex-col justify-between space-y-3.5 relative overflow-hidden {editTheme === 'light-antd'
                     ? 'border-ant-primary bg-ant-primary/10 shadow-2xs'
-                    : 'border-ant-border-secondary dark:border-white/5 bg-ant-bg hover:border-ant-primary/40 hover:bg-ant-bg-tertiary/40'}"
+                    : 'border-ant-border-secondary bg-ant-bg hover:border-ant-primary/40 hover:bg-ant-bg-tertiary/40'}"
                   onclick={() => handleThemeChange('light-antd')}
                 >
                   <div class="flex items-center justify-between w-full">
@@ -1337,7 +1337,7 @@
                   </div>
 
                   <!-- Theme Swatches & Mini Window Mockup -->
-                  <div class="h-20 rounded-lg bg-[#E5E9F0] border border-ant-border-secondary dark:border-white/5 p-2.5 flex flex-col justify-between shadow-inner w-full">
+                  <div class="h-20 rounded-lg bg-[#E5E9F0] border border-ant-border-secondary p-2.5 flex flex-col justify-between shadow-inner w-full">
                     <div class="flex items-center justify-between">
                       <div class="flex space-x-1.5">
                         <div class="w-2.5 h-2.5 rounded-full bg-[#FF4D4F]"></div>
@@ -1347,7 +1347,7 @@
                       <span class="text-[9px] font-mono text-[#1677FF] font-semibold">#EEF1F6</span>
                     </div>
                     <div class="space-y-1.5">
-                      <div class="h-2 w-24 bg-[#FFFFFF] rounded border border-ant-border-secondary dark:border-white/5"></div>
+                      <div class="h-2 w-24 bg-[#FFFFFF] rounded border border-ant-border-secondary "></div>
                       <div class="h-1.5 w-16 bg-[#1677FF]/40 rounded"></div>
                     </div>
                   </div>
@@ -1389,10 +1389,10 @@
                 </p>
               </div>
 
-              <div class="rounded-xl overflow-hidden bg-ant-bg border border-ant-border-secondary dark:border-white/5 shadow-2xs">
+              <div class="rounded-xl overflow-hidden bg-ant-bg border border-ant-border-secondary shadow-2xs">
                 <table class="w-full text-left border-collapse text-xs">
                   <thead>
-                    <tr class="bg-ant-bg-secondary border-b border-ant-border-secondary dark:border-white/5">
+                    <tr class="bg-ant-bg-secondary border-b border-ant-border-secondary ">
                       <th class="px-4 py-2.5 font-semibold text-ant-text">Key Combination</th>
                       <th class="px-4 py-2.5 font-semibold text-ant-text">Action Trigger</th>
                       <th class="px-4 py-2.5 font-semibold text-ant-text-secondary">Scope</th>
@@ -1415,7 +1415,7 @@
                         </td>
                         <td class="px-4 py-2.5 text-ant-text font-serif">{shortcut.action}</td>
                         <td class="px-4 py-2.5 text-ant-text-secondary">
-                          <span class="px-2 py-0.5 text-[10px] font-medium bg-ant-bg-tertiary text-ant-text-secondary rounded border border-ant-border-secondary dark:border-white/5">
+                          <span class="px-2 py-0.5 text-[10px] font-medium bg-ant-bg-tertiary text-ant-text-secondary rounded border border-ant-border-secondary ">
                             {shortcut.scope}
                           </span>
                         </td>
@@ -1474,7 +1474,7 @@
               </div>
 
               <!-- Human Crafted Dedication Card -->
-              <div class="p-4 rounded-xl bg-ant-bg border border-ant-border-secondary dark:border-white/5 space-y-2 shadow-2xs">
+              <div class="p-4 rounded-xl bg-ant-bg border border-ant-border-secondary space-y-2 shadow-2xs">
                 <div class="flex items-center gap-2 text-ant-text text-xs font-serif font-medium">
                   <Heart size={14} class="text-rose-500 fill-rose-500/20" />
                   <span>Made with love by Wiji Fiko Teren</span>
@@ -1490,7 +1490,7 @@
                 <button
                   type="button"
                   onclick={() => openExternal('https://github.com/fiko942/grok-build')}
-                  class="p-4 rounded-xl bg-ant-bg border border-ant-border-secondary dark:border-white/5 hover:border-ant-primary/40 hover:bg-ant-bg-secondary/40 space-y-3 flex flex-col justify-between transition text-left cursor-pointer group shadow-2xs"
+                  class="p-4 rounded-xl bg-ant-bg border border-ant-border-secondary hover:border-ant-primary/40 hover:bg-ant-bg-secondary/40 space-y-3 flex flex-col justify-between transition text-left cursor-pointer group shadow-2xs"
                 >
                   <div class="space-y-1.5">
                     <div class="flex items-center space-x-2 text-ant-text group-hover:text-ant-primary transition-colors">
@@ -1511,7 +1511,7 @@
                 <button
                   type="button"
                   onclick={() => openExternal('https://wijifikoteren.streampeg.com')}
-                  class="p-4 rounded-xl bg-ant-bg border border-ant-border-secondary dark:border-white/5 hover:border-ant-primary/40 hover:bg-ant-bg-secondary/40 space-y-3 flex flex-col justify-between transition text-left cursor-pointer group shadow-2xs"
+                  class="p-4 rounded-xl bg-ant-bg border border-ant-border-secondary hover:border-ant-primary/40 hover:bg-ant-bg-secondary/40 space-y-3 flex flex-col justify-between transition text-left cursor-pointer group shadow-2xs"
                 >
                   <div class="space-y-1.5">
                     <div class="flex items-center space-x-2 text-ant-text group-hover:text-ant-primary transition-colors">
@@ -1530,14 +1530,14 @@
               </div>
 
               <!-- Clean Engineering Overview -->
-              <div class="p-3.5 rounded-xl bg-ant-bg border border-ant-border-secondary dark:border-white/5 space-y-2 text-xs shadow-2xs">
+              <div class="p-3.5 rounded-xl bg-ant-bg border border-ant-border-secondary space-y-2 text-xs shadow-2xs">
                 <div class="font-serif font-medium text-ant-text">Core Capabilities</div>
                 <div class="grid grid-cols-2 gap-2 text-[11px] text-ant-text-secondary font-serif">
-                  <div class="p-2.5 rounded-lg bg-ant-bg-secondary border border-ant-border-secondary dark:border-white/5">
+                  <div class="p-2.5 rounded-lg bg-ant-bg-secondary border border-ant-border-secondary">
                     <div class="font-sans font-semibold text-ant-text mb-0.5">Tactile Desktop Speed</div>
                     Direct Go process management with low-latency streaming and zero telemetry bloat.
                   </div>
-                  <div class="p-2.5 rounded-lg bg-ant-bg-secondary border border-ant-border-secondary dark:border-white/5">
+                  <div class="p-2.5 rounded-lg bg-ant-bg-secondary border border-ant-border-secondary">
                     <div class="font-sans font-semibold text-ant-text mb-0.5">Smart Screen Capture</div>
                     Non-intrusive full-display snapshots with auto-window exclusion for visual grounding.
                   </div>
@@ -1559,7 +1559,7 @@
       </div>
 
       <!-- Footer Action Toolbar -->
-      <div class="px-6 py-3 border-t border-ant-border-secondary dark:border-white/5 flex items-center justify-between bg-ant-bg flex-shrink-0">
+      <div class="px-6 py-3 border-t border-ant-border-secondary flex items-center justify-between bg-ant-bg flex-shrink-0">
         <button
           type="button"
           class="text-xs text-ant-text-secondary hover:text-ant-text flex items-center gap-1.5 transition"
