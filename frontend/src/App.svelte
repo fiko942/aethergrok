@@ -19,6 +19,7 @@
   import RightSidebar from '$lib/components/layout/RightSidebar.svelte';
   import ScreenFlash from '$lib/components/snapshot/ScreenFlash.svelte';
   import ModalConfirm from '$lib/antd/ModalConfirm.svelte';
+  import DonateModal from '$lib/components/layout/DonateModal.svelte';
   import NewSessionDropdown from '$lib/components/layout/NewSessionDropdown.svelte';
   import WorkspacePickerModal from '$lib/components/layout/WorkspacePickerModal.svelte';
   import { dialogStore } from '$lib/stores/dialog.svelte';
@@ -52,7 +53,8 @@
     PanelRightOpen,
     ChevronRight,
     Upload,
-    FolderPlus
+    FolderPlus,
+    Heart
   } from 'lucide-svelte';
 
   let reasoningEffort = $state<'low' | 'medium' | 'high'>('medium');
@@ -60,6 +62,7 @@
   let pingResult = $state<string>('');
   let skillsCatalogVisible = $state(false);
   let settingsModalVisible = $state(false);
+  let donateModalVisible = $state(false);
   let workspacePickerModalVisible = $state(false);
   let emptyStateDropdownOpen = $state(false);
   let flashActive = $state(false);
@@ -1230,6 +1233,18 @@
     </div>
 
     <div class="flex items-center space-x-2 shrink-0" style="--wails-draggable:no-drag">
+      <!-- Donate Heart Button (Left of Snapshot) -->
+      <Tooltip title="Support Developer (Saweria & QRIS)" placement="bottom">
+        <button
+          type="button"
+          onclick={() => donateModalVisible = true}
+          class="h-6.5 px-2 rounded-md bg-rose-500/10 hover:bg-rose-500/20 active:scale-95 text-rose-500 dark:text-rose-400 border border-rose-500/30 flex items-center justify-center transition-all cursor-pointer shadow-2xs group"
+          aria-label="Support Developer"
+        >
+          <Heart size={13} class="fill-rose-500/20 group-hover:fill-rose-500 transition-colors" />
+        </button>
+      </Tooltip>
+
       <Button size="small" type="primary" onclick={performGlobalSnapshot}>
         <Camera size={13} class="mr-1" /> Snapshot
       </Button>
@@ -1549,4 +1564,10 @@
   {#if showGrokInstallModal}
     <GrokInstallModal onComplete={() => { showGrokInstallModal = false; }} />
   {/if}
+
+  <!-- Developer Donation & Saweria Support Modal -->
+  <DonateModal
+    open={donateModalVisible}
+    onClose={() => (donateModalVisible = false)}
+  />
 </div>
