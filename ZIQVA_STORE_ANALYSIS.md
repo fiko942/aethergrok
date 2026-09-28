@@ -9,7 +9,14 @@
 
 ## Recent Engineering Patches (Session Log)
 
-### 1. UI Refinement & Polish
+### 1. In-App Auto-Updater Checksum Match Fix (v1.0.5)
+- **Component**: `frontend/src/lib/stores/updater.svelte.ts`
+- **Issue**: Auto-update checksum mismatch error on Apple Silicon (macOS ARM64) due to naive `.find()` selecting the first alphabetical `.sha256` asset (AMD64) instead of matching the downloaded target file.
+- **Fix**:
+  - Implemented 3-tier hierarchical resolution: exact target filename match (`<filename>.sha256`), OS format & architecture substring matching (`arm64` vs `amd64`, `.dmg`/`.exe`/`.zip`), and fallback.
+  - Bumped release to `v1.0.5` and published all 14 multi-platform assets.
+
+### 2. UI Refinement & Polish
 - **Component**: `frontend/src/lib/components/layout/SettingsModal.svelte`
 - **Change**: 
   - Restyled and consolidated the **Grok Config** card and button into a clean single line with `whitespace-nowrap shrink-0`.

@@ -1,5 +1,5 @@
-SnapshotVersion: "1.1.0"
-LastMergedAt: "2026-09-27T12:00:00+07:00"
+SnapshotVersion: "1.1.1"
+LastMergedAt: "2026-09-28T20:25:00+07:00"
 MergeType: "additive"
 
 ProjectOverview:
@@ -71,6 +71,7 @@ CurrentState:
   frontend_errors: 0
   go_tests: "Passing (all suites in test/ and pkg/)"
   latest_fixes:
+    - "v1.0.5 release: In-app updater SHA256 checksum asset matching precision fix across architectures"
     - "OS-wide global snapshot shortcut registration with CGEventTap (Right Shift, etc.)"
     - "Native direct git executable resolution in pkg/gitutil to eliminate macOS xcrun crash"
     - "Session tabs multi-workspace contextual badges and tab reordering persistence"
