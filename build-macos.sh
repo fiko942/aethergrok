@@ -163,31 +163,29 @@ VOL_NAME=$(basename "$MOUNT_POINT")
 
 echo "Mounted on $MOUNT_POINT ($DEV_NODE), Volume: $VOL_NAME"
 
-# AppleScript to configure Finder presentation (Window size 660x420, icon 120, left: 170, right: 490)
+# AppleScript to configure Finder presentation (Window size 660x400, icon 96, left: 160, right: 500)
 echo "Applying custom Finder view options, bounds, and icon positions..."
 osascript -e "
 tell application \"Finder\"
-  set theDisk to disk \"$VOL_NAME\"
-  open theDisk
-  set theWindow to container window of theDisk
+  open disk \"$VOL_NAME\"
+  delay 1
+  set theWindow to window of disk \"$VOL_NAME\"
   set current view of theWindow to icon view
   set toolbar visible of theWindow to false
   set statusbar visible of theWindow to false
-  set the bounds of theWindow to {300, 100, 960, 520}
+  set pathbar visible of theWindow to false
+  set the bounds of theWindow to {300, 100, 960, 500}
   set opts to the icon view options of theWindow
   set arrangement of opts to not arranged
-  set icon size of opts to 120
+  set icon size of opts to 96
   set label position of opts to bottom
   set text size of opts to 12
-  if exists file \".background:background.tiff\" of theDisk then
-    set background picture of opts to file \".background:background.tiff\" of theDisk
-  else if exists file \".background:background.png\" of theDisk then
-    set background picture of opts to file \".background:background.png\" of theDisk
-  end if
-  set position of item \"AetherGrok.app\" of theDisk to {170, 215}
-  set position of item \"Applications\" of theDisk to {490, 215}
-  update theDisk without registering applications
-  delay 1
+  set bgFile to (POSIX file (\"/Volumes/\" & \"$VOL_NAME\" & \"/.background/background.png\")) as alias
+  set background picture of opts to bgFile
+  set position of item \"AetherGrok.app\" of disk \"$VOL_NAME\" to {160, 150}
+  set position of item \"Applications\" of disk \"$VOL_NAME\" to {500, 150}
+  update disk \"$VOL_NAME\" without registering applications
+  delay 2
   close theWindow
 end tell
 " || true
