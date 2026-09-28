@@ -2,8 +2,47 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "AetherGrok Release Changelog",
   "description": "Central single source of truth for all AetherGrok releases, commit ranges, and download artifacts.",
-  "latest": "1.0.2",
+  "latest": "1.0.3",
   "releases": [
+    {
+      "version": "1.0.3",
+      "tag": "v1.0.3",
+      "date": "2026-09-28T09:23:39.161Z",
+      "title": "AetherGrok 1.0.3 - Official Repository Migration & In-App Auto-Update Sync",
+      "targetCommit": "3c90a80",
+      "previousCommit": "d2d908a",
+      "highlights": [
+        "Migrated primary GitHub repository from grok-build to fiko942/aethergrok across backend updater, settings UI, and release manager.",
+        "Updated in-app updates tab, about section cards, and documentation links to support seamless auto-updates from new repo.",
+        "Integrated automated strict pre-flight release validation (TypeScript, Vitest, Svelte Vite, Go tests, app build)."
+      ],
+      "commits": [
+        {
+          "hash": "3c90a80",
+          "message": "fix(release): define patchVer and semver bump variants before reading environment options"
+        },
+        {
+          "hash": "fd0e872",
+          "message": "feat(release): support non-interactive environment flags and robust input handling in release script"
+        },
+        {
+          "hash": "215807b",
+          "message": "feat(repo): migrate repository references and in-app updater to fiko942/aethergrok"
+        },
+        {
+          "hash": "d84d217",
+          "message": "fix(ci): fix Go version to 1.24.x, update Wails JS bindings, and add strict release preflight checks"
+        }
+      ],
+      "downloads": {
+        "macos_arm64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.0.3/AetherGrok-1.0.3-macOS-arm64.dmg",
+        "macos_x64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.0.3/AetherGrok-1.0.3-macOS-amd64.dmg",
+        "windows_x64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.0.3/AetherGrok-1.0.3-windows-amd64-setup.exe",
+        "windows_x64_portable": "https://github.com/fiko942/aethergrok/releases/download/v1.0.3/AetherGrok-1.0.3-windows-amd64-portable.zip",
+        "windows_arm64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.0.3/AetherGrok-1.0.3-windows-arm64-setup.exe",
+        "windows_arm64_portable": "https://github.com/fiko942/aethergrok/releases/download/v1.0.3/AetherGrok-1.0.3-windows-arm64-portable.zip"
+      }
+    },
     {
       "version": "1.0.2",
       "tag": "v1.0.2",
