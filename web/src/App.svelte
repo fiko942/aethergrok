@@ -8,6 +8,7 @@
   import MacGatekeeperGuide from './lib/components/MacGatekeeperGuide.svelte';
   import DonateSection from './lib/components/DonateSection.svelte';
   import Footer from './lib/components/Footer.svelte';
+  import DownloadGuideModal from './lib/components/DownloadGuideModal.svelte';
 </script>
 
 <div class="min-h-screen flex flex-col bg-white text-slate-900 selection:bg-blue-100 selection:text-blue-900">
@@ -22,4 +23,5 @@
     <DonateSection />
   </main>
   <Footer />
+  <DownloadGuideModal />
 </div>

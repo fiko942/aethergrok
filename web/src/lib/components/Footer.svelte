@@ -84,7 +84,7 @@
               class="hover:text-amber-400 flex items-center gap-1 text-amber-400 font-medium transition-colors"
             >
               <Coffee class="w-4 h-4" />
-              <span>Donasi Saweria</span>
+              <span>Sponsor via Saweria</span>
             </a>
           </li>
           <li>

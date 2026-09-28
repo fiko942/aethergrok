@@ -9,6 +9,7 @@
     Coffee
   } from 'lucide-svelte';
   import { githubRepo, fetchLiveLatestRelease, type LatestReleaseInfo } from '../data/downloads';
+  import { openDownloadModal } from '../data/downloadModal';
   import { onMount } from 'svelte';
 
   let releaseInfo = $state<LatestReleaseInfo | null>(null);
@@ -18,7 +19,16 @@
     releaseInfo = await fetchLiveLatestRelease();
   });
 
-  const displayVersion = $derived(releaseInfo?.tagName || 'v1.0.3');
+  const displayVersion = $derived(releaseInfo?.tagName || 'v1.0.4');
+
+  const macArmUrl = $derived(
+    releaseInfo?.assets.find((a) => a.name.includes('arm64') && a.name.endsWith('.dmg'))?.browser_download_url ||
+    `${githubRepo}/releases/latest`
+  );
+
+  function handleNavDownload() {
+    openDownloadModal('macOS', `AetherGrok-${displayVersion}-macOS-arm64.dmg`, macArmUrl);
+  }
 
   function toggleMobileMenu() {
     mobileMenuOpen = !mobileMenuOpen;
@@ -61,7 +71,7 @@
       </a>
       <a href="#sponsors" class="text-sm font-medium text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition-colors">
         <Coffee class="w-4 h-4 text-amber-500" />
-        <span>Donasi (Saweria)</span>
+        <span>Sponsor (Saweria)</span>
       </a>
       <a
         href="{githubRepo}"
@@ -77,13 +87,13 @@
 
     <!-- Right Actions -->
     <div class="hidden md:flex items-center gap-3">
-      <a
-        href="#downloads"
+      <button
+        onclick={handleNavDownload}
         class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm hover:shadow transition-all duration-150 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
       >
         <Download class="w-4 h-4" />
         <span>Download {displayVersion}</span>
-      </a>
+      </button>
     </div>
 
     <!-- Mobile Menu Button -->
@@ -131,7 +141,7 @@
         onclick={closeMobileMenu}
         class="block px-3 py-2 rounded-md text-base font-medium text-amber-700 hover:text-amber-800 hover:bg-amber-50"
       >
-        Donasi Saweria
+        Sponsor (Saweria)
       </a>
       <a
         href="{githubRepo}"

@@ -14,6 +14,7 @@
     Check
   } from 'lucide-svelte';
   import { githubRepo, fetchLiveLatestRelease, type LatestReleaseInfo } from '../data/downloads';
+  import { openDownloadModal } from '../data/downloadModal';
   import { onMount } from 'svelte';
 
   let releaseInfo = $state<LatestReleaseInfo | null>(null);
@@ -22,7 +23,7 @@
     releaseInfo = await fetchLiveLatestRelease();
   });
 
-  const displayVersion = $derived(releaseInfo?.tagName || 'v1.0.3');
+  const displayVersion = $derived(releaseInfo?.tagName || 'v1.0.4');
   const macArmUrl = $derived(
     releaseInfo?.assets.find((a) => a.name.includes('arm64') && a.name.endsWith('.dmg'))?.browser_download_url ||
     `${githubRepo}/releases/latest`
@@ -31,6 +32,14 @@
     releaseInfo?.assets.find((a) => a.name.includes('setup.exe') || a.name.endsWith('.exe'))?.browser_download_url ||
     `${githubRepo}/releases/latest`
   );
+
+  function handleMacDownload() {
+    openDownloadModal('macOS', `AetherGrok-${displayVersion}-macOS-arm64.dmg`, macArmUrl);
+  }
+
+  function handleWinDownload() {
+    openDownloadModal('Windows', `AetherGrok-${displayVersion}-windows-amd64-setup.exe`, winSetupUrl);
+  }
 </script>
 
 <section class="relative pt-12 pb-20 md:pt-20 md:pb-28 overflow-hidden bg-gradient-to-b from-slate-50 via-white to-white">
@@ -64,21 +73,21 @@
 
       <!-- CTA Buttons (Direct to Latest Releases dynamically) -->
       <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
-        <a
-          href="{macArmUrl}"
-          class="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 text-base font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.99] rounded-xl shadow-md hover:shadow-lg transition-all duration-150 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        <button
+          onclick={handleMacDownload}
+          class="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 text-base font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.99] rounded-xl shadow-md hover:shadow-lg transition-all duration-150 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
         >
           <Download class="w-5 h-5" />
           <span>Download for macOS (Latest)</span>
-        </a>
+        </button>
 
-        <a
-          href="{winSetupUrl}"
-          class="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 text-base font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-xl shadow-sm hover:shadow transition-all duration-150 focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+        <button
+          onclick={handleWinDownload}
+          class="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 text-base font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-xl shadow-sm hover:shadow transition-all duration-150 focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 cursor-pointer"
         >
           <Download class="w-5 h-5 text-slate-500" />
           <span>Windows Releases</span>
-        </a>
+        </button>
 
         <a
           href="{githubRepo}"
