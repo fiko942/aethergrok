@@ -179,7 +179,8 @@ func MatchPlatformAsset(assets []ReleaseAsset, osName, arch string) *ReleaseAsse
 		lowerName := strings.ToLower(asset.Name)
 
 		if isDarwin {
-			if !strings.HasSuffix(lowerName, ".dmg") {
+			// Check for DMG filenames (.dmg) or canonical keys (e.g. macos_arm64_dmg, macos_x64_dmg)
+			if !strings.HasSuffix(lowerName, ".dmg") && !strings.Contains(lowerName, "dmg") {
 				continue
 			}
 			if isARM64 {
@@ -196,12 +197,13 @@ func MatchPlatformAsset(assets []ReleaseAsset, osName, arch string) *ReleaseAsse
 				matched = asset
 			}
 		} else if isWindows {
-			if !strings.HasSuffix(lowerName, ".exe") {
+			// Check for EXE filenames (.exe) or canonical keys (e.g. windows_x64_setup, windows_arm64_setup)
+			if !strings.HasSuffix(lowerName, ".exe") && !strings.Contains(lowerName, "setup") && !strings.Contains(lowerName, "installer") {
 				continue
 			}
 			if isARM64 {
 				if (strings.Contains(lowerName, "arm64") || strings.Contains(lowerName, "aarch64")) &&
-					(strings.Contains(lowerName, "-setup") || strings.Contains(lowerName, "installer") || strings.Contains(lowerName, "setup")) {
+					(strings.Contains(lowerName, "-setup") || strings.Contains(lowerName, "_setup") || strings.Contains(lowerName, "installer") || strings.Contains(lowerName, "setup")) {
 					return asset
 				}
 				if strings.Contains(lowerName, "arm64") || strings.Contains(lowerName, "aarch64") {
@@ -209,7 +211,7 @@ func MatchPlatformAsset(assets []ReleaseAsset, osName, arch string) *ReleaseAsse
 				}
 			} else if isAMD64 {
 				if (strings.Contains(lowerName, "amd64") || strings.Contains(lowerName, "x64") || strings.Contains(lowerName, "x86_64")) &&
-					(strings.Contains(lowerName, "-setup") || strings.Contains(lowerName, "installer") || strings.Contains(lowerName, "setup")) {
+					(strings.Contains(lowerName, "-setup") || strings.Contains(lowerName, "_setup") || strings.Contains(lowerName, "installer") || strings.Contains(lowerName, "setup")) {
 					return asset
 				}
 				if strings.Contains(lowerName, "x64") || strings.Contains(lowerName, "amd64") {

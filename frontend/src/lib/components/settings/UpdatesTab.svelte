@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { updaterStore } from '$lib/stores/updater.svelte';
+  import { parsePackageInfo } from '$lib/utils/packageFormatter';
   import {
     RotateCw,
     CheckCircle2,
@@ -23,7 +24,9 @@
     XCircle,
     Play,
     Zap,
-    HardDriveDownload
+    HardDriveDownload,
+    Monitor,
+    TerminalSquare
   } from 'lucide-svelte';
   import Button from '$lib/antd/Button.svelte';
   import Tooltip from '$lib/antd/Tooltip.svelte';
@@ -97,106 +100,57 @@
 </script>
 
 <div class="flex flex-col h-full space-y-5 font-serif">
-  <!-- Header Section -->
-  <div class="flex items-start justify-between">
+  <!-- Top Bar: Title & Live Header Actions -->
+  <div class="flex items-center justify-between pb-1">
     <div>
-      <h3 class="font-serif-display text-base font-semibold text-ant-text flex items-center gap-2">
-        <span>Updates & Release Changelog</span>
-        <span class="px-2 py-0.5 text-[10px] font-mono bg-ant-primary/15 text-ant-primary rounded-full">
-          v{updaterStore.currentVersion}
+      <h3 class="font-serif-display text-base font-semibold text-ant-text flex items-center gap-2.5">
+        <span>Updates & Release Manager</span>
+        <span class="px-2 py-0.5 text-[10.5px] font-mono font-medium bg-ant-primary/15 text-ant-primary rounded-full">
+          Current: v{updaterStore.currentVersion}
         </span>
       </h3>
       <p class="font-serif text-xs text-ant-text-secondary mt-0.5">
-        1-Click background auto-download, integrity verification, and instant self-installation.
+        1-Click in-app background download, integrity verification, and instant self-installation.
       </p>
     </div>
 
-    <button
-      type="button"
-      onclick={() => updaterStore.openDownload('https://github.com/fiko942/grok-build/releases')}
-      class="px-2.5 py-1.5 rounded-lg text-xs font-serif text-ant-text-secondary hover:text-ant-text bg-ant-bg-secondary hover:bg-ant-bg-tertiary transition flex items-center gap-1.5 cursor-pointer"
-      title="View all releases on GitHub"
-    >
-      <ExternalLink size={12} class="text-ant-primary" />
-      <span>GitHub Releases</span>
-    </button>
-  </div>
-
-  <!-- Live Status Card -->
-  <div class="p-4 rounded-xl bg-ant-bg-secondary space-y-3">
-    <div class="flex items-center justify-between flex-wrap gap-3">
-      <div class="flex items-center space-x-3">
-        <!-- Status Icon Avatar -->
-        <div class="w-10 h-10 rounded-xl flex items-center justify-center {
-          updaterStore.updateAvailable
-            ? 'bg-amber-500/15 text-amber-500 dark:bg-amber-500/10'
-            : 'bg-emerald-500/15 text-emerald-500 dark:bg-emerald-500/10'
-        }">
-          {#if updaterStore.updateAvailable}
-            <Sparkles size={20} class="animate-pulse" />
-          {:else}
-            <CheckCircle2 size={20} />
-          {/if}
-        </div>
-
-        <div class="space-y-0.5">
-          <div class="flex items-center gap-2">
-            <span class="text-xs font-semibold text-ant-text">
-              Installed Version:
-            </span>
-            <span class="px-2 py-0.5 text-[11px] font-mono font-bold bg-ant-bg-tertiary text-ant-text rounded-md">
-              v{updaterStore.currentVersion}
-            </span>
-
-            {#if updaterStore.updateAvailable}
-              <span class="px-2 py-0.5 text-[10.5px] font-mono font-semibold bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-full animate-pulse flex items-center gap-1">
-                <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                Update Available (v{updaterStore.latestVersion})
-              </span>
-            {:else}
-              <span class="px-2 py-0.5 text-[10.5px] font-mono font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center gap-1">
-                <Check size={11} />
-                Up to date
-              </span>
-            {/if}
-          </div>
-
-          <div class="text-[11px] text-ant-text-secondary font-serif flex items-center gap-2">
-            <span>Last checked: <strong class="font-mono text-ant-text">{formatTimestamp(updaterStore.lastChecked)}</strong></span>
-            {#if updaterStore.error}
-              <span class="text-rose-500 flex items-center gap-1">
-                <AlertCircle size={12} /> {updaterStore.error}
-              </span>
-            {/if}
-          </div>
-        </div>
-      </div>
-
-      <!-- Action Button -->
+    <div class="flex items-center space-x-2">
       <button
         type="button"
         onclick={() => updaterStore.checkForUpdates(false)}
         disabled={updaterStore.checking || updaterStore.isInstalling}
-        class="px-3.5 py-1.5 rounded-lg text-xs font-serif font-medium bg-ant-primary text-white hover:bg-ant-primary-hover active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2 shadow-xs cursor-pointer"
+        class="px-3 py-1.5 rounded-lg text-xs font-serif font-medium bg-ant-primary text-white hover:bg-ant-primary-hover active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2 shadow-xs cursor-pointer"
       >
         <RotateCw size={13} class={updaterStore.checking ? 'animate-spin' : ''} />
-        <span>{updaterStore.checking ? 'Checking for updates...' : 'Check for Updates'}</span>
+        <span>{updaterStore.checking ? 'Checking...' : 'Check for Updates'}</span>
+      </button>
+
+      <button
+        type="button"
+        onclick={() => updaterStore.openDownload('https://github.com/fiko942/grok-build/releases')}
+        class="px-2.5 py-1.5 rounded-lg text-xs font-serif text-ant-text-secondary hover:text-ant-text bg-ant-bg-secondary hover:bg-ant-bg-tertiary transition flex items-center gap-1.5 cursor-pointer"
+        title="View repository releases on GitHub"
+      >
+        <ExternalLink size={12} class="text-ant-primary" />
+        <span>GitHub</span>
       </button>
     </div>
   </div>
 
-  <!-- Update Available & Live Auto-Install Hero Card -->
+  <!-- Update Available Hero Card with 1-Click Action & Telemetry -->
   {#if updaterStore.updateAvailable && updaterStore.latestRelease}
-    <div class="p-5 rounded-2xl bg-gradient-to-br from-ant-primary/10 via-ant-bg-secondary to-ant-bg-secondary space-y-4 animate-in fade-in zoom-in-95 duration-200">
+    <div class="p-5 rounded-2xl bg-gradient-to-br from-ant-primary/15 via-ant-bg-secondary to-ant-bg-secondary shadow-lg space-y-4 animate-in fade-in zoom-in-95 duration-200">
       <div class="flex items-start justify-between gap-4">
         <div class="space-y-1.5 flex-1">
+          <!-- Update Available Header Banner -->
           <div class="flex items-center gap-2 flex-wrap">
-            <span class="px-2.5 py-0.5 text-xs font-mono font-bold bg-ant-primary text-white rounded-md shadow-xs">
-              v{updaterStore.latestRelease.version}
+            <span class="px-2.5 py-0.5 text-xs font-mono font-bold bg-amber-500 text-white rounded-md shadow-xs flex items-center gap-1">
+              <Sparkles size={12} />
+              v{updaterStore.latestRelease.version} Ready
             </span>
-            <span class="text-xs text-ant-text-secondary font-mono flex items-center gap-1">
-              <span>(Current: v{updaterStore.currentVersion})</span>
-              <ArrowRight size={12} class="text-ant-primary" />
+            <span class="text-xs text-ant-text-secondary font-mono flex items-center gap-1.5">
+              <span>Installed: <strong>v{updaterStore.currentVersion}</strong></span>
+              <ArrowRight size={11} class="text-ant-primary" />
               <span class="font-bold text-ant-primary">v{updaterStore.latestRelease.version}</span>
             </span>
             {#if updaterStore.latestRelease.publishedAt}
@@ -206,15 +160,15 @@
             {/if}
           </div>
 
-          <h4 class="font-serif-display text-sm font-bold text-ant-text pt-0.5">
+          <h4 class="font-serif-display text-sm font-bold text-ant-text pt-1">
             {updaterStore.latestRelease.title || `AetherGrok v${updaterStore.latestRelease.version} Released`}
           </h4>
 
           {#if updaterStore.latestRelease.highlights && updaterStore.latestRelease.highlights.length > 0}
-            <ul class="space-y-1 pt-1">
+            <ul class="space-y-1 pt-1 pl-0.5">
               {#each updaterStore.latestRelease.highlights.slice(0, 3) as item}
-                <li class="text-xs text-ant-text-secondary flex items-start gap-2">
-                  <span class="text-ant-primary font-bold leading-none mt-1">•</span>
+                <li class="text-xs text-ant-text-secondary flex items-start gap-2 leading-relaxed">
+                  <span class="text-ant-primary font-bold leading-none mt-1">✦</span>
                   <span>{item}</span>
                 </li>
               {/each}
@@ -225,7 +179,7 @@
 
       <!-- Live Interactive Download / Installation Progress Bar -->
       {#if updaterStore.isInstalling}
-        <div class="p-4 rounded-xl bg-ant-bg/90 space-y-3">
+        <div class="p-4 rounded-xl bg-ant-bg/95 space-y-3 shadow-inner">
           <div class="flex items-center justify-between text-xs">
             <div class="flex items-center gap-2">
               {#if updaterStore.installProgress.stage === 'downloading'}
@@ -313,46 +267,36 @@
       <!-- Hero Banner Action Buttons -->
       <div class="pt-3 flex items-center justify-between flex-wrap gap-3">
         <div class="flex items-center gap-2.5 flex-wrap">
-          {#if updaterStore.matchedAsset}
-            <!-- 1-Click Automatic In-App Download & Self-Install -->
-            <button
-              type="button"
-              onclick={() => updaterStore.startDownloadAndInstall()}
-              disabled={updaterStore.isInstalling}
-              class="px-4 py-2 rounded-xl text-xs font-serif font-semibold bg-ant-primary hover:bg-ant-primary-hover text-white shadow-md shadow-ant-primary/25 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2 cursor-pointer active:scale-95"
-            >
-              {#if updaterStore.isInstalling}
-                <RotateCw size={15} class="animate-spin" />
-                <span>Installing Update...</span>
-              {:else}
-                <Zap size={15} class="fill-current text-amber-300" />
-                <span>Update Now (Auto-Install)</span>
-                {#if updaterStore.matchedAsset.size > 0}
-                  <span class="opacity-80 font-mono text-[10.5px]">({formatBytes(updaterStore.matchedAsset.size)})</span>
-                {/if}
+          <!-- 1-Click Automatic In-App Download & Self-Install -->
+          <button
+            type="button"
+            onclick={() => updaterStore.startDownloadAndInstall()}
+            disabled={updaterStore.isInstalling}
+            class="px-4 py-2 rounded-xl text-xs font-serif font-semibold bg-ant-primary hover:bg-ant-primary-hover text-white shadow-md shadow-ant-primary/25 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2 cursor-pointer active:scale-95"
+          >
+            {#if updaterStore.isInstalling}
+              <RotateCw size={15} class="animate-spin" />
+              <span>Installing Update...</span>
+            {:else}
+              <Zap size={15} class="fill-current text-amber-300" />
+              <span>Update Now (Auto-Install)</span>
+              {#if updaterStore.matchedAsset && updaterStore.matchedAsset.size > 0}
+                <span class="opacity-80 font-mono text-[10.5px]">({formatBytes(updaterStore.matchedAsset.size)})</span>
               {/if}
-            </button>
+            {/if}
+          </button>
 
-            <!-- Manual Download fallback button -->
+          <!-- Manual Download fallback button -->
+          {#if updaterStore.matchedAsset}
             <button
               type="button"
               onclick={() => updaterStore.openDownload(updaterStore.matchedAsset?.downloadUrl)}
               disabled={updaterStore.isInstalling}
               class="px-3 py-2 rounded-xl text-xs font-serif text-ant-text-secondary hover:text-ant-text bg-ant-bg-tertiary/60 hover:bg-ant-bg-tertiary transition flex items-center gap-1.5 cursor-pointer"
-              title="Download file manually via browser"
+              title="Download binary package manually via browser"
             >
               <Download size={13} />
               <span>Manual Download</span>
-            </button>
-          {:else}
-            <!-- Fallback if platform asset not automatically matched -->
-            <button
-              type="button"
-              onclick={() => updaterStore.openDownload(`https://github.com/fiko942/grok-build/releases/tag/${updaterStore.latestRelease?.tagName}`)}
-              class="px-4 py-2 rounded-xl text-xs font-serif font-semibold bg-ant-primary hover:bg-ant-primary-hover text-white shadow-md shadow-ant-primary/25 transition flex items-center gap-2 cursor-pointer active:scale-95"
-            >
-              <ExternalLink size={15} />
-              <span>View Release on GitHub</span>
             </button>
           {/if}
         </div>
@@ -367,10 +311,36 @@
         </button>
       </div>
     </div>
+  {:else}
+    <!-- Up-to-Date State Summary Card -->
+    <div class="p-4 rounded-xl bg-ant-bg-secondary flex items-center justify-between flex-wrap gap-3">
+      <div class="flex items-center space-x-3">
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center bg-emerald-500/15 text-emerald-500 dark:bg-emerald-500/10">
+          <CheckCircle2 size={18} />
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold text-ant-text">AetherGrok is up-to-date</span>
+            <span class="px-2 py-0.2 text-[10px] font-mono font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center gap-1">
+              <Check size={10} /> v{updaterStore.currentVersion}
+            </span>
+          </div>
+          <p class="text-[11px] text-ant-text-secondary font-serif mt-0.5">
+            Last checked: <strong class="font-mono text-ant-text">{formatTimestamp(updaterStore.lastChecked)}</strong>
+          </p>
+        </div>
+      </div>
+
+      {#if updaterStore.error}
+        <span class="text-xs text-rose-500 flex items-center gap-1">
+          <AlertCircle size={13} /> {updaterStore.error}
+        </span>
+      {/if}
+    </div>
   {/if}
 
   <!-- Version Changelog History List -->
-  <div class="space-y-3">
+  <div class="space-y-3 pt-1">
     <div class="flex items-center justify-between">
       <h4 class="font-serif-display text-sm font-semibold text-ant-text flex items-center gap-2">
         <Package size={15} class="text-ant-primary" />
@@ -432,7 +402,7 @@
 
                 {#if isCurrent}
                   <span class="px-2 py-0.2 text-[10px] font-mono bg-ant-primary/20 text-ant-primary rounded-full flex items-center gap-1">
-                    <Check size={9} /> Current
+                    <Check size={9} /> Installed
                   </span>
                 {/if}
 
@@ -473,7 +443,7 @@
                     <ul class="space-y-1 pl-1">
                       {#each release.highlights as highlight}
                         <li class="text-xs text-ant-text-secondary flex items-start gap-2 leading-relaxed">
-                          <span class="text-ant-primary font-bold leading-none mt-1.5">•</span>
+                          <span class="text-ant-primary font-bold leading-none mt-1.5">✦</span>
                           <span>{highlight}</span>
                         </li>
                       {/each}
@@ -488,25 +458,38 @@
                   </div>
                 {/if}
 
-                <!-- Downloadable Assets List -->
+                <!-- Downloadable Assets List with Humanized Labels -->
                 {#if release.assets && release.assets.length > 0}
                   <div class="pt-2 space-y-2">
                     <span class="text-[11px] font-semibold text-ant-text-secondary uppercase tracking-wider flex items-center gap-1">
-                      <Download size={11} /> Available Packages:
+                      <Download size={11} /> Available Installers & Packages:
                     </span>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {#each release.assets as asset}
+                        {@const info = parsePackageInfo(asset.name)}
                         <button
                           type="button"
                           onclick={() => updaterStore.openDownload(asset.downloadUrl)}
                           class="p-2.5 rounded-lg bg-ant-bg-tertiary/60 hover:bg-ant-bg-tertiary text-left transition flex items-center justify-between gap-2 text-xs group cursor-pointer"
                         >
-                          <div class="flex items-center space-x-2 min-w-0">
-                            <Package size={13} class="text-ant-primary shrink-0 group-hover:scale-110 transition" />
-                            <span class="font-mono text-[11px] text-ant-text truncate" title={asset.name}>
-                              {asset.name}
-                            </span>
+                          <div class="flex items-center space-x-2.5 min-w-0">
+                            {#if info.osName === 'macOS'}
+                              <Laptop size={14} class="text-ant-primary shrink-0 group-hover:scale-110 transition" />
+                            {:else if info.osName === 'Windows'}
+                              <Monitor size={14} class="text-blue-400 shrink-0 group-hover:scale-110 transition" />
+                            {:else}
+                              <Package size={14} class="text-ant-primary shrink-0 group-hover:scale-110 transition" />
+                            {/if}
+
+                            <div class="min-w-0">
+                              <div class="text-[11.5px] font-medium text-ant-text truncate">
+                                {info.label}
+                              </div>
+                              <div class="text-[10px] text-ant-text-muted font-mono truncate">
+                                {asset.name}
+                              </div>
+                            </div>
                           </div>
 
                           <div class="flex items-center space-x-1.5 shrink-0 text-ant-text-secondary text-[10.5px] font-mono">
