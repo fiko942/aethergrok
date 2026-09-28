@@ -40,6 +40,7 @@ Download the latest signed release directly for macOS and Windows from the [Late
 | **Intel x86_64** | Styled `.dmg` | [Download macOS AMD64 DMG (Latest)](https://github.com/fiko942/aethergrok/releases/latest) | [Verify Checksum](https://github.com/fiko942/aethergrok/releases/latest) |
 
 ### Quick Terminal Install (macOS / Linux)
+Installs AetherGrok directly into `/Applications` and automatically clears Gatekeeper quarantine flags:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/fiko942/aethergrok/main/scripts/install-app.sh | bash
 ```

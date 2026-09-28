@@ -51,6 +51,10 @@ if [ "$OS" = "darwin" ]; then
     fi
     cp -R "$MOUNT_DIR/AetherGrok.app" /Applications/
     
+    echo "==> Removing macOS Gatekeeper quarantine attribute..."
+    xattr -d com.apple.quarantine /Applications/AetherGrok.app 2>/dev/null || true
+    xattr -cr /Applications/AetherGrok.app 2>/dev/null || true
+    
     echo "==> Unmounting installer..."
     hdiutil detach "$MOUNT_DIR" -quiet || true
     rm -rf "$TMP_DIR"

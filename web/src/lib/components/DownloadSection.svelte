@@ -256,7 +256,7 @@
         {installCurl}
       </div>
       <p class="text-[11px] text-slate-400 mt-2">
-        Skrip akan otomatis mendeteksi arsitektur Mac Anda (Apple Silicon atau Intel), mengunduh rilis DMG terbaru dari GitHub, me-mount, dan menyalin aplikasi ke <code>/Applications/AetherGrok.app</code>.
+        Skrip akan otomatis mendeteksi arsitektur Mac Anda (Apple Silicon atau Intel), mengunduh rilis DMG terbaru dari GitHub, menyalin aplikasi ke <code>/Applications/AetherGrok.app</code>, dan langsung membersihkan atribut Apple Quarantine (Gatekeeper) agar aplikasi dapat langsung dibuka tanpa peringatan blokir.
       </p>
     </div>
   </div>
