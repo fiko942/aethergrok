@@ -1566,11 +1566,11 @@
                 <div class="space-y-1">
                   <div class="flex items-center space-x-2 text-ant-text font-serif font-semibold text-xs">
                     <Sparkles size={14} class="text-amber-500" />
-                    <span>Dukung Developer via Saweria</span>
+                    <span>Support the Developer via Saweria</span>
                     <span class="px-1.5 py-0.5 rounded text-[10px] font-sans font-bold bg-amber-500/20 text-amber-600 dark:text-amber-400">QRIS / E-Wallet</span>
                   </div>
                   <p class="text-[11px] text-ant-text-secondary font-serif">
-                    Dukung pemeliharaan dan pengembangan AetherGrok melalui Saweria (GoPay, OVO, Dana, ShopeePay, QRIS).
+                    Support ongoing development and maintenance of AetherGrok via Saweria (GoPay, OVO, Dana, ShopeePay, QRIS).
                   </p>
                 </div>
                 <button
