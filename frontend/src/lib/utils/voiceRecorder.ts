@@ -190,26 +190,26 @@ export class VoiceRecorderManager {
   }
 
   /**
-   * Start recording audio with selected input device
+   * Start recording audio with selected input device (Instant 1-step initialization)
    */
   async startRecording(
     deviceId?: string,
     onProgress?: (progress: VoiceTranscriptionProgress) => void
   ): Promise<void> {
     if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-      this.stopRecording();
+      try {
+        this.mediaRecorder.stop();
+      } catch {
+        // ignore
+      }
+      this.cleanupStream();
     }
 
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
       throw new Error('Audio recording is not supported in this environment');
     }
 
-    onProgress?.({ state: 'checking_permission', message: 'Verifying microphone access...' });
-
-    const hasPermission = await this.requestPermission();
-    if (!hasPermission) {
-      throw new Error('Microphone permission denied. Please allow microphone access in System Settings.');
-    }
+    onProgress?.({ state: 'checking_permission', message: 'Starting microphone...' });
 
     const constraints: MediaStreamConstraints = {
       audio: {
@@ -222,7 +222,17 @@ export class VoiceRecorderManager {
       },
     };
 
-    this.audioStream = await navigator.mediaDevices.getUserMedia(constraints);
+    try {
+      this.audioStream = await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (err: any) {
+      if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+        // Attempt native permission request prompt if available
+        await this.requestPermission();
+        throw new Error('Microphone permission denied. Please allow microphone access in System Settings.');
+      }
+      throw err;
+    }
+
     this.audioChunks = [];
 
     // Select supported mimeType with optimized speech bitrate (24-32kbps)
@@ -289,9 +299,18 @@ export class VoiceRecorderManager {
     }
 
     return new Promise((resolve, reject) => {
+      // If recorder hasn't started or is already inactive
       if (!this.mediaRecorder || this.mediaRecorder.state === 'inactive') {
-        this.cleanupStream();
-        reject(new Error('No active audio recording session'));
+        const mime = 'audio/webm';
+        const ext = 'webm';
+        if (this.audioChunks.length > 0) {
+          const audioBlob = new Blob(this.audioChunks, { type: mime });
+          this.cleanupStream();
+          resolve({ blob: audioBlob, ext });
+        } else {
+          this.cleanupStream();
+          resolve({ blob: new Blob([], { type: mime }), ext });
+        }
         return;
       }
 
@@ -308,7 +327,7 @@ export class VoiceRecorderManager {
         this.mediaRecorder.stop();
       } catch (err) {
         this.cleanupStream();
-        reject(err);
+        resolve({ blob: new Blob(this.audioChunks, { type: mime }), ext });
       }
     });
   }

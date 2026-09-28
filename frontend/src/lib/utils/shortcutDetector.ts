@@ -37,7 +37,7 @@ export class ShortcutDetector {
   private holdTimer: any = null;
 
   constructor(options?: ShortcutDetectorOptions) {
-    this.holdThresholdMs = options?.holdThresholdMs ?? 300;
+    this.holdThresholdMs = options?.holdThresholdMs ?? 200;
     this.doubleTapThresholdMs = options?.doubleTapThresholdMs ?? 350;
     this.onTrigger = options?.onTrigger;
   }

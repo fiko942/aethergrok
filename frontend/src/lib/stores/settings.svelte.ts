@@ -53,7 +53,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   selectedMicrophoneDeviceId: '',
   dictationShortcut: '\\',
   dictationMuteSystemAudio: true,
-  dictationHoldThresholdMs: 300
+  dictationHoldThresholdMs: 200
 };
 
 export class SettingsStore {

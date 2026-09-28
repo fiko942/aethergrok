@@ -114,6 +114,7 @@
 
   let duckedVolumeState: { originalVolume: number; wasMuted: boolean } | null = null;
   let dictationMode = $state<'idle' | 'hold' | 'locked'>('idle');
+  let pendingStopRequested = false;
 
   async function handleMuteSystemVolume() {
     try {
@@ -143,17 +144,18 @@
       return;
     }
 
-    if (voiceState === 'transcribing' || voiceState === 'checking_permission' || voiceState === 'waiting_network') {
+    if (voiceState === 'transcribing') {
       return;
     }
 
     voiceError = null;
     dictationMode = mode;
+    pendingStopRequested = false;
     voiceState = 'checking_permission';
-    voiceStatusText = 'Checking microphone...';
+    voiceStatusText = 'Starting microphone...';
 
-    // Mute system volume if enabled
-    await handleMuteSystemVolume();
+    // Fire-and-forget mute system volume in parallel so microphone starts instantly
+    handleMuteSystemVolume();
 
     try {
       await voiceRecorder.startRecording(settingsStore.selectedMicrophoneDeviceId, (progress) => {
@@ -165,9 +167,16 @@
           voiceStatusText = progress.message;
         }
       });
+
+      // If user already released the key while microphone was initializing, stop immediately
+      if (pendingStopRequested) {
+        pendingStopRequested = false;
+        await handleStopVoiceRecording();
+      }
     } catch (err: any) {
       voiceState = 'error';
       dictationMode = 'idle';
+      pendingStopRequested = false;
       await handleRestoreSystemVolume();
       const msg = err?.message || 'Failed to start microphone recording';
       voiceError = msg;
@@ -279,16 +288,24 @@
         startVoiceRecording('hold');
       }
     } else if (eventType === 'hold-release') {
-      if (dictationMode === 'hold' && voiceState === 'recording') {
-        handleStopVoiceRecording();
+      if (dictationMode === 'hold') {
+        if (voiceState === 'recording') {
+          handleStopVoiceRecording();
+        } else if (voiceState === 'checking_permission' || voiceState === 'starting') {
+          pendingStopRequested = true;
+        }
       }
     } else if (eventType === 'double-tap-lock') {
       if (voiceState === 'idle') {
         startVoiceRecording('locked');
       }
     } else if (eventType === 'single-tap-unlock') {
-      if (dictationMode === 'locked' && voiceState === 'recording') {
-        handleStopVoiceRecording();
+      if (dictationMode === 'locked') {
+        if (voiceState === 'recording') {
+          handleStopVoiceRecording();
+        } else if (voiceState === 'checking_permission' || voiceState === 'starting') {
+          pendingStopRequested = true;
+        }
       }
     }
   }
