@@ -22,6 +22,7 @@
   import { dialogStore } from '$lib/stores/dialog.svelte';
   import { playCameraShutterSound } from '$lib/utils/audio';
   import { settingsStore } from '$lib/stores/settings.svelte';
+  import { updaterStore } from '$lib/stores/updater.svelte';
   import type { SkillItem, SnapshotResult } from './app.d';
   import {
     sessionStore,
@@ -924,6 +925,9 @@
     window.addEventListener('resize', handleWindowResize);
     handleWindowResize();
 
+    // Initialize auto-update background polling on startup
+    updaterStore.initPeriodicCheck();
+
     // Check and request macOS Accessibility / Input Monitoring permissions on startup
     if (window.go?.main?.App?.CheckAndRequestAccessibilityPermissions) {
       window.go.main.App.CheckAndRequestAccessibilityPermissions()
@@ -1137,7 +1141,17 @@
       />
       <div class="flex items-center space-x-2 shrink-0">
         <span class="font-serif-display font-bold text-sm tracking-tight text-ant-text leading-none select-none">AetherGrok</span>
-        <span class="px-1.5 py-0.5 text-[9px] font-mono font-medium bg-ant-bg-tertiary/70 text-ant-text-muted rounded border border-ant-border-secondary dark:border-white/5 leading-none select-none">v{__APP_VERSION__}</span>
+        <button
+          type="button"
+          onclick={() => settingsModalVisible = true}
+          class="px-1.5 py-0.5 text-[9px] font-mono font-medium bg-ant-bg-tertiary/70 hover:bg-ant-primary/15 hover:text-ant-primary text-ant-text-muted rounded border border-ant-border-secondary dark:border-white/5 leading-none select-none cursor-pointer transition flex items-center gap-1"
+          title="Current app version (Click to view updates & changelog)"
+        >
+          <span>v{__APP_VERSION__}</span>
+          {#if updaterStore.updateAvailable}
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+          {/if}
+        </button>
       </div>
     </div>
 
@@ -1152,8 +1166,11 @@
         <Badge status={isWorking ? 'processing' : 'success'} />
         <span class="whitespace-nowrap">Model: <strong class="text-ant-text font-medium">{selectedModel}</strong></span>
       </div>
-      <Button size="small" type="default" onclick={() => settingsModalVisible = true} class="!px-2 !h-6.5">
+      <Button size="small" type="default" onclick={() => settingsModalVisible = true} class="!px-2 !h-6.5 relative">
         <Settings size={14} class="text-ant-text-secondary hover:text-ant-primary transition-colors" />
+        {#if updaterStore.updateAvailable}
+          <span class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-500 animate-pulse ring-2 ring-amber-500/20"></span>
+        {/if}
       </Button>
 
       <!-- Right Sidebar (Inspector) Toggle in Header -->
@@ -1211,12 +1228,17 @@
           <button
             type="button"
             onclick={() => settingsModalVisible = true}
-            class="w-full flex items-center space-x-2 px-2.5 py-2 bg-ant-bg hover:bg-ant-bg-tertiary border border-ant-border-secondary dark:border-white/5 hover:border-blue-500/40 rounded-lg text-xs text-ant-text transition group cursor-pointer shadow-2xs"
+            class="w-full flex items-center justify-between px-2.5 py-2 bg-ant-bg hover:bg-ant-bg-tertiary border border-ant-border-secondary dark:border-white/5 hover:border-blue-500/40 rounded-lg text-xs text-ant-text transition group cursor-pointer shadow-2xs"
           >
-            <div class="w-5 h-5 rounded-md bg-ant-primary/10 flex items-center justify-center text-ant-primary group-hover:scale-105 transition-transform flex-shrink-0">
-              <Settings size={13} />
+            <div class="flex items-center space-x-2 min-w-0">
+              <div class="w-5 h-5 rounded-md bg-ant-primary/10 flex items-center justify-center text-ant-primary group-hover:scale-105 transition-transform flex-shrink-0">
+                <Settings size={13} />
+              </div>
+              <span class="font-serif text-xs font-medium text-ant-text truncate">Settings</span>
             </div>
-            <span class="font-serif text-xs font-medium text-ant-text truncate">Settings</span>
+            {#if updaterStore.updateAvailable}
+              <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse ring-2 ring-amber-500/20 shrink-0" title="Update available"></span>
+            {/if}
           </button>
         </Tooltip>
       </div>

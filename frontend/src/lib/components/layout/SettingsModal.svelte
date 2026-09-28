@@ -38,7 +38,8 @@
     HardDrive,
     RefreshCw,
     Mic,
-    ScrollText
+    ScrollText,
+    DownloadCloud
   } from 'lucide-svelte';
   import Button from '$lib/antd/Button.svelte';
   import Card from '$lib/antd/Card.svelte';
@@ -47,6 +48,8 @@
   import KeyRecorderModal from '$lib/components/ui/KeyRecorderModal.svelte';
   import MicrophoneSelectDropdown from '$lib/components/layout/MicrophoneSelectDropdown.svelte';
   import LogsTab from '$lib/components/settings/LogsTab.svelte';
+  import UpdatesTab from '$lib/components/settings/UpdatesTab.svelte';
+  import { updaterStore } from '$lib/stores/updater.svelte';
   import { voiceRecorder, type AudioInputDevice } from '$lib/utils/voiceRecorder';
 
   let {
@@ -57,7 +60,7 @@
     onClose: () => void;
   } = $props();
 
-  type TabKey = 'general' | 'models' | 'permissions' | 'voice' | 'theme' | 'shortcuts' | 'logs' | 'about';
+  type TabKey = 'general' | 'models' | 'permissions' | 'voice' | 'theme' | 'shortcuts' | 'logs' | 'updates' | 'about';
   let activeTab = $state<TabKey>('general');
 
   // Local draft state for edits
@@ -211,6 +214,7 @@
     { id: 'theme', label: 'Theme & Appearance', icon: Palette, description: 'High-contrast, Ant Design light, and dark studio styles' },
     { id: 'shortcuts', label: 'Shortcuts', icon: Keyboard, description: 'Quick access keyboard bindings and interaction triggers' },
     { id: 'logs', label: 'System Logs', icon: ScrollText, description: 'Full-spectrum interaction logs, technical traces, and export' },
+    { id: 'updates', label: 'Updates & Releases', icon: DownloadCloud, description: 'Live GitHub update check, changelog history, and platform installers' },
     { id: 'about', label: 'About AetherGrok', icon: Info, description: 'Mission, target audience, open-source repository, and developer portfolio' }
   ];
 
@@ -479,30 +483,45 @@
         <nav class="w-56 bg-ant-bg border-r border-ant-border-secondary dark:border-white/5 flex flex-col p-2 space-y-1 flex-shrink-0" aria-label="Settings navigation">
           {#each tabs as tab}
             {@const IconComponent = tab.icon}
+            {@const isUpdates = tab.id === 'updates'}
             <button
               type="button"
-              class="w-full flex items-center space-x-2.5 px-3 py-2 rounded-lg text-xs font-medium text-left transition {activeTab === tab.id
+              class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-left transition {activeTab === tab.id
                 ? 'bg-ant-primary/15 text-ant-primary font-semibold'
                 : 'text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg-tertiary'}"
               onclick={() => activeTab = tab.id}
             >
-              <IconComponent size={15} class="flex-shrink-0 {activeTab === tab.id ? 'text-ant-primary' : 'text-ant-text-secondary'}" />
-              <span class="truncate">{tab.label}</span>
+              <div class="flex items-center space-x-2.5 min-w-0">
+                <IconComponent size={15} class="flex-shrink-0 {activeTab === tab.id ? 'text-ant-primary' : 'text-ant-text-secondary'}" />
+                <span class="truncate">{tab.label}</span>
+              </div>
+              {#if isUpdates && updaterStore.updateAvailable}
+                <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0 ring-2 ring-amber-500/20" title="New update available"></span>
+              {/if}
             </button>
           {/each}
 
           <div class="mt-auto pt-4 border-t border-ant-border-secondary dark:border-white/5 px-2 pb-2">
             <button
               type="button"
-              onclick={() => openExternal('https://github.com/fiko942/grok-build')}
+              onclick={() => activeTab = 'updates'}
               class="w-full text-left p-1.5 rounded-lg hover:bg-ant-bg-tertiary transition group cursor-pointer"
-              title="Open GitHub repository"
+              title="Check updates and changelog history"
             >
               <div class="text-[11px] text-ant-text group-hover:text-ant-primary font-mono leading-tight flex items-center justify-between">
                 <span>AetherGrok Studio</span>
-                <ExternalLink size={10} class="opacity-40 group-hover:opacity-100" />
+                {#if updaterStore.updateAvailable}
+                  <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                {:else}
+                  <ExternalLink size={10} class="opacity-40 group-hover:opacity-100" />
+                {/if}
               </div>
-              <div class="text-[10px] text-ant-text-muted mt-0.5 font-mono">Build {__APP_VERSION__} (Wails/Go)</div>
+              <div class="text-[10px] text-ant-text-muted mt-0.5 font-mono flex items-center justify-between">
+                <span>v{updaterStore.currentVersion}</span>
+                {#if updaterStore.updateAvailable}
+                  <span class="text-amber-500 text-[9px] font-semibold">Update Available</span>
+                {/if}
+              </div>
             </button>
           </div>
         </nav>
@@ -1424,13 +1443,30 @@
             </div>
           {/if}
 
+          <!-- TAB: UPDATES & CHANGELOG -->
+          {#if activeTab === 'updates'}
+            <div class="space-y-6 animate-in fade-in duration-100">
+              <UpdatesTab />
+            </div>
+          {/if}
+
           <!-- TAB 6: ABOUT AETHERGROK -->
           {#if activeTab === 'about'}
             <div class="space-y-6 animate-in fade-in duration-100">
               <div>
                 <h3 class="font-serif-display text-base font-semibold text-ant-text flex items-center gap-2">
-                  AetherGrok Studio
-                  <span class="px-2 py-0.5 text-[10px] font-mono bg-ant-primary/15 text-ant-primary rounded-full">v{__APP_VERSION__}</span>
+                  <span>AetherGrok Studio</span>
+                  <button
+                    type="button"
+                    onclick={() => activeTab = 'updates'}
+                    class="px-2 py-0.5 text-[10px] font-mono bg-ant-primary/15 hover:bg-ant-primary/25 text-ant-primary rounded-full cursor-pointer transition flex items-center gap-1 border-0"
+                    title="Click to view updates & changelog"
+                  >
+                    <span>v{updaterStore.currentVersion}</span>
+                    {#if updaterStore.updateAvailable}
+                      <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                    {/if}
+                  </button>
                 </h3>
                 <p class="font-serif text-xs text-ant-text-secondary mt-1">
                   A tactile, local-first desktop workstation for autonomous Grok CLI workflows.
