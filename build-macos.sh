@@ -129,18 +129,9 @@ DMG_STAGE_DIR="$BUILD_DIR/dmg_stage_${TARGET_ARCH}"
 rm -rf "$DMG_STAGE_DIR"
 mkdir -p "$DMG_STAGE_DIR"
 
-echo "Staging application bundle and background image..."
+echo "Staging application bundle and Applications shortcut..."
 cp -R "$APP_BUNDLE" "$DMG_STAGE_DIR/AetherGrok.app"
 ln -s /Applications "$DMG_STAGE_DIR/Applications"
-
-# Add custom background folder
-mkdir -p "$DMG_STAGE_DIR/.background"
-if [ -f "$PROJECT_ROOT/resources/dmg-background.tiff" ]; then
-  cp "$PROJECT_ROOT/resources/dmg-background.tiff" "$DMG_STAGE_DIR/.background/background.tiff"
-fi
-if [ -f "$PROJECT_ROOT/resources/dmg-background.png" ]; then
-  cp "$PROJECT_ROOT/resources/dmg-background.png" "$DMG_STAGE_DIR/.background/background.png"
-fi
 
 # Create a writable temporary disk image
 echo "Creating writable disk image..."
@@ -163,8 +154,8 @@ VOL_NAME=$(basename "$MOUNT_POINT")
 
 echo "Mounted on $MOUNT_POINT ($DEV_NODE), Volume: $VOL_NAME"
 
-# AppleScript to configure Finder presentation (Window size 660x400, icon 96, left: 160, right: 500)
-echo "Applying custom Finder view options, bounds, and icon positions..."
+# AppleScript to configure Finder presentation (Window size 540x320, icon 96, left: 140, right: 400)
+echo "Applying clean Finder view options, bounds, and icon positions..."
 osascript -e "
 tell application \"Finder\"
   open disk \"$VOL_NAME\"
@@ -174,16 +165,14 @@ tell application \"Finder\"
   set toolbar visible of theWindow to false
   set statusbar visible of theWindow to false
   set pathbar visible of theWindow to false
-  set the bounds of theWindow to {300, 100, 960, 500}
+  set the bounds of theWindow to {320, 160, 860, 480}
   set opts to the icon view options of theWindow
   set arrangement of opts to not arranged
   set icon size of opts to 96
   set label position of opts to bottom
   set text size of opts to 12
-  set bgFile to (POSIX file (\"/Volumes/\" & \"$VOL_NAME\" & \"/.background/background.png\")) as alias
-  set background picture of opts to bgFile
-  set position of item \"AetherGrok.app\" of disk \"$VOL_NAME\" to {160, 150}
-  set position of item \"Applications\" of disk \"$VOL_NAME\" to {500, 150}
+  set position of item \"AetherGrok.app\" of disk \"$VOL_NAME\" to {140, 130}
+  set position of item \"Applications\" of disk \"$VOL_NAME\" to {400, 130}
   update disk \"$VOL_NAME\" without registering applications
   delay 2
   close theWindow
