@@ -18,6 +18,7 @@
 
 <p align="center">
   <a href="#-direct-binary-downloads">Downloads</a> •
+  <a href="#-macos-gatekeeper--installation-guide">macOS Gatekeeper Guide</a> •
   <a href="#-why-aethergrok-the-problem--solution">Why AetherGrok</a> •
   <a href="#-technical-comparison-matrix">Comparison Matrix</a> •
   <a href="#-architecture--engine-flow">Architecture</a> •
@@ -48,7 +49,27 @@ curl -fsSL https://raw.githubusercontent.com/fiko942/aethergrok/main/scripts/ins
 | :--- | :--- | :--- |
 | **x64 / ARM64** | Setup Installer & Portable Zip | [Browse Latest Windows Releases](https://github.com/fiko942/aethergrok/releases/latest) |
 
-> 💡 **Auto-Update**: AetherGrok includes built-in background update notifications and one-click GitHub Release synchronization.
+---
+
+## 🛡️ macOS Gatekeeper & Installation Guide
+
+Because AetherGrok is an independent open-source project and distributed without a paid Apple Developer ID certificate (ad-hoc signed), macOS Gatekeeper may show a warning: *"AetherGrok cannot be opened because the developer cannot be verified"* or *"Apple could not verify “AetherGrok.app” for malicious software"*.
+
+You can open the app using either of the following standard methods:
+
+### Method 1: System Settings (UI)
+1. Open **System Settings** (Pengaturan Sistem) on your Mac.
+2. Navigate to **Privacy & Security** (Privasi & Keamanan) and scroll down to the **Security** section.
+3. You will see a message: *“AetherGrok.app was blocked from use because it is not from an identified developer”*.
+4. Click **Open Anyway** (Tetap Buka) and enter your Mac password / Touch ID.
+5. Click **Open** on the final confirmation dialog.
+
+### Method 2: Terminal Command (Instant)
+Alternatively, remove the quarantine attribute directly via Terminal:
+```bash
+xattr -d com.apple.quarantine /Applications/AetherGrok.app
+```
+*(Or if you run from DMG/Downloads: `xattr -cr /Applications/AetherGrok.app`)*
 
 ---
 
