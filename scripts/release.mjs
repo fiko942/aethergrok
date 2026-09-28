@@ -88,13 +88,13 @@ function runPreflightChecks() {
     {
       title: 'Testing Go backend packages (go test ./...)',
       fn: () => {
-        execSync('go test ./...', { cwd: ROOT_DIR, stdio: 'inherit' });
+        execSync('export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH" && go test ./...', { cwd: ROOT_DIR, stdio: 'inherit', env: { ...process.env, PATH: `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH || ''}` } });
       }
     },
     {
       title: 'Testing Go desktop application build (go build -o /dev/null .)',
       fn: () => {
-        execSync('go build -o /dev/null .', { cwd: ROOT_DIR, stdio: 'inherit' });
+        execSync('export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH" && go build -o /dev/null .', { cwd: ROOT_DIR, stdio: 'inherit', env: { ...process.env, PATH: `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH || ''}` } });
       }
     }
   ];
