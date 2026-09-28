@@ -2,8 +2,51 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "AetherGrok Release Changelog",
   "description": "Central single source of truth for all AetherGrok releases, commit ranges, and download artifacts.",
-  "latest": "1.0.4",
+  "latest": "1.0.5",
   "releases": [
+    {
+      "version": "1.0.5",
+      "tag": "v1.0.5",
+      "date": "2026-09-28T13:19:20.685Z",
+      "title": "v1.0.5 - AetherGrok 1.0.5 - Auto-Updater SHA256 Checksum Matching Fix & Web Updates",
+      "targetCommit": "bca3f6d",
+      "previousCommit": "35e7613",
+      "highlights": [
+        "Fix auto-updater SHA256 checksum asset matching on Apple Silicon and multi-arch releases",
+        "Enhance updater store with exact filename and platform/architecture fallbacks",
+        "Update web landing page build artifacts and workspace configuration"
+      ],
+      "commits": [
+        {
+          "hash": "bca3f6d",
+          "message": "chore(web): update workspace and rebuild web dist for v1.0.5"
+        },
+        {
+          "hash": "e13ddb6",
+          "message": "fix(updater): match sha256 checksum asset precisely by filename and arch"
+        },
+        {
+          "hash": "9594d3b",
+          "message": "feat(web): add post-download guidance popup to top CTA buttons and full English i18n"
+        },
+        {
+          "hash": "af54630",
+          "message": "feat(web): add post-download guidance modal and full English localization"
+        },
+        {
+          "hash": "b5bf4f1",
+          "message": "chore(release): v1.0.4 - AetherGrok 1.0.4 - macOS Gatekeeper Guide, Saweria Donations & UI Refinements"
+        }
+      ],
+      "downloads": {
+        "macos_arm64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.0.5/AetherGrok-1.0.5-macOS-arm64.dmg",
+        "macos_x64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.0.5/AetherGrok-1.0.5-macOS-amd64.dmg",
+        "windows_x64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.0.5/AetherGrok-1.0.5-windows-amd64-setup.exe",
+        "windows_x64_portable": "https://github.com/fiko942/aethergrok/releases/download/v1.0.5/AetherGrok-1.0.5-windows-amd64-portable.zip",
+        "windows_arm64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.0.5/AetherGrok-1.0.5-windows-arm64-setup.exe",
+        "windows_arm64_portable": "https://github.com/fiko942/aethergrok/releases/download/v1.0.5/AetherGrok-1.0.5-windows-arm64-portable.zip"
+      }
+    },
     {
       "version": "1.0.4",
       "tag": "v1.0.4",
