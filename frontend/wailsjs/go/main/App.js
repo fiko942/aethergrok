@@ -38,6 +38,10 @@ export function CheckForUpdates(arg1) {
   return window['go']['main']['App']['CheckForUpdates'](arg1);
 }
 
+export function CheckGrokInstallation() {
+  return window['go']['main']['App']['CheckGrokInstallation']();
+}
+
 export function CheckMicrophonePermission() {
   return window['go']['main']['App']['CheckMicrophonePermission']();
 }
@@ -164,6 +168,10 @@ export function Greet(arg1) {
 
 export function InstallDiscoveredSkills(arg1) {
   return window['go']['main']['App']['InstallDiscoveredSkills'](arg1);
+}
+
+export function InstallGrokCLI() {
+  return window['go']['main']['App']['InstallGrokCLI']();
 }
 
 export function LoadGrokSessionHistory(arg1, arg2) {

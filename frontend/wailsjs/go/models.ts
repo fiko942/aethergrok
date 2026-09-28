@@ -69,6 +69,26 @@ export namespace grokrunner {
 		}
 	}
 	
+	export class GrokInstallStatus {
+	    installed: boolean;
+	    version: string;
+	    binaryPath: string;
+	    platform: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GrokInstallStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.installed = source["installed"];
+	        this.version = source["version"];
+	        this.binaryPath = source["binaryPath"];
+	        this.platform = source["platform"];
+	        this.error = source["error"];
+	    }
+	}
 	export class GrokSessionMetadata {
 	    id: string;
 	    workspaceId: string;

@@ -49,6 +49,71 @@ function run(cmd, options = {}) {
   }
 }
 
+// Strict Pre-flight Checks
+function runPreflightChecks() {
+  console.log('\n' + c('yellow', '🧪 Running Strict Pre-Flight Release Validation Suite...'));
+
+  const steps = [
+    {
+      title: 'Checking Git working directory status',
+      fn: () => {
+        const status = run('git status --porcelain', { silent: true });
+        // Allow uncommitted changes only if they are changelog/wails/package
+        const uncommitted = status.split('\n').filter(Boolean).filter(line => {
+          return !line.includes('changelog.json') && !line.includes('wails.json') && !line.includes('.github/');
+        });
+        if (uncommitted.length > 0) {
+          throw new Error(`Working directory has uncommitted files:\n${uncommitted.join('\n')}`);
+        }
+      }
+    },
+    {
+      title: 'Validating root TypeScript compilation (tsc -p .)',
+      fn: () => {
+        execSync('pnpm run compile', { cwd: ROOT_DIR, stdio: 'inherit' });
+      }
+    },
+    {
+      title: 'Running unit test suite (vitest run)',
+      fn: () => {
+        execSync('pnpm run test', { cwd: ROOT_DIR, stdio: 'inherit' });
+      }
+    },
+    {
+      title: 'Compiling Vite Frontend Production Bundle',
+      fn: () => {
+        execSync('npm run build', { cwd: path.join(ROOT_DIR, 'frontend'), stdio: 'inherit' });
+      }
+    },
+    {
+      title: 'Testing Go backend packages (go test ./...)',
+      fn: () => {
+        execSync('go test ./...', { cwd: ROOT_DIR, stdio: 'inherit' });
+      }
+    },
+    {
+      title: 'Testing Go desktop application build (go build -o /dev/null .)',
+      fn: () => {
+        execSync('go build -o /dev/null .', { cwd: ROOT_DIR, stdio: 'inherit' });
+      }
+    }
+  ];
+
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+    process.stdout.write(`   [${i + 1}/${steps.length}] ${step.title}... `);
+    try {
+      step.fn();
+      console.log(c('green', '✓ PASSED'));
+    } catch (err) {
+      console.log(c('red', '✗ FAILED'));
+      throw new Error(`Pre-flight validation failed at step: "${step.title}"\n${err.message || ''}`);
+    }
+  }
+
+  console.log(c('green', '✨ All strict pre-flight checks passed successfully!\n'));
+}
+
 // Helper: Ask question via Readline
 function ask(rl, query) {
   return new Promise((resolve) => rl.question(query, resolve));
@@ -299,6 +364,9 @@ async function main() {
       rl.close();
       return;
     }
+
+    // Run Strict Pre-flight verification before modifying files or creating tags
+    runPreflightChecks();
 
     // 7. Update Files: changelog.json, wails.json, package.json
     console.log('\n' + c('yellow', '5. Updating project files & changelog.json...'));

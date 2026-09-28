@@ -28,6 +28,8 @@ export function CheckFileExists(arg1:string,arg2:string):Promise<workspace.FileC
 
 export function CheckForUpdates(arg1:string):Promise<updater.UpdateCheckResult>;
 
+export function CheckGrokInstallation():Promise<grokrunner.GrokInstallStatus>;
+
 export function CheckMicrophonePermission():Promise<permissions.Status>;
 
 export function CheckMultipleFilesExists(arg1:string,arg2:Array<string>):Promise<Record<string, workspace.FileCheckResult>>;
@@ -91,6 +93,8 @@ export function GetWorkspaces():Promise<Array<storage.Workspace>>;
 export function Greet(arg1:string):Promise<string>;
 
 export function InstallDiscoveredSkills(arg1:skills.SkillInstallPayload):Promise<skills.SkillInstallResult>;
+
+export function InstallGrokCLI():Promise<grokrunner.GrokInstallStatus>;
 
 export function LoadGrokSessionHistory(arg1:string,arg2:string):Promise<Array<grokrunner.DiscoveredChatMessage>>;
 
