@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { ShieldAlert, Terminal, CheckCircle2, ChevronRight, Apple, AlertTriangle, Key } from 'lucide-svelte';
-  import { onMount } from 'svelte';
+  import { ShieldAlert, Terminal, CheckCircle2, ChevronRight, Apple, AlertTriangle, Key, Copy, Check } from 'lucide-svelte';
 
   let activeTab = $state<'settings' | 'terminal'>('settings');
   let copiedCmd = $state(false);
@@ -23,10 +22,10 @@
       </div>
       <div>
         <span class="text-xs font-bold uppercase tracking-wider text-amber-800 font-mono">
-          Panduan Pengguna macOS
+          macOS Security & Gatekeeper Guide
         </span>
         <h2 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-          Cara Membuka Aplikasi di macOS (Gatekeeper & Quarantine)
+          Running AetherGrok on macOS (Gatekeeper & Quarantine)
         </h2>
       </div>
     </div>
@@ -36,16 +35,16 @@
       <div class="flex items-start gap-3">
         <AlertTriangle class="w-5 h-5 text-amber-600 flex-shrink-0 mt-1" />
         <p>
-          Karena <strong>AetherGrok</strong> merupakan proyek open-source independen yang didistribusikan tanpa sertifikat berbayar Apple Developer ID (ditandatangani secara <em>ad-hoc</em>), fitur keamanan <strong>macOS Gatekeeper</strong> mungkin akan menampilkan pesan peringatan:
+          Because <strong>AetherGrok</strong> is an open-source tool distributed without an annual paid Apple Developer certificate (it is ad-hoc signed), <strong>macOS Gatekeeper</strong> may show a security dialog when you launch it for the first time:
         </p>
       </div>
 
       <div class="p-3 bg-amber-50 border-l-4 border-amber-500 rounded-r-lg font-mono text-xs text-amber-900">
-        “AetherGrok.app tidak dapat dibuka karena Apple tidak dapat memeriksa perangkat lunak berbahaya dari pengembang yang belum terverifikasi.”
+        “AetherGrok.app cannot be opened because Apple cannot check it for malicious software.”
       </div>
 
       <p class="text-xs text-slate-600">
-        Ini adalah perilaku standar macOS untuk semua aplikasi open source gratis yang diunduh di luar App Store. Anda dapat membukanya dengan mudah menggunakan salah satu dari 2 cara di bawah ini:
+        This is standard macOS protection for non-notarized open-source applications downloaded outside the App Store. You can launch it using either method below:
       </p>
     </div>
 
@@ -58,7 +57,7 @@
           : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'}"
       >
         <Key class="w-4 h-4" />
-        <span>Cara 1: Lewat System Settings (UI)</span>
+        <span>Option 1: System Settings (GUI)</span>
       </button>
 
       <button
@@ -68,7 +67,7 @@
           : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'}"
       >
         <Terminal class="w-4 h-4" />
-        <span>Cara 2: Lewat Terminal (1 Detik)</span>
+        <span>Option 2: Terminal Command (Fastest)</span>
       </button>
     </div>
 
@@ -77,38 +76,38 @@
       {#if activeTab === 'settings'}
         <div class="space-y-4">
           <h3 class="text-lg font-bold text-slate-900">
-            Langkah Persetujuan melalui Pengaturan Sistem (System Settings):
+            Approval Steps via macOS System Settings:
           </h3>
           <ol class="space-y-3 text-sm text-slate-700">
             <li class="flex items-start gap-3">
               <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-800 font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
-              <span>Buka <strong>System Settings</strong> (Pengaturan Sistem) pada Mac Anda.</span>
+              <span>Open <strong>System Settings</strong> on your Mac.</span>
             </li>
             <li class="flex items-start gap-3">
               <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-800 font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
-              <span>Pilih menu <strong>Privacy & Security</strong> (Privasi & Keamanan) dan gulir ke bagian <strong>Security</strong> (Keamanan).</span>
+              <span>Navigate to <strong>Privacy & Security</strong> in the sidebar, then scroll down to the <strong>Security</strong> section.</span>
             </li>
             <li class="flex items-start gap-3">
               <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-800 font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
-              <span>Akan muncul keterangan: <em>“AetherGrok.app diblokir agar tidak digunakan karena bukan dari pengembang yang teridentifikasi”</em>.</span>
+              <span>You will see the notice: <em>“AetherGrok.app was blocked from use because it is not from an identified developer”</em>.</span>
             </li>
             <li class="flex items-start gap-3">
               <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-800 font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">4</span>
-              <span>Klik tombol <strong>Open Anyway</strong> (Tetap Buka), lalu masukkan password / Touch ID Mac Anda.</span>
+              <span>Click <strong>Open Anyway</strong>, and confirm with your Mac administrator password or Touch ID.</span>
             </li>
             <li class="flex items-start gap-3">
               <span class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">5</span>
-              <span>Klik <strong>Open</strong> pada jendela konfirmasi. Aplikasi kini siap digunakan untuk seterusnya!</span>
+              <span>Click <strong>Open</strong> in the prompt. AetherGrok will now open immediately on all future launches.</span>
             </li>
           </ol>
         </div>
       {:else}
         <div class="space-y-4">
           <h3 class="text-lg font-bold text-slate-900">
-            Hapus Atribut Karantina macOS via Terminal:
+            Remove macOS Quarantine Flag via Terminal:
           </h3>
           <p class="text-sm text-slate-600">
-            Jalankan perintah berikut di Terminal untuk menghapus atribut karantina Gatekeeper pada AetherGrok secara instan:
+            Run this command in Terminal to remove the Gatekeeper quarantine attribute instantly:
           </p>
 
           <div class="bg-slate-900 rounded-xl p-4 text-slate-200 border border-slate-800 space-y-2">
@@ -116,9 +115,15 @@
               <span class="font-mono">Terminal Command (Quarantine Removal):</span>
               <button
                 onclick={() => copyQuarantine(quarantineCmd)}
-                class="text-blue-400 hover:text-blue-300 font-bold"
+                class="text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1"
               >
-                {copiedCmd ? 'Tersalin!' : 'Salin Perintah'}
+                {#if copiedCmd}
+                  <Check class="w-3.5 h-3.5 text-emerald-400" />
+                  <span class="text-emerald-400 font-bold">Copied!</span>
+                {:else}
+                  <Copy class="w-3.5 h-3.5" />
+                  <span>Copy Command</span>
+                {/if}
               </button>
             </div>
             <div class="font-mono text-xs sm:text-sm text-emerald-300 select-all overflow-x-auto">
@@ -127,7 +132,7 @@
           </div>
 
           <p class="text-xs text-slate-500">
-            Atau jika aplikasi masih berada di folder Downloads / direktori kustom:
+            For apps in Downloads or custom directories, run recursively:
             <code class="bg-slate-100 px-1 py-0.5 rounded text-slate-800 font-mono text-[11px] ml-1">{quarantineRecursiveCmd}</code>
           </p>
         </div>

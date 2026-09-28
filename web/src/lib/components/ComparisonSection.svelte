@@ -2,10 +2,10 @@
   import { comparisonData, comparisonCategories } from '../data/comparison';
   import { ShieldCheck, Info, Sparkles, Check, Layers, Cpu, Eye, Terminal } from 'lucide-svelte';
 
-  let activeCategory = $state<string>('Semua');
+  let activeCategory = $state<string>('All Dimensions');
 
   const filteredRows = $derived(
-    activeCategory === 'Semua'
+    activeCategory === 'All Dimensions'
       ? comparisonData
       : comparisonData.filter((r) => r.category === activeCategory)
   );
@@ -16,25 +16,25 @@
     <div class="text-center max-w-3xl mx-auto mb-12">
       <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-200 mb-3">
         <Sparkles class="w-3.5 h-3.5 text-blue-600" />
-        <span>Komparasi Arsitektural Berbasis Fakta & Data Nyata</span>
+        <span>Evidence-Based Architectural Comparison</span>
       </div>
       <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-        Tabel Komparasi Fitur & Performa
+        Feature & Performance Comparison Matrix
       </h2>
       <p class="mt-4 text-base sm:text-lg text-slate-600">
-        Perbandingan mendalam antara AetherGrok Desktop, Anthropic Claude Code, OpenAI Codex CLI, dan Antigravity / CUA.
+        In-depth comparison between AetherGrok Desktop Studio, Anthropic Claude Code, OpenAI Codex CLI, and Antigravity / CUA.
       </p>
     </div>
 
     <!-- Category Filter Pills -->
     <div class="flex items-center justify-center gap-2 overflow-x-auto pb-4 mb-8">
       <button
-        onclick={() => (activeCategory = 'Semua')}
-        class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all {activeCategory === 'Semua'
+        onclick={() => (activeCategory = 'All Dimensions')}
+        class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all {activeCategory === 'All Dimensions'
           ? 'bg-blue-600 text-white shadow-sm'
           : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'}"
       >
-        Semua Dimensi ({comparisonData.length})
+        All Dimensions ({comparisonData.length})
       </button>
       {#each comparisonCategories as cat}
         <button
@@ -48,20 +48,20 @@
       {/each}
     </div>
 
-    <!-- Redesigned High-Contrast Comparison Table -->
+    <!-- High-Contrast Comparison Table -->
     <div class="overflow-x-auto rounded-2xl border-2 border-slate-200/90 bg-white shadow-lg">
       <table class="w-full text-left text-sm border-collapse min-w-[840px]">
         <thead>
           <tr class="border-b-2 border-slate-200 bg-slate-100/90 text-slate-800">
             <th class="py-4 px-6 font-bold text-xs uppercase tracking-wider text-slate-600 w-1/4">
-              Dimensi / Spesifikasi
+              Capability / Metric
             </th>
             <th class="py-4 px-6 font-extrabold text-xs uppercase tracking-wider text-blue-900 bg-blue-100/60 w-[30%] border-x-2 border-blue-200 shadow-inner">
               <div class="flex items-center gap-2">
                 <span class="inline-block w-2.5 h-2.5 rounded-full bg-blue-600"></span>
                 <span>AetherGrok Desktop</span>
                 <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-600 text-white uppercase tracking-wider">
-                  Unggulan
+                  Featured
                 </span>
               </div>
             </th>
@@ -123,7 +123,7 @@
     <div class="mt-6 flex items-start gap-2.5 text-xs text-slate-600 max-w-3xl">
       <ShieldCheck class="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
       <p>
-        Data spesifikasi diukur berdasarkan pengujian lokal di lingkungan produksi macOS & Windows, benchmarking runtime, serta dokumentasi arsitektural resmi dari masing-masing alat.
+        Specifications are verified through local benchmarks on macOS and Windows environments, memory footprint profiling, and official architectural references.
       </p>
     </div>
   </div>

@@ -36,22 +36,22 @@
     <div class="text-center max-w-3xl mx-auto mb-14">
       <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200 mb-3">
         <Sparkles class="w-3.5 h-3.5 text-amber-600" />
-        <span>Dukungan & Sponsorship Terbuka</span>
+        <span>Open Source Support & Sponsorship</span>
       </div>
       <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-        Dukung Pengembangan AetherGrok
+        Support AetherGrok Development
       </h2>
       <p class="mt-4 text-base text-slate-600 leading-relaxed">
-        AetherGrok dibangun dan dikembangkan secara independen sebagai proyek open source berperforma tinggi. Dukungan Anda langsung mendanai pemeliharaan native binary, sertifikasi, serta pengembangan fitur selanjutnya.
+        AetherGrok is built and maintained independently as high-performance open-source software. Your support directly finances native binary builds, CI runner pipelines, and future feature developments.
       </p>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-      <!-- Saweria Card (Primary Donation Gateway) -->
+      <!-- Saweria Card (Instant QRIS / E-Wallet) -->
       <div class="bg-gradient-to-br from-amber-500/10 via-white to-amber-50/30 rounded-2xl p-8 border-2 border-amber-400/80 shadow-md hover:shadow-lg transition-all flex flex-col justify-between relative overflow-hidden">
         <div class="absolute -top-3 right-6 px-3 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-amber-500 text-slate-950 shadow-sm flex items-center gap-1">
           <Zap class="w-3 h-3 fill-slate-950" />
-          <span>Direkomendasikan (Indonesia)</span>
+          <span>Instant Support</span>
         </div>
 
         <div>
@@ -60,16 +60,16 @@
           </div>
 
           <h3 class="text-2xl font-black text-slate-900 mb-2">
-            Saweria (QRIS, GoPay, OVO, Dana)
+            Saweria (QRIS & Instant E-Wallet)
           </h3>
 
           <p class="text-slate-600 text-sm leading-relaxed mb-6">
-            Dukung langsung melalui portal Saweria dengan metode pembayaran instan: QRIS untuk semua bank dan e-wallet (GoPay, OVO, Dana, LinkAja, ShopeePay).
+            Support directly through Saweria using any QRIS-supported banking app or mobile wallet (GoPay, OVO, Dana, LinkAja, ShopeePay).
           </p>
 
           <div class="bg-white/90 border border-amber-200 rounded-xl p-3 mb-6 flex items-center justify-between">
             <span class="text-xs font-mono font-medium text-slate-700">saweria.co/wijifikoteren</span>
-            <span class="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">Instan & Terverifikasi</span>
+            <span class="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">Instant Verification</span>
           </div>
         </div>
 
@@ -80,7 +80,7 @@
           class="w-full inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl font-bold text-base text-slate-950 bg-amber-400 hover:bg-amber-300 active:scale-[0.99] shadow-md hover:shadow-lg transition-all"
         >
           <Coffee class="w-5 h-5 fill-slate-950" />
-          <span>Donasi via Saweria</span>
+          <span>Donate on Saweria</span>
           <ExternalLink class="w-4 h-4 ml-1" />
         </a>
       </div>
@@ -103,7 +103,7 @@
           <div class="space-y-2 mb-6">
             <div class="bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex items-center justify-between text-xs">
               <span class="text-slate-500 font-mono">github.com/sponsors/fiko942</span>
-              <span class="text-emerald-700 font-medium">Monthly / 1-time</span>
+              <span class="text-emerald-700 font-medium">Monthly / One-time</span>
             </div>
           </div>
         </div>

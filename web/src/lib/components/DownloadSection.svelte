@@ -11,7 +11,12 @@
     Apple,
     Terminal,
     ExternalLink,
-    RefreshCw
+    RefreshCw,
+    X,
+    ShieldAlert,
+    HelpCircle,
+    Info,
+    ArrowRight
   } from 'lucide-svelte';
   import { onMount } from 'svelte';
 
@@ -20,17 +25,24 @@
   let releaseInfo = $state<LatestReleaseInfo | null>(null);
   let loadingRelease = $state(true);
 
+  // Download Guide Popup Modal State
+  let showModal = $state(false);
+  let downloadedFileName = $state('');
+  let downloadedFileUrl = $state('');
+  let modalPlatform = $state<'macOS' | 'Windows'>('macOS');
+  let modalCopied = $state(false);
+
   onMount(async () => {
     loadingRelease = true;
     releaseInfo = await fetchLiveLatestRelease();
     loadingRelease = false;
   });
 
-  const displayVersion = $derived(releaseInfo?.tagName || 'v1.0.3');
+  const displayVersion = $derived(releaseInfo?.tagName || 'v1.0.4');
   const publishedDate = $derived(
     releaseInfo?.publishedAt
-      ? new Date(releaseInfo.publishedAt).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })
-      : 'Rilis Terbaru'
+      ? new Date(releaseInfo.publishedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+      : 'Latest Release'
   );
 
   // Dynamic macOS assets
@@ -63,19 +75,36 @@
       copiedCommand = false;
     }, 2000);
   }
+
+  function handleDownloadClick(platform: 'macOS' | 'Windows', filename: string, url: string) {
+    downloadedFileName = filename;
+    downloadedFileUrl = url;
+    modalPlatform = platform;
+    showModal = true;
+  }
+
+  const quarantineTerminalCmd = 'xattr -d com.apple.quarantine /Applications/AetherGrok.app';
+
+  function copyModalQuarantine() {
+    navigator.clipboard.writeText(quarantineTerminalCmd);
+    modalCopied = true;
+    setTimeout(() => {
+      modalCopied = false;
+    }, 2000);
+  }
 </script>
 
 <section id="downloads" class="py-20 md:py-32 bg-white">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="text-center max-w-3xl mx-auto mb-16">
       <h2 class="text-xs font-bold uppercase tracking-widest text-blue-600 mb-2">
-        Distribusi Rilis Langsung
+        Direct Binary Releases
       </h2>
       <p class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
         Download AetherGrok ({displayVersion})
       </p>
       <p class="mt-4 text-base sm:text-lg text-slate-600">
-        Paket aplikasi desktop native untuk macOS dan Windows, terhubung secara live ke GitHub Releases terbaru ({publishedDate}).
+        Standalone native desktop packages for macOS and Windows, synchronized live with GitHub Releases ({publishedDate}).
       </p>
     </div>
 
@@ -130,6 +159,7 @@
           <div class="space-y-2">
             <a
               href="{macArmAsset?.browser_download_url || `${githubRepo}/releases/latest`}"
+              onclick={() => handleDownloadClick('macOS', macArmAsset?.name || `AetherGrok-${displayVersion.replace('v', '')}-macOS-arm64.dmg`, macArmAsset?.browser_download_url || `${githubRepo}/releases/latest`)}
               class="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 shadow-sm hover:shadow active:scale-[0.99] transition-all"
             >
               <Download class="w-4 h-4" />
@@ -159,6 +189,7 @@
           <div class="space-y-2">
             <a
               href="{macIntelAsset?.browser_download_url || `${githubRepo}/releases/latest`}"
+              onclick={() => handleDownloadClick('macOS', macIntelAsset?.name || `AetherGrok-${displayVersion.replace('v', '')}-macOS-amd64.dmg`, macIntelAsset?.browser_download_url || `${githubRepo}/releases/latest`)}
               class="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 shadow-sm hover:shadow active:scale-[0.99] transition-all"
             >
               <Download class="w-4 h-4 text-slate-500" />
@@ -191,6 +222,7 @@
           <div class="space-y-2">
             <a
               href="{winSetupAsset?.browser_download_url || `${githubRepo}/releases/latest`}"
+              onclick={() => handleDownloadClick('Windows', winSetupAsset?.name || 'AetherGrok-windows-setup.exe', winSetupAsset?.browser_download_url || `${githubRepo}/releases/latest`)}
               class="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 shadow-sm hover:shadow active:scale-[0.99] transition-all"
             >
               <Download class="w-4 h-4" />
@@ -207,11 +239,11 @@
                 Release Assets Hub
               </span>
               <span class="text-xs font-mono font-medium text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200">
-                Semua File
+                All Formats
               </span>
             </div>
             <h3 class="text-lg font-bold text-slate-900 mb-1">
-              Semua Paket & Portable Zip
+              All Packages & Portable Zip
             </h3>
             <p class="text-xs font-mono text-slate-500 mb-6 truncate">
               github.com/fiko942/aethergrok/releases/latest
@@ -224,7 +256,7 @@
               rel="noopener noreferrer"
               class="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 shadow-sm hover:shadow active:scale-[0.99] transition-all"
             >
-              <span>Buka Halaman Rilis GitHub</span>
+              <span>Explore GitHub Release Assets</span>
               <ExternalLink class="w-4 h-4 text-slate-500" />
             </a>
           </div>
@@ -237,7 +269,7 @@
       <div class="flex items-center justify-between mb-2">
         <span class="text-xs font-mono text-slate-400 font-semibold flex items-center gap-1.5">
           <Terminal class="w-4 h-4 text-blue-400" />
-          <span>Quick Install via Terminal (macOS / Linux) — Terverifikasi & Otomatis</span>
+          <span>Quick Install via Terminal (macOS / Linux) — Automated & Verified</span>
         </span>
         <button
           onclick={copyInstallScript}
@@ -245,10 +277,10 @@
         >
           {#if copiedCommand}
             <Check class="w-3.5 h-3.5 text-emerald-400" />
-            <span class="text-emerald-400 font-bold">Tersalin</span>
+            <span class="text-emerald-400 font-bold">Copied</span>
           {:else}
             <Copy class="w-3.5 h-3.5" />
-            <span>Salin Perintah</span>
+            <span>Copy Command</span>
           {/if}
         </button>
       </div>
@@ -256,8 +288,136 @@
         {installCurl}
       </div>
       <p class="text-[11px] text-slate-400 mt-2">
-        Skrip akan otomatis mendeteksi arsitektur Mac Anda (Apple Silicon atau Intel), mengunduh rilis DMG terbaru dari GitHub, menyalin aplikasi ke <code>/Applications/AetherGrok.app</code>, dan langsung membersihkan atribut Apple Quarantine (Gatekeeper) agar aplikasi dapat langsung dibuka tanpa peringatan blokir.
+        The script automatically detects your Mac architecture (Apple Silicon or Intel), downloads the latest release DMG from GitHub, installs to <code>/Applications/AetherGrok.app</code>, and clears Apple Quarantine attributes for seamless instant launching.
       </p>
     </div>
   </div>
 </section>
+
+<!-- Post-Download Instructions Modal Popup -->
+{#if showModal}
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-fade-in"
+    role="dialog"
+    aria-modal="true"
+    tabindex="-1"
+    onclick={() => (showModal = false)}
+  >
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div
+      class="bg-white rounded-2xl max-w-xl w-full border border-slate-200 shadow-2xl overflow-hidden flex flex-col my-auto"
+      onclick={(e) => e.stopPropagation()}
+    >
+      <!-- Modal Header -->
+      <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
+            <Download class="w-4 h-4" />
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-900 leading-none">
+              Download Started!
+            </h3>
+            <p class="text-xs text-slate-500 mt-1 truncate max-w-xs sm:max-w-md">
+              {downloadedFileName}
+            </p>
+          </div>
+        </div>
+        <button
+          onclick={() => (showModal = false)}
+          class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-200/60 transition-colors"
+          title="Close dialog"
+        >
+          <X class="w-5 h-5" />
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 space-y-5 text-sm text-slate-700 max-h-[75vh] overflow-y-auto">
+        {#if modalPlatform === 'macOS'}
+          <!-- macOS First-Launch Guidance -->
+          <div class="p-4 rounded-xl bg-amber-50 border border-amber-200/90 text-amber-950 space-y-2">
+            <div class="flex items-center gap-2 font-bold text-xs uppercase tracking-wider text-amber-800">
+              <ShieldAlert class="w-4 h-4 text-amber-600" />
+              <span>macOS Gatekeeper First-Launch Notice</span>
+            </div>
+            <p class="text-xs leading-relaxed text-amber-900">
+              Because AetherGrok is free open-source software signed ad-hoc, macOS may display a warning: <em>“AetherGrok.app cannot be opened because Apple cannot check it for malicious software”</em>.
+            </p>
+          </div>
+
+          <div class="space-y-3">
+            <h4 class="font-bold text-slate-900 text-xs uppercase tracking-wider">
+              Quick 1-Second Terminal Fix:
+            </h4>
+            <div class="bg-slate-900 rounded-xl p-3.5 text-slate-200 border border-slate-800">
+              <div class="flex items-center justify-between text-xs text-slate-400 mb-1.5">
+                <span class="font-mono text-[11px]">Copy to Terminal:</span>
+                <button
+                  onclick={copyModalQuarantine}
+                  class="text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1 text-xs"
+                >
+                  {#if modalCopied}
+                    <Check class="w-3.5 h-3.5 text-emerald-400" />
+                    <span class="text-emerald-400">Copied!</span>
+                  {:else}
+                    <Copy class="w-3.5 h-3.5" />
+                    <span>Copy Command</span>
+                  {/if}
+                </button>
+              </div>
+              <div class="font-mono text-xs text-emerald-300 select-all overflow-x-auto py-0.5">
+                {quarantineTerminalCmd}
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <h4 class="font-bold text-slate-900 text-xs uppercase tracking-wider">
+              Or via macOS System Settings:
+            </h4>
+            <ol class="space-y-1.5 text-xs text-slate-600 list-decimal list-inside leading-relaxed">
+              <li>Open <strong>System Settings</strong> &rarr; <strong>Privacy & Security</strong></li>
+              <li>Scroll down to <strong>Security</strong> section</li>
+              <li>Click <strong>Open Anyway</strong> next to the AetherGrok notice</li>
+            </ol>
+          </div>
+        {:else}
+          <!-- Windows Guidance -->
+          <div class="space-y-3 text-xs leading-relaxed text-slate-600">
+            <p>
+              1. Run the downloaded <code>{downloadedFileName}</code> installer.
+            </p>
+            <p>
+              2. If Windows SmartScreen prompts <em>"Windows protected your PC"</em>, click <strong>More info</strong> &rarr; <strong>Run anyway</strong>.
+            </p>
+            <p>
+              3. AetherGrok will automatically configure environment paths and launch smoothly.
+            </p>
+          </div>
+        {/if}
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+        <a
+          href="#gatekeeper"
+          onclick={() => (showModal = false)}
+          class="text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1"
+        >
+          <span>View Full Gatekeeper Guide</span>
+          <ArrowRight class="w-3.5 h-3.5" />
+        </a>
+        <button
+          onclick={() => (showModal = false)}
+          class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm"
+        >
+          Got it!
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}

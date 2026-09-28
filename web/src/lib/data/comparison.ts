@@ -21,16 +21,16 @@ export interface ComparisonRow {
 }
 
 export const comparisonCategories = [
-  'Arsitektur & Runtime',
-  'Interaksi & Ergonomi',
-  'Kontrol & Lifecycle',
-  'Instalasi & Toolchain',
+  'Architecture & Runtime',
+  'Interaction & Ergonomics',
+  'Control & Lifecycle',
+  'Installation & Toolchain',
 ];
 
 export const comparisonData: ComparisonRow[] = [
   {
     metric: 'Primary Interaction Mode',
-    category: 'Arsitektur & Runtime',
+    category: 'Architecture & Runtime',
     aethergrok: {
       title: 'Native Desktop Studio',
       sub: 'Go 1.24 Core + Wails v2 + Svelte 5',
@@ -38,7 +38,7 @@ export const comparisonData: ComparisonRow[] = [
     },
     claudeCode: {
       title: 'Terminal REPL',
-      sub: 'Node.js CLI via stdout',
+      sub: 'Node.js CLI via stdout stream',
     },
     codexCli: {
       title: 'Terminal CLI / ACP',
@@ -51,10 +51,10 @@ export const comparisonData: ComparisonRow[] = [
   },
   {
     metric: 'Runtime Memory Footprint',
-    category: 'Arsitektur & Runtime',
+    category: 'Architecture & Runtime',
     aethergrok: {
       title: '~35 MB Baseline RAM',
-      sub: 'Native WebKit/WebView2 (tanpa Chromium bloat)',
+      sub: 'Native WebKit/WebView2 (zero Chromium overhead)',
       badge: 'featured',
     },
     claudeCode: {
@@ -72,128 +72,128 @@ export const comparisonData: ComparisonRow[] = [
   },
   {
     metric: 'Long-Session Performance',
-    category: 'Arsitektur & Runtime',
+    category: 'Architecture & Runtime',
     aethergrok: {
       title: '10-Turn DOM Virtualization',
-      sub: 'Memory konstan, fluid 60 FPS di 100+ turns',
+      sub: 'Constant memory, fluid 60 FPS across 100+ turns',
       badge: 'featured',
     },
     claudeCode: {
-      title: 'Scrollback Buffer Limit',
-      sub: 'Tergantung buffer memori terminal emulator',
+      title: 'Scrollback Buffer Bound',
+      sub: 'Limited by terminal emulator memory buffer',
     },
     codexCli: {
       title: 'Stdout Terminal Stream',
-      sub: 'Buffer teks terminal standar',
+      sub: 'Standard terminal text scrollback buffer',
     },
     antigravityCua: {
       title: 'Heavy Canvas Re-renders',
-      sub: 'Beban DOM & canvas meningkat seiring waktu',
+      sub: 'DOM & canvas overhead increases over time',
     },
   },
   {
     metric: 'Live Mid-Turn Steering',
-    category: 'Interaksi & Ergonomi',
+    category: 'Interaction & Ergonomics',
     aethergrok: {
       title: 'In-Flight Prompt Injection',
-      sub: 'Kirim prompt arah baru tanpa stop atau kill turn',
+      sub: 'Redirect execution mid-turn without killing workers',
       badge: 'featured',
     },
     claudeCode: {
       title: 'Interrupt / Re-prompt',
-      sub: 'Harus batalkan turn aktif terlebih dahulu',
+      sub: 'Must cancel active turn prior to input',
     },
     codexCli: {
-      title: 'Metode ACP Protokol',
-      sub: 'Dukungan terbatas via RPC cancel/re-turn',
+      title: 'ACP Protocol Method',
+      sub: 'Limited support via RPC cancel/re-turn',
     },
     antigravityCua: {
       title: 'Queue Re-ordering',
-      sub: 'Penyesuaian antrean aksi UI tertunda',
+      sub: 'Reorder pending UI automation action queue',
     },
   },
   {
     metric: 'Visual Screen Context (Vision)',
-    category: 'Interaksi & Ergonomi',
+    category: 'Interaction & Ergonomics',
     aethergrok: {
       title: 'Compositor-Synced Snap',
-      sub: 'Auto-hide window 50ms, tangkap layar OS, attach otomatis',
+      sub: '50ms auto-hide, full OS capture, auto prompt chip',
       badge: 'featured',
     },
     claudeCode: {
       title: 'Manual Path Input',
-      sub: 'Ketik path file gambar lokal manual',
+      sub: 'Type local image path manually in terminal',
     },
     codexCli: {
       title: 'Manual Attachment',
-      sub: 'Referensi file path lokal',
+      sub: 'Provide local file path reference',
     },
     antigravityCua: {
-      title: 'Full Continuous Screen Grab',
-      sub: 'Stream frame pixel layar berkelanjutan',
+      title: 'Continuous Screen Stream',
+      sub: 'Constant pixel streaming across frames',
     },
   },
   {
     metric: 'Voice Dictation & Media Ducking',
-    category: 'Interaksi & Ergonomi',
+    category: 'Interaction & Ergonomics',
     aethergrok: {
       title: 'Push-to-Talk + Auto Mute',
-      sub: 'Equalizer dinamis 4 bar + volume sistem auto-mute ke 0%',
+      sub: 'Dynamic 4-bar equalizer + system audio mute to 0%',
       badge: 'featured',
     },
     claudeCode: {
-      title: 'Tidak Ada Fitur Suara',
-      sub: 'Tergantung host terminal',
+      title: 'No Audio Features',
+      sub: 'Relies on host terminal capabilities',
     },
     codexCli: {
-      title: 'Tidak Ada Fitur Suara',
-      sub: 'Tergantung host terminal',
+      title: 'No Audio Features',
+      sub: 'Relies on host terminal capabilities',
     },
     antigravityCua: {
-      title: 'Tergantung Host OS',
-      sub: 'Tidak terintegrasi bawaan',
+      title: 'Host OS Dependent',
+      sub: 'No integrated voice workflow',
     },
   },
   {
     metric: 'Subprocess Group Management',
-    category: 'Kontrol & Lifecycle',
+    category: 'Control & Lifecycle',
     aethergrok: {
       title: 'POSIX setpgid & Win Job Objects',
-      sub: 'Nol background process tertinggal, sinyal SIGTERM/KILL',
+      sub: 'Zero orphaned background tasks, SIGTERM/SIGKILL escalation',
       badge: 'featured',
     },
     claudeCode: {
       title: 'Standard child_process',
-      sub: 'Tree proses standar Node.js',
+      sub: 'Node.js standard process tree',
     },
     codexCli: {
       title: 'Subprocess System Call',
-      sub: 'Pemanggilan subprocess standar OS',
+      sub: 'OS standard subprocess invocation',
     },
     antigravityCua: {
       title: 'OS Accessibility & Automation',
-      sub: 'Injeksi event keyboard & mouse OS',
+      sub: 'Direct OS mouse & keyboard event injection',
     },
   },
   {
-    metric: 'Distribusi & Setup Installation',
-    category: 'Instalasi & Toolchain',
+    metric: 'Distribution & Setup Installation',
+    category: 'Installation & Toolchain',
     aethergrok: {
       title: 'Native DMG / Setup + 1-Liner',
-      sub: 'Installer visual mandiri + skrip curl 1 baris terverifikasi',
+      sub: 'Self-contained installer + verified 1-line curl script',
       badge: 'featured',
     },
     claudeCode: {
       title: 'npm install -g',
-      sub: 'Memerlukan runtime Node.js di sistem',
+      sub: 'Requires Node.js runtime on host machine',
     },
     codexCli: {
       title: 'Package CLI Binary',
-      sub: 'Setup interpreter Python atau CLI terpisah',
+      sub: 'Separate Python or CLI interpreter setup',
     },
     antigravityCua: {
       title: 'Container / Environment Setup',
-      sub: 'Konfigurasi sandbox OS & dependensi Python',
+      sub: 'Custom sandbox config & Python dependencies',
     },
   },
 ];
