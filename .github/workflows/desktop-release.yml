@@ -47,7 +47,7 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build macOS App, DMG & Portable Package (${{ matrix.arch }})
+      - name: Build macOS App & DMG Installer (${{ matrix.arch }})
         run: bash build-macos.sh ${{ matrix.arch }}
 
       - name: Upload macOS Artifacts (${{ matrix.arch }})
@@ -56,7 +56,6 @@ jobs:
           name: aethergrok-macos-${{ matrix.arch }}
           path: |
             build/bin/*.dmg
-            build/bin/*.tar.gz
             build/bin/*.sha256
           retention-days: 14
 
@@ -76,7 +75,7 @@ jobs:
           fi
           echo "Target Release Tag: $TARGET_TAG"
           if [ -n "$TARGET_TAG" ]; then
-            gh release upload "$TARGET_TAG" build/bin/*.dmg build/bin/*.tar.gz build/bin/*.sha256 --clobber || echo "Failed or tag $TARGET_TAG not yet published"
+            gh release upload "$TARGET_TAG" build/bin/*.dmg build/bin/*.sha256 --clobber || echo "Failed or tag $TARGET_TAG not yet published"
           fi
 
   build-windows:

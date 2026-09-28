@@ -271,11 +271,9 @@ async function main() {
     // 5. Build Artifact Names & URLs
     const artifacts = {
       macos_arm64_dmg: `AetherGrok-${nextVersion}-macOS-arm64.dmg`,
-      macos_arm64_portable: `AetherGrok-${nextVersion}-macOS-arm64-portable.tar.gz`,
-      macos_x64_dmg: `AetherGrok-${nextVersion}-macOS-x64.dmg`,
-      macos_x64_portable: `AetherGrok-${nextVersion}-macOS-x64-portable.tar.gz`,
-      windows_x64_setup: `AetherGrok-${nextVersion}-windows-x64-setup.exe`,
-      windows_x64_portable: `AetherGrok-${nextVersion}-windows-x64-portable.zip`,
+      macos_x64_dmg: `AetherGrok-${nextVersion}-macOS-amd64.dmg`,
+      windows_x64_setup: `AetherGrok-${nextVersion}-windows-amd64-setup.exe`,
+      windows_x64_portable: `AetherGrok-${nextVersion}-windows-amd64-portable.zip`,
       windows_arm64_setup: `AetherGrok-${nextVersion}-windows-arm64-setup.exe`,
       windows_arm64_portable: `AetherGrok-${nextVersion}-windows-arm64-portable.zip`,
     };
@@ -366,9 +364,7 @@ async function main() {
       releaseBody += `| Platform | Architecture | Type | Package |\n`;
       releaseBody += `|---|---|---|---|\n`;
       releaseBody += `| **macOS** | Apple Silicon (M1-M4) | DMG Installer | [${artifacts.macos_arm64_dmg}](${downloadUrls.macos_arm64_dmg}) |\n`;
-      releaseBody += `| **macOS** | Apple Silicon (M1-M4) | Portable Tar | [${artifacts.macos_arm64_portable}](${downloadUrls.macos_arm64_portable}) |\n`;
       releaseBody += `| **macOS** | Intel x64 | DMG Installer | [${artifacts.macos_x64_dmg}](${downloadUrls.macos_x64_dmg}) |\n`;
-      releaseBody += `| **macOS** | Intel x64 | Portable Tar | [${artifacts.macos_x64_portable}](${downloadUrls.macos_x64_portable}) |\n`;
       releaseBody += `| **Windows** | x64 (64-bit) | Setup Installer | [${artifacts.windows_x64_setup}](${downloadUrls.windows_x64_setup}) |\n`;
       releaseBody += `| **Windows** | x64 (64-bit) | Portable Zip | [${artifacts.windows_x64_portable}](${downloadUrls.windows_x64_portable}) |\n`;
       releaseBody += `| **Windows** | ARM64 | Setup Installer | [${artifacts.windows_arm64_setup}](${downloadUrls.windows_arm64_setup}) |\n`;
@@ -448,10 +444,8 @@ async function main() {
     console.log('\n' + c('bold', 'Direct Download Artifacts:'));
     console.log(`🍏 macOS Apple Silicon (M1-M4):`);
     console.log(`   Installer (.dmg): ${c('cyan', downloadUrls.macos_arm64_dmg)}`);
-    console.log(`   Portable:         ${c('cyan', downloadUrls.macos_arm64_portable)}`);
     console.log(`🍏 macOS Intel (x64):`);
     console.log(`   Installer (.dmg): ${c('cyan', downloadUrls.macos_x64_dmg)}`);
-    console.log(`   Portable:         ${c('cyan', downloadUrls.macos_x64_portable)}`);
     console.log(`🪟 Windows (x64):`);
     console.log(`   Installer (.exe): ${c('cyan', downloadUrls.windows_x64_setup)}`);
     console.log(`   Portable (.zip):  ${c('cyan', downloadUrls.windows_x64_portable)}`);

@@ -153,24 +153,14 @@ if [ ! -f "$DMG_OUTPUT" ]; then
 fi
 echo -e "${GREEN}✓ DMG Installer package ready: $(basename "$DMG_OUTPUT")${NC}"
 
-# 5. Create Portable Portable Archive (.tar.gz)
-echo -e "\n${YELLOW}Step 5/6: Creating Portable Archive (.tar.gz)...${NC}"
-PORTABLE_OUTPUT="$BUILD_DIR/AetherGrok-${VERSION}-macOS-${TARGET_ARCH}-portable.tar.gz"
-rm -f "$PORTABLE_OUTPUT"
-
-tar -czf "$PORTABLE_OUTPUT" -C "$BUILD_DIR" "$(basename "$APP_BUNDLE")"
-echo -e "${GREEN}✓ Portable archive ready: $(basename "$PORTABLE_OUTPUT")${NC}"
-
-# 6. Generate Checksums
-echo -e "\n${YELLOW}Step 6/6: Generating SHA256 Checksums...${NC}"
+# 5. Generate Checksums
+echo -e "\n${YELLOW}Step 5/5: Generating SHA256 Checksums...${NC}"
 cd "$BUILD_DIR"
 shasum -a 256 "$(basename "$DMG_OUTPUT")" > "$(basename "$DMG_OUTPUT").sha256"
-shasum -a 256 "$(basename "$PORTABLE_OUTPUT")" > "$(basename "$PORTABLE_OUTPUT").sha256"
 
 echo -e "\n${GREEN}================================================================${NC}"
 echo -e "${GREEN}${BOLD}   🎉 Production macOS Packages Created Successfully! 🎉   ${NC}"
 echo -e "${GREEN}================================================================${NC}"
 echo -e "📦 App Bundle:  ${CYAN}${APP_BUNDLE}${NC}"
 echo -e "💿 DMG Package: ${CYAN}${DMG_OUTPUT} ($(du -h "$DMG_OUTPUT" | cut -f1))${NC}"
-echo -e "🗜️  Portable:    ${CYAN}${PORTABLE_OUTPUT} ($(du -h "$PORTABLE_OUTPUT" | cut -f1))${NC}"
-echo -e "🔑 Checksums:    ${CYAN}$(basename "$DMG_OUTPUT").sha256 & $(basename "$PORTABLE_OUTPUT").sha256${NC}"
+echo -e "🔑 Checksums:    ${CYAN}$(basename "$DMG_OUTPUT").sha256${NC}"
