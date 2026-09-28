@@ -1179,14 +1179,20 @@
               type="button"
               class="w-6 h-6 rounded-md flex items-center justify-center text-ant-text-muted hover:text-ant-text hover:bg-ant-bg-secondary transition border border-transparent hover:border-white/5"
               onclick={handleToggleVoiceRecording}
-              title="Voice Dictation (Talk to type via Grok)"
+              title={`Voice Dictation (${settingsStore.dictationShortcut ? `Double ${settingsStore.dictationShortcut} or Hold ${settingsStore.dictationShortcut}` : 'Talk to type'})`}
             >
               <Mic size={14} />
             </button>
           {:else if voiceState === 'recording'}
-            <div class="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/25 text-rose-400 text-[11px] font-mono animate-in fade-in duration-150">
-              <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
-              <span>{Math.floor(voiceSeconds / 60)}:{String(voiceSeconds % 60).padStart(2, '0')}</span>
+            <div class="flex items-center space-x-2 px-2.5 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/25 text-rose-400 text-[11px] font-mono animate-in fade-in duration-150 shadow-xs">
+              <span class="relative flex h-2 w-2">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+              </span>
+              <span class="px-1.5 py-0.2 rounded text-[9.5px] font-semibold tracking-wider uppercase {dictationMode === 'hold' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}">
+                {dictationMode === 'hold' ? 'PUSH-TO-TALK' : 'HANDS-FREE'}
+              </span>
+              <span class="font-medium text-rose-200">{Math.floor(voiceSeconds / 60)}:{String(voiceSeconds % 60).padStart(2, '0')}</span>
               <button
                 type="button"
                 onclick={handleStopVoiceRecording}

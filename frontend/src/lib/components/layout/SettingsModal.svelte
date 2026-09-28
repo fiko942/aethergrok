@@ -66,6 +66,8 @@
   // Local draft state for edits
   let editGrokBinaryPath = $state(settingsStore.grokBinaryPath);
   let editSnapshotShortcut = $state(settingsStore.snapshotShortcut);
+  let editDictationShortcut = $state(settingsStore.dictationShortcut);
+  let editDictationMuteSystemAudio = $state(settingsStore.dictationMuteSystemAudio);
   let editSnapshotDelayMs = $state(settingsStore.snapshotDelayMs);
   let editSnapshotAutoHide = $state(settingsStore.snapshotAutoHideWindow);
   let editSnapshotSoundEnabled = $state(settingsStore.snapshotSoundEnabled);
@@ -117,6 +119,7 @@
   }
 
   let isRecordingShortcut = $state(false);
+  let isRecordingDictationShortcut = $state(false);
   let saveSuccessNotice = $state(false);
 
   // Storage & Cache State
@@ -182,6 +185,8 @@
     if (visible) {
       editGrokBinaryPath = settingsStore.grokBinaryPath;
       editSnapshotShortcut = settingsStore.snapshotShortcut;
+      editDictationShortcut = settingsStore.dictationShortcut;
+      editDictationMuteSystemAudio = settingsStore.dictationMuteSystemAudio;
       editSnapshotDelayMs = settingsStore.snapshotDelayMs;
       editSnapshotAutoHide = settingsStore.snapshotAutoHideWindow;
       editSnapshotSoundEnabled = settingsStore.snapshotSoundEnabled;
@@ -200,6 +205,7 @@
       editTheme = settingsStore.theme;
       editSelectedMicrophoneDeviceId = settingsStore.selectedMicrophoneDeviceId;
       isRecordingShortcut = false;
+      isRecordingDictationShortcut = false;
       saveSuccessNotice = false;
       refreshCacheStats();
       checkMicPermissionAndDevices();
@@ -343,7 +349,12 @@
     formatShortcutKeys(editSnapshotShortcut || settingsStore.snapshotShortcut, isMac)
   );
 
+  let currentDictationKeys = $derived(
+    formatShortcutKeys(editDictationShortcut || settingsStore.dictationShortcut, isMac)
+  );
+
   let keyboardShortcuts = $derived<ShortcutItem[]>([
+    { keys: currentDictationKeys, action: 'Voice Dictation (Double-tap lock, hold push-to-talk)', scope: 'Global / Composer' },
     { keys: [isMac ? '⌘' : 'Ctrl', 'Enter'], action: 'Send message / Submit turn in composer', scope: 'Composer' },
     { keys: ['Esc'], action: 'Dismiss modal / Clear active overlay dialog', scope: 'Global' },
     { keys: [isMac ? '⌘' : 'Ctrl', 'K'], action: 'Open Skills & MCP discovery catalog', scope: 'Global' },
@@ -370,6 +381,8 @@
     settingsStore.updateSettings({
       grokBinaryPath: editGrokBinaryPath.trim() || '/Users/fiko942/.local/bin/grok',
       snapshotShortcut: editSnapshotShortcut.trim() || 'CmdOrCtrl+Shift+S',
+      dictationShortcut: editDictationShortcut.trim() || 'Fn',
+      dictationMuteSystemAudio: editDictationMuteSystemAudio,
       snapshotDelayMs: Math.max(10, Math.min(2000, Number(editSnapshotDelayMs) || 50)),
       snapshotAutoHideWindow: editSnapshotAutoHide,
       snapshotSoundEnabled: editSnapshotSoundEnabled,
@@ -397,6 +410,8 @@
     settingsStore.resetToDefaults();
     editGrokBinaryPath = settingsStore.grokBinaryPath;
     editSnapshotShortcut = settingsStore.snapshotShortcut;
+    editDictationShortcut = settingsStore.dictationShortcut;
+    editDictationMuteSystemAudio = settingsStore.dictationMuteSystemAudio;
     editSnapshotDelayMs = settingsStore.snapshotDelayMs;
     editSnapshotAutoHide = settingsStore.snapshotAutoHideWindow;
     editSnapshotSoundEnabled = settingsStore.snapshotSoundEnabled;
@@ -1214,6 +1229,68 @@
                 </div>
               </Card>
 
+              <!-- Keyboard Shortcut & Dictation Triggers Card -->
+              <Card title="Keyboard Shortcut & Dictation Triggers">
+                <div class="space-y-4">
+                  <!-- Dictation Shortcut Key Binding -->
+                  <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                      <div class="space-y-0.5">
+                        <div class="text-xs font-medium text-ant-text flex items-center gap-1.5">
+                          <Keyboard size={13} class="text-ant-primary" />
+                          Dictation Trigger Key / Shortcut
+                        </div>
+                        <div class="text-[11px] text-ant-text-secondary">
+                          Double-tap key to start hands-free recording; hold key for push-to-talk.
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-1.5 flex-wrap">
+                        {#each currentDictationKeys as keySegment}
+                          <kbd class="px-2 py-0.5 text-xs font-mono font-medium text-ant-primary bg-ant-primary/10 rounded border-0">
+                            {keySegment}
+                          </kbd>
+                        {/each}
+                      </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onclick={() => isRecordingDictationShortcut = true}
+                        class="flex-1 px-3 py-1.5 text-xs font-serif rounded-lg bg-ant-primary/10 hover:bg-ant-primary/20 text-ant-primary border-0 transition flex items-center justify-center gap-2"
+                      >
+                        <Keyboard size={14} />
+                        Record Shortcut
+                      </button>
+                      <button
+                        type="button"
+                        class="px-2.5 py-1.5 text-xs rounded-lg bg-ant-bg border border-ant-border-secondary hover:bg-ant-bg-tertiary text-ant-text-secondary hover:text-ant-text transition"
+                        onclick={() => editDictationShortcut = 'Fn'}
+                      >
+                        Reset Default (Fn)
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Mute System Audio While Recording Toggle -->
+                  <div class="flex items-center justify-between pt-2 border-t border-ant-border-secondary">
+                    <div class="space-y-0.5 pr-4">
+                      <div class="text-xs font-medium text-ant-text flex items-center gap-1.5">
+                        <Volume2 size={13} class="text-ant-primary" />
+                        Mute System Audio While Recording
+                      </div>
+                      <div class="text-[11px] text-ant-text-secondary leading-relaxed">
+                        Automatically ducks system speaker volume to 0% while recording and restores previous volume upon completion to prevent audio feedback or echo.
+                      </div>
+                    </div>
+                    <Switch
+                      bind:checked={editDictationMuteSystemAudio}
+                      size="small"
+                    />
+                  </div>
+                </div>
+              </Card>
+
               <!-- Voice Dictation Engine Info -->
               <Card title="Voice Transcription Engine">
                 <div class="p-3.5 rounded-xl border border-ant-border-secondary bg-ant-bg space-y-2 text-xs shadow-2xs">
@@ -1580,9 +1657,10 @@
     </div>
   </div>
 
-  <!-- Key Recorder Modal for Live Input Capture -->
+  <!-- Key Recorder Modal for Live Input Capture (Snapshot) -->
   <KeyRecorderModal
     open={isRecordingShortcut}
+    title="Record Snapshot Shortcut"
     currentShortcut={editSnapshotShortcut}
     onSave={(newKey) => {
       editSnapshotShortcut = newKey;
@@ -1590,6 +1668,20 @@
     }}
     onCancel={() => {
       isRecordingShortcut = false;
+    }}
+  />
+
+  <!-- Key Recorder Modal for Dictation Shortcut Trigger -->
+  <KeyRecorderModal
+    open={isRecordingDictationShortcut}
+    title="Record Dictation Shortcut"
+    currentShortcut={editDictationShortcut}
+    onSave={(newKey) => {
+      editDictationShortcut = newKey;
+      isRecordingDictationShortcut = false;
+    }}
+    onCancel={() => {
+      isRecordingDictationShortcut = false;
     }}
   />
 {/if}

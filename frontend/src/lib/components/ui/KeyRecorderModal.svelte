@@ -4,12 +4,13 @@
 
   interface Props {
     open: boolean;
+    title?: string;
     currentShortcut: string;
     onSave: (newShortcut: string) => void;
     onCancel: () => void;
   }
 
-  let { open = false, currentShortcut = 'CmdOrCtrl+Shift+S', onSave, onCancel }: Props = $props();
+  let { open = false, title = 'Record Snapshot Shortcut', currentShortcut = 'CmdOrCtrl+Shift+S', onSave, onCancel }: Props = $props();
 
   let recordedCode = $state<string>('');
   let recordedParts = $state<string[]>([]);
@@ -175,7 +176,7 @@
               <Keyboard size={15} />
             </div>
             <h3 class="font-serif-display text-base font-semibold text-ant-text">
-              Record Snapshot Shortcut
+              {title}
             </h3>
           </div>
           <p class="font-serif text-xs text-ant-text-secondary leading-relaxed">

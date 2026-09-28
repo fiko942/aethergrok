@@ -254,7 +254,7 @@
   });
 
   function handleSelectSkill(skill: SkillItem) {
-    if (composerRef) {
+    if (composerRef && composerRef.appendText) {
       composerRef.appendText(`/${skill.name}`);
     }
   }
@@ -323,14 +323,18 @@
 
     // Attach image to composer vision context
     if (snapshotResult && settingsStore.snapshotAutoAttach && composerRef) {
-      composerRef.attachImage({
-        id: 'snap_' + Date.now(),
-        dataUrl: snapshotResult.dataUrl,
-        filePath: snapshotResult.filePath || `Screen Snapshot (${new Date().toLocaleTimeString()}).jpg`,
-        sizeBytes: snapshotResult.sizeBytes || Math.round((snapshotResult.dataUrl.length - (snapshotResult.dataUrl.indexOf(',') + 1)) * 0.75),
-        timestamp: Date.now()
-      });
-      composerRef.focusInput();
+      if (composerRef.attachImage) {
+        composerRef.attachImage({
+          id: 'snap_' + Date.now(),
+          dataUrl: snapshotResult.dataUrl,
+          filePath: snapshotResult.filePath || `Screen Snapshot (${new Date().toLocaleTimeString()}).jpg`,
+          sizeBytes: snapshotResult.sizeBytes || Math.round((snapshotResult.dataUrl.length - (snapshotResult.dataUrl.indexOf(',') + 1)) * 0.75),
+          timestamp: Date.now()
+        });
+      }
+      if (composerRef.focusInput) {
+        composerRef.focusInput();
+      }
     }
   }
 
@@ -566,7 +570,7 @@
     }
 
     // 4. Restore text, images, and attachments back into composer
-    if (composerRef) {
+    if (composerRef && composerRef.restorePrompt) {
       composerRef.restorePrompt({
         text: rollback.text,
         images: rollback.images,
@@ -1251,7 +1255,6 @@
           title="Settings"
           shortcut={isMac ? '⌘,' : 'Ctrl+,'}
           placement="top"
-          class="w-full block"
         >
           <button
             type="button"
@@ -1355,7 +1358,7 @@
                 sessionId={sessionStore.activeSession.id}
                 workspacePath={sessionStore.activeWorkspace?.path || ''}
                 onAttachLogToComposer={(logText) => {
-                  if (composerRef) {
+                  if (composerRef && composerRef.appendPrompt) {
                     composerRef.appendPrompt(logText);
                   }
                 }}
@@ -1379,7 +1382,7 @@
               sessionId={sessionStore.activeSession.id}
               workspacePath={sessionStore.activeWorkspace?.path || ''}
               onAttachLogToComposer={(logText) => {
-                if (composerRef) {
+                if (composerRef && composerRef.appendPrompt) {
                   composerRef.appendPrompt(logText);
                 }
               }}
