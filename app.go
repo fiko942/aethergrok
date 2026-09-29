@@ -28,6 +28,9 @@ import (
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
+// AppVersion defines the current semantic version of AetherGrok Desktop Studio
+const AppVersion = "1.0.5"
+
 // App struct represents application runtime state
 type App struct {
 	ctx                context.Context
@@ -1119,8 +1122,16 @@ func (a *App) PullWorkspaceChanges(workspacePath string) (string, error) {
 	return workspace.ExecutePull(workspacePath)
 }
 
+// GetAppVersion returns the current runtime application version string
+func (a *App) GetAppVersion() string {
+	return AppVersion
+}
+
 // CheckForUpdates inspects GitHub Releases and local changelog for available application updates
 func (a *App) CheckForUpdates(currentVersion string) (*updater.UpdateCheckResult, error) {
+	if strings.TrimSpace(currentVersion) == "" {
+		currentVersion = AppVersion
+	}
 	osName := runtime.GOOS
 	arch := runtime.GOARCH
 	return updater.CheckForUpdates(currentVersion, "fiko942/aethergrok", osName, arch)

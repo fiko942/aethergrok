@@ -4,8 +4,8 @@ import type { ReleaseInfo, ReleaseAsset, UpdateCheckResult, UpdateProgress } fro
 export class UpdaterStore {
   checking = $state<boolean>(false);
   updateAvailable = $state<boolean>(false);
-  currentVersion = $state<string>(typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.1');
-  latestVersion = $state<string>('1.0.1');
+  currentVersion = $state<string>(typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.5');
+  latestVersion = $state<string>(typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.5');
   latestRelease = $state<ReleaseInfo | null>(null);
   allReleases = $state<ReleaseInfo[]>([]);
   matchedAsset = $state<ReleaseAsset | null>(null);
@@ -32,7 +32,27 @@ export class UpdaterStore {
       this.currentVersion = __APP_VERSION__;
       this.latestVersion = __APP_VERSION__;
     }
+    this.hydrateRuntimeVersion();
     this.setupEventListener();
+  }
+
+  private async hydrateRuntimeVersion(): Promise<void> {
+    if (typeof window !== 'undefined') {
+      const win = window as any;
+      if (win?.go?.main?.App?.GetAppVersion) {
+        try {
+          const ver = await win.go.main.App.GetAppVersion();
+          if (ver && typeof ver === 'string') {
+            const clean = ver.replace(/^v/, '').trim();
+            if (clean) {
+              this.currentVersion = clean;
+            }
+          }
+        } catch {
+          // Fall back gracefully to __APP_VERSION__
+        }
+      }
+    }
   }
 
   private setupEventListener(): void {

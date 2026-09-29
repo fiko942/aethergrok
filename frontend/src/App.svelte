@@ -1303,7 +1303,7 @@
           class="px-1.5 py-0.5 text-[9px] font-mono font-medium bg-ant-bg-tertiary/70 hover:bg-ant-primary/15 hover:text-ant-primary text-ant-text-muted rounded border border-ant-border-secondary dark:border-white/5 leading-none select-none cursor-pointer transition flex items-center gap-1"
           title="Current app version (Click to view updates & changelog)"
         >
-          <span>v{__APP_VERSION__}</span>
+          <span>v{updaterStore.currentVersion || __APP_VERSION__}</span>
           {#if updaterStore.updateAvailable}
             <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
           {/if}

@@ -22,9 +22,9 @@ APP_NAME="AetherGrok"
 BUNDLE_ID="com.wiji.aethergrok"
 
 # Read version dynamically from wails.json if available
-VERSION="1.0.0"
+VERSION="1.0.5"
 if [ -f "$PROJECT_ROOT/wails.json" ]; then
-  VERSION=$(grep -o '"version": *"[^"]*"' "$PROJECT_ROOT/wails.json" | cut -d '"' -f 4 || echo "1.0.0")
+  VERSION=$(grep -o '"version": *"[^"]*"' "$PROJECT_ROOT/wails.json" | cut -d '"' -f 4 || echo "1.0.5")
 fi
 
 # Target architecture: arm64 (default for Apple Silicon), amd64 (Intel), or universal

@@ -70,6 +70,8 @@ export function ExecuteSkillSetupCommand(arg1:string,arg2:string):Promise<void>;
 
 export function GetAppSettings():Promise<storage.AppSettings>;
 
+export function GetAppVersion():Promise<string>;
+
 export function GetAvailableModels():Promise<Array<grokrunner.ModelInfo>>;
 
 export function GetChangelogHistory():Promise<Array<updater.ReleaseInfo>>;

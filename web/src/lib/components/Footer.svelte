@@ -9,7 +9,7 @@
     releaseInfo = await fetchLiveLatestRelease();
   });
 
-  const displayVersion = $derived(releaseInfo?.tagName || 'v1.0.3');
+  const displayVersion = $derived(releaseInfo?.tagName || 'v1.0.5');
 </script>
 
 <footer class="bg-slate-900 text-slate-400 py-12 sm:py-16 border-t border-slate-800">

@@ -30,8 +30,8 @@ export async function fetchLiveLatestRelease(): Promise<LatestReleaseInfo | null
     if (!res.ok) return null;
     const data = await res.json();
     return {
-      tagName: data.tag_name || 'v1.0.3',
-      name: data.name || 'v1.0.3',
+      tagName: data.tag_name || 'v1.0.5',
+      name: data.name || 'v1.0.5',
       publishedAt: data.published_at || '',
       assets: (data.assets || []).map((a: any) => ({
         name: a.name,

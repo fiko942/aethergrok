@@ -245,6 +245,7 @@ declare global {
           ClearSnapshotCache?: () => Promise<{ freedBytes: number; deletedCount: number; formattedSize: string }>;
           SaveTemporaryImage?: (base64Data: string, mimeType: string) => Promise<{ filePath: string; dataUrl: string; base64: string; width: number; height: number; sizeBytes: number; timestamp: number }>;
           DeleteSessionTempFiles?: (filePaths: string[]) => Promise<void>;
+          GetAppVersion?: () => Promise<string>;
           CheckForUpdates?: (currentVersion: string) => Promise<UpdateCheckResult>;
           GetChangelogHistory?: () => Promise<ReleaseInfo[]>;
           DownloadAndInstallUpdate?: (assetURL: string, sha256URL: string) => Promise<void>;
