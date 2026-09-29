@@ -22,6 +22,10 @@
   import { terminalStore, type TerminalTab, type TerminalSplitGroup } from '$lib/stores/terminal.svelte';
   import { sessionStore } from '$lib/stores/session.svelte';
   import { settingsStore } from '$lib/stores/settings.svelte';
+  import { inputShieldStore } from '$lib/stores/inputShield.svelte';
+  import { ShortcutDetector } from '$lib/utils/shortcutDetector';
+
+  const termShortcutDetector = new ShortcutDetector();
 
   const DARK_TERMINAL_THEME = {
     background: '#0e0e11',
@@ -158,6 +162,17 @@
     const currentTheme = getXtermTheme(settingsStore.theme);
     for (const inst of terminalInstances.values()) {
       inst.term.options.theme = currentTheme;
+    }
+  });
+
+  // Dynamically update terminal stdin and cursor blink when input shield is active
+  $effect(() => {
+    const isShielded = inputShieldStore.isReadOnly;
+    for (const inst of terminalInstances.values()) {
+      if (inst.term) {
+        inst.term.options.disableStdin = isShielded;
+        inst.term.options.cursorBlink = !isShielded;
+      }
     }
   });
 
@@ -434,13 +449,14 @@
     }
 
     const term = new Xterm({
-      cursorBlink: true,
+      cursorBlink: !inputShieldStore.isReadOnly,
       cursorStyle: 'bar',
       fontSize: 12.5,
       fontFamily: 'SF Mono, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
       theme: getXtermTheme(settingsStore.theme),
       allowTransparency: true,
-      scrollback: 5000
+      scrollback: 5000,
+      disableStdin: inputShieldStore.isReadOnly
     });
 
     const fitAddon = new FitAddon();
@@ -449,6 +465,22 @@
 
     // Attach custom keyboard handler for copy/paste & uninterrupted shell keystrokes
     term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+      // If UI input shield is active (e.g. screenshot or dictation trigger held), suppress raw terminal keystrokes
+      if (inputShieldStore.isReadOnly) {
+        if (event.key === 'Escape') {
+          inputShieldStore.resetAll();
+        }
+        return false;
+      }
+
+      // If key matches dictation shortcut or snapshot shortcut, block it from xterm and let global listeners capture it
+      if (
+        termShortcutDetector.matchesShortcut(event, settingsStore.dictationShortcut) ||
+        ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === 's')
+      ) {
+        return false;
+      }
+
       if (event.type === 'keydown') {
         const isCtrlOrCmd = event.ctrlKey || event.metaKey;
 
@@ -517,6 +549,9 @@
 
     // User typing in terminal -> send to Go backend PTY
     term.onData((data) => {
+      if (inputShieldStore.isReadOnly) {
+        return;
+      }
       if (window.go?.main?.App?.WriteTerminal) {
         window.go.main.App.WriteTerminal(termId, data);
       }
@@ -905,6 +940,7 @@
                     type="text"
                     use:selectOnFocus
                     bind:value={editingTitle}
+                    readonly={inputShieldStore.isReadOnly}
                     class="px-1.5 py-0.5 text-[11px] font-mono rounded bg-ant-bg-tertiary text-ant-text border border-ant-primary focus:outline-none w-28"
                     onclick={(e) => {
                       e.stopPropagation();
@@ -1179,6 +1215,7 @@
                       type="text"
                       use:selectOnFocus
                       bind:value={editingTitle}
+                      readonly={inputShieldStore.isReadOnly}
                       class="px-1 py-0.5 text-[10px] font-mono rounded bg-ant-bg-tertiary text-ant-text border border-ant-primary focus:outline-none w-20"
                       onclick={(e) => {
                         e.stopPropagation();

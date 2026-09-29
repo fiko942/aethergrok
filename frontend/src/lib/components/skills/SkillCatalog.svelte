@@ -4,6 +4,7 @@
   import { rankSkills } from '$lib/utils/skillSearch';
   import Button from '$lib/antd/Button.svelte';
   import SkillImporterModal from '$lib/components/skills/SkillImporterModal.svelte';
+  import { inputShieldStore } from '$lib/stores/inputShield.svelte';
   import {
     Sparkles,
     Search,
@@ -272,6 +273,7 @@
           <input
             bind:this={searchInputEl}
             bind:value={searchQuery}
+            readonly={inputShieldStore.isReadOnly}
             type="text"
             placeholder="Search skills, triggers, keywords..."
             class="w-full pl-9 pr-8 py-1.5 text-xs bg-ant-bg border border-ant-border-secondary focus:border-ant-primary rounded-lg text-ant-text placeholder:text-ant-text-muted outline-none transition shadow-inner"

@@ -12,6 +12,7 @@
   import type { SkillItem } from '../../../app.d';
   import { playCameraShutterSound } from '$lib/utils/audio';
   import { settingsStore, type ReasoningEffort } from '$lib/stores/settings.svelte';
+  import { inputShieldStore } from '$lib/stores/inputShield.svelte';
   import { sessionStore } from '$lib/stores/session.svelte';
   import { voiceRecorder, type VoiceRecorderState } from '$lib/utils/voiceRecorder';
   import {
@@ -176,6 +177,7 @@
     pendingStopRequested = false;
     voiceState = 'checking_permission';
     voiceStatusText = 'Starting microphone...';
+    inputShieldStore.acquireLock('dictation_recording', 120000);
 
     // Fire-and-forget mute system volume in parallel so microphone starts instantly
     handleMuteSystemVolume();
@@ -203,6 +205,7 @@
       voiceState = 'error';
       dictationMode = 'idle';
       pendingStopRequested = false;
+      inputShieldStore.releaseLock('dictation_recording');
       await handleRestoreSystemVolume();
       const msg = err?.message || 'Failed to start microphone recording';
       voiceError = msg;
@@ -227,6 +230,8 @@
 
   async function handleStopVoiceRecording() {
     stopVolumeVisualizer();
+    inputShieldStore.releaseLock('dictation_recording');
+    inputShieldStore.acquireLock('dictation_transcribing', 30000);
     try {
       const { blob, ext } = await voiceRecorder.stopRecording();
       voiceState = 'transcribing';
@@ -282,6 +287,8 @@
       }, 5000);
     } finally {
       dictationMode = 'idle';
+      inputShieldStore.releaseLock('dictation_recording');
+      inputShieldStore.releaseLock('dictation_transcribing');
       await handleRestoreSystemVolume();
     }
   }
@@ -295,6 +302,8 @@
       voiceStatusText = '';
       voiceError = null;
       dictationMode = 'idle';
+      inputShieldStore.releaseLock('dictation_recording');
+      inputShieldStore.releaseLock('dictation_transcribing');
       handleRestoreSystemVolume();
     }
   }
@@ -415,7 +424,7 @@
   // Calculate session tokens from active session
   const activeSessionTokens = $derived.by(() => {
     const session = sessionStore.activeSession;
-    if (session?.usage) {
+    if (session?.usage && session.usage.usedTokens > 0) {
       return {
         used: session.usage.usedTokens,
         max: session.usage.maxTokens,
@@ -433,7 +442,7 @@
     if (!session || !session.messages || session.messages.length === 0) {
       return {
         used: 0,
-        max: settingsStore.maxContextTokens || 200000,
+        max: session?.usage?.maxTokens || settingsStore.maxContextTokens || 200000,
         lastTurnInput: 0,
         lastTurnOutput: 0,
         lastTurnCacheRead: 0,
@@ -447,24 +456,35 @@
 
     let totalIn = 0;
     let totalOut = 0;
+    let charCount = 0;
     for (const msg of session.messages) {
       if (msg.tokens) {
         totalIn += msg.tokens.input || 0;
         totalOut += msg.tokens.output || 0;
       }
+      charCount += (msg.content || '').length;
+      if (msg.reasoningContent) charCount += msg.reasoningContent.length;
+      if (msg.toolCalls) {
+        for (const tc of msg.toolCalls) {
+          charCount += (tc.result || '').length;
+        }
+      }
     }
-    const used = totalIn + totalOut;
+    const used = (totalIn + totalOut > 0)
+      ? (totalIn + totalOut)
+      : Math.max(2500, Math.round(charCount / 4) + 2500);
+
     return {
       used,
-      max: settingsStore.maxContextTokens || 200000,
-      lastTurnInput: 0,
-      lastTurnOutput: 0,
-      lastTurnCacheRead: 0,
-      lastTurnReasoning: 0,
-      lastTurnModelCalls: 0,
-      totalInput: totalIn,
+      max: session?.usage?.maxTokens || settingsStore.maxContextTokens || 200000,
+      lastTurnInput: session?.usage?.lastTurnInput || 0,
+      lastTurnOutput: session?.usage?.lastTurnOutput || 0,
+      lastTurnCacheRead: session?.usage?.lastTurnCacheRead || 0,
+      lastTurnReasoning: session?.usage?.lastTurnReasoning || 0,
+      lastTurnModelCalls: session?.usage?.lastTurnModelCalls || 0,
+      totalInput: totalIn || used,
       totalOutput: totalOut,
-      totalCache: 0
+      totalCache: session?.usage?.totalCacheRead || 0
     };
   });
 
@@ -657,6 +677,7 @@
   async function handleTakeSnapshot() {
     if (isTakingSnapshot) return;
     isTakingSnapshot = true;
+    inputShieldStore.acquireLock('snapshot_capturing', 8000);
     snapshotError = null;
     isPlusMenuOpen = false;
 
@@ -742,6 +763,7 @@
       console.error('Failed to capture snapshot:', err);
     } finally {
       isTakingSnapshot = false;
+      inputShieldStore.releaseLock('snapshot_capturing');
       tick().then(() => textareaEl?.focus());
     }
   }
@@ -960,6 +982,17 @@
   }
 
   function handleKeyDown(e: KeyboardEvent) {
+    if (inputShieldStore.isReadOnly) {
+      if (e.key === 'Escape') {
+        inputShieldStore.resetAll();
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        return;
+      }
+    }
+
     if (isSlashOpen && slashPopupRef) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -1139,12 +1172,13 @@
       <textarea
         bind:this={textareaEl}
         bind:value={text}
+        readonly={disabled || inputShieldStore.isReadOnly}
         oninput={handleInput}
         onkeydown={handleKeyDown}
         onpaste={handlePaste}
         placeholder={isWorking ? "Grok is executing... (type to queue or steer)" : "Ask Grok anything, command tools, or inspect code... (Enter to send, Shift+Enter for newline)"}
         rows={1}
-        class="w-full bg-transparent text-[13.5px] text-ant-text placeholder:text-ant-text-muted placeholder:font-serif placeholder:text-xs px-3.5 pt-3 pb-2 outline-none resize-none min-h-[44px] max-h-[200px] leading-relaxed block scrollbar-thin font-serif"
+        class="w-full bg-transparent text-[13.5px] text-ant-text placeholder:text-ant-text-muted placeholder:font-serif placeholder:text-xs px-3.5 pt-3 pb-2 outline-none resize-none min-h-[44px] max-h-[200px] leading-relaxed block scrollbar-thin font-serif {inputShieldStore.isReadOnly ? 'cursor-not-allowed opacity-80' : ''}"
       ></textarea>
 
       <!-- Compact Reference-Style Prompt Box Bottom Bar -->

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { sessionStore, type WorkspaceFolder } from '$lib/stores/session.svelte';
+  import { inputShieldStore } from '$lib/stores/inputShield.svelte';
   import { Folder, FolderPlus, Check, X, Search, Terminal } from 'lucide-svelte';
   import { onMount, tick } from 'svelte';
 
@@ -134,6 +135,7 @@
         <input
           bind:this={searchInputRef}
           bind:value={searchQuery}
+          readonly={inputShieldStore.isReadOnly}
           type="text"
           placeholder="Choose a workspace folder for new conversation..."
           class="w-full bg-transparent border-none text-xs font-serif text-ant-text placeholder:text-ant-text-muted outline-none"

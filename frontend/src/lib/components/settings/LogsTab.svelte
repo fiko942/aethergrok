@@ -27,6 +27,7 @@
   import Button from '$lib/antd/Button.svelte';
   import Tooltip from '$lib/antd/Tooltip.svelte';
   import CustomCheckbox from '$lib/components/ui/CustomCheckbox.svelte';
+  import { inputShieldStore } from '$lib/stores/inputShield.svelte';
 
   let searchQuery = $state('');
   let selectedLevel = $state<LogLevel | 'ALL'>('ALL');
@@ -145,6 +146,7 @@
         type="text"
         placeholder="Filter logs or errors..."
         bind:value={searchQuery}
+        readonly={inputShieldStore.isReadOnly}
         class="w-full bg-ant-bg text-ant-text pl-8 pr-2.5 py-1.5 rounded-lg text-xs border border-ant-border-secondary dark:border-white/5 outline-none focus:border-ant-primary transition"
       />
     </div>

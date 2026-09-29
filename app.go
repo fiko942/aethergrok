@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -213,20 +214,144 @@ func (a *App) AutoDetectGrokBinaryPath() string {
 	return grokrunner.ResolveGrokBinary()
 }
 
-type wailsWindowController struct {
+// WindowState records the geometry and display state of the application window
+type WindowState struct {
+	IsFullscreen bool `json:"isFullscreen"`
+	IsMaximised  bool `json:"isMaximised"`
+	IsMinimised  bool `json:"isMinimised"`
+	X            int  `json:"x"`
+	Y            int  `json:"y"`
+	Width        int  `json:"width"`
+	Height       int  `json:"height"`
+	Captured     bool `json:"captured"`
+}
+
+type windowRuntimeOps interface {
+	WindowHide()
+	WindowShow()
+	WindowMaximise()
+	WindowMinimise()
+	WindowFullscreen()
+	WindowIsFullscreen() bool
+	WindowIsMaximised() bool
+	WindowIsMinimised() bool
+	WindowGetPosition() (int, int)
+	WindowGetSize() (int, int)
+}
+
+type defaultWailsRuntimeOps struct {
 	ctx context.Context
 }
 
-func (w *wailsWindowController) Hide() {
-	if w.ctx != nil {
-		wailsRuntime.WindowHide(w.ctx)
+func (d *defaultWailsRuntimeOps) WindowHide() {
+	if d.ctx != nil {
+		wailsRuntime.WindowHide(d.ctx)
 	}
 }
 
+func (d *defaultWailsRuntimeOps) WindowShow() {
+	if d.ctx != nil {
+		wailsRuntime.WindowShow(d.ctx)
+	}
+}
+
+func (d *defaultWailsRuntimeOps) WindowMaximise() {
+	if d.ctx != nil {
+		wailsRuntime.WindowMaximise(d.ctx)
+	}
+}
+
+func (d *defaultWailsRuntimeOps) WindowMinimise() {
+	if d.ctx != nil {
+		wailsRuntime.WindowMinimise(d.ctx)
+	}
+}
+
+func (d *defaultWailsRuntimeOps) WindowFullscreen() {
+	if d.ctx != nil {
+		wailsRuntime.WindowFullscreen(d.ctx)
+	}
+}
+
+func (d *defaultWailsRuntimeOps) WindowIsFullscreen() bool {
+	if d.ctx != nil {
+		return wailsRuntime.WindowIsFullscreen(d.ctx)
+	}
+	return false
+}
+
+func (d *defaultWailsRuntimeOps) WindowIsMaximised() bool {
+	if d.ctx != nil {
+		return wailsRuntime.WindowIsMaximised(d.ctx)
+	}
+	return false
+}
+
+func (d *defaultWailsRuntimeOps) WindowIsMinimised() bool {
+	if d.ctx != nil {
+		return wailsRuntime.WindowIsMinimised(d.ctx)
+	}
+	return false
+}
+
+func (d *defaultWailsRuntimeOps) WindowGetPosition() (int, int) {
+	if d.ctx != nil {
+		return wailsRuntime.WindowGetPosition(d.ctx)
+	}
+	return 0, 0
+}
+
+func (d *defaultWailsRuntimeOps) WindowGetSize() (int, int) {
+	if d.ctx != nil {
+		return wailsRuntime.WindowGetSize(d.ctx)
+	}
+	return 0, 0
+}
+
+type wailsWindowController struct {
+	ops   windowRuntimeOps
+	state WindowState
+}
+
+func newWailsWindowController(ctx context.Context) *wailsWindowController {
+	return &wailsWindowController{
+		ops: &defaultWailsRuntimeOps{ctx: ctx},
+	}
+}
+
+func (w *wailsWindowController) Hide() {
+	if w.ops == nil {
+		return
+	}
+	w.state = WindowState{
+		IsFullscreen: w.ops.WindowIsFullscreen(),
+		IsMaximised:  w.ops.WindowIsMaximised(),
+		IsMinimised:  w.ops.WindowIsMinimised(),
+		Captured:     true,
+	}
+	w.state.X, w.state.Y = w.ops.WindowGetPosition()
+	w.state.Width, w.state.Height = w.ops.WindowGetSize()
+
+	w.ops.WindowHide()
+}
+
 func (w *wailsWindowController) Show() {
-	if w.ctx != nil {
-		wailsRuntime.WindowShow(w.ctx)
-		wailsRuntime.WindowUnminimise(w.ctx)
+	if w.ops == nil {
+		return
+	}
+
+	w.ops.WindowShow()
+
+	if !w.state.Captured {
+		return
+	}
+
+	if w.state.IsFullscreen {
+		w.ops.WindowFullscreen()
+	} else if w.state.IsMaximised {
+		w.ops.WindowMaximise()
+	} else if w.state.IsMinimised {
+		w.ops.WindowMinimise()
 	}
 }
 
@@ -240,7 +365,7 @@ func (a *App) CaptureScreenExcludingSelf(delayMs int) (*screen.SnapshotResult, e
 		}
 	}
 	if a.ctx != nil && autoHide {
-		winCtrl = &wailsWindowController{ctx: a.ctx}
+		winCtrl = newWailsWindowController(a.ctx)
 	}
 	return a.screenCapture.CaptureScreenExcludingWindow(context.Background(), winCtrl, delayMs)
 }
@@ -593,22 +718,77 @@ func (a *App) CloseSessionTerminals(sessionID string) error {
 
 // GetPlanContent reads the full markdown content of a plan file from disk
 func (a *App) GetPlanContent(planPath string) (string, error) {
-	if strings.TrimSpace(planPath) == "" {
+	cleanPath := strings.TrimSpace(planPath)
+	if cleanPath == "" {
 		return "", fmt.Errorf("plan path cannot be empty")
 	}
 
-	cleanPath := strings.TrimSpace(planPath)
+	// Strip surrounding quotes or backticks
+	cleanPath = strings.Trim(cleanPath, "\"'`<>")
+
+	// Strip trailing sentence markers like ". The file exists and is empty"
+	if idx := strings.Index(cleanPath, ". The file"); idx != -1 {
+		cleanPath = strings.TrimSpace(cleanPath[:idx])
+	}
+	if idx := strings.Index(cleanPath, ".\nThe file"); idx != -1 {
+		cleanPath = strings.TrimSpace(cleanPath[:idx])
+	}
+
+	// Strip trailing punctuation
+	cleanPath = strings.TrimRight(cleanPath, ".,;:!?")
+
+	// Expand ~ to user home directory
 	if strings.HasPrefix(cleanPath, "~") {
 		if homeDir, err := os.UserHomeDir(); err == nil {
 			cleanPath = filepath.Join(homeDir, cleanPath[1:])
 		}
 	}
 
-	data, err := os.ReadFile(cleanPath)
-	if err != nil {
-		return "", err
+	// Helper function to try reading a path or finding plan.md inside a directory
+	tryReadFile := func(p string) ([]byte, error) {
+		p = filepath.Clean(p)
+		fi, err := os.Stat(p)
+		if err != nil {
+			return nil, err
+		}
+		if fi.IsDir() {
+			planMdPath := filepath.Join(p, "plan.md")
+			if _, statErr := os.Stat(planMdPath); statErr == nil {
+				return os.ReadFile(planMdPath)
+			}
+			return nil, fmt.Errorf("%s is a directory and does not contain plan.md", p)
+		}
+		return os.ReadFile(p)
 	}
-	return string(data), nil
+
+	// 1. Direct read attempt
+	data, err := tryReadFile(cleanPath)
+	if err == nil {
+		return string(data), nil
+	}
+
+	// 2. URL Unescape attempt (if path contained %-encoded chars like %20 or %5C)
+	if unescaped, uErr := url.PathUnescape(cleanPath); uErr == nil && unescaped != cleanPath {
+		if data, err = tryReadFile(unescaped); err == nil {
+			return string(data), nil
+		}
+	}
+	if unescaped, uErr := url.QueryUnescape(cleanPath); uErr == nil && unescaped != cleanPath {
+		if data, err = tryReadFile(unescaped); err == nil {
+			return string(data), nil
+		}
+	}
+
+	// 3. Fallback: check if directory of cleanPath has plan.md
+	parentDir := filepath.Dir(cleanPath)
+	if parentDir != "" && parentDir != "." {
+		planInParent := filepath.Join(parentDir, "plan.md")
+		if data, err = tryReadFile(planInParent); err == nil {
+			return string(data), nil
+		}
+	}
+
+	return "", err
 }
 
 // RevealGrokConfigFile reveals the user's ~/.grok/config.toml file in macOS Finder or Windows Explorer

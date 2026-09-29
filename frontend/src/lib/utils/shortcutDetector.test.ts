@@ -53,6 +53,31 @@ describe('ShortcutDetector', () => {
       expect(detector.matchesShortcut(createKeyEvent({ key: 'd', code: 'KeyD', ctrlKey: true, shiftKey: true }), 'Ctrl+Shift+D')).toBe(true);
       expect(detector.matchesShortcut(createKeyEvent({ key: 'd', code: 'KeyD', ctrlKey: true }), 'Ctrl+Shift+D')).toBe(false);
     });
+
+    it('bypasses editing text check for special keys like backslash and modifier keys', () => {
+      const inputEl = { tagName: 'INPUT', isContentEditable: false };
+      const eventInInput = {
+        ...createKeyEvent({ code: 'Backslash', key: '\\' }),
+        target: inputEl
+      } as unknown as KeyboardEvent;
+
+      // Backslash should still match even when target is an input field
+      expect(detector.matchesShortcut(eventInInput, '\\')).toBe(true);
+
+      // Modifier combinations should also match inside inputs
+      const cmdDInInput = {
+        ...createKeyEvent({ key: 'd', code: 'KeyD', metaKey: true }),
+        target: inputEl
+      } as unknown as KeyboardEvent;
+      expect(detector.matchesShortcut(cmdDInInput, 'Cmd+D')).toBe(true);
+
+      // Normal keys should NOT match when typing in an input
+      const kInInput = {
+        ...createKeyEvent({ key: 'k', code: 'KeyK' }),
+        target: inputEl
+      } as unknown as KeyboardEvent;
+      expect(detector.matchesShortcut(kInInput, 'k')).toBe(false);
+    });
   });
 
   describe('Hold / Push-to-Talk Detection (> 300ms)', () => {

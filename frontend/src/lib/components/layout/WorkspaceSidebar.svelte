@@ -3,6 +3,7 @@
   import { sessionStore, STATUS_META, type Session, type WorkspaceFolder } from '$lib/stores/session.svelte';
   import { settingsStore } from '$lib/stores/settings.svelte';
   import { dialogStore } from '$lib/stores/dialog.svelte';
+  import { inputShieldStore } from '$lib/stores/inputShield.svelte';
   import { formatSessionAsMarkdown, downloadOrSaveMarkdown } from '$lib/utils/markdownExport';
   import BatchActionBar from './BatchActionBar.svelte';
   import {
@@ -382,6 +383,7 @@
       <input
         type="text"
         bind:value={searchQuery}
+        readonly={inputShieldStore.isReadOnly}
         placeholder="Filter project & session..."
         class="w-full bg-ant-bg border border-ant-border rounded-md pl-8 pr-2.5 py-1 text-xs text-ant-text placeholder-ant-text-muted focus:border-ant-primary focus:bg-ant-bg focus:outline-none transition-colors shadow-2xs"
       />
@@ -456,6 +458,7 @@
                     <input
                       type="text"
                       bind:value={editTitleText}
+                      readonly={inputShieldStore.isReadOnly}
                       onkeydown={(e) => {
                         if (e.key === 'Enter') handleSaveRename(session);
                         if (e.key === 'Escape') editingSessionId = null;
@@ -648,6 +651,7 @@
                         <input
                           type="text"
                           bind:value={editTitleText}
+                          readonly={inputShieldStore.isReadOnly}
                           onkeydown={(e) => {
                             if (e.key === 'Enter') handleSaveRename(session);
                             if (e.key === 'Escape') editingSessionId = null;

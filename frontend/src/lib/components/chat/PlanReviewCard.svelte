@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { settingsStore } from '$lib/stores/settings.svelte';
+  import { inputShieldStore } from '$lib/stores/inputShield.svelte';
   import { Check, X, MessageSquare, ListTodo, Sparkles } from 'lucide-svelte';
 
   interface Props {
@@ -73,6 +74,7 @@
     <div class="space-y-2 pt-1 animate-in fade-in duration-150">
       <textarea
         bind:value={customFeedback}
+        readonly={inputShieldStore.isReadOnly}
         placeholder="Describe revisions, additional constraints, or changes to the plan..."
         rows="2"
         class="w-full bg-[#121214] border border-[#2e2e34] rounded-lg p-2.5 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500/50 resize-none font-serif leading-relaxed placeholder:text-zinc-500"

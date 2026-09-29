@@ -445,8 +445,27 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 		}()
 
 		parser := NewStreamParser(req.SessionID, callbacks)
-		_ = parser.Parse(sessionCtx, stdout)
-		_ = cmd.Wait()
+		parseErr := parser.Parse(sessionCtx, stdout)
+		waitErr := cmd.Wait()
+
+		// Guaranteed Turn Completion Fallback:
+		// If parser did not receive an explicit completion signal before process exit/EOF,
+		// emit completion now so the frontend session never hangs in 'working' state.
+		if !parser.HasCompleted() {
+			status := "success"
+			var errStr string
+			if sessionCtx.Err() != nil {
+				status = "interrupted"
+				errStr = "Turn interrupted"
+			} else if waitErr != nil {
+				status = "error"
+				errStr = waitErr.Error()
+			} else if parseErr != nil && parseErr != io.EOF {
+				status = "error"
+				errStr = parseErr.Error()
+			}
+			parser.EmitComplete(status, errStr)
+		}
 	}()
 
 	return nil

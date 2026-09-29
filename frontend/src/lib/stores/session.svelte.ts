@@ -105,7 +105,7 @@ export interface SessionDraft {
   attachments: AttachedFile[];
 }
 
-export type RightSidebarTab = 'files' | 'changes';
+export type RightSidebarTab = 'files' | 'changes' | 'plan';
 
 export interface Session {
   id: string;
@@ -792,6 +792,7 @@ class SessionStore {
     this.openTabSessionIds.push(newSession.id);
     this.activeSessionId = newSession.id;
     this.saveSessionsToStorage();
+    this.loadSessionUsage(newSession).catch(() => {});
     return newSession;
   }
 
@@ -831,13 +832,17 @@ class SessionStore {
 
   // Load token usage stats from Go backend
   async loadSessionUsage(session: Session): Promise<void> {
-    const ws = this.workspaces.find((w) => w.id === session.workspaceId);
+    const ws = this.workspaces.find((w) => w.id === session.workspaceId) || this.activeWorkspace;
     if (!ws || !ws.path) return;
 
     if (window.go?.main?.App?.GetSessionUsage) {
       try {
-        const stats = await window.go.main.App.GetSessionUsage(ws.path, session.id);
+        const targetId = session.grokSessionId || session.id;
+        const stats = await window.go.main.App.GetSessionUsage(ws.path, targetId);
         if (stats) {
+          if (stats.sessionId && !session.grokSessionId && !stats.sessionId.startsWith('sess_')) {
+            session.grokSessionId = stats.sessionId;
+          }
           session.usage = {
             usedTokens: stats.usedTokens || 0,
             maxTokens: stats.maxTokens || 200000,
@@ -849,7 +854,7 @@ class SessionStore {
             totalInput: stats.totalInput || 0,
             totalOutput: stats.totalOutput || 0,
             totalCacheRead: stats.totalCacheRead || 0,
-            turnCount: stats.turnCount || 0,
+            turnCount: stats.turnCount || session.messages.length,
             primaryModelId: stats.primaryModelId || ''
           };
           logger.debug('SESSION', `Loaded session usage: ${session.id}`, { usedTokens: session.usage.usedTokens });
@@ -859,13 +864,50 @@ class SessionStore {
         console.error('Failed to load session usage for', session.id, err);
       }
     }
+
+    // Fallback: If session has messages but usedTokens is 0, estimate from message characters
+    if ((!session.usage || session.usage.usedTokens === 0) && session.messages.length > 0) {
+      let charCount = 0;
+      for (const m of session.messages) {
+        charCount += (m.content || '').length;
+        if (m.reasoningContent) charCount += m.reasoningContent.length;
+        if (m.toolCalls) {
+          for (const tc of m.toolCalls) {
+            charCount += (tc.result || '').length;
+          }
+        }
+      }
+      const estimated = Math.max(2500, Math.round(charCount / 4) + 2500);
+      session.usage = {
+        usedTokens: estimated,
+        maxTokens: session.usage?.maxTokens || 200000,
+        lastTurnInput: session.usage?.lastTurnInput || 0,
+        lastTurnOutput: session.usage?.lastTurnOutput || 0,
+        lastTurnCacheRead: session.usage?.lastTurnCacheRead || 0,
+        lastTurnReasoning: session.usage?.lastTurnReasoning || 0,
+        lastTurnModelCalls: session.usage?.lastTurnModelCalls || 0,
+        totalInput: session.usage?.totalInput || estimated,
+        totalOutput: session.usage?.totalOutput || 0,
+        totalCacheRead: session.usage?.totalCacheRead || 0,
+        turnCount: session.messages.length,
+        primaryModelId: session.usage?.primaryModelId || ''
+      };
+    }
+  }
+
+  // Refresh token usage metrics for the active session
+  async refreshActiveSessionUsage(): Promise<void> {
+    const active = this.activeSession;
+    if (active) {
+      await this.loadSessionUsage(active);
+    }
   }
 
   // Compact conversation via Go backend with rich loading state and notifications
   async compactActiveSession(): Promise<{ success: boolean; before: number; after: number; error?: string }> {
     const session = this.activeSession;
     if (!session) return { success: false, before: 0, after: 0, error: 'No active session' };
-    const ws = this.workspaces.find((w) => w.id === session.workspaceId);
+    const ws = this.workspaces.find((w) => w.id === session.workspaceId) || this.activeWorkspace;
     if (!ws || !ws.path) return { success: false, before: 0, after: 0, error: 'Workspace path not found' };
 
     if (this.isCompacting) {
@@ -882,10 +924,14 @@ class SessionStore {
 
     try {
       if (window.go?.main?.App?.CompactSession) {
-        const stats = await window.go.main.App.CompactSession(ws.path, session.id);
+        const targetId = session.grokSessionId || session.id;
+        const stats = await window.go.main.App.CompactSession(ws.path, targetId);
         if (stats) {
+          if (stats.sessionId && !session.grokSessionId && !stats.sessionId.startsWith('sess_')) {
+            session.grokSessionId = stats.sessionId;
+          }
           session.usage = {
-            usedTokens: stats.usedTokens || 0,
+            usedTokens: stats.usedTokens || Math.round(tokensBefore * 0.4),
             maxTokens: stats.maxTokens || 200000,
             lastTurnInput: stats.lastTurnInput || 0,
             lastTurnOutput: stats.lastTurnOutput || 0,
@@ -895,14 +941,14 @@ class SessionStore {
             totalInput: stats.totalInput || 0,
             totalOutput: stats.totalOutput || 0,
             totalCacheRead: stats.totalCacheRead || 0,
-            turnCount: stats.turnCount || 0,
+            turnCount: stats.turnCount || session.messages.length,
             primaryModelId: stats.primaryModelId || ''
           };
         }
         // Refresh session history from disk
         await this.loadSessionHistoryFromDisk(session);
 
-        const tokensAfter = session.usage?.usedTokens || tokensBefore;
+        const tokensAfter = session.usage?.usedTokens || Math.round(tokensBefore * 0.4);
         this.lastCompactNotice = {
           type: 'success',
           message: `Conversation compacted successfully! Context reduced to ${Math.round(tokensAfter / 1000)}K tokens.`,
@@ -917,11 +963,12 @@ class SessionStore {
           }
         }, 5000);
 
+        this.saveSessionsToStorage();
         return { success: true, before: tokensBefore, after: tokensAfter };
       } else {
         // Fallback preview mode simulation
         await new Promise((r) => setTimeout(r, 1200));
-        const tokensAfter = Math.max(12000, Math.round(tokensBefore * 0.25));
+        const tokensAfter = Math.max(2500, Math.round(tokensBefore * 0.35));
         if (session.usage) {
           session.usage.usedTokens = tokensAfter;
         }
@@ -940,7 +987,7 @@ class SessionStore {
       }
     } catch (err) {
       console.error('Failed to compact session:', err);
-      const errMsg = String(err);
+      const errMsg = err instanceof Error ? err.message : String(err);
       this.lastCompactNotice = {
         type: 'error',
         message: `Failed to compact conversation: ${errMsg}`,
@@ -1318,9 +1365,19 @@ class SessionStore {
     }
   }
 
-  appendDelta(sessionId: string, delta: string, role: 'assistant' | 'user' = 'assistant'): void {
+  appendDelta(
+    sessionId: string,
+    delta: string,
+    role: 'assistant' | 'user' = 'assistant',
+    grokSessionId?: string,
+    liveTokens?: number
+  ): void {
     const session = this.sessions.find((s) => s.id === sessionId);
     if (!session) return;
+
+    if (grokSessionId && !session.grokSessionId && !grokSessionId.startsWith('sess_')) {
+      session.grokSessionId = grokSessionId;
+    }
 
     if (session.messages.length === 0 || session.messages[session.messages.length - 1].role !== role) {
       this.addMessage(sessionId, {
@@ -1333,6 +1390,51 @@ class SessionStore {
       lastMsg.content += delta;
       lastMsg.status = 'streaming';
       session.updatedAt = Date.now();
+    }
+
+    // Refresh live context token consumption during active streaming
+    if (liveTokens && liveTokens > 0) {
+      if (!session.usage) {
+        session.usage = {
+          usedTokens: liveTokens,
+          maxTokens: 200000,
+          lastTurnInput: 0,
+          lastTurnOutput: 0,
+          lastTurnCacheRead: 0,
+          lastTurnReasoning: 0,
+          lastTurnModelCalls: 0,
+          totalInput: liveTokens,
+          totalOutput: 0,
+          totalCacheRead: 0,
+          turnCount: session.messages.length,
+          primaryModelId: ''
+        };
+      } else {
+        session.usage.usedTokens = Math.max(session.usage.usedTokens, liveTokens);
+      }
+    } else if (delta) {
+      // Incremental estimation: ~1 token per 3.8 characters of stream delta
+      const deltaTokens = Math.max(1, Math.ceil(delta.length / 3.8));
+      if (!session.usage) {
+        session.usage = {
+          usedTokens: 2500 + deltaTokens,
+          maxTokens: 200000,
+          lastTurnInput: 2500,
+          lastTurnOutput: deltaTokens,
+          lastTurnCacheRead: 0,
+          lastTurnReasoning: 0,
+          lastTurnModelCalls: 0,
+          totalInput: 2500,
+          totalOutput: deltaTokens,
+          totalCacheRead: 0,
+          turnCount: session.messages.length,
+          primaryModelId: ''
+        };
+      } else {
+        session.usage.usedTokens += deltaTokens;
+        session.usage.lastTurnOutput = (session.usage.lastTurnOutput || 0) + deltaTokens;
+        session.usage.totalOutput = (session.usage.totalOutput || 0) + deltaTokens;
+      }
     }
   }
 

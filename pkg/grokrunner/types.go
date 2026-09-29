@@ -34,20 +34,23 @@ type PromptRequest struct {
 
 // DeltaEvent represents batched text tokens emitted to frontend
 type DeltaEvent struct {
-	SessionID string `json:"sessionId"`
-	Delta     string `json:"delta"`
-	Role      string `json:"role,omitempty"`
+	SessionID     string `json:"sessionId"`
+	GrokSessionID string `json:"grokSessionId,omitempty"`
+	Delta         string `json:"delta"`
+	Role          string `json:"role,omitempty"`
+	Tokens        int    `json:"tokens,omitempty"`
 }
 
 // ToolCallEvent represents a tool invocation or completion
 type ToolCallEvent struct {
-	SessionID string                 `json:"sessionId"`
-	ToolID    string                 `json:"toolId"`
-	ToolName  string                 `json:"toolName"`
-	Input     map[string]interface{} `json:"input,omitempty"`
-	Output    string                 `json:"output,omitempty"`
-	Status    string                 `json:"status"` // "running", "completed", "failed"
-	Error     string                 `json:"error,omitempty"`
+	SessionID     string                 `json:"sessionId"`
+	GrokSessionID string                 `json:"grokSessionId,omitempty"`
+	ToolID        string                 `json:"toolId"`
+	ToolName      string                 `json:"toolName"`
+	Input         map[string]interface{} `json:"input,omitempty"`
+	Output        string                 `json:"output,omitempty"`
+	Status        string                 `json:"status"` // "running", "completed", "failed"
+	Error         string                 `json:"error,omitempty"`
 }
 
 // PermissionOption represents an approval option
@@ -126,31 +129,64 @@ type TurnCompleteEvent struct {
 
 // RawNDJSONEvent models incoming JSON messages from `grok --output-format streaming-json`
 type RawNDJSONEvent struct {
-	Type        string                 `json:"type"`
-	Role        string                 `json:"role,omitempty"`
-	Delta       string                 `json:"delta,omitempty"`
-	Data        string                 `json:"data,omitempty"`
-	Message     string                 `json:"message,omitempty"`
-	Text        string                 `json:"text,omitempty"`
-	Title       string                 `json:"title,omitempty"`
-	SessionID   string                 `json:"session_id,omitempty"`
-	Params      map[string]interface{} `json:"params,omitempty"`
-	Kind        string                 `json:"kind,omitempty"`
-	ToolID      string                 `json:"tool_id,omitempty"`
-	ToolCallID  string                 `json:"toolCallId,omitempty"`
-	ToolName    string                 `json:"toolName,omitempty"`
-	ToolNameAlt string                 `json:"tool_name,omitempty"`
-	RawInput    map[string]interface{} `json:"rawInput,omitempty"`
-	ToolInput   map[string]interface{} `json:"tool_input,omitempty"`
-	RawOutput   interface{}            `json:"rawOutput,omitempty"`
-	Content     []interface{}          `json:"content,omitempty"`
-	ToolOutput  string                 `json:"tool_output,omitempty"`
-	ToolStatus  string                 `json:"tool_status,omitempty"`
-	RequestID   string                 `json:"request_id,omitempty"`
-	Description string                 `json:"description,omitempty"`
-	Details     map[string]interface{} `json:"details,omitempty"`
-	Status      string                 `json:"status,omitempty"`
-	Error       string                 `json:"error,omitempty"`
-	Tokens      int                    `json:"tokens,omitempty"`
-	Usage       map[string]interface{} `json:"usage,omitempty"`
+	Method       string                 `json:"method,omitempty"`
+	Type         string                 `json:"type,omitempty"`
+	Role         string                 `json:"role,omitempty"`
+	Delta        string                 `json:"delta,omitempty"`
+	Data         string                 `json:"data,omitempty"`
+	Message      string                 `json:"message,omitempty"`
+	Text         string                 `json:"text,omitempty"`
+	Title        string                 `json:"title,omitempty"`
+	SessionID    string                 `json:"session_id,omitempty"`
+	SessionIDAlt string                 `json:"sessionId,omitempty"`
+	Params       map[string]interface{} `json:"params,omitempty"`
+	Kind         string                 `json:"kind,omitempty"`
+	ToolID       string                 `json:"tool_id,omitempty"`
+	ToolCallID   string                 `json:"toolCallId,omitempty"`
+	ToolName     string                 `json:"toolName,omitempty"`
+	ToolNameAlt  string                 `json:"tool_name,omitempty"`
+	RawInput     map[string]interface{} `json:"rawInput,omitempty"`
+	ToolInput    map[string]interface{} `json:"tool_input,omitempty"`
+	RawOutput    interface{}            `json:"rawOutput,omitempty"`
+	Content      interface{}            `json:"content,omitempty"`
+	ToolOutput   string                 `json:"tool_output,omitempty"`
+	ToolStatus   string                 `json:"tool_status,omitempty"`
+	RequestID    string                 `json:"request_id,omitempty"`
+	Description  string                 `json:"description,omitempty"`
+	Details      map[string]interface{} `json:"details,omitempty"`
+	Status       string                 `json:"status,omitempty"`
+	Error        string                 `json:"error,omitempty"`
+	Tokens       int                    `json:"tokens,omitempty"`
+	Usage        map[string]interface{} `json:"usage,omitempty"`
+	Meta         map[string]interface{} `json:"_meta,omitempty"`
+}
+
+// ACPUpdatePayload models update payloads nested within ACP JSON-RPC params.update
+type ACPUpdatePayload struct {
+	SessionUpdate string                 `json:"sessionUpdate,omitempty"`
+	ToolCallID    string                 `json:"toolCallId,omitempty"`
+	ToolID        string                 `json:"toolId,omitempty"`
+	Kind          string                 `json:"kind,omitempty"`
+	Title         string                 `json:"title,omitempty"`
+	Status        string                 `json:"status,omitempty"`
+	Content       interface{}            `json:"content,omitempty"`
+	RawInput      map[string]interface{} `json:"rawInput,omitempty"`
+	ToolInput     map[string]interface{} `json:"tool_input,omitempty"`
+	RawOutput     interface{}            `json:"rawOutput,omitempty"`
+	ToolOutput    string                 `json:"tool_output,omitempty"`
+	Delta         string                 `json:"delta,omitempty"`
+	Text          string                 `json:"text,omitempty"`
+	Message       string                 `json:"message,omitempty"`
+	PromptID      string                 `json:"prompt_id,omitempty"`
+	StopReason    string                 `json:"stop_reason,omitempty"`
+	Usage         map[string]interface{} `json:"usage,omitempty"`
+	Tokens        int                    `json:"tokens,omitempty"`
+	TokensAfter   int                    `json:"tokens_after,omitempty"`
+	ElapsedMs     int64                  `json:"elapsed_ms,omitempty"`
+	RequestID     string                 `json:"requestId,omitempty"`
+	RequestIDAlt  string                 `json:"request_id,omitempty"`
+	Description   string                 `json:"description,omitempty"`
+	Details       map[string]interface{} `json:"details,omitempty"`
+	Error         string                 `json:"error,omitempty"`
+	Meta          map[string]interface{} `json:"_meta,omitempty"`
 }

@@ -17,6 +17,7 @@
   import FileViewerModal from '$lib/components/workspace/FileViewerModal.svelte';
   import WorkspaceSidebar from '$lib/components/layout/WorkspaceSidebar.svelte';
   import RightSidebar from '$lib/components/layout/RightSidebar.svelte';
+  import FloatingPlanTracker from '$lib/components/chat/FloatingPlanTracker.svelte';
   import ScreenFlash from '$lib/components/snapshot/ScreenFlash.svelte';
   import ModalConfirm from '$lib/antd/ModalConfirm.svelte';
   import DonateModal from '$lib/components/layout/DonateModal.svelte';
@@ -25,6 +26,8 @@
   import { dialogStore } from '$lib/stores/dialog.svelte';
   import { playCameraShutterSound } from '$lib/utils/audio';
   import { settingsStore } from '$lib/stores/settings.svelte';
+  import { inputShieldStore } from '$lib/stores/inputShield.svelte';
+  import { planStore } from '$lib/stores/plan.svelte';
   import { updaterStore } from '$lib/stores/updater.svelte';
   import { ShortcutDetector, type DictationTriggerEvent } from '$lib/utils/shortcutDetector';
   import type { SkillItem, SnapshotResult } from './app.d';
@@ -290,6 +293,7 @@
     }
     isCapturingSnapshot = true;
     lastSnapshotTime = now;
+    inputShieldStore.acquireLock('snapshot_capturing', 8000);
 
     try {
       const delay = settingsStore.snapshotDelayMs || 50;
@@ -369,6 +373,7 @@
       }
     } finally {
       isCapturingSnapshot = false;
+      inputShieldStore.releaseLock('snapshot_capturing');
     }
   }
 
@@ -756,19 +761,28 @@
   function matchesShortcut(e: KeyboardEvent, shortcutStr: string): boolean {
     if (!shortcutStr) return false;
 
-    const isEditing = isEditingElement(e);
-
-    // If editing text, do not intercept single-key shortcuts without modifiers
     const parts = shortcutStr.toLowerCase().split('+').map((s) => s.trim());
     const hasCmdOrCtrl = parts.includes('cmdorctrl') || parts.includes('cmd') || parts.includes('ctrl') || parts.includes('control') || parts.includes('meta');
     const hasAlt = parts.includes('alt') || parts.includes('opt') || parts.includes('option');
+    const normShortcut = shortcutStr.toLowerCase().replace(/[\s_-]/g, '');
 
-    if (isEditing && !hasCmdOrCtrl && !hasAlt) {
+    const isSpecialOrModifier =
+      normShortcut === '\\' ||
+      normShortcut === 'backslash' ||
+      normShortcut.includes('shift') ||
+      normShortcut.includes('ctrl') ||
+      normShortcut.includes('alt') ||
+      normShortcut.includes('cmd') ||
+      normShortcut.includes('meta') ||
+      hasCmdOrCtrl ||
+      hasAlt;
+
+    const isEditing = isEditingElement(e);
+    if (isEditing && !isSpecialOrModifier) {
       return false;
     }
 
     const normCode = e.code ? e.code.toLowerCase().replace(/[\s_-]/g, '') : '';
-    const normShortcut = shortcutStr.toLowerCase().replace(/[\s_-]/g, '');
 
     // 1. Direct code check (e.g. ShiftLeft, ShiftRight, MetaLeft, MetaRight, AltLeft, AltRight, ControlLeft, ControlRight)
     const isDirectMatch = normCode && (
@@ -784,7 +798,6 @@
     );
 
     if (isDirectMatch) {
-      if (isEditing) return false;
       return true;
     }
 
@@ -800,11 +813,12 @@
     if (!hasAlt && e.altKey) return false;
 
     if (keyPart) {
-      const eKey = e.key.toLowerCase();
-      const eCode = e.code.toLowerCase();
+      const eKey = (e.key || '').toLowerCase();
+      const eCode = (e.code || '').toLowerCase();
       if (eKey === keyPart) return true;
       if (eCode === keyPart || eCode === `key${keyPart}` || eCode === `digit${keyPart}`) return true;
       if (keyPart === '/' && (eKey === '/' || eCode === 'slash')) return true;
+      if (keyPart === '\\' && (eKey === '\\' || eCode === 'backslash')) return true;
       if (keyPart === 'delete' && (eKey === 'delete' || eCode === 'delete')) return true;
       if (keyPart === 'backspace' && (eKey === 'backspace' || eCode === 'backspace')) return true;
       if (keyPart === 'space' && (eKey === ' ' || eCode === 'space')) return true;
@@ -876,6 +890,10 @@
 
   // Global Keyboard Shortcuts Handler
   function handleGlobalKeyDown(e: KeyboardEvent) {
+    if (e.key === 'Escape' && inputShieldStore.isReadOnly) {
+      inputShieldStore.resetAll();
+    }
+
     const isEditing = isEditingElement(e);
     const inTerminal = isInsideTerminal(e);
 
@@ -883,6 +901,9 @@
     if (shortcutDetector.matchesShortcut(e, settingsStore.dictationShortcut)) {
       e.preventDefault();
       e.stopPropagation();
+
+      // Acquire temporary read-only shield while trigger is held down
+      inputShieldStore.acquireLock('dictation_key_hold', 30000);
 
       // If no active session is open, auto-create one so Composer mounts
       if (!sessionStore.activeSession && sessionStore.activeWorkspace) {
@@ -901,6 +922,8 @@
     // Smart Screen Snapshot (Customizable via settingsStore.snapshotShortcut)
     if (matchesShortcut(e, settingsStore.snapshotShortcut) || (isMetaOrCtrl && e.shiftKey && e.key.toLowerCase() === 's')) {
       e.preventDefault();
+      e.stopPropagation();
+      inputShieldStore.acquireLock('snapshot_key_hold', 5000);
       performGlobalSnapshot();
       return;
     }
@@ -982,10 +1005,19 @@
     if (shortcutDetector.matchesShortcut(e, settingsStore.dictationShortcut)) {
       e.preventDefault();
       e.stopPropagation();
+      inputShieldStore.releaseLock('dictation_key_hold');
       const dictationEvent = shortcutDetector.feedKeyUp(e, settingsStore.dictationShortcut);
       if (dictationEvent) {
         window.dispatchEvent(new CustomEvent('aethergrok:dictation-trigger', { detail: dictationEvent }));
       }
+      return;
+    }
+
+    const isMetaOrCtrl = e.metaKey || e.ctrlKey;
+    if (matchesShortcut(e, settingsStore.snapshotShortcut) || (isMetaOrCtrl && e.shiftKey && e.key.toLowerCase() === 's')) {
+      e.preventDefault();
+      e.stopPropagation();
+      inputShieldStore.releaseLock('snapshot_key_hold');
       return;
     }
   }
@@ -1042,12 +1074,36 @@
     }
   });
 
+  let safetyReleaseHandler: (() => void) | undefined;
+  let visibilityChangeHandler: (() => void) | undefined;
+  let windowFocusHandler: (() => void) | undefined;
+
   onMount(() => {
     window.addEventListener('click', handleGlobalDocumentClick, true);
     window.addEventListener('keydown', handleGlobalKeyDown);
     window.addEventListener('keyup', handleGlobalKeyUp);
     window.addEventListener('resize', handleWindowResize);
     handleWindowResize();
+
+    // Multi-layered safety auto-release for key holds & auto-refresh session context usage
+    safetyReleaseHandler = () => {
+      inputShieldStore.releaseLock('snapshot_key_hold');
+      inputShieldStore.releaseLock('dictation_key_hold');
+    };
+    visibilityChangeHandler = () => {
+      if (document.hidden && safetyReleaseHandler) {
+        safetyReleaseHandler();
+      } else if (!document.hidden) {
+        sessionStore.refreshActiveSessionUsage();
+      }
+    };
+    windowFocusHandler = () => {
+      sessionStore.refreshActiveSessionUsage();
+    };
+    window.addEventListener('blur', safetyReleaseHandler);
+    window.addEventListener('focus', windowFocusHandler);
+    window.addEventListener('pointerdown', safetyReleaseHandler, { passive: true });
+    document.addEventListener('visibilitychange', visibilityChangeHandler);
 
     // Initialize auto-update background polling on startup
     updaterStore.initPeriodicCheck();
@@ -1115,18 +1171,38 @@
       });
       unsubGlobalDictation = window.runtime.EventsOn('dictation:trigger_global', (data: { type?: string; timestamp?: number }) => {
         const action = (data?.type || 'down') as 'down' | 'up';
+        if (action === 'down') {
+          inputShieldStore.acquireLock('dictation_key_hold', 30000);
+        } else {
+          inputShieldStore.releaseLock('dictation_key_hold');
+        }
         const dictationEvent = shortcutDetector.feedKeyEvent(action, data?.timestamp);
         if (dictationEvent) {
           window.dispatchEvent(new CustomEvent('aethergrok:dictation-trigger', { detail: dictationEvent }));
         }
       });
-      unsubDelta = window.runtime.EventsOn('grok:delta_batch', (event: { sessionId: string; delta: string; role?: string }) => {
+      unsubDelta = window.runtime.EventsOn('grok:delta_batch', (event: {
+        sessionId: string;
+        delta: string;
+        role?: string;
+        grokSessionId?: string;
+        tokens?: number;
+      }) => {
         if (event.sessionId) {
           const session = sessionStore.sessions.find((s) => s.id === event.sessionId);
           if (session && session.status !== 'working') {
             sessionStore.setSessionStatus(event.sessionId, 'working');
           }
-          sessionStore.appendDelta(event.sessionId, event.delta, (event.role as 'assistant' | 'user') || 'assistant');
+          if (event.grokSessionId && session && !session.grokSessionId && !event.grokSessionId.startsWith('sess_')) {
+            session.grokSessionId = event.grokSessionId;
+          }
+          sessionStore.appendDelta(
+            event.sessionId,
+            event.delta,
+            (event.role as 'assistant' | 'user') || 'assistant',
+            event.grokSessionId,
+            event.tokens
+          );
         }
       });
 
@@ -1137,11 +1213,15 @@
         input?: Record<string, unknown>;
         output?: string;
         status: string;
+        grokSessionId?: string;
       }) => {
         if (event.sessionId) {
           const session = sessionStore.sessions.find((s) => s.id === event.sessionId);
           if (session && session.status !== 'working') {
             sessionStore.setSessionStatus(event.sessionId, 'working');
+          }
+          if (event.grokSessionId && session && !session.grokSessionId && !event.grokSessionId.startsWith('sess_')) {
+            session.grokSessionId = event.grokSessionId;
           }
           if (!session) return;
 
@@ -1164,6 +1244,15 @@
               break;
             }
           }
+
+          // Ingest plan updates / TodosUpdated into planStore
+          planStore.inspectToolForPlan(
+            event.sessionId,
+            event.toolId,
+            event.toolName,
+            event.input,
+            event.output
+          );
 
           if (!found) {
             // Ensure tool calls attach to an assistant message in the active turn
@@ -1221,10 +1310,29 @@
 
       unsubComplete = window.runtime.EventsOn('grok:complete', async (event: { sessionId: string; status: string; grokSessionId?: string; title?: string }) => {
         if (event.sessionId) {
-          sessionStore.setSessionStatus(event.sessionId, event.status === 'success' ? 'finished' : 'error');
+          const finalStatus = event.status === 'success' ? 'finished' : event.status === 'interrupted' ? 'idle' : 'error';
+          sessionStore.setSessionStatus(event.sessionId, finalStatus);
           sessionStore.updateLastMessage(event.sessionId, (msg) => {
             msg.status = 'done';
           });
+
+          // Finalize any lingering 'running' tool calls across all messages in this session
+          const sessionObj = sessionStore.sessions.find((s) => s.id === event.sessionId);
+          if (sessionObj) {
+            if (event.grokSessionId && !sessionObj.grokSessionId && !event.grokSessionId.startsWith('sess_')) {
+              sessionObj.grokSessionId = event.grokSessionId;
+            }
+            for (const msg of sessionObj.messages) {
+              if (msg.toolCalls && msg.toolCalls.length > 0) {
+                for (const tc of msg.toolCalls) {
+                  if (tc.status === 'running') {
+                    tc.status = event.status === 'success' ? 'completed' : 'error';
+                    if (!tc.endTime) tc.endTime = Date.now();
+                  }
+                }
+              }
+            }
+          }
 
           // Auto-update title if Grok emitted a summary title
           if (event.title) {
@@ -1232,7 +1340,6 @@
           }
 
           // Rescan workspace on disk to sync official Grok titles & IDs from summary.json
-          const sessionObj = sessionStore.sessions.find((s) => s.id === event.sessionId);
           const sessionWs = sessionObj ? sessionStore.workspaces.find((w) => w.id === sessionObj.workspaceId) : null;
           const ws = sessionWs || sessionStore.activeWorkspace;
           if (ws && window.go?.main?.App?.DiscoverGrokSessions) {
@@ -1244,6 +1351,11 @@
             } catch (err) {
               console.error('Failed to auto-sync sessions after turn:', err);
             }
+          }
+
+          // Refresh session token usage from disk metadata immediately after turn completion
+          if (sessionObj) {
+            await sessionStore.loadSessionUsage(sessionObj);
           }
 
           // Automatically pop and dispatch next queued prompt if available
@@ -1259,6 +1371,22 @@
             content: `Error: ${event.error}`,
             status: 'error'
           });
+
+          const sessionObj = sessionStore.sessions.find((s) => s.id === event.sessionId);
+          if (sessionObj) {
+            for (const msg of sessionObj.messages) {
+              if (msg.toolCalls && msg.toolCalls.length > 0) {
+                for (const tc of msg.toolCalls) {
+                  if (tc.status === 'running') {
+                    tc.status = 'error';
+                    if (!tc.endTime) tc.endTime = Date.now();
+                  }
+                }
+              }
+            }
+          }
+
+          checkAndDispatchNextQueue(event.sessionId);
         }
       });
     }
@@ -1271,6 +1399,16 @@
     window.removeEventListener('resize', handleWindowResize);
     window.removeEventListener('mousemove', handleResizeMove);
     window.removeEventListener('mouseup', handleResizeEnd);
+    if (safetyReleaseHandler) {
+      window.removeEventListener('blur', safetyReleaseHandler);
+      window.removeEventListener('pointerdown', safetyReleaseHandler);
+    }
+    if (windowFocusHandler) {
+      window.removeEventListener('focus', windowFocusHandler);
+    }
+    if (visibilityChangeHandler) {
+      document.removeEventListener('visibilitychange', visibilityChangeHandler);
+    }
     unsubDelta?.();
     unsubTool?.();
     unsubPerm?.();
@@ -1506,6 +1644,17 @@
                 bind:this={messageListRef}
                 onEditLastTurn={handleEditLastTurn}
                 onPlanAction={handlePlanAction}
+              />
+
+              <!-- Floating Plan Tracker Widget -->
+              <FloatingPlanTracker
+                sessionId={sessionStore.activeSession.id}
+                onOpenRightSidebarTab={(tab) => {
+                  sessionStore.setRightSidebarTab(tab, sessionStore.activeSession?.id);
+                  if (sessionStore.activeSession && !sessionStore.activeSession.rightSidebarOpen) {
+                    sessionStore.toggleRightSidebar(sessionStore.activeSession.id);
+                  }
+                }}
               />
             </div>
 

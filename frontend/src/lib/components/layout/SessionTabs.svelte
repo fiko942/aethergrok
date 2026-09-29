@@ -2,6 +2,7 @@
   import { sessionStore, STATUS_META, type Session } from '$lib/stores/session.svelte';
   import { settingsStore } from '$lib/stores/settings.svelte';
   import { terminalStore } from '$lib/stores/terminal.svelte';
+  import { inputShieldStore } from '$lib/stores/inputShield.svelte';
   import { Plus, X, GitFork, Edit2, Check, Loader2, AlertCircle, CheckCircle2, MessageSquare, Folder, Terminal } from 'lucide-svelte';
   import NewSessionDropdown from './NewSessionDropdown.svelte';
 
@@ -135,6 +136,7 @@
             <input
               type="text"
               bind:value={editTitleInput}
+              readonly={inputShieldStore.isReadOnly}
               onkeydown={(e) => handleKeyDown(e, session)}
               class="w-full bg-ant-bg-tertiary text-ant-text px-1.5 py-0.5 rounded text-[11.5px] outline-none border border-ant-primary/40 focus:border-ant-primary transition font-serif"
               autofocus

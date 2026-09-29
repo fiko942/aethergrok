@@ -4,6 +4,7 @@
   import Button from '$lib/antd/Button.svelte';
   import CustomCheckbox from '$lib/components/ui/CustomCheckbox.svelte';
   import Radio from '$lib/antd/Radio.svelte';
+  import { inputShieldStore } from '$lib/stores/inputShield.svelte';
   import {
     Sparkles,
     GitBranch,
@@ -299,6 +300,7 @@
                 <input
                   id="repo-url-input"
                   bind:value={repoUrl}
+                  readonly={inputShieldStore.isReadOnly}
                   onkeydown={(e) => e.key === 'Enter' && handleScanRepo()}
                   type="text"
                   placeholder="https://github.com/owner/repository or owner/repository"

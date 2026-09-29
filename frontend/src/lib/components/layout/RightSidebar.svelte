@@ -1,11 +1,13 @@
 <script lang="ts">
   import { sessionStore } from '$lib/stores/session.svelte';
   import { settingsStore } from '$lib/stores/settings.svelte';
-  import { Folder, GitBranch, X, PanelRightClose } from 'lucide-svelte';
+  import { planStore } from '$lib/stores/plan.svelte';
+  import { Folder, GitBranch, ListTodo, X, PanelRightClose } from 'lucide-svelte';
   import Tooltip from '$lib/antd/Tooltip.svelte';
   import FileExplorerTree from '../workspace/FileExplorerTree.svelte';
   import FileViewerModal from '../workspace/FileViewerModal.svelte';
   import GitChangesPanel from '../workspace/GitChangesPanel.svelte';
+  import PlanPanel from '../workspace/PlanPanel.svelte';
 
   let {
     workspacePath = '',
@@ -93,7 +95,7 @@
     }
   }
 
-  function setTab(tab: 'files' | 'changes') {
+  function setTab(tab: 'files' | 'changes' | 'plan') {
     if (currentSession?.id) {
       sessionStore.setRightSidebarTab(tab, currentSession.id);
     }
@@ -122,18 +124,29 @@
       <div class="flex items-center gap-1 bg-ant-bg-tertiary border border-ant-border p-0.5 rounded-lg text-xs">
         <button
           onclick={() => setTab('files')}
-          class="flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-colors {activeTab === 'files' ? 'bg-ant-bg text-ant-text shadow-sm font-medium' : 'text-ant-text-secondary hover:text-ant-text'}"
+          class="flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors {activeTab === 'files' ? 'bg-ant-bg text-ant-text shadow-sm font-medium' : 'text-ant-text-secondary hover:text-ant-text'}"
         >
           <Folder class="w-3.5 h-3.5 text-amber-500" />
-          <span>Explorer</span>
+          <span>Files</span>
         </button>
 
         <button
           onclick={() => setTab('changes')}
-          class="flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-colors {activeTab === 'changes' ? 'bg-ant-bg text-ant-text shadow-sm font-medium' : 'text-ant-text-secondary hover:text-ant-text'}"
+          class="flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors {activeTab === 'changes' ? 'bg-ant-bg text-ant-text shadow-sm font-medium' : 'text-ant-text-secondary hover:text-ant-text'}"
         >
           <GitBranch class="w-3.5 h-3.5 text-ant-primary" />
           <span>Changes</span>
+        </button>
+
+        <button
+          onclick={() => setTab('plan')}
+          class="flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors relative {activeTab === 'plan' ? 'bg-ant-bg text-ant-text shadow-sm font-medium' : 'text-ant-text-secondary hover:text-ant-text'}"
+        >
+          <ListTodo class="w-3.5 h-3.5 text-indigo-400" />
+          <span>Plan</span>
+          {#if planStore.getPlan(currentSession?.id)}
+            <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+          {/if}
         </button>
       </div>
 
@@ -160,9 +173,13 @@
             onSelectFile={(path) => (selectedFile = path)}
           />
         </div>
-      {:else}
+      {:else if activeTab === 'changes'}
         <div class="h-full {settingsStore.animationsEnabled ? 'animate-tab-build-in' : ''}">
           <GitChangesPanel workspacePath={workspacePath} />
+        </div>
+      {:else if activeTab === 'plan'}
+        <div class="h-full {settingsStore.animationsEnabled ? 'animate-tab-build-in' : ''}">
+          <PlanPanel sessionId={currentSession?.id} />
         </div>
       {/if}
     </div>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { DiffData } from '$lib/stores/session.svelte';
+  import { computeStringDiff, type DiffParsedLine } from '$lib/utils/diffUtils';
   import { Columns, AlignJustify, Copy, Check, Plus, Minus } from 'lucide-svelte';
 
   interface Props {
@@ -25,30 +26,25 @@
   let viewMode = $state<'unified' | 'split'>('unified');
   let copied = $state(false);
 
-  const displayNewPath = $derived(newPath || diff?.newPath || 'modified');
+  const displayNewPath = $derived(newPath || diff?.newPath || oldPath || diff?.oldPath || 'modified');
 
-  interface ParsedLine {
-    type: 'add' | 'del' | 'normal';
-    oldLineNo?: number;
-    newLineNo?: number;
-    content: string;
-  }
+  interface ParsedLine extends DiffParsedLine {}
 
   interface SideBySideRow {
     left?: { lineNo?: number; content: string; type: 'del' | 'normal' | 'empty' };
     right?: { lineNo?: number; content: string; type: 'add' | 'normal' | 'empty' };
   }
 
-  // Parse unified diff or compute simple diff from old/new contents
+  // Parse unified diff or compute accurate LCS diff from old/new contents
   const parsedDiff = $derived.by(() => {
     const rawPatch = patch || diff?.diffUnified;
-    const oldC = oldContent || diff?.oldContent;
-    const newC = newContent || diff?.newContent;
+    const oldC = oldContent !== undefined ? oldContent : diff?.oldContent;
+    const newC = newContent !== undefined ? newContent : diff?.newContent;
 
     if (rawPatch) {
       return parseUnifiedPatch(rawPatch);
     } else if (oldC !== undefined || newC !== undefined) {
-      return computeSimpleDiff(oldC || '', newC || '');
+      return computeStringDiff(oldC || '', newC || '');
     }
     return { lines: [], addedCount: 0, removedCount: 0 };
   });
@@ -67,28 +63,29 @@
           right: { lineNo: line.newLineNo, content: line.content, type: 'normal' }
         });
         i++;
-      } else if (line.type === 'del') {
-        // Look ahead for corresponding add
-        const nextLine = lines[i + 1];
-        if (nextLine && nextLine.type === 'add') {
-          rows.push({
-            left: { lineNo: line.oldLineNo, content: line.content, type: 'del' },
-            right: { lineNo: nextLine.newLineNo, content: nextLine.content, type: 'add' }
-          });
-          i += 2;
-        } else {
-          rows.push({
-            left: { lineNo: line.oldLineNo, content: line.content, type: 'del' },
-            right: { content: '', type: 'empty' }
-          });
+      } else {
+        // Collect contiguous deletions and additions to align nicely side-by-side
+        const delLines: ParsedLine[] = [];
+        const addLines: ParsedLine[] = [];
+
+        while (i < lines.length && (lines[i].type === 'del' || lines[i].type === 'add')) {
+          if (lines[i].type === 'del') {
+            delLines.push(lines[i]);
+          } else {
+            addLines.push(lines[i]);
+          }
           i++;
         }
-      } else if (line.type === 'add') {
-        rows.push({
-          left: { content: '', type: 'empty' },
-          right: { lineNo: line.newLineNo, content: line.content, type: 'add' }
-        });
-        i++;
+
+        const maxLen = Math.max(delLines.length, addLines.length);
+        for (let k = 0; k < maxLen; k++) {
+          const d = delLines[k];
+          const a = addLines[k];
+          rows.push({
+            left: d ? { lineNo: d.oldLineNo, content: d.content, type: 'del' } : { content: '', type: 'empty' },
+            right: a ? { lineNo: a.newLineNo, content: a.content, type: 'add' } : { content: '', type: 'empty' }
+          });
+        }
       }
     }
 
@@ -129,39 +126,15 @@
     return { lines, addedCount: added, removedCount: removed };
   }
 
-  function computeSimpleDiff(oldText: string, newText: string): { lines: ParsedLine[]; addedCount: number; removedCount: number } {
-    const oldLines = oldText ? oldText.split('\n') : [];
-    const newLines = newText ? newText.split('\n') : [];
-    const lines: ParsedLine[] = [];
-    let added = 0;
-    let removed = 0;
-
-    const max = Math.max(oldLines.length, newLines.length);
-    for (let i = 0; i < max; i++) {
-      const o = oldLines[i];
-      const n = newLines[i];
-
-      if (o === n) {
-        if (o !== undefined) {
-          lines.push({ type: 'normal', oldLineNo: i + 1, newLineNo: i + 1, content: o });
-        }
-      } else {
-        if (o !== undefined) {
-          lines.push({ type: 'del', oldLineNo: i + 1, content: o });
-          removed++;
-        }
-        if (n !== undefined) {
-          lines.push({ type: 'add', newLineNo: i + 1, content: n });
-          added++;
-        }
-      }
-    }
-
-    return { lines, addedCount: added, removedCount: removed };
-  }
-
   async function handleCopyDiff() {
-    const rawPatch = patch || diff?.diffUnified || `${oldContent}\n---\n${newContent}`;
+    let rawPatch = patch || diff?.diffUnified;
+    if (!rawPatch && (oldContent !== undefined || newContent !== undefined || diff?.oldContent !== undefined || diff?.newContent !== undefined)) {
+      const o = oldContent ?? diff?.oldContent ?? '';
+      const n = newContent ?? diff?.newContent ?? '';
+      rawPatch = `--- a/${displayNewPath}\n+++ b/${displayNewPath}\n` +
+        parsedDiff.lines.map(l => (l.type === 'add' ? `+${l.content}` : l.type === 'del' ? `-${l.content}` : ` ${l.content}`)).join('\n');
+    }
+    rawPatch = rawPatch || `${oldContent || ''}\n---\n${newContent || ''}`;
     try {
       await navigator.clipboard.writeText(rawPatch);
       copied = true;

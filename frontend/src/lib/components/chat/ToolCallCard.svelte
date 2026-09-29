@@ -5,6 +5,13 @@
   import { highlightCode } from '$lib/utils/codeHighlighter';
   import DiffCard from './DiffCard.svelte';
   import { renderMarkdown } from '$lib/utils/markdownRenderer';
+  import { inputShieldStore } from '$lib/stores/inputShield.svelte';
+  import {
+    parseTodosUpdated,
+    type TodoItem,
+    extractPlanFilePath,
+    extractPlanMarkdownFromResult
+  } from '$lib/utils/planParser';
   import {
     Terminal,
     FileText,
@@ -25,7 +32,9 @@
     AlertTriangle,
     Compass,
     CheckSquare,
-    BookOpen
+    BookOpen,
+    ListTodo,
+    RotateCw
   } from 'lucide-svelte';
 
   interface Props {
@@ -36,32 +45,67 @@
 
   let isExpanded = $state(false);
   let copiedOutput = $state(false);
+  let copiedPlan = $state(false);
   let planMarkdownContent = $state<string>('');
   let isPlanLoading = $state(false);
+  let planLoadAttempted = $state(false);
+  let planLoadError = $state<string | null>(null);
+  let lastLoadedPath = $state<string>('');
   let dirSearchQuery = $state('');
   let dirFilterTab = $state<'all' | 'folders' | 'files'>('all');
   let dirShowAll = $state(false);
 
-  // Fetch plan file content when plan card is expanded
+  // Load plan content from disk via Go backend
+  async function loadPlanContent(force = false) {
+    const planPath = toolParsed.planPath;
+    if (!planPath) {
+      planLoadAttempted = true;
+      return;
+    }
+    if (!force && planLoadAttempted && lastLoadedPath === planPath && (planMarkdownContent || planLoadError)) {
+      return;
+    }
+    if (isPlanLoading) return;
+
+    isPlanLoading = true;
+    planLoadError = null;
+    lastLoadedPath = planPath;
+
+    try {
+      if (window.go?.main?.App?.GetPlanContent) {
+        const content = await window.go.main.App.GetPlanContent(planPath);
+        planMarkdownContent = content || '';
+      } else {
+        planMarkdownContent = '';
+      }
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      planLoadError = errMsg;
+      planMarkdownContent = '';
+    } finally {
+      isPlanLoading = false;
+      planLoadAttempted = true;
+    }
+  }
+
+  async function copyPlanMarkdown() {
+    const text = displayPlanMarkdown || planMarkdownContent || toolParsed.reason || '';
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      copiedPlan = true;
+      setTimeout(() => (copiedPlan = false), 2000);
+    } catch {
+      // ignore
+    }
+  }
+
+  // Fetch plan file content when plan card is expanded or target path changes
   $effect(() => {
     if (isExpanded && (toolParsed.type === 'plan_enter' || toolParsed.type === 'plan_exit')) {
       const planPath = toolParsed.planPath;
-      if (planPath && !planMarkdownContent && !isPlanLoading) {
-        isPlanLoading = true;
-        if (window.go?.main?.App?.GetPlanContent) {
-          window.go.main.App.GetPlanContent(planPath)
-            .then((content) => {
-              planMarkdownContent = content;
-            })
-            .catch(() => {
-              planMarkdownContent = '';
-            })
-            .finally(() => {
-              isPlanLoading = false;
-            });
-        } else {
-          isPlanLoading = false;
-        }
+      if (planPath && (!planLoadAttempted || lastLoadedPath !== planPath)) {
+        loadPlanContent();
       }
     }
   });
@@ -84,12 +128,37 @@
     return remSecs > 0 ? `${mins}m ${remSecs}s` : `${mins}m`;
   });
 
+  // Detect TodosUpdated in params or result
+  const detectedTodos = $derived.by<TodoItem[] | null>(() => {
+    // Check result first
+    const fromResult = parseTodosUpdated(toolCall.result);
+    if (fromResult && fromResult.length > 0) return fromResult;
+    // Check params
+    const fromParams = parseTodosUpdated(toolCall.params);
+    if (fromParams && fromParams.length > 0) return fromParams;
+    return null;
+  });
+
   // Extract tool category / verb metadata matching grok-build-vscode
   const toolParsed = $derived.by(() => {
     const rawTool = (toolCall.tool || '').toLowerCase();
     const p = (typeof toolCall.params === 'object' && toolCall.params !== null)
       ? (toolCall.params as Record<string, unknown>)
       : {};
+
+    // 0. Todos / Plan Update Tool (e.g. todo_write or write/task output containing TodosUpdated)
+    if (detectedTodos && detectedTodos.length > 0) {
+      const completedCount = detectedTodos.filter(t => t.status === 'completed').length;
+      const targetText = `${completedCount}/${detectedTodos.length} tasks completed`;
+      return {
+        verb: 'Update Plan',
+        type: 'todos_update' as const,
+        target: targetText,
+        todos: detectedTodos,
+        icon: ListTodo,
+        iconClass: 'text-indigo-400'
+      };
+    }
 
     // 1. Read File
     if (rawTool.includes('read_file') || rawTool.includes('file_read') || rawTool.includes('cat')) {
@@ -211,11 +280,7 @@
     // 8. Enter Plan Mode
     if (rawTool.includes('enter_plan_mode')) {
       const reason = String(p.reason || '');
-      let planPath = '';
-      if (typeof toolCall.result === 'string') {
-        const match = toolCall.result.match(/Plan file:\s*([^\r\n]+)/i);
-        if (match) planPath = match[1].trim();
-      }
+      const planPath = extractPlanFilePath(p, toolCall.result);
       return {
         verb: 'Plan',
         type: 'plan_enter' as const,
@@ -230,11 +295,7 @@
     // 9. Exit Plan Mode
     if (rawTool.includes('exit_plan_mode')) {
       const reason = String(p.reason || '');
-      let planPath = '';
-      if (typeof toolCall.result === 'string') {
-        const match = toolCall.result.match(/Plan file:\s*([^\r\n]+)/i);
-        if (match) planPath = match[1].trim();
-      }
+      const planPath = extractPlanFilePath(p, toolCall.result);
       return {
         verb: 'Review Plan',
         type: 'plan_exit' as const,
@@ -278,6 +339,22 @@
   // Calculate comprehensive diff stat using calculateDiffStat utility
   const diffStat = $derived.by(() => {
     return calculateDiffStat(toolCall);
+  });
+
+  // Extract fallback markdown content directly from tool result if available (e.g. exit_plan_mode output)
+  const extractedResultMarkdown = $derived.by(() => {
+    return extractPlanMarkdownFromResult(toolCall.result);
+  });
+
+  // Effective markdown to display: disk plan.md content takes priority, then result markdown
+  const displayPlanMarkdown = $derived.by(() => {
+    if (planMarkdownContent && planMarkdownContent.trim().length > 0) {
+      return planMarkdownContent;
+    }
+    if (extractedResultMarkdown && extractedResultMarkdown.trim().length > 0) {
+      return extractedResultMarkdown;
+    }
+    return '';
   });
 
   // Computed multi-line diff for inline edit view
@@ -336,6 +413,7 @@
 
   // Determine whether this output is redundant noise (e.g. standard success ack for edits and writes)
   const isGenericEditAck = $derived.by(() => {
+    if (detectedTodos && detectedTodos.length > 0) return true;
     if (toolParsed.type !== 'edit' && toolParsed.type !== 'write') return false;
     const res = (toolCall.result || '').toLowerCase();
     return (
@@ -703,6 +781,7 @@
                 type="text"
                 placeholder="Filter items..."
                 bind:value={dirSearchQuery}
+                readonly={inputShieldStore.isReadOnly}
                 class="w-full pl-6 pr-2 py-0.5 text-[10.5px] bg-ant-bg text-ant-text rounded border border-ant-border-secondary dark:border-white/5 outline-none focus:border-ant-primary transition font-sans"
               />
             </div>
@@ -757,7 +836,57 @@
             {/if}
           {/if}
         </div>
-      {:else if (toolParsed.type === 'plan_enter' || toolParsed.type === 'plan_exit') && (planMarkdownContent || toolParsed.reason || toolCall.result)}
+      {:else if detectedTodos && detectedTodos.length > 0}
+        <!-- 2e. Structured Plan / TodosUpdated List View -->
+        <div class="rounded-lg border border-indigo-500/20 bg-indigo-950/10 overflow-hidden text-xs">
+          <div class="flex items-center justify-between px-3 py-1.5 bg-indigo-900/20 border-b border-indigo-500/20 text-[11px] select-none text-indigo-300">
+            <div class="flex items-center space-x-1.5 font-medium">
+              <ListTodo size={13} class="text-indigo-400" />
+              <span>Execution Plan Tasks</span>
+            </div>
+            <span class="font-mono text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-semibold">
+              {detectedTodos.filter(t => t.status === 'completed').length} / {detectedTodos.length} Completed
+            </span>
+          </div>
+
+          <div class="p-2 space-y-1.5 max-h-72 overflow-y-auto scrollbar-thin">
+            {#each detectedTodos as todo (todo.id)}
+              <div class="flex items-start space-x-2.5 p-2 rounded-md bg-white/[0.02] border border-white/[0.04] transition-colors hover:bg-white/[0.04]">
+                <div class="mt-0.5 shrink-0">
+                  {#if todo.status === 'completed'}
+                    <div class="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/40">
+                      <Check size={10} class="stroke-[3]" />
+                    </div>
+                  {:else if todo.status === 'in_progress'}
+                    <div class="w-4 h-4 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/40 animate-pulse">
+                      <Loader2 size={10} class="animate-spin" />
+                    </div>
+                  {:else}
+                    <div class="w-4 h-4 rounded-full border border-zinc-600 bg-zinc-800/50 flex items-center justify-center">
+                    </div>
+                  {/if}
+                </div>
+
+                <div class="flex-1 min-w-0 font-serif leading-relaxed">
+                  <p class="text-xs {todo.status === 'completed' ? 'line-through text-zinc-400' : 'text-zinc-200'}">
+                    {todo.content}
+                  </p>
+                </div>
+
+                {#if todo.priority}
+                  <span class="text-[9px] uppercase tracking-wider font-mono px-1.5 py-0.2 rounded border {
+                    todo.priority === 'high' ? 'bg-rose-500/10 text-rose-300 border-rose-500/20' :
+                    todo.priority === 'medium' ? 'bg-amber-500/10 text-amber-300 border-amber-500/20' :
+                    'bg-blue-500/10 text-blue-300 border-blue-500/20'
+                  }">
+                    {todo.priority}
+                  </span>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        </div>
+      {:else if (toolParsed.type === 'plan_enter' || toolParsed.type === 'plan_exit') && (displayPlanMarkdown || toolParsed.reason || toolCall.result || toolParsed.planPath)}
         <!-- 2d. Rich Markdown Plan Document Viewer -->
         <div class="rounded-lg border border-violet-500/20 bg-violet-950/10 overflow-hidden text-xs">
           <div class="flex items-center justify-between px-3 py-1.5 bg-violet-900/20 border-b border-violet-500/20 text-[11px] select-none text-violet-300">
@@ -765,24 +894,83 @@
               <BookOpen size={13} class="text-violet-400" />
               <span>{toolParsed.type === 'plan_enter' ? 'Active Engineering Plan Document' : 'Completed Execution Plan'}</span>
             </div>
-            {#if toolParsed.planPath}
-              <span class="font-mono text-[10px] text-violet-300/70 max-w-xs truncate" title={toolParsed.planPath}>
-                {toolParsed.planPath}
-              </span>
-            {/if}
+
+            <div class="flex items-center space-x-2">
+              {#if toolParsed.planPath}
+                <span class="font-mono text-[10px] text-violet-300/70 max-w-xs truncate" title={toolParsed.planPath}>
+                  {toolParsed.planPath}
+                </span>
+
+                <!-- Reload / Refresh Button -->
+                <button
+                  type="button"
+                  onclick={() => loadPlanContent(true)}
+                  disabled={isPlanLoading}
+                  class="p-1 rounded text-violet-300/70 hover:text-violet-200 hover:bg-violet-800/30 transition disabled:opacity-50"
+                  title="Reload plan file from disk"
+                >
+                  <RotateCw size={11} class={isPlanLoading ? 'animate-spin' : ''} />
+                </button>
+              {/if}
+
+              <!-- Copy Markdown Plan Button -->
+              {#if displayPlanMarkdown || toolParsed.reason}
+                <button
+                  type="button"
+                  onclick={copyPlanMarkdown}
+                  class="flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] text-violet-300/80 hover:text-white hover:bg-violet-800/30 transition"
+                  title="Copy plan markdown"
+                >
+                  {#if copiedPlan}
+                    <Check size={10} class="text-emerald-400" />
+                    <span class="text-emerald-400">Copied</span>
+                  {:else}
+                    <Copy size={10} />
+                    <span>Copy</span>
+                  {/if}
+                </button>
+              {/if}
+            </div>
           </div>
+
           <div class="p-3.5 space-y-2 max-h-80 overflow-y-auto scrollbar-thin font-serif leading-relaxed text-ant-text select-text markdown-chat-body">
-            {#if isPlanLoading}
+            {#if isPlanLoading && !displayPlanMarkdown}
               <div class="flex items-center space-x-2 py-4 text-violet-400 justify-center">
                 <Loader2 size={15} class="animate-spin" />
                 <span class="text-xs">Loading plan file content...</span>
               </div>
-            {:else if planMarkdownContent}
-              {@html renderMarkdown(planMarkdownContent)}
+            {:else if displayPlanMarkdown}
+              {@html renderMarkdown(displayPlanMarkdown)}
             {:else if toolParsed.reason}
-              <div class="text-xs text-zinc-300">
-                <p class="font-semibold text-violet-300 mb-1">Plan Summary:</p>
-                <p>{toolParsed.reason}</p>
+              <div class="p-2.5 rounded bg-violet-900/10 border border-violet-500/15 space-y-2">
+                <div class="text-xs text-zinc-300">
+                  <p class="font-semibold text-violet-300 mb-1">Plan Objective / Context:</p>
+                  <p>{toolParsed.reason}</p>
+                </div>
+                {#if toolParsed.planPath}
+                  <div class="pt-2 border-t border-violet-500/10 flex items-center justify-between text-[11px] text-zinc-400">
+                    <span class="italic">Plan file initialized. Waiting for agent to write specifications.</span>
+                    <button
+                      type="button"
+                      onclick={() => loadPlanContent(true)}
+                      class="px-2 py-0.5 rounded bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/30 flex items-center gap-1 transition"
+                    >
+                      <RotateCw size={10} class={isPlanLoading ? 'animate-spin' : ''} />
+                      <span>Check for Updates</span>
+                    </button>
+                  </div>
+                {/if}
+              </div>
+            {:else if planLoadError}
+              <div class="p-3 rounded bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300 flex items-center justify-between">
+                <span>Failed to load plan file: {planLoadError}</span>
+                <button
+                  type="button"
+                  onclick={() => loadPlanContent(true)}
+                  class="px-2 py-0.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/40"
+                >
+                  Retry
+                </button>
               </div>
             {:else}
               <div class="text-xs text-zinc-400 italic">

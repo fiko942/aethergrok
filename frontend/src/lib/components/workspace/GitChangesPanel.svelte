@@ -13,6 +13,7 @@
     Loader2,
   } from 'lucide-svelte';
   import DiffViewModal from './DiffViewModal.svelte';
+  import { inputShieldStore } from '$lib/stores/inputShield.svelte';
 
   interface GitChange {
     path: string;
@@ -267,6 +268,7 @@
       <div class="space-y-1.5">
         <textarea
           bind:value={commitMessage}
+          readonly={inputShieldStore.isReadOnly}
           placeholder="Commit message..."
           rows="2"
           class="w-full bg-ant-bg-tertiary text-ant-text placeholder-ant-text-muted rounded-lg p-2 text-xs border border-ant-border-secondary dark:border-white/5 focus:border-ant-primary/40 focus:outline-none resize-none transition-colors"

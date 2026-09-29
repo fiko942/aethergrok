@@ -69,14 +69,25 @@ export class ShortcutDetector {
     const hasCmdOrCtrl = parts.includes('cmdorctrl') || parts.includes('cmd') || parts.includes('ctrl') || parts.includes('control') || parts.includes('meta');
     const hasAlt = parts.includes('alt') || parts.includes('opt') || parts.includes('option');
 
-    // If typing inside an input or terminal, do not capture single-character or non-modifier shortcuts
-    if (isEditingText && !hasCmdOrCtrl && !hasAlt) {
-      return false;
-    }
-
     const normCode = (e.code || '').toLowerCase().replace(/[\s_-]/g, '');
     const normKey = (e.key || '').toLowerCase().replace(/[\s_-]/g, '');
     const normShortcut = shortcutStr.toLowerCase().replace(/[\s_-]/g, '');
+
+    const isSpecialOrModifier =
+      normShortcut === '\\' ||
+      normShortcut === 'backslash' ||
+      normShortcut.includes('shift') ||
+      normShortcut.includes('ctrl') ||
+      normShortcut.includes('alt') ||
+      normShortcut.includes('cmd') ||
+      normShortcut.includes('meta') ||
+      hasCmdOrCtrl ||
+      hasAlt;
+
+    // If typing inside an input or terminal, only suppress ambiguous plain single-character shortcuts (e.g. 'a')
+    if (isEditingText && !isSpecialOrModifier) {
+      return false;
+    }
 
     // 1. Single character / Backslash handling
     if (normShortcut === '\\' || normShortcut === 'backslash') {

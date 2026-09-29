@@ -1,24 +1,25 @@
-SnapshotVersion: "1.1.1"
-LastMergedAt: "2026-09-28T20:25:00+07:00"
+SnapshotVersion: "1.1.2"
+LastMergedAt: "2026-09-29T23:55:00+07:00"
 MergeType: "additive"
 
 ProjectOverview:
   name: "AetherGrok Desktop GUI Studio / grok-desktop"
   description: "High-Performance Desktop GUI Studio for Grok Build CLI (including Grok 4.6), built with Go 1.24, Wails v2, Svelte 5 Runes, and Ant Design Dark."
-  repository: "phuryn/grok-build-vscode / fiko942/grok-build"
+  repository: "fiko942/aethergrok"
 
 HowToRun:
   dev: "wails dev"
   build_frontend: "pnpm --prefix frontend run build"
   check_frontend: "pnpm --prefix frontend run check"
   test_go: "go test ./test/... ./pkg/... -v"
+  test_vitest: "pnpm run test"
   build_binary: "go build -o build/bin/aethergrok main.go app.go"
 
 ArchitectureMap:
   backend:
     runtime: "Go 1.24"
     framework: "Wails v2"
-    subprocesses: "pkg/grokrunner (Process Group pgid, 16ms token batching)"
+    subprocesses: "pkg/grokrunner (Process Group pgid, 16ms token batching, ACP stream parsing)"
     screen_capture: "pkg/screen (OS-excluding 4-phase coordination)"
     skills_registry: "pkg/skills (Local SKILL.md scanner & in-memory catalog)"
     hotkey_engine: "pkg/hotkey (OS-wide CGEventTap / Low-level global hotkey listener)"
@@ -26,13 +27,14 @@ ArchitectureMap:
   frontend:
     framework: "Svelte 5 (Runes)"
     styling: "Tailwind CSS + Ant Design Dark Tokens (lib/antd)"
-    state: "Svelte 5 $state/$derived stores (sessionStore, settingsStore, dialogStore)"
+    state: "Svelte 5 $state/$derived stores (sessionStore, settingsStore, dialogStore, planStore, inputShield)"
 
 Workflow:
   composer: "Prompts dispatch through Wails IPC -> GrokRunner -> NDJSON streaming -> 16ms token buffer -> Svelte chat feed."
-  screen_snapshot: "Triggered via shortcut (customizable, e.g. Right Shift or Cmd+Shift+S) -> Hides window -> Compositor sync -> Native capture -> Restores window & attaches image."
+  plan_tracking: "Live extraction of plan/todo events from agent streams into reactive planStore and FloatingPlanTracker HUD."
+  screen_snapshot: "Triggered via shortcut (customizable, e.g. Ctrl+Alt+S or Cmd+Alt+S) -> Hides window -> Compositor sync -> Native capture -> Restores window & attaches image."
   skills_discovery: "Universal scanner indexes ~/.grok/skills and ~/.agents/skills -> populates interactive catalog."
-  voice_dictation: "One-click microphone dictation with AVFoundation native check, 3x auto-retry, and clean markdown transcript insertion."
+  voice_dictation: "One-click microphone dictation with AVFoundation/DirectShow native check, 3x auto-retry, and clean markdown transcript insertion."
 
 EndpointsMap:
   wails_ipc:
@@ -57,29 +59,29 @@ DatabaseMap:
 
 UISystem:
   theme: "Ant Design Dark Tokens (#141414, #1f1f1f, #1677ff)"
-  windowing: "10-Turn DOM virtualization with relative scroll anchor preservation"
-  components: "Ant Design primitives (Button, Card, Badge, Switch) + Custom Chat/Diff cards + Image Lightbox + Voice Error Modal"
+  windowing: "4-Turn DOM virtualization with relative scroll anchor preservation"
+  components: "Ant Design primitives (Button, Card, Badge, Switch) + Plan Panel + Floating Plan Tracker + ToolCallCard + DiffCard + TurnDiffSummary"
 
 Invariants:
   - "Zero unhandled child process leaks (all spawned with setpgid / process groups)"
-  - "DOM memory ceiling capped by 10-turn progressive windowing"
+  - "DOM memory ceiling capped by 4-turn progressive windowing"
   - "Non-intrusive compositor restoration on screen capture panic/cancel"
   - "Clean headless transcription without session pollution in workspace history"
+  - "Input shield prevents hotkey collisions during terminal and modal interactions"
 
 CurrentState:
   status: "Operational"
   frontend_errors: 0
   go_tests: "Passing (all suites in test/ and pkg/)"
+  vitest_tests: "Passing (5331 tests across 235 test files)"
   latest_fixes:
+    - "v1.0.8 release: Real-time Floating Plan Tracker, Dedicated Plan Panel, Input Shielding & Stream Parser optimization"
+    - "v1.0.7 release: Windows snapshot buffer limit fix via temp prompt file and hidden transcription window"
+    - "v1.0.6 release: 4-Turn DOM Virtual Sliding Window & Viewport Pruning"
     - "v1.0.5 release: In-app updater SHA256 checksum asset matching precision fix across architectures"
-    - "OS-wide global snapshot shortcut registration with CGEventTap (Right Shift, etc.)"
-    - "Native direct git executable resolution in pkg/gitutil to eliminate macOS xcrun crash"
-    - "Session tabs multi-workspace contextual badges and tab reordering persistence"
-    - "Unified diff calculation utilities and robust drop/paste ingestion"
 
 NextSteps:
-  - "Continuous feature expansion and skill integrations"
-  - "Optional live release testing against external real grok daemon"
+  - "Automated multi-platform CI/CD release verification on GitHub Actions"
 
 KnownIssues: []
 Unknowns: []

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
+  import { inputShieldStore } from '$lib/stores/inputShield.svelte';
   import {
     Search,
     Check,
@@ -199,6 +200,7 @@
             bind:this={searchInputRef}
             type="text"
             bind:value={searchQuery}
+            readonly={inputShieldStore.isReadOnly}
             placeholder="Search model by name..."
             class="w-full pl-7 pr-3 py-1.5 text-xs bg-ant-bg border border-ant-border-secondary dark:border-white/5 rounded-lg text-ant-text placeholder:text-ant-text-muted outline-none focus:border-ant-primary focus:ring-1 focus:ring-ant-primary/30 transition shadow-inner"
           />

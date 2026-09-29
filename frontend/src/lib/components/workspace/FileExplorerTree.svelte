@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { Search, RefreshCw, ChevronRight, ChevronDown, Loader2 } from 'lucide-svelte';
   import FileIcon from './FileIcon.svelte';
+  import { inputShieldStore } from '$lib/stores/inputShield.svelte';
 
   interface FileNode {
     name: string;
@@ -125,6 +126,7 @@
         type="text"
         placeholder="Filter files & folders..."
         value={searchQuery}
+        readonly={inputShieldStore.isReadOnly}
         oninput={handleSearchInput}
         class="w-full bg-ant-bg-tertiary text-ant-text placeholder-ant-text-muted rounded px-2.5 py-1 pl-7 text-xs border border-transparent focus:border-ant-primary/40 focus:outline-none transition-colors"
       />

@@ -8,6 +8,7 @@
     type PermissionMode,
     type PlanGateMode
   } from '$lib/stores/settings.svelte';
+  import { inputShieldStore } from '$lib/stores/inputShield.svelte';
   import {
     Settings,
     Sliders,
@@ -605,6 +606,7 @@
                   <input
                     type="text"
                     bind:value={editGrokBinaryPath}
+                    readonly={inputShieldStore.isReadOnly}
                     placeholder={isMac ? "/usr/local/bin/grok" : "C:\\Users\\...\\.grok\\bin\\grok.exe"}
                     class="w-full px-3 py-2 text-xs font-mono bg-ant-bg border border-ant-border-secondary rounded-lg text-ant-text focus:outline-none focus:border-ant-primary focus:ring-1 focus:ring-ant-primary transition shadow-2xs"
                   />
@@ -1018,6 +1020,7 @@
                       max="2000000"
                       step="1000"
                       bind:value={editMaxContextTokens}
+                      readonly={inputShieldStore.isReadOnly}
                       class="flex-1 px-3 py-1.5 text-xs font-mono bg-ant-bg border border-ant-border-secondary rounded-lg text-ant-text focus:outline-none focus:border-ant-primary focus:ring-1 focus:ring-ant-primary transition shadow-2xs"
                       placeholder="200000"
                     />

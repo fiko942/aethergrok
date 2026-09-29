@@ -215,3 +215,106 @@ func TestDiscoverGrokSessions_WindowsPath(t *testing.T) {
 		t.Errorf("Expected title 'Windows Session Testing', got '%s'", results[0].Title)
 	}
 }
+
+func TestGetSessionUsage_SignalsAndUsage(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testWs := "/tmp/test-workspace-usage-stats"
+	encodedWs := EncodeGrokWorkspacePath(testWs)
+	testDir := filepath.Join(home, ".grok", "sessions", encodedWs, "01a0-real-uuid-1234")
+	defer os.RemoveAll(filepath.Join(home, ".grok", "sessions", encodedWs))
+
+	if err := os.MkdirAll(testDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// 1. Write signals.json
+	signalsData, _ := json.Marshal(map[string]interface{}{
+		"contextTokensUsed":   168180,
+		"contextWindowTokens": 200000,
+		"turnCount":           2,
+		"primaryModelId":      "geminigacor",
+	})
+	os.WriteFile(filepath.Join(testDir, "signals.json"), signalsData, 0644)
+
+	// 2. Write usage.json
+	usageData, _ := json.Marshal(map[string]interface{}{
+		"sessionId": "01a0-real-uuid-1234",
+		"session": map[string]interface{}{
+			"inputTokens":      8585469,
+			"outputTokens":     43381,
+			"cachedReadTokens": 2412653,
+			"totalTokens":      8628850,
+			"modelCalls":       85,
+			"turnCount":        2,
+			"primaryModelId":   "geminigacor",
+		},
+		"turns": []map[string]interface{}{
+			{
+				"turnNumber":       1,
+				"inputTokens":      4000000,
+				"outputTokens":     20000,
+				"cachedReadTokens": 1000000,
+			},
+			{
+				"turnNumber":       2,
+				"inputTokens":      4585469,
+				"outputTokens":     23381,
+				"cachedReadTokens": 1412653,
+			},
+		},
+	})
+	os.WriteFile(filepath.Join(testDir, "usage.json"), usageData, 0644)
+
+	// Test 1: Direct UUID lookup
+	stats1, err := GetSessionUsage(testWs, "01a0-real-uuid-1234")
+	if err != nil {
+		t.Fatalf("GetSessionUsage failed: %v", err)
+	}
+	if stats1.UsedTokens != 168180 {
+		t.Errorf("Expected 168180 UsedTokens, got %d", stats1.UsedTokens)
+	}
+	if stats1.MaxTokens != 200000 {
+		t.Errorf("Expected 200000 MaxTokens, got %d", stats1.MaxTokens)
+	}
+	if stats1.TotalInput != 8585469 {
+		t.Errorf("Expected 8585469 TotalInput, got %d", stats1.TotalInput)
+	}
+
+	// Test 2: Placeholder sess_ lookup (auto-resolves to newest session folder)
+	stats2, err := GetSessionUsage(testWs, "sess_abc123456_random")
+	if err != nil {
+		t.Fatalf("GetSessionUsage with placeholder failed: %v", err)
+	}
+	if stats2.UsedTokens != 168180 {
+		t.Errorf("Expected placeholder to resolve to 168180 UsedTokens, got %d", stats2.UsedTokens)
+	}
+	if stats2.SessionID != "01a0-real-uuid-1234" {
+		t.Errorf("Expected placeholder to resolve to '01a0-real-uuid-1234', got '%s'", stats2.SessionID)
+	}
+}
+
+func TestResolveWorkspaceSessionsDir_CrossPlatformDecoded(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testWs := "/tmp/test-workspace-crossplatform"
+	encodedWs := EncodeGrokWorkspacePath(testWs)
+	testDir := filepath.Join(home, ".grok", "sessions", encodedWs)
+	defer os.RemoveAll(testDir)
+
+	if err := os.MkdirAll(testDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	sessionsDir := filepath.Join(home, ".grok", "sessions")
+	resolved := ResolveWorkspaceSessionsDir(sessionsDir, testWs)
+	if resolved != testDir {
+		t.Errorf("Expected %s, got %s", testDir, resolved)
+	}
+}

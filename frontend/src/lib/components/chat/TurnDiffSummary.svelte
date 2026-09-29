@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ToolCall } from '$lib/stores/session.svelte';
-  import { calculateDiffStat } from '$lib/utils/diffUtils';
+  import { calculateDiffStat, extractToolCallFileChange, type ToolCallFileChange } from '$lib/utils/diffUtils';
   import DiffCard from './DiffCard.svelte';
   import { FileCode, ChevronDown, ChevronRight, Plus, Minus, ExternalLink } from 'lucide-svelte';
 
@@ -13,33 +13,20 @@
   let isExpanded = $state(false);
   let expandedFileIndex = $state<number | null>(null);
 
-  interface FileChange {
-    toolCallId: string;
-    path: string;
-    addedCount: number;
-    removedCount: number;
-    diff?: ToolCall['diff'];
-    newContent?: string;
-  }
-
   // Aggregate all tool calls that modified files with diffs or line counts
   const changedFiles = $derived.by(() => {
-    const list: FileChange[] = [];
+    const list: ToolCallFileChange[] = [];
     for (const tc of toolCalls) {
-      const stat = calculateDiffStat(tc);
-      if (stat.added > 0 || stat.removed > 0 || tc.diff) {
-        const path = stat.filePath || (tc.diff && (tc.diff.newPath || tc.diff.oldPath)) || 'modified_file';
-        const p = (typeof tc.params === 'object' && tc.params !== null) ? tc.params as Record<string, unknown> : {};
-        const content = typeof p.content === 'string' ? p.content : undefined;
-
-        list.push({
-          toolCallId: tc.id,
-          path,
-          addedCount: stat.added,
-          removedCount: stat.removed,
-          diff: tc.diff,
-          newContent: content
-        });
+      const change = extractToolCallFileChange(tc);
+      if (
+        change.addedCount > 0 ||
+        change.removedCount > 0 ||
+        !!change.diff ||
+        !!change.diffUnified ||
+        change.oldContent !== undefined ||
+        change.newContent !== undefined
+      ) {
+        list.push(change);
       }
     }
     return list;
@@ -139,12 +126,14 @@
             {#if isThisFileExpanded}
               <div class="mt-1 pl-4 pr-1 pb-1 animate-in fade-in duration-150">
                 {#if item.diff}
-                  <DiffCard diff={item.diff} showHeaderTitle={false} />
-                {:else if item.newContent !== undefined}
+                  <DiffCard diff={item.diff} newPath={item.path} showHeaderTitle={false} />
+                {:else if item.diffUnified}
+                  <DiffCard patch={item.diffUnified} newPath={item.path} showHeaderTitle={false} />
+                {:else if item.oldContent !== undefined || item.newContent !== undefined}
                   <DiffCard
                     newPath={item.path}
-                    oldContent=""
-                    newContent={item.newContent}
+                    oldContent={item.oldContent ?? ''}
+                    newContent={item.newContent ?? ''}
                     showHeaderTitle={false}
                   />
                 {:else}

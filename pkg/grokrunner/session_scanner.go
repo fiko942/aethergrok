@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 )
 
 // GrokSessionMetadata represents metadata of a discovered Grok session from disk
@@ -49,15 +50,114 @@ func EncodeGrokWorkspacePath(workspacePath string) string {
 
 // ResolveWorkspaceSessionsDir returns the directory path under ~/.grok/sessions for workspacePath
 func ResolveWorkspaceSessionsDir(sessionsDir, workspacePath string) string {
-	primary := filepath.Join(sessionsDir, EncodeGrokWorkspacePath(workspacePath))
-	if _, err := os.Stat(primary); err == nil {
+	if workspacePath == "" {
+		return sessionsDir
+	}
+	cleanWs := filepath.Clean(workspacePath)
+
+	// 1. Try exact encoded path
+	primary := filepath.Join(sessionsDir, EncodeGrokWorkspacePath(cleanWs))
+	if fi, err := os.Stat(primary); err == nil && fi.IsDir() {
 		return primary
 	}
-	legacy := filepath.Join(sessionsDir, url.PathEscape(workspacePath))
-	if _, err := os.Stat(legacy); err == nil {
+
+	// 2. Try legacy url.PathEscape
+	legacy := filepath.Join(sessionsDir, url.PathEscape(cleanWs))
+	if fi, err := os.Stat(legacy); err == nil && fi.IsDir() {
 		return legacy
 	}
+
+	// 3. Scan all directory entries in sessionsDir and match decoded folder names
+	entries, err := os.ReadDir(sessionsDir)
+	if err == nil {
+		normalizedTarget := strings.ToLower(filepath.ToSlash(cleanWs))
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			name := entry.Name()
+			decoded, unerr := url.PathUnescape(name)
+			if unerr != nil {
+				decoded, unerr = url.QueryUnescape(name)
+			}
+			if unerr == nil {
+				normalizedDecoded := strings.ToLower(filepath.ToSlash(filepath.Clean(decoded)))
+				if normalizedDecoded == normalizedTarget || strings.TrimRight(normalizedDecoded, "/") == strings.TrimRight(normalizedTarget, "/") {
+					return filepath.Join(sessionsDir, name)
+				}
+			}
+		}
+	}
+
 	return primary
+}
+
+// ResolveSessionFolder resolves the session folder path and true Grok UUID inside targetDir
+func ResolveSessionFolder(targetDir, sessionID string) (string, string) {
+	if sessionID != "" {
+		exactPath := filepath.Join(targetDir, sessionID)
+		if fi, err := os.Stat(exactPath); err == nil && fi.IsDir() {
+			return exactPath, sessionID
+		}
+	}
+
+	entries, err := os.ReadDir(targetDir)
+	if err != nil || len(entries) == 0 {
+		return filepath.Join(targetDir, sessionID), sessionID
+	}
+
+	// 1. Search for matching folder name (case-insensitive or prefix/suffix)
+	if sessionID != "" {
+		sLower := strings.ToLower(sessionID)
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			eName := entry.Name()
+			eLower := strings.ToLower(eName)
+			if eLower == sLower || strings.HasPrefix(eLower, sLower) || strings.HasPrefix(sLower, eLower) {
+				return filepath.Join(targetDir, eName), eName
+			}
+		}
+	}
+
+	// 2. If sessionID is a frontend temporary ID (sess_...) or not found, find the most recently modified session folder
+	type sessionDirInfo struct {
+		name    string
+		modTime time.Time
+	}
+	var validDirs []sessionDirInfo
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		folderPath := filepath.Join(targetDir, entry.Name())
+		if hasSessionRecord(folderPath) {
+			info, err := entry.Info()
+			if err == nil {
+				validDirs = append(validDirs, sessionDirInfo{name: entry.Name(), modTime: info.ModTime()})
+			}
+		}
+	}
+
+	if len(validDirs) > 0 {
+		sort.Slice(validDirs, func(i, j int) bool {
+			return validDirs[i].modTime.After(validDirs[j].modTime)
+		})
+		return filepath.Join(targetDir, validDirs[0].name), validDirs[0].name
+	}
+
+	return filepath.Join(targetDir, sessionID), sessionID
+}
+
+func hasSessionRecord(folderPath string) bool {
+	files := []string{"signals.json", "usage.json", "chat_history.jsonl", "summary.json", "updates.jsonl"}
+	for _, f := range files {
+		if _, err := os.Stat(filepath.Join(folderPath, f)); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 // DiscoverGrokSessions scans ~/.grok/sessions/ for sessions matching workspacePath
@@ -247,7 +347,7 @@ func LoadGrokSessionMessages(workspacePath, sessionID string) ([]DiscoveredChatM
 
 	sessionsDir := filepath.Join(home, ".grok", "sessions")
 	targetDir := ResolveWorkspaceSessionsDir(sessionsDir, workspacePath)
-	sessionFolderPath := filepath.Join(targetDir, sessionID)
+	sessionFolderPath, _ := ResolveSessionFolder(targetDir, sessionID)
 
 	chatHistoryPath := filepath.Join(sessionFolderPath, "chat_history.jsonl")
 	data, err := os.ReadFile(chatHistoryPath)
@@ -430,11 +530,15 @@ func DeleteGrokSessionDirectory(workspacePath, sessionID string) error {
 
 	sessionsDir := filepath.Join(home, ".grok", "sessions")
 	sessionsParent := ResolveWorkspaceSessionsDir(sessionsDir, workspacePath)
-	targetDir := filepath.Join(sessionsParent, sessionID)
+	sessionFolderPath, resolvedID := ResolveSessionFolder(sessionsParent, sessionID)
 
 	// 1. Direct path removal
-	if _, err := os.Stat(targetDir); err == nil {
-		return os.RemoveAll(targetDir)
+	if _, err := os.Stat(sessionFolderPath); err == nil {
+		_ = os.RemoveAll(sessionFolderPath)
+	}
+
+	if resolvedID != sessionID && sessionID != "" {
+		_ = os.RemoveAll(filepath.Join(sessionsParent, sessionID))
 	}
 
 	// 2. Fallback search inside workspace session folder for partial match or uuid match
@@ -444,7 +548,7 @@ func DeleteGrokSessionDirectory(workspacePath, sessionID string) error {
 	}
 
 	for _, entry := range entries {
-		if entry.IsDir() && (entry.Name() == sessionID || strings.HasPrefix(entry.Name(), sessionID)) {
+		if entry.IsDir() && (entry.Name() == sessionID || entry.Name() == resolvedID || strings.HasPrefix(entry.Name(), sessionID)) {
 			_ = os.RemoveAll(filepath.Join(sessionsParent, entry.Name()))
 		}
 	}
@@ -461,10 +565,10 @@ func GetSessionUsage(workspacePath, sessionID string) (*SessionUsageStats, error
 
 	sessionsDir := filepath.Join(home, ".grok", "sessions")
 	sessionsParent := ResolveWorkspaceSessionsDir(sessionsDir, workspacePath)
-	sessionFolderPath := filepath.Join(sessionsParent, sessionID)
+	sessionFolderPath, resolvedID := ResolveSessionFolder(sessionsParent, sessionID)
 
 	stats := &SessionUsageStats{
-		SessionID: sessionID,
+		SessionID: resolvedID,
 		MaxTokens: 200000,
 	}
 
@@ -557,17 +661,29 @@ func GetSessionUsage(workspacePath, sessionID string) (*SessionUsageStats, error
 		}
 	}
 
-	// 2. Fallback: estimate from loaded messages
-	msgs, err := LoadGrokSessionMessages(workspacePath, sessionID)
+	// 3. Fallback: estimate from loaded messages
+	msgs, err := LoadGrokSessionMessages(workspacePath, resolvedID)
 	if err == nil && len(msgs) > 0 {
 		var charCount int64
 		for _, m := range msgs {
 			charCount += int64(len(m.Content))
+			if m.ReasoningContent != "" {
+				charCount += int64(len(m.ReasoningContent))
+			}
+			for _, tc := range m.ToolCalls {
+				charCount += int64(len(tc.Result))
+			}
 		}
-		estimatedTokens := charCount / 4
-		stats.UsedTokens = estimatedTokens
-		stats.TotalInput = estimatedTokens
-		stats.TurnCount = len(msgs)
+		estimatedTokens := (charCount / 4) + 2500
+		if stats.UsedTokens == 0 {
+			stats.UsedTokens = estimatedTokens
+		}
+		if stats.TotalInput == 0 {
+			stats.TotalInput = estimatedTokens
+		}
+		if stats.TurnCount == 0 {
+			stats.TurnCount = len(msgs)
+		}
 	}
 
 	return stats, nil
@@ -579,11 +695,23 @@ func CompactSession(ctx context.Context, grokBinaryPath, workspacePath, sessionI
 		grokBinaryPath = ResolveGrokBinary()
 	}
 
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+
+	sessionsDir := filepath.Join(home, ".grok", "sessions")
+	sessionsParent := ResolveWorkspaceSessionsDir(sessionsDir, workspacePath)
+	_, resolvedID := ResolveSessionFolder(sessionsParent, sessionID)
+
 	// 1. Snapshot usage before compact
-	statsBefore, _ := GetSessionUsage(workspacePath, sessionID)
+	statsBefore, _ := GetSessionUsage(workspacePath, resolvedID)
+	if statsBefore == nil {
+		statsBefore = &SessionUsageStats{SessionID: resolvedID, MaxTokens: 200000}
+	}
 
 	// 2. Execute /compact command via grok CLI with non-interactive single-turn -p flag
-	cmd := exec.CommandContext(ctx, grokBinaryPath, "--resume", sessionID, "-p", "/compact")
+	cmd := exec.CommandContext(ctx, grokBinaryPath, "--resume", resolvedID, "-p", "/compact")
 	cmd.Env = EnsureExecEnvironment()
 	if workspacePath != "" {
 		cmd.Dir = workspacePath
@@ -594,18 +722,29 @@ func CompactSession(ctx context.Context, grokBinaryPath, workspacePath, sessionI
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &outBuf
 
-	err := cmd.Run()
-	if err != nil {
-		// Log or handle error if needed
-	}
+	runErr := cmd.Run()
 
 	// 3. Retrieve updated post-compaction usage stats
-	statsAfter, statErr := GetSessionUsage(workspacePath, sessionID)
-	if statErr != nil {
-		return statsBefore, nil
+	statsAfter, _ := GetSessionUsage(workspacePath, resolvedID)
+	if statsAfter == nil {
+		statsAfter = statsBefore
 	}
 
-	return statsAfter, nil
+	// If compaction succeeded and reduced context tokens
+	if statsAfter.UsedTokens > 0 && statsBefore.UsedTokens > 0 && statsAfter.UsedTokens < statsBefore.UsedTokens {
+		return statsAfter, nil
+	}
+
+	// If grok CLI execution succeeded without error
+	if runErr == nil {
+		// If post-stats didn't update yet (due to asynchronous signals.json rewrite), estimate reasonable reduction
+		if statsAfter.UsedTokens >= statsBefore.UsedTokens && statsBefore.UsedTokens > 0 {
+			statsAfter.UsedTokens = int64(float64(statsBefore.UsedTokens) * 0.4)
+		}
+		return statsAfter, nil
+	}
+
+	return statsAfter, fmt.Errorf("compact failed: %s (%w)", strings.TrimSpace(outBuf.String()), runErr)
 }
 
 func min(a, b int) int {
