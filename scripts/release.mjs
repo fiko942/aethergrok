@@ -88,42 +88,46 @@ function runPreflightChecks() {
     },
     {
       title: 'Validating root TypeScript compilation (tsc -p .)',
+      skip: () => process.env.SKIP_COMPILE === '1',
       fn: () => {
-        execSync('pnpm run compile', { cwd: ROOT_DIR, stdio: 'inherit' });
+        execSync('pnpm run compile', { cwd: ROOT_DIR, stdio: 'inherit', shell: true });
       }
     },
     {
       title: 'Running unit test suite (vitest run)',
       skip: () => process.env.SKIP_TESTS === '1' || process.env.SKIP_TESTS === 'true',
       fn: () => {
-        execSync('pnpm run test', { cwd: ROOT_DIR, stdio: 'inherit' });
+        execSync('pnpm run test', { cwd: ROOT_DIR, stdio: 'inherit', shell: true });
       }
     },
     {
       title: 'Compiling Vite Frontend Production Bundle',
+      skip: () => process.env.SKIP_FRONTEND_BUILD === '1',
       fn: () => {
-        execSync('pnpm run build', { cwd: path.join(ROOT_DIR, 'frontend'), stdio: 'inherit' });
+        execSync('pnpm run build', { cwd: path.join(ROOT_DIR, 'frontend'), stdio: 'inherit', shell: true });
       }
     },
     {
       title: 'Testing Go backend packages (go test ./...)',
+      skip: () => process.env.SKIP_TESTS === '1' || process.env.SKIP_TESTS === 'true',
       fn: () => {
         const goBin = findGoExecutable();
         const envPath = process.platform === 'win32'
           ? `C:\\Program Files\\Go\\bin;${process.env.PATH || ''}`
           : `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH || ''}`;
-        execSync(`${goBin} test ./...`, { cwd: ROOT_DIR, stdio: 'inherit', env: { ...process.env, PATH: envPath } });
+        execSync(`${goBin} test ./...`, { cwd: ROOT_DIR, stdio: 'inherit', env: { ...process.env, PATH: envPath }, shell: true });
       }
     },
     {
       title: 'Testing Go desktop application build',
+      skip: () => process.env.SKIP_BUILD === '1',
       fn: () => {
         const goBin = findGoExecutable();
         const envPath = process.platform === 'win32'
           ? `C:\\Program Files\\Go\\bin;${process.env.PATH || ''}`
           : `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH || ''}`;
         const nullOut = process.platform === 'win32' ? 'NUL' : '/dev/null';
-        execSync(`${goBin} build -o ${nullOut} .`, { cwd: ROOT_DIR, stdio: 'inherit', env: { ...process.env, PATH: envPath } });
+        execSync(`${goBin} build -o ${nullOut} .`, { cwd: ROOT_DIR, stdio: 'inherit', env: { ...process.env, PATH: envPath }, shell: true });
       }
     }
   ];
