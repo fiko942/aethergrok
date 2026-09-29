@@ -58,6 +58,10 @@ export function CheckScreenCapturePermission() {
   return window['go']['main']['App']['CheckScreenCapturePermission']();
 }
 
+export function CleanVoiceCache() {
+  return window['go']['main']['App']['CleanVoiceCache']();
+}
+
 export function CleanupSkillImportTemp(arg1) {
   return window['go']['main']['App']['CleanupSkillImportTemp'](arg1);
 }

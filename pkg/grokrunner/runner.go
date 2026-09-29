@@ -324,8 +324,10 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 	}
 
 	// Prepare prompt arguments:
-	// If images are attached, Grok CLI expects ACP content blocks via `--prompt-json <JSON>`.
-	// For text-only turns, standard `-p <prompt>` is used.
+	// If images are attached or prompt text is provided, write content blocks or text to a temporary
+	// prompt file and pass `--prompt-file <path>` to prevent Win32 CreateProcess command line limit
+	// (32,767 characters) errors when passing base64 encoded images.
+	var promptTempFile string
 	if len(req.Images) > 0 {
 		var contentBlocks []map[string]interface{}
 		for _, imgPath := range req.Images {
@@ -364,7 +366,15 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 
 		jsonBytes, err := json.Marshal(contentBlocks)
 		if err == nil {
-			args = append(args, "--prompt-json", string(jsonBytes))
+			tmpFile, tmpErr := os.CreateTemp("", "grok-prompt-*.json")
+			if tmpErr == nil {
+				_, _ = tmpFile.Write(jsonBytes)
+				_ = tmpFile.Close()
+				promptTempFile = tmpFile.Name()
+				args = append(args, "--prompt-file", promptTempFile)
+			} else {
+				args = append(args, "-p", req.Prompt)
+			}
 		} else {
 			args = append(args, "-p", req.Prompt)
 		}
@@ -413,6 +423,9 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 	r.mu.Unlock()
 
 	if err := cmd.Start(); err != nil {
+		if promptTempFile != "" {
+			_ = os.Remove(promptTempFile)
+		}
 		r.mu.Lock()
 		delete(r.sessions, req.SessionID)
 		r.mu.Unlock()
@@ -423,6 +436,9 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 
 	go func() {
 		defer func() {
+			if promptTempFile != "" {
+				_ = os.Remove(promptTempFile)
+			}
 			_ = r.cleanupSession(req.SessionID)
 			close(active.Done)
 			cancel()

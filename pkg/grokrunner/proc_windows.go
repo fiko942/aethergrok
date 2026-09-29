@@ -8,12 +8,16 @@ import (
 	"syscall"
 )
 
-// setSysProcGroup configures creation flags for Windows
-func setSysProcGroup(cmd *exec.Cmd) {
+// SetSysProcGroup configures creation flags for Windows
+func SetSysProcGroup(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
 		HideWindow:    true,
 	}
+}
+
+func setSysProcGroup(cmd *exec.Cmd) {
+	SetSysProcGroup(cmd)
 }
 
 // killProcessGroup kills the process and its child processes on Windows using taskkill

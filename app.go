@@ -33,7 +33,7 @@ import (
 )
 
 // AppVersion defines the current semantic version of AetherGrok Desktop Studio
-const AppVersion = "1.0.5"
+const AppVersion = "1.0.7"
 
 // App struct represents application runtime state
 type App struct {
@@ -1089,11 +1089,6 @@ func (a *App) TranscribeAudioWithGrok(workspacePath, audioFilePath string) (stri
 		return text
 	}
 
-	// Guaranteed cleanup of scratch audio file on completion
-	defer func() {
-		_ = os.Remove(audioFilePath)
-	}()
-
 	audioBytes, err := os.ReadFile(audioFilePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read audio file: %w", err)
@@ -1209,6 +1204,7 @@ func (a *App) TranscribeAudioWithGrok(workspacePath, audioFilePath string) (stri
 	)
 	cmd.Dir = workspacePath
 	cmd.Env = grokrunner.EnsureExecEnvironment()
+	grokrunner.SetSysProcGroup(cmd)
 
 	out, errExec := cmd.CombinedOutput()
 	if errExec != nil {

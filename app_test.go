@@ -12,9 +12,6 @@ func TestAppVersionConsistency(t *testing.T) {
 	if ver != AppVersion {
 		t.Fatalf("expected GetAppVersion() to return %q, got %q", AppVersion, ver)
 	}
-	if ver != "1.0.5" {
-		t.Fatalf("expected AppVersion to be 1.0.5, got %q", ver)
-	}
 
 	// Verify wails.json matches AppVersion
 	wailsData, err := os.ReadFile("wails.json")

@@ -457,13 +457,43 @@ async function main() {
     if (fs.existsSync(wailsPath)) {
       const wailsConfig = JSON.parse(fs.readFileSync(wailsPath, 'utf8'));
       wailsConfig.version = nextVersion;
+      if (wailsConfig.info) {
+        wailsConfig.info.productVersion = nextVersion;
+      }
       fs.writeFileSync(wailsPath, JSON.stringify(wailsConfig, null, 2) + '\n');
       console.log(c('green', '✓ Updated wails.json'));
     }
 
+    // Update app.go
+    const appGoPath = path.join(ROOT_DIR, 'app.go');
+    if (fs.existsSync(appGoPath)) {
+      let appGoContent = fs.readFileSync(appGoPath, 'utf8');
+      appGoContent = appGoContent.replace(/const AppVersion = "[^"]+"/, `const AppVersion = "${nextVersion}"`);
+      fs.writeFileSync(appGoPath, appGoContent);
+      console.log(c('green', '✓ Updated app.go'));
+    }
+
+    // Update frontend/package.json
+    const frontendPkgPath = path.join(ROOT_DIR, 'frontend', 'package.json');
+    if (fs.existsSync(frontendPkgPath)) {
+      const fPkg = JSON.parse(fs.readFileSync(frontendPkgPath, 'utf8'));
+      fPkg.version = nextVersion;
+      fs.writeFileSync(frontendPkgPath, JSON.stringify(fPkg, null, 2) + '\n');
+      console.log(c('green', '✓ Updated frontend/package.json'));
+    }
+
+    // Update build/windows/installer/wails_tools.nsh
+    const nshPath = path.join(ROOT_DIR, 'build', 'windows', 'installer', 'wails_tools.nsh');
+    if (fs.existsSync(nshPath)) {
+      let nshContent = fs.readFileSync(nshPath, 'utf8');
+      nshContent = nshContent.replace(/!define INFO_PRODUCTVERSION "[^"]+"/, `!define INFO_PRODUCTVERSION "${nextVersion}"`);
+      fs.writeFileSync(nshPath, nshContent);
+      console.log(c('green', '✓ Updated build/windows/installer/wails_tools.nsh'));
+    }
+
     // 8. Commit, Tag, and Push
     console.log('\n' + c('yellow', '6. Git commit, create tag, and push to GitHub...'));
-    run('git add changelog.json wails.json');
+    run('git add changelog.json wails.json app.go app_test.go frontend/package.json build/windows/installer/wails_tools.nsh');
     try {
       run(`git commit -m "chore(release): ${nextTag} - ${inputTitle}"`);
       console.log(c('green', `✓ Committed release updates.`));

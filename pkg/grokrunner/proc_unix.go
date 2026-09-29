@@ -7,11 +7,15 @@ import (
 	"syscall"
 )
 
-// setSysProcGroup configures Setpgid for non-Windows platforms
-func setSysProcGroup(cmd *exec.Cmd) {
+// SetSysProcGroup configures Setpgid for non-Windows platforms
+func SetSysProcGroup(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
 	}
+}
+
+func setSysProcGroup(cmd *exec.Cmd) {
+	SetSysProcGroup(cmd)
 }
 
 // killProcessGroup kills the entire process group cleanly

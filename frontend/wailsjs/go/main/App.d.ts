@@ -38,6 +38,8 @@ export function CheckMultipleFilesExists(arg1:string,arg2:Array<string>):Promise
 
 export function CheckScreenCapturePermission():Promise<permissions.Status>;
 
+export function CleanVoiceCache():Promise<void>;
+
 export function CleanupSkillImportTemp(arg1:string):Promise<void>;
 
 export function ClearPersistedLogs():Promise<void>;
