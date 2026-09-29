@@ -18,7 +18,7 @@ permissions:
 
 concurrency:
   group: release-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build-windows:
@@ -95,12 +95,13 @@ jobs:
           Compress-Archive -Path $TargetExe -DestinationPath "build/bin/$ZipName" -Force
 
           # Standardize NSIS Setup installer name
-          $Installer = Get-ChildItem -Path "build/bin" -File | Where-Object { $_.Name -like "*installer*.exe" -or $_.Name -like "*setup*.exe" -or $_.Name -eq "AetherGrok-Setup.exe" } | Select-Object -First 1
+          $Installer = Get-ChildItem -Path "build/bin" -File | Where-Object { $_.Name -like "*installer*.exe" -or $_.Name -like "*setup*.exe" } | Select-Object -First 1
           if ($Installer) {
-            if ($Arch -eq "amd64") {
-              Copy-Item -Path $Installer.FullName -Destination "build/bin/AetherGrok-Setup.exe" -Force
-            } else {
-              Copy-Item -Path $Installer.FullName -Destination "build/bin/AetherGrok-Setup-$Arch.exe" -Force
+            $DestName = if ($Arch -eq "amd64") { "AetherGrok-Setup.exe" } else { "AetherGrok-Setup-$Arch.exe" }
+            $DestPath = "build/bin/$DestName"
+            $ResolvedDest = (Resolve-Path $DestPath -ErrorAction SilentlyContinue)
+            if (-not $ResolvedDest -or $Installer.FullName -ne $ResolvedDest.Path) {
+              Copy-Item -Path $Installer.FullName -Destination $DestPath -Force
             }
           }
 
@@ -129,7 +130,7 @@ jobs:
         include:
           - os: macos-latest
             arch: arm64
-          - os: macos-13
+          - os: macos-latest
             arch: amd64
           - os: macos-latest
             arch: universal
