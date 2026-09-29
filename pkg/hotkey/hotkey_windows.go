@@ -206,6 +206,46 @@ func mapKeyToVK(key string) (uint32, error) {
 		return 0x09, nil
 	case "backspace":
 		return 0x08, nil
+	case "delete", "del":
+		return 0x2E, nil // VK_DELETE
+	case "insert", "ins":
+		return 0x2D, nil
+	case "home":
+		return 0x24, nil
+	case "end":
+		return 0x23, nil
+	case "pageup", "pgup":
+		return 0x21, nil
+	case "pagedown", "pgdn":
+		return 0x22, nil
+	case "left":
+		return 0x25, nil
+	case "up":
+		return 0x26, nil
+	case "right":
+		return 0x27, nil
+	case "down":
+		return 0x28, nil
+	case "capslock", "caps":
+		return 0x14, nil
+	case "equal", "plus":
+		return 0xBB, nil
+	case "minus":
+		return 0xBD, nil
+	case "grave", "backquote", "tilde":
+		return 0xC0, nil
+	case "bracketleft":
+		return 0xDB, nil
+	case "bracketright":
+		return 0xDD, nil
+	case "semicolon":
+		return 0xBA, nil
+	case "quote":
+		return 0xDE, nil
+	case "comma":
+		return 0xBC, nil
+	case "period":
+		return 0xBE, nil
 	case "printscreen", "snapshot", "prtscn":
 		return 0x2C, nil
 	case "shiftright", "right shift", "rightshift", "rshift":

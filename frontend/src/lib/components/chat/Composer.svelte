@@ -339,7 +339,9 @@
   }
 
   function handleWindowBlur() {
-    if (dictationMode === 'hold' && voiceState === 'recording') {
+    // Only apply blur auto-stop in web fallback mode where native OS key hooks are unavailable
+    const win = typeof window !== 'undefined' ? (window as any) : null;
+    if (!win?.go?.main?.App && dictationMode === 'hold' && voiceState === 'recording') {
       handleStopVoiceRecording();
     }
   }

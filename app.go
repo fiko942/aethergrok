@@ -225,7 +225,13 @@ func (w *wailsWindowController) Show() {
 // CaptureScreenExcludingSelf coordinates non-intrusive snapshot capture with auto window hiding
 func (a *App) CaptureScreenExcludingSelf(delayMs int) (*screen.SnapshotResult, error) {
 	var winCtrl screen.WindowController
-	if a.ctx != nil {
+	autoHide := true
+	if a.storageMgr != nil {
+		if st, err := a.storageMgr.GetSettings(); err == nil {
+			autoHide = st.SnapshotAutoHideWindow
+		}
+	}
+	if a.ctx != nil && autoHide {
 		winCtrl = &wailsWindowController{ctx: a.ctx}
 	}
 	return a.screenCapture.CaptureScreenExcludingWindow(context.Background(), winCtrl, delayMs)
