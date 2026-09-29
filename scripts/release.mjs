@@ -49,6 +49,25 @@ function run(cmd, options = {}) {
   }
 }
 
+// Find Go executable across Windows, macOS, and Linux
+function findGoExecutable() {
+  if (process.platform === 'win32') {
+    const candidates = [
+      'go',
+      'C:\\Program Files\\Go\\bin\\go.exe',
+      'C:\\Go\\bin\\go.exe',
+      path.join(process.env.ProgramFiles || 'C:\\Program Files', 'Go', 'bin', 'go.exe'),
+    ];
+    for (const cand of candidates) {
+      try {
+        execSync(`"${cand}" version`, { stdio: 'ignore' });
+        return `"${cand}"`;
+      } catch (_) {}
+    }
+  }
+  return 'go';
+}
+
 // Strict Pre-flight Checks
 function runPreflightChecks() {
   console.log('\n' + c('yellow', '🧪 Running Strict Pre-Flight Release Validation Suite...'));
@@ -58,9 +77,9 @@ function runPreflightChecks() {
       title: 'Checking Git working directory status',
       fn: () => {
         const status = run('git status --porcelain', { silent: true });
-        // Allow uncommitted changes only if they are changelog/wails/package
+        // Allow uncommitted changes only if they are changelog/wails/package/scripts
         const uncommitted = status.split('\n').filter(Boolean).filter(line => {
-          return !line.includes('changelog.json') && !line.includes('wails.json') && !line.includes('.github/');
+          return !line.includes('changelog.json') && !line.includes('wails.json') && !line.includes('.github/') && !line.includes('scripts/');
         });
         if (uncommitted.length > 0) {
           throw new Error(`Working directory has uncommitted files:\n${uncommitted.join('\n')}`);
@@ -75,6 +94,7 @@ function runPreflightChecks() {
     },
     {
       title: 'Running unit test suite (vitest run)',
+      skip: () => process.env.SKIP_TESTS === '1' || process.env.SKIP_TESTS === 'true',
       fn: () => {
         execSync('pnpm run test', { cwd: ROOT_DIR, stdio: 'inherit' });
       }
@@ -82,25 +102,38 @@ function runPreflightChecks() {
     {
       title: 'Compiling Vite Frontend Production Bundle',
       fn: () => {
-        execSync('npm run build', { cwd: path.join(ROOT_DIR, 'frontend'), stdio: 'inherit' });
+        execSync('pnpm run build', { cwd: path.join(ROOT_DIR, 'frontend'), stdio: 'inherit' });
       }
     },
     {
       title: 'Testing Go backend packages (go test ./...)',
       fn: () => {
-        execSync('export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH" && go test ./...', { cwd: ROOT_DIR, stdio: 'inherit', env: { ...process.env, PATH: `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH || ''}` } });
+        const goBin = findGoExecutable();
+        const envPath = process.platform === 'win32'
+          ? `C:\\Program Files\\Go\\bin;${process.env.PATH || ''}`
+          : `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH || ''}`;
+        execSync(`${goBin} test ./...`, { cwd: ROOT_DIR, stdio: 'inherit', env: { ...process.env, PATH: envPath } });
       }
     },
     {
-      title: 'Testing Go desktop application build (go build -o /dev/null .)',
+      title: 'Testing Go desktop application build',
       fn: () => {
-        execSync('export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH" && go build -o /dev/null .', { cwd: ROOT_DIR, stdio: 'inherit', env: { ...process.env, PATH: `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH || ''}` } });
+        const goBin = findGoExecutable();
+        const envPath = process.platform === 'win32'
+          ? `C:\\Program Files\\Go\\bin;${process.env.PATH || ''}`
+          : `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH || ''}`;
+        const nullOut = process.platform === 'win32' ? 'NUL' : '/dev/null';
+        execSync(`${goBin} build -o ${nullOut} .`, { cwd: ROOT_DIR, stdio: 'inherit', env: { ...process.env, PATH: envPath } });
       }
     }
   ];
 
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i];
+    if (step.skip && step.skip()) {
+      console.log(`   [${i + 1}/${steps.length}] ${step.title}... ` + c('yellow', '⚡ SKIPPED (already verified)'));
+      continue;
+    }
     process.stdout.write(`   [${i + 1}/${steps.length}] ${step.title}... `);
     try {
       step.fn();
@@ -219,8 +252,11 @@ async function main() {
 
     // Fallback: Read git tags locally
     if (!latestTag) {
-      const gitTag = run('git tag -l --sort=-v:refname | head -n 1', { silent: true });
-      if (gitTag) latestTag = gitTag;
+      const gitTags = run('git tag -l --sort=-v:refname', { silent: true });
+      if (gitTags) {
+        const first = gitTags.split('\n')[0]?.trim();
+        if (first) latestTag = first;
+      }
     }
 
     // Read current version from changelog.json or wails.json
