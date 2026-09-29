@@ -63,7 +63,8 @@
         console.error('Failed to open workspace directory:', err);
       }
     } else {
-      const path = window.prompt('Enter absolute path of folder workspace:', '/Users/fiko942/Desktop/workspace');
+      const defaultPath = typeof navigator !== 'undefined' && /Win/.test(navigator.platform || navigator.userAgent) ? 'C:\\workspace' : '/workspace';
+      const path = window.prompt('Enter absolute path of folder workspace:', defaultPath);
       if (path && path.trim()) {
         const folderName = path.trim().split(/[/\\]/).filter(Boolean).pop() || 'workspace';
         const newWs = sessionStore.addWorkspace(folderName, path.trim());

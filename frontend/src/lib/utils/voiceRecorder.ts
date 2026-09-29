@@ -68,68 +68,59 @@ export class VoiceRecorderManager {
       }
     }
 
-    // If web devices with labels exist, map them with native metadata enrichments
     if (webDevices.length > 0) {
       const results: AudioInputDevice[] = [];
-      const hasLabels = webDevices.some((d) => d.label && d.label.trim() !== '');
-
       for (let i = 0; i < webDevices.length; i++) {
         const wd = webDevices[i];
         let label = wd.label || '';
-        let matchedNative = nativeDevices.find((nd) => label && nd.name.toLowerCase().includes(label.toLowerCase()));
+        let matchedNative = nativeDevices.find((nd) => label && (nd.name.toLowerCase().includes(label.toLowerCase()) || label.toLowerCase().includes(nd.name.toLowerCase())));
 
-        if (!matchedNative && !hasLabels && nativeDevices[i]) {
+        if (!matchedNative && nativeDevices[i]) {
           matchedNative = nativeDevices[i];
         }
 
         if (!label) {
-          if (matchedNative) {
-            label = (matchedNative as any).Name || matchedNative.name || '';
-          } else {
-            label = `Microphone ${i + 1}`;
-          }
+          label = matchedNative?.name || `Microphone ${i + 1}`;
         }
 
         let transport = (matchedNative?.transport as any) || 'unknown';
-        const labelLower = label.toLowerCase();
         if (transport === 'unknown') {
-          if (labelLower.includes('built-in') || labelLower.includes('macbook') || labelLower.includes('internal')) {
-            transport = 'built-in';
-          } else if (labelLower.includes('airpods') || labelLower.includes('bluetooth') || labelLower.includes('wireless') || labelLower.includes('wh-') || labelLower.includes('wf-')) {
-            transport = 'bluetooth';
-          } else if (labelLower.includes('usb') || labelLower.includes('scarlett') || labelLower.includes('yeti') || labelLower.includes('podcast')) {
-            transport = 'usb';
-          } else if (labelLower.includes('movavi') || labelLower.includes('blackhole') || labelLower.includes('soundflower') || labelLower.includes('virtual') || labelLower.includes('grabber')) {
-            transport = 'virtual';
-          } else if (labelLower.includes('iphone') || labelLower.includes('ipad') || labelLower.includes('continuity')) {
-            transport = 'continuity';
-          }
+          const l = label.toLowerCase();
+          if (l.includes('realtek') || l.includes('array') || l.includes('built-in') || l.includes('internal')) transport = 'built-in';
+          else if (l.includes('bluetooth') || l.includes('wireless') || l.includes('hands-free') || l.includes('airpods')) transport = 'bluetooth';
+          else if (l.includes('usb') || l.includes('yeti') || l.includes('scarlett') || l.includes('hyperx')) transport = 'usb';
+          else if (l.includes('virtual') || l.includes('voicemeeter') || l.includes('cable')) transport = 'virtual';
+          else transport = 'built-in';
         }
 
         results.push({
-          deviceId: wd.deviceId || '',
+          deviceId: wd.deviceId || (matchedNative?.isDefault ? 'default' : `dev-${i}`),
           label,
-          isDefault: matchedNative?.isDefault || wd.deviceId === 'default',
+          isDefault: matchedNative?.isDefault || wd.deviceId === 'default' || i === 0,
           transport,
-          manufacturer: matchedNative?.manufacturer || ''
+          manufacturer: matchedNative?.manufacturer || 'Windows Audio'
         });
       }
-
       return results;
     }
 
-    // Fallback if browser mediaDevices did not return items but native profiler did
     if (nativeDevices.length > 0) {
       return nativeDevices.map((nd, idx) => ({
         deviceId: nd.isDefault ? 'default' : `native-dev-${idx}`,
         label: nd.name,
         isDefault: nd.isDefault,
-        transport: nd.transport as any,
-        manufacturer: nd.manufacturer
+        transport: (nd.transport as any) || 'built-in',
+        manufacturer: nd.manufacturer || 'Windows Audio'
       }));
     }
 
-    return [];
+    return [{
+      deviceId: 'default',
+      label: 'Default System Microphone',
+      isDefault: true,
+      transport: 'built-in',
+      manufacturer: 'Windows Audio'
+    }];
   }
 
   /**

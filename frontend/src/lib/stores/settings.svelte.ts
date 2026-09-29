@@ -39,7 +39,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   permissionMode: 'default',
   planGateMode: 'active',
   animationsEnabled: true,
-  grokBinaryPath: '/Users/fiko942/.local/bin/grok',
+  grokBinaryPath: '',
   snapshotShortcut: 'CmdOrCtrl+Shift+S',
   snapshotDelayMs: 50,
   snapshotAutoHideWindow: true,
@@ -103,8 +103,33 @@ export class SettingsStore {
         if (backendSettings && typeof backendSettings === 'object') {
           // If backend has settings, apply them
           this.applySettings(backendSettings);
+
+          // Auto-detect Grok binary if empty or still pointing to invalid cross-platform path
+          const isWindows = typeof navigator !== 'undefined' && /Win/.test(navigator.platform || navigator.userAgent);
+          if (!this.grokBinaryPath || (isWindows && this.grokBinaryPath.startsWith('/Users/'))) {
+            if (win.go?.main?.App?.AutoDetectGrokBinaryPath) {
+              const detected = await win.go.main.App.AutoDetectGrokBinaryPath();
+              if (detected) {
+                this.grokBinaryPath = detected;
+              }
+            } else if (win.go?.main?.App?.CheckGrokInstallation) {
+              const status = await win.go.main.App.CheckGrokInstallation();
+              if (status?.binaryPath) {
+                this.grokBinaryPath = status.binaryPath;
+              }
+            }
+          }
+
           this.isHydrated = true;
           logger.info('SETTINGS', 'Hydrated settings from persistent backend storage');
+
+          // Sync hydrated shortcuts to OS hooks
+          if (win?.go?.main?.App?.RegisterGlobalSnapshotShortcut && this.snapshotShortcut) {
+            win.go.main.App.RegisterGlobalSnapshotShortcut(this.snapshotShortcut).catch(() => {});
+          }
+          if (win?.go?.main?.App?.RegisterGlobalDictationShortcut && this.dictationShortcut) {
+            win.go.main.App.RegisterGlobalDictationShortcut(this.dictationShortcut).catch(() => {});
+          }
           return;
         }
       } catch (err) {
@@ -118,6 +143,7 @@ export class SettingsStore {
   }
 
   private applySettings(parsed: Partial<AppSettings>): void {
+    const isWindows = typeof navigator !== 'undefined' && /Win/.test(navigator.platform || navigator.userAgent);
     if (parsed.theme && ['dark-studio', 'dark-high-contrast', 'light-antd'].includes(parsed.theme)) {
       this.theme = parsed.theme;
     }
@@ -137,9 +163,13 @@ export class SettingsStore {
       this.animationsEnabled = parsed.animationsEnabled;
     }
     if (typeof parsed.grokBinaryPath === 'string') {
-      this.grokBinaryPath = parsed.grokBinaryPath;
+      if (isWindows && parsed.grokBinaryPath.startsWith('/Users/')) {
+        this.grokBinaryPath = '';
+      } else {
+        this.grokBinaryPath = parsed.grokBinaryPath;
+      }
     }
-    if (typeof parsed.snapshotShortcut === 'string') {
+    if (typeof parsed.snapshotShortcut === 'string' && parsed.snapshotShortcut.trim().length > 0) {
       this.snapshotShortcut = parsed.snapshotShortcut;
     }
     if (typeof parsed.snapshotDelayMs === 'number' && Number.isFinite(parsed.snapshotDelayMs)) {
@@ -244,6 +274,8 @@ export class SettingsStore {
     if (partial.defaultModel !== undefined) this.defaultModel = partial.defaultModel;
     if (partial.defaultReasoningEffort !== undefined) this.defaultReasoningEffort = partial.defaultReasoningEffort;
     if (partial.permissionMode !== undefined) this.permissionMode = partial.permissionMode;
+    if (partial.planGateMode !== undefined) this.planGateMode = partial.planGateMode;
+    if (partial.animationsEnabled !== undefined) this.animationsEnabled = partial.animationsEnabled;
     if (partial.grokBinaryPath !== undefined) this.grokBinaryPath = partial.grokBinaryPath;
     if (partial.snapshotShortcut !== undefined) this.snapshotShortcut = partial.snapshotShortcut;
     if (partial.snapshotDelayMs !== undefined) this.snapshotDelayMs = partial.snapshotDelayMs;
@@ -255,6 +287,7 @@ export class SettingsStore {
     if (partial.maxContextTokens !== undefined) this.maxContextTokens = partial.maxContextTokens;
     if (partial.sidebarWidth !== undefined) this.sidebarWidth = Math.min(480, Math.max(220, partial.sidebarWidth));
     if (partial.sidebarCollapsed !== undefined) this.sidebarCollapsed = partial.sidebarCollapsed;
+    if (partial.selectedMicrophoneDeviceId !== undefined) this.selectedMicrophoneDeviceId = partial.selectedMicrophoneDeviceId;
     if (partial.dictationShortcut !== undefined) this.dictationShortcut = partial.dictationShortcut;
     if (partial.dictationMuteSystemAudio !== undefined) this.dictationMuteSystemAudio = partial.dictationMuteSystemAudio;
     if (partial.dictationHoldThresholdMs !== undefined) this.dictationHoldThresholdMs = partial.dictationHoldThresholdMs;
@@ -266,6 +299,8 @@ export class SettingsStore {
     this.defaultModel = DEFAULT_SETTINGS.defaultModel;
     this.defaultReasoningEffort = DEFAULT_SETTINGS.defaultReasoningEffort;
     this.permissionMode = DEFAULT_SETTINGS.permissionMode;
+    this.planGateMode = DEFAULT_SETTINGS.planGateMode;
+    this.animationsEnabled = DEFAULT_SETTINGS.animationsEnabled;
     this.grokBinaryPath = DEFAULT_SETTINGS.grokBinaryPath;
     this.snapshotShortcut = DEFAULT_SETTINGS.snapshotShortcut;
     this.snapshotDelayMs = DEFAULT_SETTINGS.snapshotDelayMs;
@@ -274,9 +309,21 @@ export class SettingsStore {
     this.snapshotFlashEnabled = DEFAULT_SETTINGS.snapshotFlashEnabled;
     this.snapshotAutoAttach = DEFAULT_SETTINGS.snapshotAutoAttach;
     this.activeWindowTurnCount = DEFAULT_SETTINGS.activeWindowTurnCount;
+    this.maxContextTokens = DEFAULT_SETTINGS.maxContextTokens;
+    this.sidebarWidth = DEFAULT_SETTINGS.sidebarWidth;
+    this.sidebarCollapsed = DEFAULT_SETTINGS.sidebarCollapsed;
+    this.selectedMicrophoneDeviceId = DEFAULT_SETTINGS.selectedMicrophoneDeviceId;
     this.dictationShortcut = DEFAULT_SETTINGS.dictationShortcut;
     this.dictationMuteSystemAudio = DEFAULT_SETTINGS.dictationMuteSystemAudio;
     this.dictationHoldThresholdMs = DEFAULT_SETTINGS.dictationHoldThresholdMs;
+
+    const win = typeof window !== 'undefined' ? (window as any) : null;
+    if (win?.go?.main?.App?.AutoDetectGrokBinaryPath) {
+      win.go.main.App.AutoDetectGrokBinaryPath().then((detected: string) => {
+        if (detected) this.grokBinaryPath = detected;
+      }).catch(() => {});
+    }
+
     this.saveToStorage();
   }
 }

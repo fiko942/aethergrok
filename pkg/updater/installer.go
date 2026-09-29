@@ -1,6 +1,7 @@
 package updater
 
 import (
+	"archive/zip"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -226,19 +227,97 @@ func VerifyChecksum(filePath string, expectedHashOrURL string) (bool, error) {
 			return false, fmt.Errorf("failed to download checksum file: %w", err)
 		}
 		defer resp.Body.Close()
-		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return false, fmt.Errorf("failed to read downloaded checksum file: %w", err)
+		}
 		cleanExpected = string(bodyBytes)
 	}
 
 	cleanExpected = strings.ToLower(cleanExpected)
 	actualHash = strings.ToLower(actualHash)
 
-	// Check if the expected string contains actualHash (handles raw hashes or sha256sum formatted files)
+	// Check if multi-line checksum file has a match for this specific filename
+	fileName := strings.ToLower(filepath.Base(filePath))
+	lines := strings.Split(cleanExpected, "\n")
+	for _, rawLine := range lines {
+		line := strings.TrimSpace(rawLine)
+		if line == "" {
+			continue
+		}
+		if strings.Contains(line, fileName) {
+			fields := strings.Fields(line)
+			for _, field := range fields {
+				cleanField := strings.Trim(field, "* \t\r\n")
+				if len(cleanField) == 64 {
+					if cleanField == actualHash {
+						return true, nil
+					}
+					return false, fmt.Errorf("checksum mismatch for %s: expected '%s', got '%s'", filepath.Base(filePath), cleanField, actualHash)
+				}
+			}
+		}
+	}
+
+	// Check if the expected string contains actualHash (handles raw hashes or simple sha256 files)
 	if strings.Contains(cleanExpected, actualHash) {
 		return true, nil
 	}
 
-	return false, fmt.Errorf("checksum mismatch: expected '%s', got '%s'", cleanExpected, actualHash)
+	return false, fmt.Errorf("checksum mismatch: expected '%s', got '%s'", strings.TrimSpace(cleanExpected), actualHash)
+}
+
+// ExtractZip extracts a zip archive to the target destination directory securely.
+func ExtractZip(zipPath, destDir string) error {
+	r, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return fmt.Errorf("failed to open zip file: %w", err)
+	}
+	defer r.Close()
+
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		return fmt.Errorf("failed to create destination directory: %w", err)
+	}
+
+	for _, f := range r.File {
+		// Prevent Zip Slip vulnerability (path traversal)
+		cleanName := filepath.Clean(f.Name)
+		if strings.HasPrefix(cleanName, "..") || filepath.IsAbs(cleanName) || strings.Contains(cleanName, ":") {
+			continue
+		}
+
+		targetPath := filepath.Join(destDir, cleanName)
+
+		if f.FileInfo().IsDir() {
+			_ = os.MkdirAll(targetPath, f.Mode())
+			continue
+		}
+
+		if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+			return fmt.Errorf("failed to create directory for file %s: %w", targetPath, err)
+		}
+
+		outFile, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+		if err != nil {
+			return fmt.Errorf("failed to create file %s: %w", targetPath, err)
+		}
+
+		rc, err := f.Open()
+		if err != nil {
+			outFile.Close()
+			return fmt.Errorf("failed to open zip entry %s: %w", f.Name, err)
+		}
+
+		_, copyErr := io.Copy(outFile, rc)
+		rc.Close()
+		outFile.Close()
+
+		if copyErr != nil {
+			return fmt.Errorf("failed to extract file %s: %w", targetPath, copyErr)
+		}
+	}
+
+	return nil
 }
 
 // ApplyUpdateMacOS mounts the downloaded DMG, locates AetherGrok.app, executes a detached helper script to replace the app and relaunch, then signals the host process to terminate.
@@ -365,8 +444,43 @@ rm -f "%s"
 	return nil
 }
 
-// ApplyUpdateWindows executes the downloaded NSIS setup executable with silent or interactive arguments
-func ApplyUpdateWindows(setupExePath string, onProgress func(UpdateProgress)) error {
+// ApplyUpdateWindows executes the downloaded NSIS setup executable or extracts a portable zip archive
+func ApplyUpdateWindows(filePath string, onProgress func(UpdateProgress)) error {
+	cleanPath := filepath.Clean(filePath)
+	lowerName := strings.ToLower(cleanPath)
+
+	if strings.HasSuffix(lowerName, ".zip") {
+		if onProgress != nil {
+			onProgress(UpdateProgress{
+				Stage:   "installing",
+				Percent: 100,
+				Message: "Extracting portable package...",
+			})
+		}
+
+		// Destination directory next to zip
+		baseDir := filepath.Dir(cleanPath)
+		targetFolderName := strings.TrimSuffix(filepath.Base(cleanPath), filepath.Ext(cleanPath))
+		destDir := filepath.Join(baseDir, targetFolderName)
+
+		if err := ExtractZip(cleanPath, destDir); err != nil {
+			return fmt.Errorf("failed to extract portable zip: %w", err)
+		}
+
+		// Reveal extracted folder in Windows Explorer
+		_ = exec.Command("explorer.exe", filepath.Clean(destDir)).Start()
+
+		if onProgress != nil {
+			onProgress(UpdateProgress{
+				Stage:   "ready",
+				Percent: 100,
+				Message: fmt.Sprintf("Update extracted to %s. Opened folder in Explorer.", filepath.Base(destDir)),
+			})
+		}
+		return nil
+	}
+
+	// Executable setup or standalone .exe
 	if onProgress != nil {
 		onProgress(UpdateProgress{
 			Stage:   "installing",
@@ -375,13 +489,22 @@ func ApplyUpdateWindows(setupExePath string, onProgress func(UpdateProgress)) er
 		})
 	}
 
-	// Run NSIS setup with silent flag /S and trigger relaunch
-	cmd := exec.Command(setupExePath, "/S")
-	if err := cmd.Start(); err != nil {
-		// Fallback without /S if silent invocation fails
-		cmd = exec.Command(setupExePath)
+	// If installer executable (setup or installer)
+	if strings.Contains(lowerName, "setup") || strings.Contains(lowerName, "installer") {
+		cmd := exec.Command(cleanPath, "/S")
 		if err := cmd.Start(); err != nil {
-			return fmt.Errorf("failed to launch Windows installer: %w", err)
+			// Fallback without /S for interactive wizard mode
+			cmd = exec.Command(cleanPath)
+			if err := cmd.Start(); err != nil {
+				return fmt.Errorf("failed to launch Windows installer: %w", err)
+			}
+		}
+	} else {
+		// Standalone executable
+		cmd := exec.Command(cleanPath)
+		if err := cmd.Start(); err != nil {
+			_ = exec.Command("explorer.exe", fmt.Sprintf("/select,%s", cleanPath)).Start()
+			return fmt.Errorf("failed to execute binary: %w", err)
 		}
 	}
 

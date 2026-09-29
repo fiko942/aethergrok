@@ -27,6 +27,39 @@ type GrokSessionMetadata struct {
 
 var userQueryRegex = regexp.MustCompile(`(?s)<user_query>(.*?)(?:</user_query>|$)`)
 
+// EncodeGrokWorkspacePath converts a workspace file system path into the exact URL-encoded
+// directory leaf format used by Grok CLI in ~/.grok/sessions/ (matching JS encodeURIComponent)
+func EncodeGrokWorkspacePath(workspacePath string) string {
+	if workspacePath == "" {
+		return ""
+	}
+	clean := filepath.Clean(workspacePath)
+	var sb strings.Builder
+	for i := 0; i < len(clean); i++ {
+		b := clean[i]
+		if (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') ||
+			b == '-' || b == '_' || b == '.' || b == '~' || b == '!' || b == '*' || b == '\'' || b == '(' || b == ')' {
+			sb.WriteByte(b)
+		} else {
+			fmt.Fprintf(&sb, "%%%02X", b)
+		}
+	}
+	return sb.String()
+}
+
+// ResolveWorkspaceSessionsDir returns the directory path under ~/.grok/sessions for workspacePath
+func ResolveWorkspaceSessionsDir(sessionsDir, workspacePath string) string {
+	primary := filepath.Join(sessionsDir, EncodeGrokWorkspacePath(workspacePath))
+	if _, err := os.Stat(primary); err == nil {
+		return primary
+	}
+	legacy := filepath.Join(sessionsDir, url.PathEscape(workspacePath))
+	if _, err := os.Stat(legacy); err == nil {
+		return legacy
+	}
+	return primary
+}
+
 // DiscoverGrokSessions scans ~/.grok/sessions/ for sessions matching workspacePath
 func DiscoverGrokSessions(workspacePath string) ([]GrokSessionMetadata, error) {
 	home, err := os.UserHomeDir()
@@ -39,9 +72,7 @@ func DiscoverGrokSessions(workspacePath string) ([]GrokSessionMetadata, error) {
 		return []GrokSessionMetadata{}, nil
 	}
 
-	// In Grok, workspace directory path is URL path encoded, e.g. %2FUsers%2Ffiko942%2FDesktop%2Faffilia
-	encodedPath := url.PathEscape(workspacePath)
-	targetDir := filepath.Join(sessionsDir, encodedPath)
+	targetDir := ResolveWorkspaceSessionsDir(sessionsDir, workspacePath)
 
 	entries, err := os.ReadDir(targetDir)
 	if err != nil {
@@ -214,8 +245,9 @@ func LoadGrokSessionMessages(workspacePath, sessionID string) ([]DiscoveredChatM
 		return nil, err
 	}
 
-	encodedPath := url.PathEscape(workspacePath)
-	sessionFolderPath := filepath.Join(home, ".grok", "sessions", encodedPath, sessionID)
+	sessionsDir := filepath.Join(home, ".grok", "sessions")
+	targetDir := ResolveWorkspaceSessionsDir(sessionsDir, workspacePath)
+	sessionFolderPath := filepath.Join(targetDir, sessionID)
 
 	chatHistoryPath := filepath.Join(sessionFolderPath, "chat_history.jsonl")
 	data, err := os.ReadFile(chatHistoryPath)
@@ -396,8 +428,8 @@ func DeleteGrokSessionDirectory(workspacePath, sessionID string) error {
 		return err
 	}
 
-	encodedPath := url.PathEscape(workspacePath)
-	sessionsParent := filepath.Join(home, ".grok", "sessions", encodedPath)
+	sessionsDir := filepath.Join(home, ".grok", "sessions")
+	sessionsParent := ResolveWorkspaceSessionsDir(sessionsDir, workspacePath)
 	targetDir := filepath.Join(sessionsParent, sessionID)
 
 	// 1. Direct path removal
@@ -427,8 +459,9 @@ func GetSessionUsage(workspacePath, sessionID string) (*SessionUsageStats, error
 		return nil, err
 	}
 
-	encodedPath := url.PathEscape(workspacePath)
-	sessionFolderPath := filepath.Join(home, ".grok", "sessions", encodedPath, sessionID)
+	sessionsDir := filepath.Join(home, ".grok", "sessions")
+	sessionsParent := ResolveWorkspaceSessionsDir(sessionsDir, workspacePath)
+	sessionFolderPath := filepath.Join(sessionsParent, sessionID)
 
 	stats := &SessionUsageStats{
 		SessionID: sessionID,

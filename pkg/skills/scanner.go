@@ -69,10 +69,14 @@ func ParseSkillFile(filePath string) (*Skill, error) {
 	// Identify scope from path
 	scope := "custom"
 	normalizedPath := filepath.ToSlash(filePath)
-	if strings.Contains(normalizedPath, "/.grok/skills/") {
+	if strings.Contains(normalizedPath, "/.grok/") {
 		scope = "grok"
-	} else if strings.Contains(normalizedPath, "/.agents/skills/") {
+	} else if strings.Contains(normalizedPath, "/.agents/") {
 		scope = "agents"
+	} else if strings.Contains(normalizedPath, "/.claude/") {
+		scope = "claude"
+	} else if strings.Contains(normalizedPath, "/.codex/") {
+		scope = "codex"
 	}
 
 	// Create a stable ID

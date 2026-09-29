@@ -1,4 +1,5 @@
 import { logger } from './logger.svelte';
+import { terminalStore } from './terminal.svelte';
 
 export type SessionStatus = 'working' | 'waiting_permission' | 'finished' | 'error' | 'idle';
 
@@ -1011,9 +1012,10 @@ class SessionStore {
     await this.openSessionInTab(id);
   }
 
-  // Close tab only (preserves session in sidebar and disk)
+  // Close tab only (preserves session in sidebar and disk, terminates session terminals while preserving background Grok runner)
   closeSessionTab(id: string): void {
-    // Terminate all background pseudo-terminals for this session to free process groups
+    // Terminate all background pseudo-terminals and child processes for this session
+    terminalStore.closeAllForSession(id);
     if (window.go?.main?.App?.CloseSessionTerminals) {
       window.go.main.App.CloseSessionTerminals(id)
         .catch(() => {});

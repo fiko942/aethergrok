@@ -49,6 +49,4 @@ dev-app-update.yml
 # Release signing runbook — names the Apple Team ID, the enrolled identity and the
 # full signing pipeline. Private: this repo's docs/internal/ is otherwise public.
 docs/internal/macos-code-signing.md
-build/bin/*.dmg
-build/bin/*.sha256
-build/bin/aethergrok.app
+build/bin/

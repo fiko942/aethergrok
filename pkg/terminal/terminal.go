@@ -18,6 +18,7 @@ type osFileWrapper struct {
 	readCloser  io.ReadCloser
 	writeCloser io.WriteCloser
 	file        *os.File
+	hPC         uintptr
 }
 
 func (w *osFileWrapper) Read(p []byte) (n int, err error) {
@@ -80,6 +81,19 @@ func NewManager() *Manager {
 // SetContext sets Wails runtime context for event emission
 func (m *Manager) SetContext(ctx context.Context) {
 	m.ctx = ctx
+}
+
+// EnsureCreated creates a terminal only if it does not already exist and is not closed
+func (m *Manager) EnsureCreated(sessionID, termID, cwd, shell string) error {
+	m.mu.RLock()
+	existing, ok := m.terminals[termID]
+	m.mu.RUnlock()
+
+	if ok && existing != nil && !existing.isClosed() {
+		return nil
+	}
+
+	return m.Create(sessionID, termID, cwd, shell)
 }
 
 // Create starts a new shell inside a dedicated process group and pseudo-terminal
@@ -212,7 +226,9 @@ func (m *Manager) Create(sessionID, termID, cwd, shell string) error {
 			}
 		}
 
-		_ = cmd.Wait()
+		if cmd != nil && cmd.Process != nil {
+			_, _ = cmd.Process.Wait()
+		}
 
 		m.mu.Lock()
 		delete(m.terminals, termID)
@@ -236,7 +252,29 @@ func (m *Manager) Write(termID, data string) error {
 		return fmt.Errorf("terminal instance %s not found", termID)
 	}
 
+	if strings.Contains(data, "\x03") {
+		_ = inst.Interrupt()
+	}
+
 	return inst.Write([]byte(data))
+}
+
+// Interrupt triggers a Ctrl+C interrupt and terminates running foreground child processes
+func (m *Manager) Interrupt(termID string) error {
+	m.mu.RLock()
+	inst, ok := m.terminals[termID]
+	m.mu.RUnlock()
+
+	if !ok {
+		return fmt.Errorf("terminal instance %s not found", termID)
+	}
+
+	return inst.Interrupt()
+}
+
+// Kill terminates a terminal instance and its entire process tree
+func (m *Manager) Kill(termID string) error {
+	return m.Close(termID)
 }
 
 // Resize sets the terminal window size (rows and columns)
@@ -361,6 +399,25 @@ func (inst *Instance) isClosed() bool {
 	inst.mu.Lock()
 	defer inst.mu.Unlock()
 	return inst.closed
+}
+
+// Interrupt sends Ctrl+C signal and terminates any active child processes running under the shell
+func (inst *Instance) Interrupt() error {
+	inst.mu.Lock()
+	if inst.closed {
+		inst.mu.Unlock()
+		return fmt.Errorf("terminal is closed")
+	}
+	cmd := inst.Cmd
+	ptmx := inst.PtyFile
+	inst.mu.Unlock()
+
+	return interruptProcess(cmd, ptmx)
+}
+
+// Kill terminates the entire terminal process tree immediately
+func (inst *Instance) Kill() error {
+	return inst.Close()
 }
 
 // Close kills the entire process group and closes the PTY descriptor

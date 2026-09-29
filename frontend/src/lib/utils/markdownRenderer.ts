@@ -31,9 +31,9 @@ export function extractCandidateFilePaths(content: string): string[] {
     }
   }
 
-  // 2. Plain text path candidates (e.g. .github/workflows/build-windows.yml, /Users/..., ~/.grok/config.toml)
+  // 2. Plain text path candidates (e.g. .github/workflows/build-windows.yml, /Users/..., C:\..., ~/.grok/config.toml)
   const pathRegex = new RegExp(
-    `(?:^|[\\s(\`"'\\[<])((?:(?:\\/|[a-zA-Z]:[\\\\/]|~[\\\\/]|\\.\\.?[\\\\/]|\\.[\\w-]+\\/)[\\w.\\-\\/]+|[\\w.\\-\\/]+\\.(?:${FILE_EXTS})))(?=[.,;:\\s\`"'\\]>]|$)`,
+    `(?:^|[\\s(\`"'\\[<])((?:(?:\\/|[a-zA-Z]:[\\\\/]|~[\\\\/]|\\.\\.?[\\\\/]|\\.[\\w-]+\\/)[\\w.\\-\\/\\\\]+|[\\w.\\-\\/\\\\]+\\.(?:${FILE_EXTS})))(?=[.,;:\\s\`"'\\]>]|$)`,
     'g'
   );
 

@@ -25,7 +25,7 @@
   let copied = $state(false);
 
   const isMarkdown = $derived(filePath.toLowerCase().endsWith('.md') || filePath.toLowerCase().endsWith('.markdown'));
-  const fileName = $derived(filePath ? filePath.split('/').pop() || filePath : '');
+  const fileName = $derived(filePath ? filePath.split(/[/\\]/).pop() || filePath : '');
   const ext = $derived(fileName.includes('.') ? '.' + fileName.split('.').pop() : '');
 
   // Configure marked for full GitHub Flavored Markdown (tables, lists, breaks, codeblocks, checklists)

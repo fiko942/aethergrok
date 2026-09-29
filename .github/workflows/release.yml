@@ -1,0 +1,328 @@
+name: Release Multi-Platform AetherGrok Desktop Studio
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag (e.g. v1.0.6). If empty, inferred automatically from ref or wails.json."
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-windows:
+    name: Build Windows (${{ matrix.arch }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go 1.24+
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+          check-latest: true
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js 20+
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install NSIS
+        shell: pwsh
+        run: |
+          choco install nsis -y
+          $nsisPath = "C:\Program Files (x86)\NSIS"
+          if (Test-Path "C:\Program Files\NSIS") { $nsisPath = "C:\Program Files\NSIS" }
+          Write-Host "Adding NSIS to PATH: $nsisPath"
+          echo "$nsisPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Install Wails CLI
+        shell: pwsh
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Build Frontend
+        shell: pwsh
+        run: |
+          cd frontend
+          pnpm install --frozen-lockfile
+          npm run build
+
+      - name: Build Windows Executable & NSIS Setup (${{ matrix.arch }})
+        shell: pwsh
+        run: |
+          if (Test-Path "C:\Program Files (x86)\NSIS") { $env:PATH += ";C:\Program Files (x86)\NSIS" }
+          if (Test-Path "C:\Program Files\NSIS") { $env:PATH += ";C:\Program Files\NSIS" }
+
+          $Arch = "${{ matrix.arch }}"
+          Write-Host "Building Wails Windows binary for architecture: $Arch"
+
+          # Build Windows Binary & NSIS installer with Wails
+          wails build -platform "windows/$Arch" -nsis -clean -ldflags "-s -w"
+
+          # Portable Zip package
+          $TargetExe = "build/bin/aethergrok.exe"
+          if (Test-Path "build/bin/AetherGrok.exe") { $TargetExe = "build/bin/AetherGrok.exe" }
+
+          if (-not (Test-Path $TargetExe)) {
+            throw "Expected executable not found at $TargetExe"
+          }
+
+          $ZipName = "aethergrok-windows-$Arch.zip"
+          Compress-Archive -Path $TargetExe -DestinationPath "build/bin/$ZipName" -Force
+
+          # Standardize NSIS Setup installer name
+          $Installer = Get-ChildItem -Path "build/bin" -File | Where-Object { $_.Name -like "*installer*.exe" -or $_.Name -like "*setup*.exe" -or $_.Name -eq "AetherGrok-Setup.exe" } | Select-Object -First 1
+          if ($Installer) {
+            if ($Arch -eq "amd64") {
+              Copy-Item -Path $Installer.FullName -Destination "build/bin/AetherGrok-Setup.exe" -Force
+            } else {
+              Copy-Item -Path $Installer.FullName -Destination "build/bin/AetherGrok-Setup-$Arch.exe" -Force
+            }
+          }
+
+          # Generate SHA256 checksums
+          Get-ChildItem -Path "build/bin" -File | Where-Object { $_.Extension -in @(".exe", ".zip") } | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            Set-Content -Path "$($_.FullName).sha256" -Value "$hash  $($_.Name)"
+          }
+
+      - name: Upload Windows Artifacts (${{ matrix.arch }})
+        uses: actions/upload-artifact@v4
+        with:
+          name: aethergrok-windows-${{ matrix.arch }}
+          path: |
+            build/bin/*.exe
+            build/bin/*.zip
+            build/bin/*.sha256
+          retention-days: 14
+
+  build-macos:
+    name: Build macOS (${{ matrix.os }} - ${{ matrix.arch }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            arch: arm64
+          - os: macos-13
+            arch: amd64
+          - os: macos-latest
+            arch: universal
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go 1.24+
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+          check-latest: true
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js 20+
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Build Frontend
+        run: |
+          cd frontend
+          pnpm install --frozen-lockfile
+          npm run build
+
+      - name: Build macOS App, DMG & ZIP (${{ matrix.arch }})
+        run: |
+          chmod +x build-macos.sh
+          ./build-macos.sh ${{ matrix.arch }}
+
+          cd build/bin
+          APP_NAME=""
+          if [ -d "AetherGrok.app" ]; then
+            APP_NAME="AetherGrok.app"
+          elif [ -d "aethergrok.app" ]; then
+            APP_NAME="aethergrok.app"
+          fi
+
+          if [ -n "$APP_NAME" ]; then
+            ZIP_NAME="aethergrok-macos-${{ matrix.arch }}.zip"
+            zip -r -y "$ZIP_NAME" "$APP_NAME"
+            shasum -a 256 "$ZIP_NAME" > "${ZIP_NAME}.sha256"
+          fi
+
+          for dmg in *.dmg; do
+            if [ -f "$dmg" ]; then
+              shasum -a 256 "$dmg" > "${dmg}.sha256"
+            fi
+          done
+
+      - name: Upload macOS Artifacts (${{ matrix.arch }})
+        uses: actions/upload-artifact@v4
+        with:
+          name: aethergrok-macos-${{ matrix.arch }}
+          path: |
+            build/bin/*.dmg
+            build/bin/*.zip
+            build/bin/*.sha256
+          retention-days: 14
+
+  build-linux:
+    name: Build Linux (ubuntu-latest - amd64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libwebkit2gtk-4.0-dev \
+            build-essential \
+            pkg-config || \
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            pkg-config
+
+      - name: Setup Go 1.24+
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+          check-latest: true
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js 20+
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Build Frontend
+        run: |
+          cd frontend
+          pnpm install --frozen-lockfile
+          npm run build
+
+      - name: Build Linux Binary & Packages
+        run: |
+          wails build -platform linux/amd64 -clean -ldflags "-s -w"
+
+          cd build/bin
+          chmod +x aethergrok
+          cp aethergrok aethergrok-linux-amd64
+          tar -czvf aethergrok-linux-amd64.tar.gz aethergrok
+
+          for file in aethergrok-linux-amd64 aethergrok-linux-amd64.tar.gz; do
+            if [ -f "$file" ]; then
+              sha256sum "$file" > "${file}.sha256"
+            fi
+          done
+
+      - name: Upload Linux Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: aethergrok-linux-amd64
+          path: |
+            build/bin/aethergrok-linux-amd64.tar.gz
+            build/bin/aethergrok-linux-amd64.tar.gz.sha256
+            build/bin/aethergrok-linux-amd64
+            build/bin/aethergrok-linux-amd64.sha256
+          retention-days: 14
+
+  release:
+    name: Create GitHub Release
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download All Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: List Artifacts for Release
+        run: |
+          echo "=========================================="
+          echo "       Release Artifacts Collected        "
+          echo "=========================================="
+          ls -la release-artifacts/
+          echo "=========================================="
+
+      - name: Resolve Release Tag
+        id: release_info
+        run: |
+          TAG="${{ inputs.release_tag }}"
+          if [ -z "$TAG" ]; then
+            if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+              TAG="${{ github.ref_name }}"
+            else
+              VERSION=$(node -e "try { console.log(JSON.parse(require('fs').readFileSync('wails.json')).version || ''); } catch(e) {}")
+              if [ -n "$VERSION" ]; then
+                TAG="v${VERSION}"
+              else
+                TAG="v1.0.0"
+              fi
+            fi
+          fi
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Target tag: ${TAG}"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_info.outputs.tag }}
+          name: "AetherGrok Desktop Studio ${{ steps.release_info.outputs.tag }}"
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            release-artifacts/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

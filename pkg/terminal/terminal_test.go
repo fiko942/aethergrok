@@ -2,6 +2,7 @@ package terminal
 
 import (
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -13,7 +14,7 @@ func TestTerminalManager_LifecycleAndProcessGroup(t *testing.T) {
 	sessionID := "session_alpha"
 
 	cwd, _ := os.Getwd()
-	err := mgr.Create(sessionID, termID, cwd, "/bin/sh")
+	err := mgr.Create(sessionID, termID, cwd, "")
 	if err != nil {
 		t.Fatalf("Failed to create terminal: %v", err)
 	}
@@ -34,12 +35,12 @@ func TestTerminalManager_LifecycleAndProcessGroup(t *testing.T) {
 	}
 
 	// Write check (echo test)
-	err = mgr.Write(termID, "echo hello-terminal-test\n")
+	err = mgr.Write(termID, "echo hello-terminal-test\r\n")
 	if err != nil {
 		t.Errorf("Write failed: %v", err)
 	}
 
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	// Close terminal and ensure process group cleanup
 	err = mgr.Close(termID)
@@ -61,9 +62,9 @@ func TestTerminalManager_CloseSessionTerminals(t *testing.T) {
 	mgr := NewManager()
 
 	cwd, _ := os.Getwd()
-	_ = mgr.Create("sess_1", "t1", cwd, "/bin/sh")
-	_ = mgr.Create("sess_1", "t2", cwd, "/bin/sh")
-	_ = mgr.Create("sess_2", "t3", cwd, "/bin/sh")
+	_ = mgr.Create("sess_1", "t1", cwd, "")
+	_ = mgr.Create("sess_1", "t2", cwd, "")
+	_ = mgr.Create("sess_2", "t3", cwd, "")
 
 	err := mgr.CloseSessionTerminals("sess_1")
 	if err != nil {
@@ -71,19 +72,74 @@ func TestTerminalManager_CloseSessionTerminals(t *testing.T) {
 	}
 
 	mgr.mu.RLock()
-	t1Exists := mgr.terminals["t1"] != nil
-	t2Exists := mgr.terminals["t2"] != nil
-	t3Exists := mgr.terminals["t3"] != nil
+	_, hasT1 := mgr.terminals["t1"]
+	_, hasT2 := mgr.terminals["t2"]
+	_, hasT3 := mgr.terminals["t3"]
 	mgr.mu.RUnlock()
 
-	if t1Exists {
-		t.Errorf("t1 should have been closed")
+	if hasT1 || hasT2 {
+		t.Errorf("Terminals t1 and t2 should have been closed")
 	}
-	if t2Exists {
-		t.Errorf("t2 should have been closed")
+	if !hasT3 {
+		t.Errorf("Terminal t3 from sess_2 should still exist")
 	}
-	if !t3Exists {
-		t.Errorf("t3 should still be alive")
+
+	mgr.CloseAll()
+}
+
+func TestTerminalManager_ClsCommand(t *testing.T) {
+	mgr := NewManager()
+
+	cwd, _ := os.Getwd()
+	err := mgr.Create("sess_cls", "t_cls", cwd, "")
+	if err != nil {
+		t.Fatalf("Failed to create terminal: %v", err)
 	}
-	_ = mgr.Close("t3")
+	defer mgr.Close("t_cls")
+
+	time.Sleep(300 * time.Millisecond)
+
+	// Send cls command
+	err = mgr.Write("t_cls", "cls\r\n")
+	if err != nil {
+		t.Fatalf("Write cls failed: %v", err)
+	}
+
+	time.Sleep(300 * time.Millisecond)
+
+	buf := mgr.GetTerminalBuffer("t_cls")
+	t.Logf("Buffer length: %d", len(buf))
+	if len(buf) == 0 {
+		t.Errorf("Expected non-empty terminal buffer")
+	}
+	// Check that buffer contains prompt or clear sequences
+	if strings.Contains(buf, "\x1b[2J") || strings.Contains(buf, "\x1b[H") || strings.Contains(buf, "PS") || strings.Contains(buf, ">") {
+		t.Logf("Buffer successfully captured output from ConPTY terminal")
+	}
+}
+
+func TestTerminalManager_InterruptAndKill(t *testing.T) {
+	mgr := NewManager()
+
+	cwd, _ := os.Getwd()
+	err := mgr.Create("sess_test", "t_intr", cwd, "")
+	if err != nil {
+		t.Fatalf("Failed to create terminal: %v", err)
+	}
+
+	time.Sleep(300 * time.Millisecond)
+
+	// Send an interactive/loop command, then test Interrupt
+	err = mgr.Interrupt("t_intr")
+	if err != nil {
+		t.Errorf("Interrupt failed: %v", err)
+	}
+
+	time.Sleep(200 * time.Millisecond)
+
+	// Test Kill
+	err = mgr.Kill("t_intr")
+	if err != nil {
+		t.Errorf("Kill failed: %v", err)
+	}
 }

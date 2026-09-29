@@ -18,7 +18,7 @@
   let errorMsg = $state('');
   let copied = $state(false);
 
-  const fileName = $derived(filePath ? filePath.split('/').pop() || filePath : '');
+  const fileName = $derived(filePath ? filePath.split(/[/\\]/).pop() || filePath : '');
 
   async function loadDiff() {
     if (!filePath || !workspacePath) return;

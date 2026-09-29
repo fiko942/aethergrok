@@ -1,4 +1,4 @@
-//go:build !darwin
+//go:build !darwin && !windows
 
 package hotkey
 
@@ -9,6 +9,10 @@ func newPlatformManager() platformManager {
 }
 
 func (d *dummyManager) start(shortcutStr string, handler Handler) error {
+	return nil
+}
+
+func (d *dummyManager) startWithKeyHandler(shortcutStr string, handler Handler, keyHandler KeyHandler) error {
 	return nil
 }
 

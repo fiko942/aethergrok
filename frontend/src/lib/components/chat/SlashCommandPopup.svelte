@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import type { SkillItem } from '../../../app.d';
+  import { rankSkills } from '$lib/utils/skillSearch';
   import {
     Sparkles,
     Terminal,
@@ -109,21 +110,7 @@
   });
 
   const filteredSkills = $derived.by(() => {
-    const cleanQuery = query.toLowerCase().replace(/^\//, '').trim();
-    if (!cleanQuery) return skills.slice(0, 12);
-
-    return skills
-      .filter((s) => {
-        return (
-          s.name.toLowerCase().includes(cleanQuery) ||
-          (s.id && s.id.toLowerCase().includes(cleanQuery)) ||
-          (s.path && s.path.toLowerCase().includes(cleanQuery)) ||
-          s.category?.toLowerCase().includes(cleanQuery) ||
-          (s.description && s.description.toLowerCase().includes(cleanQuery)) ||
-          (s.tags && s.tags.some((t) => t.toLowerCase().includes(cleanQuery)))
-        );
-      })
-      .slice(0, 20);
+    return rankSkills(skills, query, 'All', 20);
   });
 
   $effect(() => {

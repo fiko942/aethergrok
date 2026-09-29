@@ -5,6 +5,8 @@ package terminal
 import (
 	"fmt"
 	"os/exec"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -12,6 +14,10 @@ import (
 )
 
 func startPty(cmd *exec.Cmd, rows, cols int) (*osFileWrapper, error) {
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+	}
+
 	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{
 		Rows: uint16(rows),
 		Cols: uint16(cols),
@@ -41,6 +47,50 @@ func resizePty(file *osFileWrapper, rows, cols int) error {
 	})
 }
 
+// killChildProcessesOfUnix finds and terminates child processes of parentPID
+func killChildProcessesOfUnix(parentPID int, sig syscall.Signal) error {
+	if parentPID <= 0 {
+		return nil
+	}
+
+	out, err := exec.Command("pgrep", "-P", strconv.Itoa(parentPID)).Output()
+	if err != nil {
+		return nil
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if childPID, err := strconv.Atoi(line); err == nil && childPID > 0 && childPID != parentPID {
+			_ = killChildProcessesOfUnix(childPID, sig)
+			_ = syscall.Kill(childPID, sig)
+		}
+	}
+	return nil
+}
+
+// interruptProcess sends Ctrl+C and terminates any running foreground child processes
+func interruptProcess(cmd *exec.Cmd, ptmx *osFileWrapper) error {
+	if ptmx != nil {
+		_, _ = ptmx.Write([]byte{3}) // \x03 (Ctrl+C)
+	}
+
+	if cmd != nil && cmd.Process != nil && cmd.Process.Pid > 0 {
+		pid := cmd.Process.Pid
+		pgid, err := syscall.Getpgid(pid)
+		if err == nil && pgid > 0 {
+			_ = syscall.Kill(-pgid, syscall.SIGINT)
+		}
+		_ = killChildProcessesOfUnix(pid, syscall.SIGINT)
+	}
+
+	return nil
+}
+
+// killProcessTree terminates the command and its full process tree
 func killProcessTree(cmd *exec.Cmd) error {
 	if cmd == nil || cmd.Process == nil {
 		return nil
@@ -69,9 +119,9 @@ func killProcessTree(cmd *exec.Cmd) error {
 			// Escalate to SIGKILL for all child/grandchild processes
 			_ = syscall.Kill(-pgid, syscall.SIGKILL)
 		}
-	} else {
-		_ = cmd.Process.Kill()
 	}
 
+	_ = killChildProcessesOfUnix(pid, syscall.SIGKILL)
+	_ = cmd.Process.Kill()
 	return nil
 }

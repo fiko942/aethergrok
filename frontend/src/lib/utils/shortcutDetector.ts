@@ -48,6 +48,32 @@ export class ShortcutDetector {
   public matchesShortcut(e: KeyboardEvent, shortcutStr: string): boolean {
     if (!shortcutStr) return false;
 
+    const target = e.target as HTMLElement | null;
+    const active = typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null;
+    const isEditingText = Boolean(
+      (target && (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable ||
+        Boolean(target.closest?.('.xterm, .xterm-helper-textarea, input, textarea, [contenteditable="true"]'))
+      )) ||
+      (active && (
+        active.tagName === 'INPUT' ||
+        active.tagName === 'TEXTAREA' ||
+        active.isContentEditable ||
+        Boolean(active.closest?.('.xterm, .xterm-helper-textarea, input, textarea, [contenteditable="true"]'))
+      ))
+    );
+
+    const parts = shortcutStr.toLowerCase().split('+').map((s) => s.trim());
+    const hasCmdOrCtrl = parts.includes('cmdorctrl') || parts.includes('cmd') || parts.includes('ctrl') || parts.includes('control') || parts.includes('meta');
+    const hasAlt = parts.includes('alt') || parts.includes('opt') || parts.includes('option');
+
+    // If typing inside an input or terminal, do not capture single-character or non-modifier shortcuts
+    if (isEditingText && !hasCmdOrCtrl && !hasAlt) {
+      return false;
+    }
+
     const normCode = (e.code || '').toLowerCase().replace(/[\s_-]/g, '');
     const normKey = (e.key || '').toLowerCase().replace(/[\s_-]/g, '');
     const normShortcut = shortcutStr.toLowerCase().replace(/[\s_-]/g, '');
@@ -81,11 +107,9 @@ export class ShortcutDetector {
     }
 
     // 3. Modifier combination check (e.g. "Cmd+D", "Ctrl+Shift+D", "Alt+Space")
-    const parts = shortcutStr.toLowerCase().split('+').map((s) => s.trim());
     const hasCmd = parts.includes('cmd') || parts.includes('meta') || parts.includes('cmdorctrl');
     const hasCtrl = parts.includes('ctrl') || parts.includes('control') || parts.includes('cmdorctrl');
     const hasShift = parts.includes('shift');
-    const hasAlt = parts.includes('alt') || parts.includes('opt') || parts.includes('option');
 
     const keyPart = parts.find((p) => !['cmdorctrl', 'cmd', 'ctrl', 'control', 'meta', 'shift', 'alt', 'opt', 'option'].includes(p));
 
@@ -218,6 +242,100 @@ export class ShortcutDetector {
       this.lastTapReleaseTime = now;
       return null;
     }
+  }
+
+  /**
+   * Feed an OS-level global key event (action: 'down' | 'up').
+   * Dispatched by native OS hooks (WH_KEYBOARD_LL on Windows or CGEventTap on macOS).
+   */
+  public feedKeyEvent(action: 'down' | 'up', timestamp?: number): DictationTriggerEvent | null {
+    const now = timestamp || Date.now();
+
+    if (action === 'down') {
+      if (this.isDown) {
+        if (!this.holdStartEmitted && !this.isLocked && now - this.pressStartTime >= this.holdThresholdMs) {
+          this.isHolding = true;
+          this.holdStartEmitted = true;
+          if (this.holdTimer) {
+            clearTimeout(this.holdTimer);
+            this.holdTimer = null;
+          }
+          const event: DictationTriggerEvent = { type: 'hold-start' };
+          this.onTrigger?.(event);
+          return event;
+        }
+        return null;
+      }
+
+      this.isDown = true;
+      this.pressStartTime = now;
+      this.holdStartEmitted = false;
+
+      // If we are currently locked, pressing the shortcut again acts as an unlock trigger
+      if (this.isLocked) {
+        this.isLocked = false;
+        this.isHolding = false;
+        this.holdStartEmitted = false;
+        const event: DictationTriggerEvent = { type: 'single-tap-unlock' };
+        this.onTrigger?.(event);
+        return event;
+      }
+
+      // Set timer for hold detection when key repeat is delayed or disabled
+      if (this.holdTimer) {
+        clearTimeout(this.holdTimer);
+      }
+      this.holdTimer = setTimeout(() => {
+        if (this.isDown && !this.holdStartEmitted && !this.isLocked) {
+          this.isHolding = true;
+          this.holdStartEmitted = true;
+          this.onTrigger?.({ type: 'hold-start' });
+        }
+      }, this.holdThresholdMs);
+
+      return null;
+    } else if (action === 'up') {
+      if (!this.isDown) {
+        return null;
+      }
+
+      const pressDuration = now - this.pressStartTime;
+
+      if (this.holdTimer) {
+        clearTimeout(this.holdTimer);
+        this.holdTimer = null;
+      }
+
+      const wasHolding = this.holdStartEmitted || this.isHolding || pressDuration >= this.holdThresholdMs;
+      this.isDown = false;
+      this.isHolding = false;
+      this.holdStartEmitted = false;
+
+      // 1. If it was a hold (> holdThresholdMs), emit hold-release
+      if (wasHolding) {
+        this.lastTapReleaseTime = 0;
+        const event: DictationTriggerEvent = { type: 'hold-release' };
+        this.onTrigger?.(event);
+        return event;
+      }
+
+      // 2. Otherwise, it is a quick tap (< holdThresholdMs)
+      const timeSinceLastTap = now - this.lastTapReleaseTime;
+      if (this.lastTapReleaseTime > 0 && timeSinceLastTap <= this.doubleTapThresholdMs) {
+        // Double tap detected!
+        this.isLocked = true;
+        this.lastTapReleaseTime = 0;
+        const event: DictationTriggerEvent = { type: 'double-tap-lock' };
+        this.onTrigger?.(event);
+        return event;
+      } else {
+        // First tap of a potential double-tap
+        this.lastTapReleaseTime = now;
+        return null;
+      }
+    }
+
+    return null;
   }
 
   /**

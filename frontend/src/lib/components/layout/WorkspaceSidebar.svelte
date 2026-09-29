@@ -180,7 +180,8 @@
         console.error('Failed to select directory:', err);
       }
     } else {
-      const path = window.prompt('Masukkan absolute path folder workspace:', '/Users/fiko942/Desktop/affilia');
+      const defaultPath = typeof navigator !== 'undefined' && /Win/.test(navigator.platform || navigator.userAgent) ? 'C:\\workspace' : '/workspace';
+      const path = window.prompt('Masukkan absolute path folder workspace:', defaultPath);
       if (path && path.trim()) {
         const folderName = path.trim().split(/[/\\]/).filter(Boolean).pop() || 'workspace';
         const newWs = sessionStore.addWorkspace(folderName, path.trim());

@@ -12,6 +12,7 @@ import (
 func setSysProcGroup(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
+		HideWindow:    true,
 	}
 }
 
@@ -21,8 +22,9 @@ func killProcessGroup(cmd *exec.Cmd) error {
 		return nil
 	}
 	killCmd := exec.Command("taskkill", "/T", "/F", "/PID", strconv.Itoa(cmd.Process.Pid))
+	killCmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	if err := killCmd.Run(); err != nil {
-		return cmd.Process.Kill()
+		_ = cmd.Process.Kill()
 	}
 	return nil
 }

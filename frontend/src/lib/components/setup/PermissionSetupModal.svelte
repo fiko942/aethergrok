@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import Button from '$lib/antd/Button.svelte';
-  import type { AllPermissionsStatus, SystemPermissionItem } from '$app';
+  import type { AllPermissionsStatus, SystemPermissionItem } from '../../../app';
   import {
     ShieldCheck,
     ShieldAlert,
@@ -57,7 +57,7 @@
   });
 
   const totalCount = $derived(status.items.length);
-  const grantedCount = $derived(status.items.filter((item) => item.granted).length);
+  const grantedCount = $derived(status.items.filter((item: SystemPermissionItem) => item.granted).length);
   const allGranted = $derived(status.allGranted || (totalCount > 0 && grantedCount === totalCount));
   const progressPercent = $derived(totalCount > 0 ? Math.round((grantedCount / totalCount) * 100) : 0);
 

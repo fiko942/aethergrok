@@ -139,9 +139,12 @@
       if (activeTerminals.length === 0) {
         terminalStore.createTerminal(sessionId, workspacePath);
       } else {
-        // Ensure backend Go PTY is alive for all persisted tabs
+        // Ensure backend Go PTY is alive for all persisted tabs without killing existing processes
         for (const tab of activeTerminals) {
-          if (window.go?.main?.App?.CreateTerminal) {
+          if (window.go?.main?.App?.EnsureTerminal) {
+            window.go.main.App.EnsureTerminal(sessionId, tab.id, tab.cwd || workspacePath, '')
+              .catch(() => {});
+          } else if (window.go?.main?.App?.CreateTerminal) {
             window.go.main.App.CreateTerminal(sessionId, tab.id, tab.cwd || workspacePath, '')
               .catch(() => {});
           }
@@ -404,8 +407,9 @@
           cancelAnimationFrame(pendingFitMap.get(termId)!);
           pendingFitMap.delete(termId);
         }
-        termContainerMap.delete(termId);
-        cleanupXterm(termId);
+        if (termContainerMap.get(termId) === node) {
+          termContainerMap.delete(termId);
+        }
       }
     };
   }
@@ -413,9 +417,19 @@
   function initXterm(termId: string, container: HTMLElement) {
     if (terminalInstances.has(termId)) {
       const existing = terminalInstances.get(termId)!;
-      try {
-        existing.fitAddon.fit();
-      } catch (e) {}
+      // Re-attach existing terminal element to new container if container changed
+      if (existing.term.element && existing.term.element.parentElement !== container) {
+        container.innerHTML = '';
+        container.appendChild(existing.term.element);
+      }
+      setTimeout(() => {
+        try {
+          existing.fitAddon.fit();
+          if (window.go?.main?.App?.ResizeTerminal) {
+            window.go.main.App.ResizeTerminal(termId, existing.term.cols, existing.term.rows);
+          }
+        } catch (e) {}
+      }, 30);
       return;
     }
 
@@ -432,6 +446,65 @@
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
     term.open(container);
+
+    // Attach custom keyboard handler for copy/paste & uninterrupted shell keystrokes
+    term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+      if (event.type === 'keydown') {
+        const isCtrlOrCmd = event.ctrlKey || event.metaKey;
+
+        // Ctrl/Cmd + C with text selection: copy text; without selection: interrupt running process
+        if (isCtrlOrCmd && !event.shiftKey && !event.altKey && event.key.toLowerCase() === 'c') {
+          if (term.hasSelection()) {
+            const sel = term.getSelection();
+            if (sel) {
+              navigator.clipboard?.writeText(sel).catch(() => {});
+            }
+            return false;
+          }
+          // No selection: kill running child processes and send interrupt signal
+          if (window.go?.main?.App?.InterruptTerminal) {
+            window.go.main.App.InterruptTerminal(termId).catch(() => {});
+          }
+          if (window.go?.main?.App?.WriteTerminal) {
+            window.go.main.App.WriteTerminal(termId, '\x03').catch(() => {});
+          }
+          return false;
+        }
+
+        // Ctrl/Cmd + V: paste text into terminal
+        if (isCtrlOrCmd && !event.shiftKey && !event.altKey && event.key.toLowerCase() === 'v') {
+          navigator.clipboard?.readText().then((text) => {
+            if (text && window.go?.main?.App?.WriteTerminal) {
+              window.go.main.App.WriteTerminal(termId, text);
+            }
+          }).catch(() => {});
+          return false;
+        }
+
+        // Ctrl/Cmd + Shift + C: explicit terminal copy
+        if (isCtrlOrCmd && event.shiftKey && !event.altKey && event.key.toLowerCase() === 'c') {
+          if (term.hasSelection()) {
+            const sel = term.getSelection();
+            if (sel) {
+              navigator.clipboard?.writeText(sel).catch(() => {});
+            }
+          }
+          return false;
+        }
+
+        // Ctrl/Cmd + Shift + V: explicit terminal paste
+        if (isCtrlOrCmd && event.shiftKey && !event.altKey && event.key.toLowerCase() === 'v') {
+          navigator.clipboard?.readText().then((text) => {
+            if (text && window.go?.main?.App?.WriteTerminal) {
+              window.go.main.App.WriteTerminal(termId, text);
+            }
+          }).catch(() => {});
+          return false;
+        }
+      }
+
+      return true;
+    });
 
     setTimeout(() => {
       try {
@@ -479,6 +552,39 @@
       terminalInstances.delete(termId);
     }
   }
+
+  // Synchronize terminalInstances with active tabs for this session
+  $effect(() => {
+    const currentTabIds = new Set(activeTerminals.map((t) => t.id));
+    for (const termId of Array.from(terminalInstances.keys())) {
+      if (!currentTabIds.has(termId)) {
+        cleanupXterm(termId);
+      }
+    }
+  });
+
+  // Automatically focus the focused split pane
+  $effect(() => {
+    const focusedId = focusedPaneTermId;
+    if (focusedId && terminalInstances.has(focusedId)) {
+      const inst = terminalInstances.get(focusedId);
+      setTimeout(() => {
+        try {
+          inst?.term.focus();
+        } catch (e) {}
+      }, 30);
+    }
+  });
+
+  onDestroy(() => {
+    for (const obs of resizeObservers.values()) {
+      obs.disconnect();
+    }
+    resizeObservers.clear();
+    for (const termId of Array.from(terminalInstances.keys())) {
+      cleanupXterm(termId);
+    }
+  });
 
   let rafId: number | null = null;
 
@@ -560,9 +666,15 @@
   }
 
   function handleClearTerminal() {
-    if (activeTermId && terminalInstances.has(activeTermId)) {
-      const inst = terminalInstances.get(activeTermId)!;
+    const targetId = focusedPaneTermId || activeTermId;
+    if (targetId && terminalInstances.has(targetId)) {
+      const inst = terminalInstances.get(targetId)!;
       inst.term.clear();
+      inst.term.reset();
+      if (window.go?.main?.App?.WriteTerminal) {
+        const isWin = typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('windows');
+        window.go.main.App.WriteTerminal(targetId, isWin ? "cls\r\n" : "clear\n");
+      }
     }
   }
 
@@ -945,7 +1057,14 @@
                 <div
                   class="relative flex flex-col min-w-0 min-h-0 rounded-lg overflow-hidden border {isPaneFocused ? 'border-ant-primary shadow-sm shadow-ant-primary/10' : 'border-ant-border-secondary dark:border-white/5'}"
                   style="{splitGroup?.splitDirection === 'vertical' ? `height: ${panePct}%;` : `width: ${panePct}%;`}"
-                  onclick={() => terminalStore.setFocusedPaneId(sessionId, termId)}
+                  onmousedown={() => {
+                    terminalStore.setFocusedPaneId(sessionId, termId);
+                    terminalInstances.get(termId)?.term.focus();
+                  }}
+                  onclick={() => {
+                    terminalStore.setFocusedPaneId(sessionId, termId);
+                    terminalInstances.get(termId)?.term.focus();
+                  }}
                   ondragover={(e) => handlePaneDragOver(e, termId)}
                   ondragleave={handlePaneDragLeave}
                   ondrop={(e) => handlePaneDrop(e, termId)}
@@ -954,7 +1073,7 @@
                   {#if isMultiSplit && tabObj}
                     <div class="h-6 px-2 bg-ant-bg-secondary/80 border-b border-ant-border-secondary dark:border-white/5 flex items-center justify-between text-[10.5px] select-none flex-shrink-0">
                       <div class="flex items-center space-x-1 min-w-0">
-                        <TerminalIcon size={10} class="{isPaneFocused ? 'text-ant-primary' : 'text-ant-text-muted'}" />
+                        <TerminalIcon size={10} class={isPaneFocused ? 'text-ant-primary' : 'text-ant-text-muted'} />
                         <span class="font-mono font-medium truncate {isPaneFocused ? 'text-ant-text' : 'text-ant-text-secondary'}">
                           {tabObj.title}
                         </span>
@@ -1193,7 +1312,14 @@
                   <div
                     class="relative flex flex-col min-w-0 min-h-0 rounded-lg overflow-hidden border {isPaneFocused ? 'border-ant-primary shadow-sm shadow-ant-primary/10' : 'border-ant-border-secondary dark:border-white/5'}"
                     style="height: {panePct}%;"
-                    onclick={() => terminalStore.setFocusedPaneId(sessionId, termId)}
+                    onmousedown={() => {
+                      terminalStore.setFocusedPaneId(sessionId, termId);
+                      terminalInstances.get(termId)?.term.focus();
+                    }}
+                    onclick={() => {
+                      terminalStore.setFocusedPaneId(sessionId, termId);
+                      terminalInstances.get(termId)?.term.focus();
+                    }}
                     ondragover={(e) => handlePaneDragOver(e, termId)}
                     ondragleave={handlePaneDragLeave}
                     ondrop={(e) => handlePaneDrop(e, termId)}
@@ -1202,7 +1328,7 @@
                     {#if isRightMultiSplit && tabObj}
                       <div class="h-5 px-1.5 bg-ant-bg-secondary/80 border-b border-ant-border-secondary dark:border-white/5 flex items-center justify-between text-[10px] select-none flex-shrink-0">
                         <div class="flex items-center space-x-1 min-w-0">
-                          <TerminalIcon size={9} class="{isPaneFocused ? 'text-ant-primary' : 'text-ant-text-muted'}" />
+                          <TerminalIcon size={9} class={isPaneFocused ? 'text-ant-primary' : 'text-ant-text-muted'} />
                           <span class="font-mono font-medium truncate {isPaneFocused ? 'text-ant-text' : 'text-ant-text-secondary'}">
                             {tabObj.title}
                           </span>

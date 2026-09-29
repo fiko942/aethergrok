@@ -319,7 +319,7 @@
       if (dictationMode === 'hold') {
         if (voiceState === 'recording') {
           handleStopVoiceRecording();
-        } else if (voiceState === 'checking_permission' || voiceState === 'starting') {
+        } else if (voiceState === 'checking_permission') {
           pendingStopRequested = true;
         }
       }
@@ -331,7 +331,7 @@
       if (dictationMode === 'locked') {
         if (voiceState === 'recording') {
           handleStopVoiceRecording();
-        } else if (voiceState === 'checking_permission' || voiceState === 'starting') {
+        } else if (voiceState === 'checking_permission') {
           pendingStopRequested = true;
         }
       }

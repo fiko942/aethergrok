@@ -279,69 +279,96 @@
     }
   }
 
+  let isCapturingSnapshot = false;
+  let lastSnapshotTime = 0;
+
   // Global Snapshot Action (Invoked via button or Cmd/Ctrl+Shift+S)
   async function performGlobalSnapshot() {
-    const delay = settingsStore.snapshotDelayMs || 50;
+    const now = Date.now();
+    if (isCapturingSnapshot || now - lastSnapshotTime < 400) {
+      return;
+    }
+    isCapturingSnapshot = true;
+    lastSnapshotTime = now;
 
-    let snapshotResult: SnapshotResult | null = null;
+    try {
+      const delay = settingsStore.snapshotDelayMs || 50;
 
-    if (window.go?.main?.App?.CaptureScreenExcludingSelf) {
-      try {
-        const res = await window.go.main.App.CaptureScreenExcludingSelf(delay);
-        if (res && res.dataUrl) {
-          snapshotResult = res;
+      let snapshotResult: SnapshotResult | null = null;
+
+      if (window.go?.main?.App?.CaptureScreenExcludingSelf) {
+        try {
+          const res = await window.go.main.App.CaptureScreenExcludingSelf(delay);
+          if (res && res.dataUrl) {
+            snapshotResult = res;
+          }
+        } catch (err) {
+          console.error('Failed to capture native screen:', err);
         }
-      } catch (err) {
-        console.error('Failed to capture native screen:', err);
       }
-    }
 
-    // Fallback simulation for web browser preview mode
-    if (!snapshotResult) {
-      const mockCanvas = document.createElement('canvas');
-      mockCanvas.width = 1920;
-      mockCanvas.height = 1080;
-      const ctx = mockCanvas.getContext('2d');
-      if (ctx) {
-        const grad = ctx.createLinearGradient(0, 0, 1920, 1080);
-        grad.addColorStop(0, '#0F1117');
-        grad.addColorStop(1, '#181B26');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, 1920, 1080);
-        ctx.fillStyle = '#00F0FF';
-        ctx.font = 'bold 36px monospace';
-        ctx.fillText('AetherGrok Screen Capture (Preview Mode)', 80, 140);
-        ctx.fillStyle = '#8C93A4';
-        ctx.font = '20px sans-serif';
-        ctx.fillText(`Timestamp: ${new Date().toISOString()}`, 80, 200);
-      }
-      snapshotResult = {
-        dataUrl: mockCanvas.toDataURL('image/png'),
-        filePath: '/tmp/aethergrok_snapshot_preview.png',
-        width: 1920,
-        height: 1080,
-        sizeBytes: 15400,
-        timestamp: Date.now()
-      };
-    }
-
-    // Fire sound & visual flash animation
-    triggerSnapshotEffects();
-
-    // Attach image to composer vision context
-    if (snapshotResult && settingsStore.snapshotAutoAttach && composerRef) {
-      if (composerRef.attachImage) {
-        composerRef.attachImage({
-          id: 'snap_' + Date.now(),
-          dataUrl: snapshotResult.dataUrl,
-          filePath: snapshotResult.filePath || `Screen Snapshot (${new Date().toLocaleTimeString()}).jpg`,
-          sizeBytes: snapshotResult.sizeBytes || Math.round((snapshotResult.dataUrl.length - (snapshotResult.dataUrl.indexOf(',') + 1)) * 0.75),
+      // Fallback simulation for web browser preview mode
+      if (!snapshotResult) {
+        const mockCanvas = document.createElement('canvas');
+        mockCanvas.width = 1920;
+        mockCanvas.height = 1080;
+        const ctx = mockCanvas.getContext('2d');
+        if (ctx) {
+          const grad = ctx.createLinearGradient(0, 0, 1920, 1080);
+          grad.addColorStop(0, '#0F1117');
+          grad.addColorStop(1, '#181B26');
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, 1920, 1080);
+          ctx.fillStyle = '#00F0FF';
+          ctx.font = 'bold 36px monospace';
+          ctx.fillText('AetherGrok Screen Capture (Preview Mode)', 80, 140);
+          ctx.fillStyle = '#8C93A4';
+          ctx.font = '20px sans-serif';
+          ctx.fillText(`Timestamp: ${new Date().toISOString()}`, 80, 200);
+        }
+        snapshotResult = {
+          dataUrl: mockCanvas.toDataURL('image/png'),
+          filePath: '/tmp/aethergrok_snapshot_preview.png',
+          width: 1920,
+          height: 1080,
+          sizeBytes: 15400,
           timestamp: Date.now()
-        });
+        };
       }
-      if (composerRef.focusInput) {
-        composerRef.focusInput();
+
+      // Fire sound & visual flash animation
+      triggerSnapshotEffects();
+
+      // Ensure an active session exists so Composer is mounted to receive the image
+      if (!sessionStore.activeSession && sessionStore.activeWorkspace) {
+        sessionStore.createSession(sessionStore.activeWorkspace.id, 'Screen Snapshot');
       }
+
+      // Attach image to composer vision context
+      const attachToComposer = () => {
+        if (snapshotResult && settingsStore.snapshotAutoAttach && composerRef) {
+          if (composerRef.attachImage) {
+            composerRef.attachImage({
+              id: 'snap_' + Date.now(),
+              dataUrl: snapshotResult.dataUrl,
+              filePath: snapshotResult.filePath || `Screen Snapshot (${new Date().toLocaleTimeString()}).jpg`,
+              sizeBytes: snapshotResult.sizeBytes || Math.round((snapshotResult.dataUrl.length - (snapshotResult.dataUrl.indexOf(',') + 1)) * 0.75),
+              timestamp: Date.now()
+            });
+          }
+          if (composerRef.focusInput) {
+            composerRef.focusInput();
+          }
+        }
+      };
+
+      if (composerRef) {
+        attachToComposer();
+      } else {
+        setTimeout(attachToComposer, 60);
+      }
+    } finally {
+      isCapturingSnapshot = false;
     }
   }
 
@@ -697,17 +724,48 @@
     }, 600);
   }
 
+  function isEditingElement(e: KeyboardEvent): boolean {
+    const target = e.target as HTMLElement | null;
+    const active = typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null;
+    return Boolean(
+      (target && (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable ||
+        Boolean(target.closest?.('.xterm, .xterm-helper-textarea, input, textarea, [contenteditable="true"]'))
+      )) ||
+      (active && (
+        active.tagName === 'INPUT' ||
+        active.tagName === 'TEXTAREA' ||
+        active.isContentEditable ||
+        Boolean(active.closest?.('.xterm, .xterm-helper-textarea, input, textarea, [contenteditable="true"]'))
+      ))
+    );
+  }
+
+  function isInsideTerminal(e: KeyboardEvent): boolean {
+    const target = e.target as HTMLElement | null;
+    const active = typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null;
+    return Boolean(
+      (target && Boolean(target.closest?.('.xterm, .xterm-helper-textarea, .xterm-screen, .xterm-viewport'))) ||
+      (active && Boolean(active.closest?.('.xterm, .xterm-helper-textarea, .xterm-screen, .xterm-viewport')))
+    );
+  }
+
   // Helper to test if a keydown matches configured shortcut string
   function matchesShortcut(e: KeyboardEvent, shortcutStr: string): boolean {
     if (!shortcutStr) return false;
 
-    // Check if target is an input/textarea/contenteditable
-    const target = e.target as HTMLElement | null;
-    const isEditingText = target && (
-      target.tagName === 'INPUT' ||
-      target.tagName === 'TEXTAREA' ||
-      target.isContentEditable
-    );
+    const isEditing = isEditingElement(e);
+
+    // If editing text, do not intercept single-key shortcuts without modifiers
+    const parts = shortcutStr.toLowerCase().split('+').map((s) => s.trim());
+    const hasCmdOrCtrl = parts.includes('cmdorctrl') || parts.includes('cmd') || parts.includes('ctrl') || parts.includes('control') || parts.includes('meta');
+    const hasAlt = parts.includes('alt') || parts.includes('opt') || parts.includes('option');
+
+    if (isEditing && !hasCmdOrCtrl && !hasAlt) {
+      return false;
+    }
 
     const normCode = e.code ? e.code.toLowerCase().replace(/[\s_-]/g, '') : '';
     const normShortcut = shortcutStr.toLowerCase().replace(/[\s_-]/g, '');
@@ -726,22 +784,12 @@
     );
 
     if (isDirectMatch) {
-      if (isEditingText) return false;
+      if (isEditing) return false;
       return true;
     }
 
-    // If editing text, do not fire single-key printable shortcuts like '/' or 'delete' unless modifiers are held
-    const parts = shortcutStr.toLowerCase().split('+').map((s) => s.trim());
-    const hasCmdOrCtrl = parts.includes('cmdorctrl') || parts.includes('cmd') || parts.includes('ctrl') || parts.includes('meta');
     const hasShift = parts.includes('shift');
-    const hasAlt = parts.includes('alt') || parts.includes('opt') || parts.includes('option');
-
-    const keyPart = parts.find((p) => !['cmdorctrl', 'cmd', 'ctrl', 'meta', 'shift', 'alt', 'opt', 'option'].includes(p));
-
-    if (isEditingText && !hasCmdOrCtrl && !hasAlt) {
-      // Don't intercept normal typing in inputs
-      return false;
-    }
+    const keyPart = parts.find((p) => !['cmdorctrl', 'cmd', 'ctrl', 'control', 'meta', 'shift', 'alt', 'opt', 'option'].includes(p));
 
     const isMetaOrCtrl = e.metaKey || e.ctrlKey;
     if (hasCmdOrCtrl && !isMetaOrCtrl) return false;
@@ -785,7 +833,8 @@
         console.error('Failed to open workspace directory:', err);
       }
     } else {
-      const path = window.prompt('Enter absolute path of folder workspace:', '/Users/fiko942/Desktop/workspace');
+      const defaultPath = typeof navigator !== 'undefined' && /Win/.test(navigator.platform || navigator.userAgent) ? 'C:\\workspace' : '/workspace';
+      const path = window.prompt('Enter absolute path of folder workspace:', defaultPath);
       if (path && path.trim()) {
         const folderName = path.trim().split(/[/\\]/).filter(Boolean).pop() || 'workspace';
         sessionStore.addWorkspace(folderName, path.trim());
@@ -827,6 +876,9 @@
 
   // Global Keyboard Shortcuts Handler
   function handleGlobalKeyDown(e: KeyboardEvent) {
+    const isEditing = isEditingElement(e);
+    const inTerminal = isInsideTerminal(e);
+
     // Intercept dictation shortcut early and call preventDefault to eliminate macOS system NSBeep()
     if (shortcutDetector.matchesShortcut(e, settingsStore.dictationShortcut)) {
       e.preventDefault();
@@ -853,8 +905,16 @@
       return;
     }
 
+    // When focused in terminal, let standard terminal control sequences pass through cleanly
+    if (inTerminal && !e.altKey && (e.ctrlKey || (!isEditing && e.metaKey))) {
+      const k = e.key.toLowerCase();
+      if (['w', 'k', 't', 'b', 'c', 'v', 'l', 'u', 'r', 'a', 'e', 'd', 'z', 'p', 'n', 'f'].includes(k)) {
+        return;
+      }
+    }
+
     // Cmd/Ctrl + K: Open Skills Catalog
-    if (isMetaOrCtrl && e.key.toLowerCase() === 'k') {
+    if (isMetaOrCtrl && !inTerminal && e.key.toLowerCase() === 'k') {
       e.preventDefault();
       skillsCatalogVisible = !skillsCatalogVisible;
       return;
@@ -868,14 +928,14 @@
     }
 
     // Cmd/Ctrl + T: Open Workspace Picker for New Conversation
-    if (isMetaOrCtrl && !e.shiftKey && e.key.toLowerCase() === 't') {
+    if (isMetaOrCtrl && !inTerminal && !e.shiftKey && e.key.toLowerCase() === 't') {
       e.preventDefault();
       workspacePickerModalVisible = true;
       return;
     }
 
     // Cmd/Ctrl + W: Close active session tab (allows 0 tabs in view)
-    if (isMetaOrCtrl && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'w') {
+    if (isMetaOrCtrl && !inTerminal && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'w') {
       e.preventDefault();
       if (sessionStore.activeSessionId) {
         sessionStore.closeSessionTab(sessionStore.activeSessionId);
@@ -891,7 +951,7 @@
     }
 
     // Cmd/Ctrl + B: Toggle left sidebar collapse
-    if (isMetaOrCtrl && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'b') {
+    if (isMetaOrCtrl && !inTerminal && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'b') {
       e.preventDefault();
       toggleSidebar();
       return;
@@ -960,6 +1020,7 @@
   let unsubComplete: (() => void) | undefined;
   let unsubError: (() => void) | undefined;
   let unsubGlobalSnapshot: (() => void) | undefined;
+  let unsubGlobalDictation: (() => void) | undefined;
 
   // Keep native global snapshot shortcut registered on OS level
   $effect(() => {
@@ -967,6 +1028,16 @@
     if (window.go?.main?.App?.RegisterGlobalSnapshotShortcut && sc) {
       window.go.main.App.RegisterGlobalSnapshotShortcut(sc).catch((err: unknown) => {
         console.error('Failed to register OS global snapshot shortcut:', err);
+      });
+    }
+  });
+
+  // Keep native global dictation shortcut registered on OS level
+  $effect(() => {
+    const sc = settingsStore.dictationShortcut;
+    if (window.go?.main?.App?.RegisterGlobalDictationShortcut && sc) {
+      window.go.main.App.RegisterGlobalDictationShortcut(sc).catch((err: unknown) => {
+        console.error('Failed to register OS global dictation shortcut:', err);
       });
     }
   });
@@ -980,6 +1051,26 @@
 
     // Initialize auto-update background polling on startup
     updaterStore.initPeriodicCheck();
+
+    // Explicitly guarantee OS global shortcuts are registered on mount
+    const registerOsShortcuts = () => {
+      const snapSc = settingsStore.snapshotShortcut;
+      if (window.go?.main?.App?.RegisterGlobalSnapshotShortcut && snapSc) {
+        window.go.main.App.RegisterGlobalSnapshotShortcut(snapSc).catch((err: unknown) => {
+          console.error('Failed to register OS global snapshot shortcut on mount:', err);
+        });
+      }
+      const dictSc = settingsStore.dictationShortcut;
+      if (window.go?.main?.App?.RegisterGlobalDictationShortcut && dictSc) {
+        window.go.main.App.RegisterGlobalDictationShortcut(dictSc).catch((err: unknown) => {
+          console.error('Failed to register OS global dictation shortcut on mount:', err);
+        });
+      }
+    };
+
+    registerOsShortcuts();
+    setTimeout(registerOsShortcuts, 200);
+    setTimeout(registerOsShortcuts, 1000);
 
     // Check Grok CLI installation on startup
     if (window.go?.main?.App?.CheckGrokInstallation) {
@@ -1021,6 +1112,13 @@
     if (window.runtime?.EventsOn) {
       unsubGlobalSnapshot = window.runtime.EventsOn('snapshot:trigger_global', () => {
         performGlobalSnapshot();
+      });
+      unsubGlobalDictation = window.runtime.EventsOn('dictation:trigger_global', (data: { type?: string; timestamp?: number }) => {
+        const action = (data?.type || 'down') as 'down' | 'up';
+        const dictationEvent = shortcutDetector.feedKeyEvent(action, data?.timestamp);
+        if (dictationEvent) {
+          window.dispatchEvent(new CustomEvent('aethergrok:dictation-trigger', { detail: dictationEvent }));
+        }
       });
       unsubDelta = window.runtime.EventsOn('grok:delta_batch', (event: { sessionId: string; delta: string; role?: string }) => {
         if (event.sessionId) {
@@ -1179,6 +1277,7 @@
     unsubComplete?.();
     unsubError?.();
     unsubGlobalSnapshot?.();
+    unsubGlobalDictation?.();
   });
 </script>
 
@@ -1186,30 +1285,10 @@
   <!-- Top Navigation Bar -->
   <header
     ondblclick={handleHeaderDoubleClick}
-    class="flex items-center justify-between pl-20 pr-4 h-[38px] bg-ant-bg-secondary border-b border-ant-border-secondary dark:border-white/5 flex-shrink-0 cursor-default"
+    class="flex items-center justify-between {isMac ? 'pl-20' : 'pl-3.5'} pr-4 h-[38px] bg-ant-bg-secondary border-b border-ant-border-secondary dark:border-white/5 flex-shrink-0 cursor-default"
     style="--wails-draggable:drag"
   >
     <div class="flex items-center space-x-2 shrink-0">
-      <!-- Sidebar Toggle Button in Header -->
-      <Tooltip
-        title={settingsStore.sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-        shortcut={isMac ? "⌘B" : "Ctrl+B"}
-        placement="bottom"
-      >
-        <button
-          type="button"
-          onclick={toggleSidebar}
-          class="w-6 h-6 flex items-center justify-center rounded-md text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg transition-colors cursor-pointer shrink-0"
-          style="--wails-draggable:no-drag"
-        >
-          {#if settingsStore.sidebarCollapsed}
-            <PanelLeftOpen size={15} />
-          {:else}
-            <PanelLeftClose size={15} />
-          {/if}
-        </button>
-      </Tooltip>
-
       <img
         src="/brand-emblem-64.png"
         alt="AetherGrok Logo"
@@ -1229,6 +1308,26 @@
             <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
           {/if}
         </button>
+
+        <!-- Sidebar Toggle Button (Moved to the right of the version badge) -->
+        <Tooltip
+          title={settingsStore.sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          shortcut={isMac ? "⌘B" : "Ctrl+B"}
+          placement="bottom"
+        >
+          <button
+            type="button"
+            onclick={toggleSidebar}
+            class="w-6 h-6 flex items-center justify-center rounded-md text-ant-text-secondary hover:text-ant-text hover:bg-ant-bg transition-colors cursor-pointer shrink-0 ml-0.5"
+            style="--wails-draggable:no-drag"
+          >
+            {#if settingsStore.sidebarCollapsed}
+              <PanelLeftOpen size={15} />
+            {:else}
+              <PanelLeftClose size={15} />
+            {/if}
+          </button>
+        </Tooltip>
       </div>
     </div>
 
@@ -1410,7 +1509,17 @@
               />
             </div>
 
-            <!-- Bottom Docked Terminal Panel -->
+            <!-- Rich Prompt Composer with Snapshot & Model Selectors -->
+            <Composer
+              bind:this={composerRef}
+              {isWorking}
+              onSend={handleSendMessage}
+              onSteer={handleSteerPrompt}
+              onCancel={handleCancelSession}
+              onOpenSkillsCatalog={() => skillsCatalogVisible = true}
+            />
+
+            <!-- Bottom Docked Terminal Panel (Positioned below Prompt Box) -->
             {#if terminalStore.getDockPosition(sessionStore.activeSession.id) === 'bottom'}
               <TerminalPanel
                 sessionId={sessionStore.activeSession.id}
@@ -1422,16 +1531,6 @@
                 }}
               />
             {/if}
-
-            <!-- Rich Prompt Composer with Snapshot & Model Selectors -->
-            <Composer
-              bind:this={composerRef}
-              {isWorking}
-              onSend={handleSendMessage}
-              onSteer={handleSteerPrompt}
-              onCancel={handleCancelSession}
-              onOpenSkillsCatalog={() => skillsCatalogVisible = true}
-            />
           </div>
 
           <!-- Right Docked Terminal Panel -->

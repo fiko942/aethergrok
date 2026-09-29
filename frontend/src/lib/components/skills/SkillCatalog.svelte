@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import type { SkillItem } from '../../../app.d';
+  import { rankSkills } from '$lib/utils/skillSearch';
   import Button from '$lib/antd/Button.svelte';
   import SkillImporterModal from '$lib/components/skills/SkillImporterModal.svelte';
   import {
@@ -177,22 +178,9 @@
     }
   });
 
-  const filteredSkills = $derived(
-    skills.filter((skill) => {
-      const matchesCategory =
-        activeCategory === 'All' || skill.category?.toLowerCase() === activeCategory.toLowerCase();
-      const q = searchQuery.toLowerCase().trim();
-      if (!q) return matchesCategory;
-
-      const matchesQuery =
-        skill.name.toLowerCase().includes(q) ||
-        (skill.description && skill.description.toLowerCase().includes(q)) ||
-        (skill.tags && skill.tags.some((t) => t.toLowerCase().includes(q))) ||
-        (skill.scope && skill.scope.toLowerCase().includes(q));
-
-      return matchesCategory && matchesQuery;
-    })
-  );
+  const filteredSkills = $derived.by(() => {
+    return rankSkills(skills, searchQuery, activeCategory);
+  });
 
   function handleSelect(skill: SkillItem) {
     selectedSkillId = skill.id;

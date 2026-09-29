@@ -137,34 +137,16 @@ func parseGrokVersion(raw string) string {
 	return raw
 }
 
-// InstallGrokCLI executes automated installation on macOS and emits progress updates.
+// InstallGrokCLI executes automated installation across macOS, Windows, and Linux with progress updates.
 func InstallGrokCLI(ctx context.Context, onProgress func(GrokInstallProgress)) (*GrokInstallStatus, error) {
 	if onProgress == nil {
 		onProgress = func(GrokInstallProgress) {}
 	}
 
-	if runtime.GOOS != "darwin" {
-		err := fmt.Errorf("automated installation is currently only supported on macOS (detected %s)", runtime.GOOS)
-		onProgress(GrokInstallProgress{
-			Stage:   "error",
-			Percent: 0,
-			Message: err.Error(),
-			LogLine: err.Error(),
-		})
-		logger.GetDiskLogger().Append(logger.LogEntry{
-			Timestamp: time.Now().UnixMilli(),
-			Level:     "ERROR",
-			Category:  "grok_installer",
-			Message:   "Installation aborted: unsupported platform",
-			Details:   map[string]interface{}{"platform": runtime.GOOS},
-		})
-		return nil, err
-	}
-
 	onProgress(GrokInstallProgress{
 		Stage:   "preparing",
 		Percent: 5,
-		Message: "Checking system prerequisites and package managers...",
+		Message: "Checking system prerequisites and environment...",
 	})
 
 	logger.GetDiskLogger().Append(logger.LogEntry{
@@ -175,20 +157,6 @@ func InstallGrokCLI(ctx context.Context, onProgress func(GrokInstallProgress)) (
 		Details:   map[string]interface{}{"platform": runtime.GOOS},
 	})
 
-	// Check Homebrew availability
-	brewPath := ""
-	for _, path := range []string{"/opt/homebrew/bin/brew", "/usr/local/bin/brew"} {
-		if info, err := os.Stat(path); err == nil && !info.IsDir() {
-			brewPath = path
-			break
-		}
-	}
-	if brewPath == "" {
-		if p, err := exec.LookPath("brew"); err == nil {
-			brewPath = p
-		}
-	}
-
 	var installErr error
 	var recentLogLines []string
 	recordLog := func(line string) {
@@ -198,20 +166,27 @@ func InstallGrokCLI(ctx context.Context, onProgress func(GrokInstallProgress)) (
 		}
 	}
 
-	if brewPath != "" {
+	if runtime.GOOS == "windows" {
 		onProgress(GrokInstallProgress{
 			Stage:   "downloading",
-			Percent: 20,
-			Message: "Homebrew detected. Running `brew install grok`...",
+			Percent: 25,
+			Message: "Running official Grok Windows installer (https://x.ai/cli/install.ps1)...",
 		})
 		logger.GetDiskLogger().Append(logger.LogEntry{
 			Timestamp: time.Now().UnixMilli(),
 			Level:     "INFO",
 			Category:  "grok_installer",
-			Message:   fmt.Sprintf("Attempting Strategy 1: Homebrew installation using %s", brewPath),
+			Message:   "Executing Windows install script via PowerShell: irm https://x.ai/cli/install.ps1 | iex",
 		})
 
-		cmd := exec.CommandContext(ctx, brewPath, "install", "grok")
+		psBinary := "powershell.exe"
+		if p, err := exec.LookPath("pwsh.exe"); err == nil {
+			psBinary = p
+		}
+		cmd := exec.CommandContext(ctx, psBinary, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "irm https://x.ai/cli/install.ps1 | iex")
+		cmd.Env = EnsureExecEnvironment()
+		setSysProcGroup(cmd)
+
 		installErr = streamCommand(cmd, func(line string) {
 			recordLog(line)
 			logger.GetDiskLogger().Append(logger.LogEntry{
@@ -222,45 +197,110 @@ func InstallGrokCLI(ctx context.Context, onProgress func(GrokInstallProgress)) (
 			})
 			onProgress(GrokInstallProgress{
 				Stage:   "installing",
-				Percent: 45,
-				Message: "Installing Grok via Homebrew...",
+				Percent: 60,
+				Message: "Installing Grok CLI on Windows...",
 				LogLine: line,
 			})
 		})
-	}
+	} else if runtime.GOOS == "darwin" {
+		// Check Homebrew availability
+		brewPath := ""
+		for _, path := range []string{"/opt/homebrew/bin/brew", "/usr/local/bin/brew"} {
+			if info, err := os.Stat(path); err == nil && !info.IsDir() {
+				brewPath = path
+				break
+			}
+		}
+		if brewPath == "" {
+			if p, err := exec.LookPath("brew"); err == nil {
+				brewPath = p
+			}
+		}
 
-	// Strategy 2: If Homebrew was not found or failed, use official install script
-	if brewPath == "" || installErr != nil {
-		if installErr != nil {
+		if brewPath != "" {
+			onProgress(GrokInstallProgress{
+				Stage:   "downloading",
+				Percent: 20,
+				Message: "Homebrew detected. Running `brew install grok`...",
+			})
 			logger.GetDiskLogger().Append(logger.LogEntry{
 				Timestamp: time.Now().UnixMilli(),
-				Level:     "WARN",
+				Level:     "INFO",
 				Category:  "grok_installer",
-				Message:   fmt.Sprintf("Homebrew installation failed: %v. Falling back to official install script.", installErr),
+				Message:   fmt.Sprintf("Attempting Strategy 1: Homebrew installation using %s", brewPath),
+			})
+
+			cmd := exec.CommandContext(ctx, brewPath, "install", "grok")
+			cmd.Env = EnsureExecEnvironment()
+			installErr = streamCommand(cmd, func(line string) {
+				recordLog(line)
+				logger.GetDiskLogger().Append(logger.LogEntry{
+					Timestamp: time.Now().UnixMilli(),
+					Level:     "DEBUG",
+					Category:  "grok_installer",
+					Message:   line,
+				})
+				onProgress(GrokInstallProgress{
+					Stage:   "installing",
+					Percent: 45,
+					Message: "Installing Grok via Homebrew...",
+					LogLine: line,
+				})
 			})
 		}
 
+		// Strategy 2: If Homebrew was not found or failed, use official install script
+		if brewPath == "" || installErr != nil {
+			if installErr != nil {
+				logger.GetDiskLogger().Append(logger.LogEntry{
+					Timestamp: time.Now().UnixMilli(),
+					Level:     "WARN",
+					Category:  "grok_installer",
+					Message:   fmt.Sprintf("Homebrew installation failed: %v. Falling back to official install script.", installErr),
+				})
+			}
+
+			onProgress(GrokInstallProgress{
+				Stage:   "downloading",
+				Percent: 30,
+				Message: "Running official install script (https://x.ai/cli/install.sh)...",
+			})
+			logger.GetDiskLogger().Append(logger.LogEntry{
+				Timestamp: time.Now().UnixMilli(),
+				Level:     "INFO",
+				Category:  "grok_installer",
+				Message:   "Attempting Strategy 2: curl -fsSL https://x.ai/cli/install.sh | bash",
+			})
+
+			cmd := exec.CommandContext(ctx, "bash", "-c", "curl -fsSL https://x.ai/cli/install.sh | bash")
+			cmd.Env = EnsureExecEnvironment()
+			installErr = streamCommand(cmd, func(line string) {
+				recordLog(line)
+				logger.GetDiskLogger().Append(logger.LogEntry{
+					Timestamp: time.Now().UnixMilli(),
+					Level:     "DEBUG",
+					Category:  "grok_installer",
+					Message:   line,
+				})
+				onProgress(GrokInstallProgress{
+					Stage:   "installing",
+					Percent: 65,
+					Message: "Running installer script...",
+					LogLine: line,
+				})
+			})
+		}
+	} else {
+		// Linux
 		onProgress(GrokInstallProgress{
 			Stage:   "downloading",
 			Percent: 30,
 			Message: "Running official install script (https://x.ai/cli/install.sh)...",
 		})
-		logger.GetDiskLogger().Append(logger.LogEntry{
-			Timestamp: time.Now().UnixMilli(),
-			Level:     "INFO",
-			Category:  "grok_installer",
-			Message:   "Attempting Strategy 2: curl -fsSL https://x.ai/cli/install.sh | bash",
-		})
-
-		cmd := exec.CommandContext(ctx, "bash", "-c", "curl -fsSL https://x.ai/cli/install.sh | bash")
+		cmd := exec.CommandContext(ctx, "sh", "-c", "curl -fsSL https://x.ai/cli/install.sh | bash")
+		cmd.Env = EnsureExecEnvironment()
 		installErr = streamCommand(cmd, func(line string) {
 			recordLog(line)
-			logger.GetDiskLogger().Append(logger.LogEntry{
-				Timestamp: time.Now().UnixMilli(),
-				Level:     "DEBUG",
-				Category:  "grok_installer",
-				Message:   line,
-			})
 			onProgress(GrokInstallProgress{
 				Stage:   "installing",
 				Percent: 65,

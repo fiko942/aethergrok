@@ -179,9 +179,13 @@ declare global {
           RespondPermission: (resp: PermissionResponsePayload) => Promise<void>;
           CancelSession: (sessionId: string) => Promise<void>;
           SetGrokBinaryPath: (path: string) => Promise<void>;
+          GetGrokBinaryPath?: () => Promise<string>;
+          AutoDetectGrokBinaryPath?: () => Promise<string>;
           CaptureScreenExcludingSelf: (delayMs: number) => Promise<SnapshotResult>;
           RegisterGlobalSnapshotShortcut?: (shortcutStr: string) => Promise<void>;
           UnregisterGlobalSnapshotShortcut?: () => Promise<void>;
+          RegisterGlobalDictationShortcut?: (shortcutStr: string) => Promise<void>;
+          UnregisterGlobalDictationShortcut?: () => Promise<void>;
           GetInstalledSkills: () => Promise<SkillItem[]>;
           SearchSkills: (query: string, category: string) => Promise<SkillItem[]>;
           SelectWorkspaceDirectory: () => Promise<string>;
@@ -201,9 +205,12 @@ declare global {
           SaveUIState: (state: { activeWorkspaceId: string; activeSessionId: string; openTabSessionIds: string[]; updatedAt?: number }) => Promise<void>;
           // Terminal & Process Management APIs
           CreateTerminal: (sessionId: string, termId: string, cwd: string, shell: string) => Promise<void>;
+          EnsureTerminal: (sessionId: string, termId: string, cwd: string, shell: string) => Promise<void>;
           WriteTerminal: (termId: string, data: string) => Promise<void>;
           ResizeTerminal: (termId: string, cols: number, rows: number) => Promise<void>;
           CloseTerminal: (termId: string) => Promise<void>;
+          InterruptTerminal: (termId: string) => Promise<void>;
+          KillTerminal: (termId: string) => Promise<void>;
           GetTerminalBuffer: (termId: string) => Promise<string>;
           CloseSessionTerminals: (sessionId: string) => Promise<void>;
           GetPlanContent: (planPath: string) => Promise<string>;

@@ -21,42 +21,42 @@
   // Helper to parse existing string into parts
   $effect(() => {
     if (open) {
-      recordedParts = currentShortcut ? currentShortcut.split('+').map(p => p.trim()) : ['CmdOrCtrl', 'Shift', 'S'];
-      recordedCode = currentShortcut;
+      if (currentShortcut && currentShortcut.trim() !== '') {
+        recordedParts = currentShortcut.split('+').map(p => {
+          const lower = p.trim().toLowerCase();
+          if (lower === 'cmdorctrl') return isMac ? 'Cmd' : 'Ctrl';
+          if (lower === 'meta' || lower === 'cmd') return isMac ? 'Cmd' : 'Win';
+          if (lower === 'option' || lower === 'opt') return isMac ? 'Option' : 'Alt';
+          return p.trim();
+        });
+        recordedCode = currentShortcut;
+      } else {
+        recordedParts = [isMac ? 'Cmd' : 'Ctrl', 'Shift', 'S'];
+        recordedCode = 'CmdOrCtrl+Shift+S';
+      }
       isListening = true;
     }
   });
 
   function normalizeKey(e: KeyboardEvent): { code: string; displayParts: string[] } {
     const parts: string[] = [];
+    const isModifierCode = ['MetaLeft', 'MetaRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'ShiftLeft', 'ShiftRight'].includes(e.code);
+    const isModifierKey = ['Meta', 'Control', 'Alt', 'Shift', 'OS'].includes(e.key) || isModifierCode;
 
-    // Distinct standalone modifier handling when pressed individually
+    // Distinct standalone modifier handling when pressed individually without other modifier held
+    if (isModifierCode && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+      if (e.code === 'MetaLeft') return { code: 'MetaLeft', displayParts: [isMac ? '⌘ Left' : 'Win Left'] };
+      if (e.code === 'MetaRight') return { code: 'MetaRight', displayParts: [isMac ? '⌘ Right' : 'Win Right'] };
+      if (e.code === 'ShiftLeft') return { code: 'ShiftLeft', displayParts: ['Left Shift'] };
+      if (e.code === 'ShiftRight') return { code: 'ShiftRight', displayParts: ['Right Shift'] };
+      if (e.code === 'ControlLeft') return { code: 'ControlLeft', displayParts: ['Ctrl Left'] };
+      if (e.code === 'ControlRight') return { code: 'ControlRight', displayParts: ['Ctrl Right'] };
+      if (e.code === 'AltLeft') return { code: 'AltLeft', displayParts: [isMac ? '⌥ Left' : 'Alt Left'] };
+      if (e.code === 'AltRight') return { code: 'AltRight', displayParts: [isMac ? '⌥ Right' : 'Alt Right'] };
+    }
+
     if (e.key === 'Fn' || e.code === 'Fn' || e.key === 'Globe' || e.code === 'Globe') {
       return { code: 'Fn', displayParts: [isMac ? 'Fn / Globe' : 'Fn'] };
-    }
-    if (e.code === 'MetaLeft') {
-      return { code: 'MetaLeft', displayParts: [isMac ? '⌘ Left' : 'Win Left'] };
-    }
-    if (e.code === 'MetaRight') {
-      return { code: 'MetaRight', displayParts: [isMac ? '⌘ Right' : 'Win Right'] };
-    }
-    if (e.code === 'ShiftLeft') {
-      return { code: 'ShiftLeft', displayParts: ['Left Shift'] };
-    }
-    if (e.code === 'ShiftRight') {
-      return { code: 'ShiftRight', displayParts: ['Right Shift'] };
-    }
-    if (e.code === 'ControlLeft') {
-      return { code: 'ControlLeft', displayParts: ['Ctrl Left'] };
-    }
-    if (e.code === 'ControlRight') {
-      return { code: 'ControlRight', displayParts: ['Ctrl Right'] };
-    }
-    if (e.code === 'AltLeft') {
-      return { code: 'AltLeft', displayParts: [isMac ? '⌥ Left' : 'Alt Left'] };
-    }
-    if (e.code === 'AltRight') {
-      return { code: 'AltRight', displayParts: [isMac ? '⌥ Right' : 'Alt Right'] };
     }
 
     // Held modifier keys for combinations
@@ -67,25 +67,33 @@
       parts.push(isMac ? 'Option' : 'Alt');
     }
     if (e.shiftKey) {
-      parts.push('Shift');
+      if (isModifierCode && e.code === 'ShiftRight') {
+        parts.push('Right Shift');
+      } else if (isModifierCode && e.code === 'ShiftLeft') {
+        parts.push('Left Shift');
+      } else {
+        parts.push('Shift');
+      }
     }
 
     // Non-modifier main key
     let mainKey = '';
-    const modifierKeys = ['Meta', 'Control', 'Alt', 'Shift', 'OS'];
-    if (!modifierKeys.includes(e.key)) {
+    if (!isModifierKey) {
       if (e.code === 'Space') mainKey = 'Space';
       else if (e.code === 'Slash') mainKey = '/';
       else if (e.code === 'Backslash') mainKey = '\\';
+      else if (e.code === 'Equal') mainKey = '=';
+      else if (e.code === 'Minus') mainKey = '-';
       else if (e.code === 'Delete') mainKey = 'Delete';
       else if (e.code === 'Backspace') mainKey = 'Backspace';
       else if (e.code === 'Escape') mainKey = 'Escape';
       else if (e.code === 'Tab') mainKey = 'Tab';
       else if (e.code === 'Enter') mainKey = 'Enter';
+      else if (e.code.startsWith('F') && !isNaN(Number(e.code.slice(1)))) mainKey = e.code;
       else if (e.key && e.key.length === 1) mainKey = e.key.toUpperCase();
       else if (e.code) mainKey = e.code.replace('Key', '').replace('Digit', '');
 
-      if (mainKey) {
+      if (mainKey && !parts.includes(mainKey)) {
         parts.push(mainKey);
       }
     }
@@ -104,7 +112,7 @@
       if (hasShift) standardParts.push('Shift');
       if (comboMain) standardParts.push(comboMain);
 
-      codeString = standardParts.join('+');
+      codeString = standardParts.length > 0 ? standardParts.join('+') : parts.join('+');
     } else {
       codeString = e.code || e.key;
     }
@@ -153,7 +161,7 @@
 
   function handleResetDefault() {
     recordedCode = 'CmdOrCtrl+Shift+S';
-    recordedParts = ['CmdOrCtrl', 'Shift', 'S'];
+    recordedParts = [isMac ? 'Cmd' : 'Ctrl', 'Shift', 'S'];
   }
 </script>
 

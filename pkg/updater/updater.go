@@ -156,6 +156,181 @@ func CompareSemVer(v1, v2 string) int {
 	return 0
 }
 
+// scoreReleaseAsset evaluates how well an asset filename matches target OS and arch.
+// Higher score indicates better match. A score <= 0 indicates not matching.
+func scoreReleaseAsset(name string, isWindows, isDarwin, isARM64, isAMD64 bool) int {
+	lower := strings.ToLower(name)
+
+	// Exclude non-executable / checksum / metadata files
+	ignoredExts := []string{
+		".sha256", ".sha256sum", ".md5", ".sig", ".asc",
+		".sha1", ".sha512", ".blockmap", ".txt", ".json", ".md", ".log",
+	}
+	for _, ext := range ignoredExts {
+		if strings.HasSuffix(lower, ext) {
+			return 0
+		}
+	}
+
+	if isDarwin {
+		// Reject assets clearly for other OSes
+		if strings.Contains(lower, "win") || strings.Contains(lower, "windows") ||
+			strings.Contains(lower, "linux") || strings.Contains(lower, "android") ||
+			strings.HasSuffix(lower, ".exe") || strings.HasSuffix(lower, ".deb") ||
+			strings.HasSuffix(lower, ".rpm") || strings.HasSuffix(lower, ".appimage") {
+			return 0
+		}
+
+		isDMG := strings.HasSuffix(lower, ".dmg") || strings.Contains(lower, "dmg")
+		isZip := strings.HasSuffix(lower, ".zip") || strings.Contains(lower, "zip") || strings.HasSuffix(lower, ".tar.gz")
+		hasMacTag := strings.Contains(lower, "mac") || strings.Contains(lower, "darwin") || strings.Contains(lower, "osx") || strings.Contains(lower, "apple")
+
+		if !isDMG && !isZip && !hasMacTag {
+			return 0
+		}
+
+		hasArm64 := strings.Contains(lower, "arm64") || strings.Contains(lower, "aarch64") ||
+			strings.Contains(lower, "apple silicon") || strings.Contains(lower, "applesilicon") ||
+			strings.Contains(lower, "m1") || strings.Contains(lower, "m2") || strings.Contains(lower, "m3")
+		hasAmd64 := strings.Contains(lower, "amd64") || strings.Contains(lower, "x64") ||
+			strings.Contains(lower, "x86_64") || strings.Contains(lower, "intel")
+
+		if isARM64 {
+			if isDMG {
+				if hasArm64 {
+					return 350
+				}
+				if !hasAmd64 {
+					return 200 // generic/universal DMG
+				}
+			} else if isZip {
+				if hasArm64 {
+					return 250
+				}
+				if !hasAmd64 {
+					return 180
+				}
+			}
+		} else if isAMD64 {
+			if isDMG {
+				if hasAmd64 {
+					return 350
+				}
+				if !hasArm64 {
+					return 200 // generic/universal DMG
+				}
+			} else if isZip {
+				if hasAmd64 {
+					return 250
+				}
+				if !hasArm64 {
+					return 180
+				}
+			}
+		}
+		return 0
+	}
+
+	if isWindows {
+		// Reject assets clearly for other OSes
+		if (strings.Contains(lower, "darwin") || strings.Contains(lower, "macos") ||
+			strings.Contains(lower, "mac-") || strings.Contains(lower, "mac_") ||
+			strings.Contains(lower, "linux") || strings.Contains(lower, "android") ||
+			strings.HasSuffix(lower, ".dmg") || strings.HasSuffix(lower, ".deb") ||
+			strings.HasSuffix(lower, ".rpm") || strings.HasSuffix(lower, ".appimage")) &&
+			!strings.Contains(lower, "windows") && !strings.Contains(lower, "win") {
+			return 0
+		}
+
+		isExe := strings.HasSuffix(lower, ".exe") || strings.Contains(lower, "_exe") || strings.Contains(lower, ".exe.")
+		isZip := strings.HasSuffix(lower, ".zip") || strings.Contains(lower, "_zip") || strings.HasSuffix(lower, ".7z")
+		hasWinTag := strings.Contains(lower, "win") || strings.Contains(lower, "windows")
+		isSetup := strings.Contains(lower, "setup") || strings.Contains(lower, "installer")
+
+		// If it has no windows indicator, exe suffix, zip suffix, or setup/installer keyword, skip
+		if !isExe && !isZip && !hasWinTag && !isSetup {
+			return 0
+		}
+
+		hasArm64 := strings.Contains(lower, "arm64") || strings.Contains(lower, "aarch64") || strings.Contains(lower, "armv8")
+		hasAmd64 := strings.Contains(lower, "amd64") || strings.Contains(lower, "x64") ||
+			strings.Contains(lower, "x86_64") || strings.Contains(lower, "x86-64") || strings.Contains(lower, "intel")
+		isGenericArch := !hasArm64 && !hasAmd64
+
+		if isAMD64 {
+			// ARM64 binaries should not match AMD64 Windows
+			if hasArm64 && !hasAmd64 {
+				return 0
+			}
+
+			// Priority 1: NSIS Setup / Installer (.exe)
+			if isSetup || (isExe && strings.Contains(lower, "setup")) {
+				if hasAmd64 {
+					return 350 // e.g. AetherGrok-1.0.1-windows-x64-setup.exe, windows_x64_setup
+				}
+				if isGenericArch || hasWinTag {
+					return 320 // e.g. AetherGrok-Setup.exe, setup.exe, installer.exe
+				}
+			}
+
+			// Priority 2: Portable .zip
+			if isZip {
+				if hasAmd64 {
+					return 250 // e.g. aethergrok-windows-amd64.zip, windows_x64_zip
+				}
+				if isGenericArch || hasWinTag {
+					return 220 // e.g. aethergrok-windows.zip, aethergrok-portable.zip
+				}
+			}
+
+			// Priority 3: Standalone executable (.exe)
+			if isExe {
+				if hasAmd64 {
+					return 150 // e.g. aethergrok-windows-amd64.exe, windows_x64_exe
+				}
+				if isGenericArch || hasWinTag {
+					return 120 // e.g. aethergrok.exe, aethergrok-windows.exe
+				}
+			}
+
+			if hasAmd64 {
+				return 50
+			}
+		} else if isARM64 {
+			// Priority 1: NSIS Setup / Installer for ARM64
+			if (isSetup || isExe) && hasArm64 && isSetup {
+				return 350 // e.g. AetherGrok-1.0.1-windows-arm64-setup.exe, windows_arm64_setup
+			}
+
+			// Priority 2: Portable .zip for ARM64
+			if isZip && hasArm64 {
+				return 250 // e.g. aethergrok-windows-arm64.zip, windows_arm64_zip
+			}
+
+			// Priority 3: Standalone executable for ARM64
+			if isExe && hasArm64 {
+				return 150 // e.g. aethergrok-windows-arm64.exe, windows_arm64_exe
+			}
+
+			// Fallbacks if no ARM64 specific binary exists
+			if isSetup && isGenericArch {
+				return 80 // generic setup
+			}
+			if isZip && (isGenericArch || hasWinTag) {
+				return 60
+			}
+			if isExe && (isGenericArch || hasWinTag) {
+				return 40
+			}
+			if hasAmd64 && isSetup {
+				return 20 // AMD64 emulation fallback
+			}
+		}
+	}
+
+	return 0
+}
+
 // MatchPlatformAsset finds the best matching release asset for the given OS and architecture.
 // osName: "darwin" / "macos", "windows" / "win32"
 // arch: "arm64" / "aarch64", "amd64" / "x64" / "x86_64"
@@ -167,64 +342,100 @@ func MatchPlatformAsset(assets []ReleaseAsset, osName, arch string) *ReleaseAsse
 	normOS := strings.ToLower(osName)
 	normArch := strings.ToLower(arch)
 
-	isDarwin := normOS == "darwin" || normOS == "macos" || strings.Contains(normOS, "mac")
+	isDarwin := normOS == "darwin" || normOS == "macos" || strings.Contains(normOS, "mac") || strings.Contains(normOS, "osx")
 	isWindows := normOS == "windows" || normOS == "win32" || strings.Contains(normOS, "win")
-	isARM64 := normArch == "arm64" || normArch == "aarch64"
-	isAMD64 := normArch == "amd64" || normArch == "x64" || normArch == "x86_64"
+	isARM64 := normArch == "arm64" || normArch == "aarch64" || strings.Contains(normArch, "arm")
+	isAMD64 := normArch == "amd64" || normArch == "x64" || normArch == "x86_64" || normArch == "amd"
 
-	var matched *ReleaseAsset
+	var bestAsset *ReleaseAsset
+	bestScore := 0
 
 	for i := range assets {
 		asset := &assets[i]
-		lowerName := strings.ToLower(asset.Name)
+		score := scoreReleaseAsset(asset.Name, isWindows, isDarwin, isARM64, isAMD64)
+		if score > bestScore {
+			bestScore = score
+			bestAsset = asset
+		}
+	}
 
-		if isDarwin {
-			// Check for DMG filenames (.dmg) or canonical keys (e.g. macos_arm64_dmg, macos_x64_dmg)
-			if !strings.HasSuffix(lowerName, ".dmg") && !strings.Contains(lowerName, "dmg") {
-				continue
+	return bestAsset
+}
+
+// FindChecksumAsset searches a list of release assets for the checksum file (.sha256 / .sha256sum)
+// that corresponds to the given target binary asset.
+func FindChecksumAsset(assets []ReleaseAsset, targetAsset *ReleaseAsset) *ReleaseAsset {
+	if targetAsset == nil || len(assets) == 0 {
+		return nil
+	}
+
+	targetName := strings.ToLower(targetAsset.Name)
+	targetExt := filepath.Ext(targetName)
+	baseWithoutExt := strings.TrimSuffix(targetName, targetExt)
+
+	// 1. Exact match: <targetName>.sha256 or <targetName>.sha256sum
+	for i := range assets {
+		a := &assets[i]
+		lower := strings.ToLower(a.Name)
+		if lower == targetName+".sha256" || lower == targetName+".sha256sum" {
+			return a
+		}
+	}
+
+	// 2. Base without ext match: <baseWithoutExt>.sha256 or <baseWithoutExt>.sha256sum
+	for i := range assets {
+		a := &assets[i]
+		lower := strings.ToLower(a.Name)
+		if lower == baseWithoutExt+".sha256" || lower == baseWithoutExt+".sha256sum" {
+			return a
+		}
+	}
+
+	// 3. Platform & arch heuristic match
+	isARM64 := strings.Contains(targetName, "arm64") || strings.Contains(targetName, "aarch64")
+	isAMD64 := strings.Contains(targetName, "amd64") || strings.Contains(targetName, "x64") || strings.Contains(targetName, "x86_64") || strings.Contains(targetName, "intel")
+	isWin := strings.Contains(targetName, "win") || strings.Contains(targetName, "windows") || strings.HasSuffix(targetName, ".exe")
+	isMac := strings.Contains(targetName, "mac") || strings.Contains(targetName, "darwin") || strings.HasSuffix(targetName, ".dmg")
+
+	for i := range assets {
+		a := &assets[i]
+		lower := strings.ToLower(a.Name)
+		if !strings.HasSuffix(lower, ".sha256") && !strings.HasSuffix(lower, ".sha256sum") && !strings.Contains(lower, "checksum") {
+			continue
+		}
+
+		if isMac && (strings.Contains(lower, "mac") || strings.Contains(lower, "darwin") || strings.Contains(lower, "dmg")) {
+			if isARM64 && (strings.Contains(lower, "arm64") || strings.Contains(lower, "aarch64")) {
+				return a
 			}
-			if isARM64 {
-				if strings.Contains(lowerName, "arm64") || strings.Contains(lowerName, "apple silicon") || strings.Contains(lowerName, "aarch64") {
-					return asset
-				}
-			} else if isAMD64 {
-				if strings.Contains(lowerName, "amd64") || strings.Contains(lowerName, "x64") || strings.Contains(lowerName, "intel") {
-					return asset
-				}
+			if isAMD64 && (strings.Contains(lower, "amd64") || strings.Contains(lower, "x64") || strings.Contains(lower, "intel")) {
+				return a
 			}
-			// Keep as potential candidate if generic dmg
-			if matched == nil {
-				matched = asset
+		}
+
+		if isWin && (strings.Contains(lower, "win") || strings.Contains(lower, "windows") || strings.Contains(lower, "exe") || strings.Contains(lower, "zip")) {
+			if isARM64 && (strings.Contains(lower, "arm64") || strings.Contains(lower, "aarch64")) {
+				return a
 			}
-		} else if isWindows {
-			// Check for EXE filenames (.exe) or canonical keys (e.g. windows_x64_setup, windows_arm64_setup)
-			if !strings.HasSuffix(lowerName, ".exe") && !strings.Contains(lowerName, "setup") && !strings.Contains(lowerName, "installer") {
-				continue
-			}
-			if isARM64 {
-				if (strings.Contains(lowerName, "arm64") || strings.Contains(lowerName, "aarch64")) &&
-					(strings.Contains(lowerName, "-setup") || strings.Contains(lowerName, "_setup") || strings.Contains(lowerName, "installer") || strings.Contains(lowerName, "setup")) {
-					return asset
-				}
-				if strings.Contains(lowerName, "arm64") || strings.Contains(lowerName, "aarch64") {
-					matched = asset
-				}
-			} else if isAMD64 {
-				if (strings.Contains(lowerName, "amd64") || strings.Contains(lowerName, "x64") || strings.Contains(lowerName, "x86_64")) &&
-					(strings.Contains(lowerName, "-setup") || strings.Contains(lowerName, "_setup") || strings.Contains(lowerName, "installer") || strings.Contains(lowerName, "setup")) {
-					return asset
-				}
-				if strings.Contains(lowerName, "x64") || strings.Contains(lowerName, "amd64") {
-					matched = asset
-				}
-			}
-			if matched == nil && (strings.Contains(lowerName, "setup") || strings.Contains(lowerName, "installer")) {
-				matched = asset
+			if isAMD64 && (strings.Contains(lower, "amd64") || strings.Contains(lower, "x64") || strings.Contains(lower, "intel")) {
+				return a
 			}
 		}
 	}
 
-	return matched
+	// 4. Generic SHA256SUMS / checksums bundle file
+	for i := range assets {
+		a := &assets[i]
+		lower := strings.ToLower(a.Name)
+		if lower == "sha256sums" || lower == "sha256sums.txt" ||
+			lower == "checksums" || lower == "checksums.txt" ||
+			lower == "checksums.sha256" || lower == "release.sha256" ||
+			strings.HasPrefix(lower, "sha256sums") || strings.HasPrefix(lower, "checksums") {
+			return a
+		}
+	}
+
+	return nil
 }
 
 // ExtractHighlightsFromMarkdown extracts bullet points from markdown body

@@ -8,22 +8,22 @@
     !define INFO_PROJECTNAME "aethergrok"
 !endif
 !ifndef INFO_COMPANYNAME
-    !define INFO_COMPANYNAME "aethergrok"
+    !define INFO_COMPANYNAME "AetherGrok"
 !endif
 !ifndef INFO_PRODUCTNAME
-    !define INFO_PRODUCTNAME "aethergrok"
+    !define INFO_PRODUCTNAME "AetherGrok"
 !endif
 !ifndef INFO_PRODUCTVERSION
-    !define INFO_PRODUCTVERSION "1.0.0"
+    !define INFO_PRODUCTVERSION "1.0.1"
 !endif
 !ifndef INFO_COPYRIGHT
-    !define INFO_COPYRIGHT "Copyright........."
+    !define INFO_COPYRIGHT "Copyright (c) 2026 Wiji Fiko Teren"
 !endif
 !ifndef PRODUCT_EXECUTABLE
     !define PRODUCT_EXECUTABLE "${INFO_PROJECTNAME}.exe"
 !endif
 !ifndef UNINST_KEY_NAME
-    !define UNINST_KEY_NAME "${INFO_COMPANYNAME}${INFO_PRODUCTNAME}"
+    !define UNINST_KEY_NAME "${INFO_PRODUCTNAME}"
 !endif
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${UNINST_KEY_NAME}"
 
@@ -117,27 +117,42 @@ RequestExecutionLevel "${REQUEST_EXECUTION_LEVEL}"
     SetRegView 64
     !ifdef WAILS_INSTALL_SCOPE
       !if "${WAILS_INSTALL_SCOPE}" == "user"
-        WriteRegStr HKCU "${UNINST_KEY}" "Publisher" "${INFO_COMPANYNAME}"
         WriteRegStr HKCU "${UNINST_KEY}" "DisplayName" "${INFO_PRODUCTNAME}"
+        WriteRegStr HKCU "${UNINST_KEY}" "DisplayIcon" "$INSTDIR\${PRODUCT_EXECUTABLE},0"
         WriteRegStr HKCU "${UNINST_KEY}" "DisplayVersion" "${INFO_PRODUCTVERSION}"
-        WriteRegStr HKCU "${UNINST_KEY}" "DisplayIcon" "$INSTDIR\${PRODUCT_EXECUTABLE}"
+        WriteRegStr HKCU "${UNINST_KEY}" "Publisher" "${INFO_COMPANYNAME}"
         WriteRegStr HKCU "${UNINST_KEY}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
         WriteRegStr HKCU "${UNINST_KEY}" "QuietUninstallString" "$\"$INSTDIR\uninstall.exe$\" /S"
+        WriteRegStr HKCU "${UNINST_KEY}" "InstallLocation" "$INSTDIR"
+        WriteRegStr HKCU "${UNINST_KEY}" "HelpLink" "https://github.com/fiko942/aethergrok"
+        WriteRegStr HKCU "${UNINST_KEY}" "URLInfoAbout" "https://github.com/fiko942/aethergrok"
+        WriteRegDWORD HKCU "${UNINST_KEY}" "NoModify" 1
+        WriteRegDWORD HKCU "${UNINST_KEY}" "NoRepair" 1
       !else
-        WriteRegStr HKLM "${UNINST_KEY}" "Publisher" "${INFO_COMPANYNAME}"
         WriteRegStr HKLM "${UNINST_KEY}" "DisplayName" "${INFO_PRODUCTNAME}"
+        WriteRegStr HKLM "${UNINST_KEY}" "DisplayIcon" "$INSTDIR\${PRODUCT_EXECUTABLE},0"
         WriteRegStr HKLM "${UNINST_KEY}" "DisplayVersion" "${INFO_PRODUCTVERSION}"
-        WriteRegStr HKLM "${UNINST_KEY}" "DisplayIcon" "$INSTDIR\${PRODUCT_EXECUTABLE}"
+        WriteRegStr HKLM "${UNINST_KEY}" "Publisher" "${INFO_COMPANYNAME}"
         WriteRegStr HKLM "${UNINST_KEY}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
         WriteRegStr HKLM "${UNINST_KEY}" "QuietUninstallString" "$\"$INSTDIR\uninstall.exe$\" /S"
+        WriteRegStr HKLM "${UNINST_KEY}" "InstallLocation" "$INSTDIR"
+        WriteRegStr HKLM "${UNINST_KEY}" "HelpLink" "https://github.com/fiko942/aethergrok"
+        WriteRegStr HKLM "${UNINST_KEY}" "URLInfoAbout" "https://github.com/fiko942/aethergrok"
+        WriteRegDWORD HKLM "${UNINST_KEY}" "NoModify" 1
+        WriteRegDWORD HKLM "${UNINST_KEY}" "NoRepair" 1
       !endif
     !else
-        WriteRegStr HKLM "${UNINST_KEY}" "Publisher" "${INFO_COMPANYNAME}"
         WriteRegStr HKLM "${UNINST_KEY}" "DisplayName" "${INFO_PRODUCTNAME}"
+        WriteRegStr HKLM "${UNINST_KEY}" "DisplayIcon" "$INSTDIR\${PRODUCT_EXECUTABLE},0"
         WriteRegStr HKLM "${UNINST_KEY}" "DisplayVersion" "${INFO_PRODUCTVERSION}"
-        WriteRegStr HKLM "${UNINST_KEY}" "DisplayIcon" "$INSTDIR\${PRODUCT_EXECUTABLE}"
+        WriteRegStr HKLM "${UNINST_KEY}" "Publisher" "${INFO_COMPANYNAME}"
         WriteRegStr HKLM "${UNINST_KEY}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
         WriteRegStr HKLM "${UNINST_KEY}" "QuietUninstallString" "$\"$INSTDIR\uninstall.exe$\" /S"
+        WriteRegStr HKLM "${UNINST_KEY}" "InstallLocation" "$INSTDIR"
+        WriteRegStr HKLM "${UNINST_KEY}" "HelpLink" "https://github.com/fiko942/aethergrok"
+        WriteRegStr HKLM "${UNINST_KEY}" "URLInfoAbout" "https://github.com/fiko942/aethergrok"
+        WriteRegDWORD HKLM "${UNINST_KEY}" "NoModify" 1
+        WriteRegDWORD HKLM "${UNINST_KEY}" "NoRepair" 1
     !endif
 
     ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2

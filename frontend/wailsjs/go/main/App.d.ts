@@ -12,6 +12,8 @@ import {main} from '../models';
 
 export function AppendSystemLog(arg1:logger.LogEntry):Promise<void>;
 
+export function AutoDetectGrokBinaryPath():Promise<string>;
+
 export function CancelSession(arg1:string):Promise<void>;
 
 export function CancelUpdateDownload():Promise<void>;
@@ -62,6 +64,8 @@ export function DiscoverGrokSessions(arg1:string):Promise<Array<grokrunner.GrokS
 
 export function DownloadAndInstallUpdate(arg1:string,arg2:string):Promise<void>;
 
+export function EnsureTerminal(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
+
 export function ExecuteSkillSetupCommand(arg1:string,arg2:string):Promise<void>;
 
 export function GetAppSettings():Promise<storage.AppSettings>;
@@ -69,6 +73,8 @@ export function GetAppSettings():Promise<storage.AppSettings>;
 export function GetAvailableModels():Promise<Array<grokrunner.ModelInfo>>;
 
 export function GetChangelogHistory():Promise<Array<updater.ReleaseInfo>>;
+
+export function GetGrokBinaryPath():Promise<string>;
 
 export function GetInstalledSkills():Promise<Array<skills.Skill>>;
 
@@ -96,6 +102,10 @@ export function InstallDiscoveredSkills(arg1:skills.SkillInstallPayload):Promise
 
 export function InstallGrokCLI():Promise<grokrunner.GrokInstallStatus>;
 
+export function InterruptTerminal(arg1:string):Promise<void>;
+
+export function KillTerminal(arg1:string):Promise<void>;
+
 export function LoadGrokSessionHistory(arg1:string,arg2:string):Promise<Array<grokrunner.DiscoveredChatMessage>>;
 
 export function LoadPersistedLogs(arg1:number):Promise<Array<logger.LogEntry>>;
@@ -119,6 +129,8 @@ export function PushWorkspaceChanges(arg1:string):Promise<string>;
 export function ReadWorkspaceDirectory(arg1:string,arg2:string):Promise<Array<workspace.FileItem>>;
 
 export function ReadWorkspaceFileContent(arg1:string,arg2:string,arg3:boolean):Promise<string>;
+
+export function RegisterGlobalDictationShortcut(arg1:string):Promise<void>;
 
 export function RegisterGlobalSnapshotShortcut(arg1:string):Promise<void>;
 
@@ -161,6 +173,8 @@ export function SelectWorkspaceDirectory():Promise<string>;
 export function SetGrokBinaryPath(arg1:string):Promise<void>;
 
 export function TranscribeAudioWithGrok(arg1:string,arg2:string):Promise<string>;
+
+export function UnregisterGlobalDictationShortcut():Promise<void>;
 
 export function UnregisterGlobalSnapshotShortcut():Promise<void>;
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import type { GrokInstallStatus, GrokInstallProgress } from '$app';
+  import type { GrokInstallStatus, GrokInstallProgress } from '../../../app';
   import {
     Sparkles,
     Download,
@@ -26,7 +26,7 @@
 
   type InstallState = 'not_installed' | 'installing' | 'success' | 'error';
 
-  let state = $state<InstallState>('not_installed');
+  let installState = $state<InstallState>('not_installed');
   let status = $state<GrokInstallStatus | null>(null);
   let progress = $state<GrokInstallProgress>({
     stage: 'preparing',
@@ -52,7 +52,7 @@
         const res = await window.go.main.App.CheckGrokInstallation();
         status = res;
         if (res.installed) {
-          state = 'success';
+          installState = 'success';
         }
       }
     } catch (err) {
@@ -61,7 +61,7 @@
   }
 
   async function startInstallation() {
-    state = 'installing';
+    installState = 'installing';
     logs = ['[INFO] Initiating Grok CLI automated installer...'];
     progress = {
       stage: 'preparing',
@@ -75,7 +75,7 @@
         const res = await window.go.main.App.InstallGrokCLI();
         status = res;
         if (res.installed) {
-          state = 'success';
+          installState = 'success';
           progress = {
             stage: 'completed',
             percent: 100,
@@ -84,18 +84,18 @@
           };
           logs = [...logs, `[SUCCESS] Grok CLI ${res.version || ''} verified at ${res.binaryPath}`];
         } else {
-          state = 'error';
+          installState = 'error';
           const errMsg = res.error || 'Installation encountered an unknown issue.';
           logs = [...logs, `[ERROR] ${errMsg}`];
         }
       } else {
         // Fallback for mock/test environments
-        state = 'error';
+        installState = 'error';
         const errMsg = 'InstallGrokCLI backend binding is unavailable.';
         logs = [...logs, `[ERROR] ${errMsg}`];
       }
     } catch (err: any) {
-      state = 'error';
+      installState = 'error';
       const errMsg = err?.message || String(err) || 'Failed to execute Grok installer.';
       logs = [...logs, `[ERROR] ${errMsg}`];
     }
@@ -105,7 +105,7 @@
     const textToCopy = [
       `Grok CLI Installation Diagnostic Logs`,
       `Platform: ${status?.platform || navigator.platform}`,
-      `State: ${state}`,
+      `State: ${installState}`,
       `Progress: ${progress.percent}% - ${progress.message}`,
       `Error: ${status?.error || 'N/A'}`,
       `--- Logs ---`,
@@ -137,11 +137,11 @@
             setTimeout(scrollToBottom, 50);
           }
           if (data.stage === 'completed') {
-            state = 'success';
+            installState = 'success';
           } else if (data.stage === 'error') {
-            state = 'error';
-          } else if (state !== 'installing' && data.stage !== 'completed') {
-            state = 'installing';
+            installState = 'error';
+          } else if (installState !== 'installing') {
+            installState = 'installing';
           }
         }
       });
@@ -171,17 +171,17 @@
     <!-- Header -->
     <div class="flex items-start space-x-4">
       <div
-        class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-300 {state === 'success'
+        class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-300 {installState === 'success'
           ? 'bg-emerald-500/15 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.15)]'
-          : state === 'error'
+          : installState === 'error'
           ? 'bg-rose-500/15 text-rose-400 shadow-[0_0_20px_rgba(244,63,94,0.15)]'
           : 'bg-ant-primary/15 text-ant-primary shadow-[0_0_20px_rgba(22,119,255,0.15)]'}"
       >
-        {#if state === 'success'}
+        {#if installState === 'success'}
           <CheckCircle2 size={28} />
-        {:else if state === 'error'}
+        {:else if installState === 'error'}
           <AlertCircle size={28} />
-        {:else if state === 'installing'}
+        {:else if installState === 'installing'}
           <Loader2 size={28} class="animate-spin" />
         {:else}
           <Cpu size={28} />
@@ -190,22 +190,22 @@
 
       <div class="flex-1 min-w-0">
         <h2 id="grok-install-modal-title" class="font-serif-display text-lg font-bold text-ant-text tracking-tight">
-          {#if state === 'success'}
+          {#if installState === 'success'}
             Grok CLI Ready
-          {:else if state === 'installing'}
+          {:else if installState === 'installing'}
             Installing Grok CLI
-          {:else if state === 'error'}
+          {:else if installState === 'error'}
             Installation Encountered an Issue
           {:else}
             Grok CLI Required
           {/if}
         </h2>
         <p class="font-serif text-xs text-ant-text-secondary mt-1 leading-relaxed">
-          {#if state === 'success'}
+          {#if installState === 'success'}
             Grok CLI is verified and connected. AetherGrok Desktop Studio is ready to run sessions, execute tools, and automate workflows.
-          {:else if state === 'installing'}
+          {:else if installState === 'installing'}
             Setting up the official Grok CLI runtime engine for desktop reasoning and agent tool execution.
-          {:else if state === 'error'}
+          {:else if installState === 'error'}
             We encountered a problem while attempting to download or verify the Grok CLI binary on your system.
           {:else}
             AetherGrok Desktop Studio relies on the official Grok CLI to power fast multi-model reasoning, interactive coding agents, and terminal tool execution.
@@ -215,7 +215,7 @@
     </div>
 
     <!-- Main Content Area based on State -->
-    {#if state === 'not_installed'}
+    {#if installState === 'not_installed'}
       <div class="bg-ant-bg-secondary rounded-xl p-4 space-y-3.5 border border-ant-border-secondary dark:border-white/5">
         <div class="space-y-2 text-xs font-serif text-ant-text">
           <div class="flex items-center gap-2 font-medium text-ant-text">
@@ -244,7 +244,7 @@
           <span>Install Grok CLI</span>
         </button>
       </div>
-    {:else if state === 'installing'}
+    {:else if installState === 'installing'}
       <!-- Progress Bar & Status -->
       <div class="bg-ant-bg-secondary rounded-xl p-4 space-y-3 border border-ant-border-secondary dark:border-white/5">
         <div class="flex items-center justify-between text-xs font-serif">
@@ -292,7 +292,7 @@
           {/if}
         </div>
       </div>
-    {:else if state === 'success'}
+    {:else if installState === 'success'}
       <div class="bg-ant-bg-secondary rounded-xl p-4 space-y-3 border border-ant-border-secondary dark:border-white/5">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
@@ -324,7 +324,7 @@
           <ArrowRight size={15} />
         </button>
       </div>
-    {:else if state === 'error'}
+    {:else if installState === 'error'}
       <div class="bg-ant-bg-secondary rounded-xl p-4 space-y-3 border border-rose-500/20">
         <div class="text-xs font-serif text-rose-400 font-medium">
           {status?.error || progress.message || 'An error occurred during installation.'}

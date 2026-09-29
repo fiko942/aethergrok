@@ -6,6 +6,10 @@ export function AppendSystemLog(arg1) {
   return window['go']['main']['App']['AppendSystemLog'](arg1);
 }
 
+export function AutoDetectGrokBinaryPath() {
+  return window['go']['main']['App']['AutoDetectGrokBinaryPath']();
+}
+
 export function CancelSession(arg1) {
   return window['go']['main']['App']['CancelSession'](arg1);
 }
@@ -106,6 +110,10 @@ export function DownloadAndInstallUpdate(arg1, arg2) {
   return window['go']['main']['App']['DownloadAndInstallUpdate'](arg1, arg2);
 }
 
+export function EnsureTerminal(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['EnsureTerminal'](arg1, arg2, arg3, arg4);
+}
+
 export function ExecuteSkillSetupCommand(arg1, arg2) {
   return window['go']['main']['App']['ExecuteSkillSetupCommand'](arg1, arg2);
 }
@@ -120,6 +128,10 @@ export function GetAvailableModels() {
 
 export function GetChangelogHistory() {
   return window['go']['main']['App']['GetChangelogHistory']();
+}
+
+export function GetGrokBinaryPath() {
+  return window['go']['main']['App']['GetGrokBinaryPath']();
 }
 
 export function GetInstalledSkills() {
@@ -174,6 +186,14 @@ export function InstallGrokCLI() {
   return window['go']['main']['App']['InstallGrokCLI']();
 }
 
+export function InterruptTerminal(arg1) {
+  return window['go']['main']['App']['InterruptTerminal'](arg1);
+}
+
+export function KillTerminal(arg1) {
+  return window['go']['main']['App']['KillTerminal'](arg1);
+}
+
 export function LoadGrokSessionHistory(arg1, arg2) {
   return window['go']['main']['App']['LoadGrokSessionHistory'](arg1, arg2);
 }
@@ -220,6 +240,10 @@ export function ReadWorkspaceDirectory(arg1, arg2) {
 
 export function ReadWorkspaceFileContent(arg1, arg2, arg3) {
   return window['go']['main']['App']['ReadWorkspaceFileContent'](arg1, arg2, arg3);
+}
+
+export function RegisterGlobalDictationShortcut(arg1) {
+  return window['go']['main']['App']['RegisterGlobalDictationShortcut'](arg1);
 }
 
 export function RegisterGlobalSnapshotShortcut(arg1) {
@@ -304,6 +328,10 @@ export function SetGrokBinaryPath(arg1) {
 
 export function TranscribeAudioWithGrok(arg1, arg2) {
   return window['go']['main']['App']['TranscribeAudioWithGrok'](arg1, arg2);
+}
+
+export function UnregisterGlobalDictationShortcut() {
+  return window['go']['main']['App']['UnregisterGlobalDictationShortcut']();
 }
 
 export function UnregisterGlobalSnapshotShortcut() {

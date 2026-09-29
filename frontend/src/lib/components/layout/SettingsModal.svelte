@@ -89,6 +89,10 @@
   let audioInputDevices = $state<AudioInputDevice[]>([]);
   let isCheckingMic = $state(false);
 
+  async function loadAudioDevices() {
+    await checkMicPermissionAndDevices();
+  }
+
   async function checkMicPermissionAndDevices() {
     isCheckingMic = true;
     try {
@@ -209,6 +213,12 @@
       saveSuccessNotice = false;
       refreshCacheStats();
       checkMicPermissionAndDevices();
+    }
+  });
+
+  $effect(() => {
+    if (activeTab === 'voice' && visible) {
+      loadAudioDevices();
     }
   });
 
@@ -379,7 +389,7 @@
       : editDefaultModel;
 
     settingsStore.updateSettings({
-      grokBinaryPath: editGrokBinaryPath.trim() || '/Users/fiko942/.local/bin/grok',
+      grokBinaryPath: editGrokBinaryPath.trim() || (settingsStore.grokBinaryPath || ''),
       snapshotShortcut: editSnapshotShortcut.trim() || 'CmdOrCtrl+Shift+S',
       dictationShortcut: editDictationShortcut.trim() || '\\',
       dictationMuteSystemAudio: editDictationMuteSystemAudio,
@@ -423,7 +433,10 @@
     editCustomModelName = '';
     editDefaultReasoningEffort = settingsStore.defaultReasoningEffort;
     editPermissionMode = settingsStore.permissionMode;
+    editPlanGateMode = settingsStore.planGateMode;
+    editAnimationsEnabled = settingsStore.animationsEnabled;
     editTheme = settingsStore.theme;
+    editSelectedMicrophoneDeviceId = settingsStore.selectedMicrophoneDeviceId;
   }
 
   function handleKeyDown(e: KeyboardEvent) {
@@ -566,8 +579,25 @@
                     </div>
                     <button
                       type="button"
-                      class="text-[11px] text-ant-primary hover:underline flex items-center gap-1"
-                      onclick={() => editGrokBinaryPath = '/Users/fiko942/.local/bin/grok'}
+                      class="text-[11px] text-ant-primary hover:underline flex items-center gap-1 cursor-pointer"
+                      onclick={async () => {
+                        const win = window as any;
+                        if (win?.go?.main?.App?.AutoDetectGrokBinaryPath) {
+                          try {
+                            const detected = await win.go.main.App.AutoDetectGrokBinaryPath();
+                            if (detected) editGrokBinaryPath = detected;
+                          } catch (e) {
+                            console.error('Failed to auto-detect Grok CLI path:', e);
+                          }
+                        } else if (win?.go?.main?.App?.CheckGrokInstallation) {
+                          try {
+                            const status = await win.go.main.App.CheckGrokInstallation();
+                            if (status?.binaryPath) editGrokBinaryPath = status.binaryPath;
+                          } catch (e) {
+                            console.error('Failed to check Grok CLI installation:', e);
+                          }
+                        }
+                      }}
                     >
                       <RotateCcw size={12} /> Auto-Detect
                     </button>
@@ -575,7 +605,7 @@
                   <input
                     type="text"
                     bind:value={editGrokBinaryPath}
-                    placeholder="/Users/fiko942/.local/bin/grok"
+                    placeholder={isMac ? "/usr/local/bin/grok" : "C:\\Users\\...\\.grok\\bin\\grok.exe"}
                     class="w-full px-3 py-2 text-xs font-mono bg-ant-bg border border-ant-border-secondary rounded-lg text-ant-text focus:outline-none focus:border-ant-primary focus:ring-1 focus:ring-ant-primary transition shadow-2xs"
                   />
                 </div>

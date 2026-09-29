@@ -70,15 +70,15 @@
   function getTransportLabel(transport?: string): string {
     switch (transport) {
       case 'built-in':
-        return 'Built-in';
+        return 'Built-in Audio';
       case 'bluetooth':
-        return 'Wireless';
+        return 'Bluetooth';
       case 'usb':
         return 'USB Audio';
       case 'virtual':
         return 'Virtual Device';
       case 'continuity':
-        return 'Apple Continuity';
+        return 'Continuity';
       default:
         return 'Microphone';
     }

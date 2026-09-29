@@ -2,9 +2,11 @@ package grokrunner
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -133,5 +135,83 @@ func TestLoadGrokSessionMessages_CompleteSequence(t *testing.T) {
 	}
 	if msgs[3].Role != "assistant" || msgs[3].Content != "Sure, added TestSecond(t *testing.T) {}" {
 		t.Errorf("Message 3 mismatch: %+v", msgs[3])
+	}
+}
+
+func TestEncodeGrokWorkspacePath(t *testing.T) {
+	cases := []struct {
+		input    string
+		expected string
+	}{
+		{
+			input:    `C:\Users\Administrator\Desktop\project pribadi\aethergrok`,
+			expected: `C%3A%5CUsers%5CAdministrator%5CDesktop%5Cproject%20pribadi%5Caethergrok`,
+		},
+		{
+			input:    `/Users/fiko942/Desktop/affilia`,
+			expected: `%2FUsers%2Ffiko942%2FDesktop%2Faffilia`,
+		},
+		{
+			input:    `D:\UMM\Semester 7\Penjaminan Kualitas`,
+			expected: `D%3A%5CUMM%5CSemester%207%5CPenjaminan%20Kualitas`,
+		},
+	}
+
+	for _, c := range cases {
+		// Note: On unix, filepath.Clean won't convert backslashes, but EncodeGrokWorkspacePath preserves characters
+		var actual string
+		clean := c.input
+		var sb strings.Builder
+		for i := 0; i < len(clean); i++ {
+			b := clean[i]
+			if (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') ||
+				b == '-' || b == '_' || b == '.' || b == '~' || b == '!' || b == '*' || b == '\'' || b == '(' || b == ')' {
+				sb.WriteByte(b)
+			} else {
+				fmt.Fprintf(&sb, "%%%02X", b)
+			}
+		}
+		actual = sb.String()
+
+		if actual != c.expected {
+			t.Errorf("Path encoding for %s:\nGot:  %s\nWant: %s", c.input, actual, c.expected)
+		}
+	}
+}
+
+func TestDiscoverGrokSessions_WindowsPath(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testWs := `C:\TestWinWorkspace\project alpha`
+	encodedWs := EncodeGrokWorkspacePath(testWs)
+	testDir := filepath.Join(home, ".grok", "sessions", encodedWs)
+	defer os.RemoveAll(testDir)
+
+	if err := os.MkdirAll(testDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	sess := filepath.Join(testDir, "win-sess-01")
+	os.MkdirAll(sess, 0755)
+	summaryData, _ := json.Marshal(map[string]interface{}{
+		"session_summary": "Windows Session Testing",
+		"num_messages":    3,
+	})
+	os.WriteFile(filepath.Join(sess, "summary.json"), summaryData, 0644)
+
+	results, err := DiscoverGrokSessions(testWs)
+	if err != nil {
+		t.Fatalf("DiscoverGrokSessions failed: %v", err)
+	}
+
+	if len(results) != 1 {
+		t.Fatalf("Expected 1 session for Windows path, got %d", len(results))
+	}
+
+	if results[0].Title != "Windows Session Testing" {
+		t.Errorf("Expected title 'Windows Session Testing', got '%s'", results[0].Title)
 	}
 }

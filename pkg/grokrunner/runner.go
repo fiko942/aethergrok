@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -53,22 +52,46 @@ func ResolveGrokBinary() string {
 	if p, err := exec.LookPath("grok"); err == nil {
 		return p
 	}
+	if runtime.GOOS == "windows" {
+		if p, err := exec.LookPath("grok.exe"); err == nil {
+			return p
+		}
+		if p, err := exec.LookPath("grok.cmd"); err == nil {
+			return p
+		}
+	}
 
-	// 3. User home directory locations (common when launched from macOS Finder / GUI app without shell PATH)
+	// 3. User home directory locations
 	homeDir, err := os.UserHomeDir()
 	if err == nil && homeDir != "" {
-		candidates := []string{
-			filepath.Join(homeDir, ".local", "bin", "grok"),
-			filepath.Join(homeDir, ".grok", "bin", "grok"),
-			filepath.Join(homeDir, "bin", "grok"),
-			filepath.Join(homeDir, "go", "bin", "grok"),
-		}
+		var candidates []string
 		if runtime.GOOS == "windows" {
-			candidates = append(candidates,
-				filepath.Join(homeDir, "AppData", "Local", "Programs", "grok", "grok.exe"),
+			candidates = []string{
 				filepath.Join(homeDir, ".grok", "bin", "grok.exe"),
 				filepath.Join(homeDir, ".grok", "bin", "grok.cmd"),
-			)
+				filepath.Join(homeDir, "AppData", "Local", "Programs", "grok", "grok.exe"),
+				filepath.Join(homeDir, "AppData", "Roaming", "npm", "grok.cmd"),
+				filepath.Join(homeDir, "AppData", "Roaming", "npm", "grok.exe"),
+				filepath.Join(homeDir, "AppData", "Local", "pnpm", "grok.cmd"),
+				filepath.Join(homeDir, "AppData", "Local", "pnpm", "grok.exe"),
+				filepath.Join(homeDir, ".cargo", "bin", "grok.exe"),
+				filepath.Join(homeDir, "go", "bin", "grok.exe"),
+				filepath.Join(homeDir, "bin", "grok.exe"),
+			}
+			if pf := os.Getenv("ProgramFiles"); pf != "" {
+				candidates = append(candidates, filepath.Join(pf, "grok", "grok.exe"))
+			}
+			if pfx := os.Getenv("ProgramFiles(x86)"); pfx != "" {
+				candidates = append(candidates, filepath.Join(pfx, "grok", "grok.exe"))
+			}
+		} else {
+			candidates = []string{
+				filepath.Join(homeDir, ".local", "bin", "grok"),
+				filepath.Join(homeDir, ".grok", "bin", "grok"),
+				filepath.Join(homeDir, "bin", "grok"),
+				filepath.Join(homeDir, "go", "bin", "grok"),
+				filepath.Join(homeDir, ".cargo", "bin", "grok"),
+			}
 		}
 		for _, c := range candidates {
 			if info, err := os.Stat(c); err == nil && !info.IsDir() {
@@ -78,15 +101,17 @@ func ResolveGrokBinary() string {
 	}
 
 	// 4. System-wide locations
-	systemCandidates := []string{
-		"/opt/homebrew/bin/grok",
-		"/usr/local/bin/grok",
-		"/usr/bin/grok",
-		"/bin/grok",
-	}
-	for _, sc := range systemCandidates {
-		if info, err := os.Stat(sc); err == nil && !info.IsDir() {
-			return sc
+	if runtime.GOOS != "windows" {
+		systemCandidates := []string{
+			"/opt/homebrew/bin",
+			"/usr/local/bin/grok",
+			"/usr/bin/grok",
+			"/bin/grok",
+		}
+		for _, sc := range systemCandidates {
+			if info, err := os.Stat(sc); err == nil && !info.IsDir() {
+				return sc
+			}
 		}
 	}
 
@@ -100,22 +125,40 @@ func EnsureExecEnvironment() []string {
 
 	var extraPaths []string
 	if homeDir != "" {
-		extraPaths = append(extraPaths,
-			filepath.Join(homeDir, ".local", "bin"),
-			filepath.Join(homeDir, ".grok", "bin"),
-			filepath.Join(homeDir, "bin"),
-			filepath.Join(homeDir, "go", "bin"),
-		)
+		if runtime.GOOS == "windows" {
+			extraPaths = append(extraPaths,
+				filepath.Join(homeDir, ".grok", "bin"),
+				filepath.Join(homeDir, "AppData", "Local", "Programs", "grok"),
+				filepath.Join(homeDir, "AppData", "Roaming", "npm"),
+				filepath.Join(homeDir, "AppData", "Local", "pnpm"),
+				filepath.Join(homeDir, ".cargo", "bin"),
+				filepath.Join(homeDir, "go", "bin"),
+				filepath.Join(homeDir, "bin"),
+			)
+			if pf := os.Getenv("ProgramFiles"); pf != "" {
+				extraPaths = append(extraPaths,
+					filepath.Join(pf, "Go", "bin"),
+					filepath.Join(pf, "Git", "cmd"),
+					filepath.Join(pf, "Git", "bin"),
+				)
+			}
+		} else {
+			extraPaths = append(extraPaths,
+				filepath.Join(homeDir, ".local", "bin"),
+				filepath.Join(homeDir, ".grok", "bin"),
+				filepath.Join(homeDir, "bin"),
+				filepath.Join(homeDir, "go", "bin"),
+				filepath.Join(homeDir, ".cargo", "bin"),
+				"/opt/homebrew/bin",
+				"/opt/homebrew/sbin",
+				"/usr/local/bin",
+				"/usr/bin",
+				"/bin",
+				"/usr/sbin",
+				"/sbin",
+			)
+		}
 	}
-	extraPaths = append(extraPaths,
-		"/opt/homebrew/bin",
-		"/opt/homebrew/sbin",
-		"/usr/local/bin",
-		"/usr/bin",
-		"/bin",
-		"/usr/sbin",
-		"/sbin",
-	)
 
 	currentPath := os.Getenv("PATH")
 	existingParts := strings.Split(currentPath, string(os.PathListSeparator))
@@ -180,6 +223,12 @@ func (r *Runner) GetBinaryPath() string {
 	defer r.mu.Unlock()
 	if r.grokBinaryPath == "" || r.grokBinaryPath == "grok" {
 		r.grokBinaryPath = ResolveGrokBinary()
+	} else if _, err := os.Stat(r.grokBinaryPath); err != nil && !filepath.IsAbs(r.grokBinaryPath) {
+		if _, lookErr := exec.LookPath(r.grokBinaryPath); lookErr != nil {
+			r.grokBinaryPath = ResolveGrokBinary()
+		}
+	} else if _, err := os.Stat(r.grokBinaryPath); err != nil && filepath.IsAbs(r.grokBinaryPath) {
+		r.grokBinaryPath = ResolveGrokBinary()
 	}
 	return r.grokBinaryPath
 }
@@ -232,8 +281,9 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 		if wsPath == "" {
 			wsPath, _ = os.Getwd()
 		}
-		encodedWs := url.PathEscape(wsPath)
-		sessionFolder := filepath.Join(homeDir, ".grok", "sessions", encodedWs, targetGrokID)
+		sessionsDir := filepath.Join(homeDir, ".grok", "sessions")
+		targetWsDir := ResolveWorkspaceSessionsDir(sessionsDir, wsPath)
+		sessionFolder := filepath.Join(targetWsDir, targetGrokID)
 		if fi, err := os.Stat(sessionFolder); err == nil && fi.IsDir() {
 			args = append(args, "--resume", targetGrokID)
 		} else if isUUID(targetGrokID) {

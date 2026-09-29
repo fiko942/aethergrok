@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"sync"
 	"time"
 )
@@ -62,6 +64,11 @@ type StorageManager struct {
 
 // DefaultSettings returns safe default settings matching the UI design system
 func DefaultSettings() AppSettings {
+	delayMs := 50
+	if runtime.GOOS == "windows" {
+		delayMs = 80
+	}
+
 	return AppSettings{
 		Theme:                      "dark-studio",
 		DefaultModel:               "9router",
@@ -69,9 +76,9 @@ func DefaultSettings() AppSettings {
 		PermissionMode:             "default",
 		PlanGateMode:               "active",
 		AnimationsEnabled:          true,
-		GrokBinaryPath:             "/Users/fiko942/.local/bin/grok",
+		GrokBinaryPath:             "",
 		SnapshotShortcut:           "CmdOrCtrl+Shift+S",
-		SnapshotDelayMs:            50,
+		SnapshotDelayMs:            delayMs,
 		SnapshotAutoHideWindow:     true,
 		SnapshotSoundEnabled:       true,
 		SnapshotFlashEnabled:       true,
@@ -153,7 +160,21 @@ func (sm *StorageManager) GetSettings() (AppSettings, error) {
 		return DefaultSettings(), nil
 	}
 
-	// Apply default fallbacks for newly added fields if unset in stored entry
+	// Apply default fallbacks and sanitize cross-platform invalid values
+	if runtime.GOOS == "windows" && strings.HasPrefix(latest.GrokBinaryPath, "/Users/") {
+		latest.GrokBinaryPath = ""
+	} else if runtime.GOOS != "windows" && len(latest.GrokBinaryPath) >= 2 && latest.GrokBinaryPath[1] == ':' {
+		latest.GrokBinaryPath = ""
+	} else if latest.GrokBinaryPath != "" {
+		if _, err := os.Stat(latest.GrokBinaryPath); err != nil {
+			latest.GrokBinaryPath = ""
+		}
+	}
+
+	if latest.SnapshotShortcut == "" {
+		latest.SnapshotShortcut = "CmdOrCtrl+Shift+S"
+	}
+
 	if latest.DictationShortcut == "" {
 		latest.DictationShortcut = "\\"
 	}
@@ -162,6 +183,13 @@ func (sm *StorageManager) GetSettings() (AppSettings, error) {
 	}
 	if latest.DictationHoldThresholdMs <= 0 {
 		latest.DictationHoldThresholdMs = 300
+	}
+	if latest.SnapshotDelayMs <= 0 {
+		if runtime.GOOS == "windows" {
+			latest.SnapshotDelayMs = 80
+		} else {
+			latest.SnapshotDelayMs = 50
+		}
 	}
 
 	return latest, nil

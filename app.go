@@ -1,14 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"io"
-	"mime/multipart"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,13 +30,14 @@ import (
 
 // App struct represents application runtime state
 type App struct {
-	ctx           context.Context
-	runner        *grokrunner.Runner
-	screenCapture *screen.Orchestrator
-	skillsReg     *skills.Registry
-	hotkeyMgr     *hotkey.Manager
-	terminalMgr   *terminal.Manager
-	storageMgr    *storage.StorageManager
+	ctx                context.Context
+	runner             *grokrunner.Runner
+	screenCapture      *screen.Orchestrator
+	skillsReg          *skills.Registry
+	hotkeyMgr          *hotkey.Manager
+	dictationHotkeyMgr *hotkey.Manager
+	terminalMgr        *terminal.Manager
+	storageMgr         *storage.StorageManager
 }
 
 // NewApp creates a new App application struct
@@ -51,12 +48,13 @@ func NewApp() *App {
 		runner.SetStorageManager(sm)
 	}
 	return &App{
-		runner:        runner,
-		screenCapture: screen.NewOrchestrator(),
-		skillsReg:     skills.NewRegistry(),
-		hotkeyMgr:     hotkey.NewManager(),
-		terminalMgr:   terminal.NewManager(),
-		storageMgr:    sm,
+		runner:             runner,
+		screenCapture:      screen.NewOrchestrator(),
+		skillsReg:          skills.NewRegistry(),
+		hotkeyMgr:          hotkey.NewManager(),
+		dictationHotkeyMgr: hotkey.NewManager(),
+		terminalMgr:        terminal.NewManager(),
+		storageMgr:         sm,
 	}
 }
 
@@ -64,6 +62,7 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	_ = system.InitAppProcessGroup()
 	if a.terminalMgr != nil {
 		a.terminalMgr.SetContext(ctx)
 	}
@@ -75,6 +74,29 @@ func (a *App) startup(ctx context.Context) {
 				})
 			}
 		})
+	}
+	if a.dictationHotkeyMgr != nil {
+		a.dictationHotkeyMgr.SetKeyHandler(func(action string) {
+			if a.ctx != nil {
+				wailsRuntime.EventsEmit(a.ctx, "dictation:trigger_global", map[string]interface{}{
+					"type":      action,
+					"timestamp": time.Now().UnixMilli(),
+				})
+			}
+		})
+	}
+
+	// Automatically register saved shortcuts on startup from persistent storage
+	if a.storageMgr != nil {
+		st, err := a.storageMgr.GetSettings()
+		if err == nil {
+			if a.hotkeyMgr != nil && st.SnapshotShortcut != "" {
+				_ = a.hotkeyMgr.RegisterShortcut(st.SnapshotShortcut)
+			}
+			if a.dictationHotkeyMgr != nil && st.DictationShortcut != "" {
+				_ = a.dictationHotkeyMgr.RegisterShortcut(st.DictationShortcut)
+			}
+		}
 	}
 }
 
@@ -89,6 +111,10 @@ func (a *App) beforeClose(ctx context.Context) (prevent bool) {
 	if a.runner != nil {
 		a.runner.CancelAll()
 	}
+	if a.terminalMgr != nil {
+		a.terminalMgr.CloseAll()
+	}
+	system.CleanupOrphanProcesses()
 	return false
 }
 
@@ -97,13 +123,17 @@ func (a *App) shutdown(ctx context.Context) {
 	if a.hotkeyMgr != nil {
 		a.hotkeyMgr.Unregister()
 	}
+	if a.dictationHotkeyMgr != nil {
+		a.dictationHotkeyMgr.Unregister()
+	}
 	if a.runner != nil {
 		a.runner.CancelAll()
 	}
 	if a.terminalMgr != nil {
 		// Clean up all running terminal instances and their process groups
-		_ = a.terminalMgr.CloseSessionTerminals("")
+		a.terminalMgr.CloseAll()
 	}
+	system.CleanupOrphanProcesses()
 }
 
 // Greet returns a greeting for the given name
@@ -162,6 +192,19 @@ func (a *App) SetGrokBinaryPath(path string) {
 	a.runner.SetBinaryPath(path)
 }
 
+// GetGrokBinaryPath returns the current active Grok CLI binary path
+func (a *App) GetGrokBinaryPath() string {
+	if a.runner != nil {
+		return a.runner.GetBinaryPath()
+	}
+	return grokrunner.ResolveGrokBinary()
+}
+
+// AutoDetectGrokBinaryPath searches for and returns the native Grok CLI binary location on the host
+func (a *App) AutoDetectGrokBinaryPath() string {
+	return grokrunner.ResolveGrokBinary()
+}
+
 type wailsWindowController struct {
 	ctx context.Context
 }
@@ -175,6 +218,7 @@ func (w *wailsWindowController) Hide() {
 func (w *wailsWindowController) Show() {
 	if w.ctx != nil {
 		wailsRuntime.WindowShow(w.ctx)
+		wailsRuntime.WindowUnminimise(w.ctx)
 	}
 }
 
@@ -192,6 +236,13 @@ func (a *App) RegisterGlobalSnapshotShortcut(shortcutStr string) error {
 	if a.hotkeyMgr == nil {
 		a.hotkeyMgr = hotkey.NewManager()
 	}
+	a.hotkeyMgr.SetHandler(func() {
+		if a.ctx != nil {
+			wailsRuntime.EventsEmit(a.ctx, "snapshot:trigger_global", map[string]interface{}{
+				"timestamp": time.Now().UnixMilli(),
+			})
+		}
+	})
 	return a.hotkeyMgr.RegisterShortcut(shortcutStr)
 }
 
@@ -199,6 +250,29 @@ func (a *App) RegisterGlobalSnapshotShortcut(shortcutStr string) error {
 func (a *App) UnregisterGlobalSnapshotShortcut() {
 	if a.hotkeyMgr != nil {
 		a.hotkeyMgr.Unregister()
+	}
+}
+
+// RegisterGlobalDictationShortcut registers or updates the global dictation shortcut
+func (a *App) RegisterGlobalDictationShortcut(shortcutStr string) error {
+	if a.dictationHotkeyMgr == nil {
+		a.dictationHotkeyMgr = hotkey.NewManager()
+	}
+	a.dictationHotkeyMgr.SetKeyHandler(func(action string) {
+		if a.ctx != nil {
+			wailsRuntime.EventsEmit(a.ctx, "dictation:trigger_global", map[string]interface{}{
+				"type":      action,
+				"timestamp": time.Now().UnixMilli(),
+			})
+		}
+	})
+	return a.dictationHotkeyMgr.RegisterShortcut(shortcutStr)
+}
+
+// UnregisterGlobalDictationShortcut unregisters the global dictation shortcut
+func (a *App) UnregisterGlobalDictationShortcut() {
+	if a.dictationHotkeyMgr != nil {
+		a.dictationHotkeyMgr.Unregister()
 	}
 }
 
@@ -439,6 +513,14 @@ func (a *App) CreateTerminal(sessionID, termID, cwd, shell string) error {
 	return a.terminalMgr.Create(sessionID, termID, cwd, shell)
 }
 
+// EnsureTerminal ensures a pseudo-terminal instance is alive without killing existing running sessions
+func (a *App) EnsureTerminal(sessionID, termID, cwd, shell string) error {
+	if a.terminalMgr == nil {
+		return fmt.Errorf("terminal manager not initialized")
+	}
+	return a.terminalMgr.EnsureCreated(sessionID, termID, cwd, shell)
+}
+
 // WriteTerminal writes user input to a pseudo-terminal
 func (a *App) WriteTerminal(termID, data string) error {
 	if a.terminalMgr == nil {
@@ -461,6 +543,22 @@ func (a *App) CloseTerminal(termID string) error {
 		return fmt.Errorf("terminal manager not initialized")
 	}
 	return a.terminalMgr.Close(termID)
+}
+
+// InterruptTerminal sends a Ctrl+C interrupt and terminates running child processes in a terminal
+func (a *App) InterruptTerminal(termID string) error {
+	if a.terminalMgr == nil {
+		return fmt.Errorf("terminal manager not initialized")
+	}
+	return a.terminalMgr.Interrupt(termID)
+}
+
+// KillTerminal terminates a pseudo-terminal instance and all child processes immediately
+func (a *App) KillTerminal(termID string) error {
+	if a.terminalMgr == nil {
+		return fmt.Errorf("terminal manager not initialized")
+	}
+	return a.terminalMgr.Kill(termID)
 }
 
 // GetTerminalBuffer retrieves recent output history for a terminal instance
@@ -556,7 +654,17 @@ func (a *App) GetAppSettings() (storage.AppSettings, error) {
 		}
 		a.storageMgr = sm
 	}
-	return a.storageMgr.GetSettings()
+	settings, err := a.storageMgr.GetSettings()
+	if err != nil {
+		return settings, err
+	}
+	// Fallback to auto-detected binary path if none configured or invalid on host
+	if settings.GrokBinaryPath == "" {
+		settings.GrokBinaryPath = grokrunner.ResolveGrokBinary()
+	} else if _, statErr := os.Stat(settings.GrokBinaryPath); statErr != nil {
+		settings.GrokBinaryPath = grokrunner.ResolveGrokBinary()
+	}
+	return settings, nil
 }
 
 // SaveAppSettings writes updated application settings to disk
@@ -568,7 +676,19 @@ func (a *App) SaveAppSettings(settings storage.AppSettings) error {
 		}
 		a.storageMgr = sm
 	}
-	return a.storageMgr.SaveSettings(settings)
+	err := a.storageMgr.SaveSettings(settings)
+	if err != nil {
+		return err
+	}
+
+	// Dynamically sync global OS hotkeys whenever settings are saved
+	if a.hotkeyMgr != nil && settings.SnapshotShortcut != "" {
+		_ = a.hotkeyMgr.RegisterShortcut(settings.SnapshotShortcut)
+	}
+	if a.dictationHotkeyMgr != nil && settings.DictationShortcut != "" {
+		_ = a.dictationHotkeyMgr.RegisterShortcut(settings.DictationShortcut)
+	}
+	return nil
 }
 
 // GetWorkspaces retrieves all registered workspace folders
@@ -875,9 +995,25 @@ func (a *App) DeleteVoiceAudioRecording(filePath string) error {
 	return nil
 }
 
-// TranscribeAudioWithGrok runs high-speed audio transcription using native speech-to-text / multimodal
-// audio models via the configured gateway (e.g. 9Router / OpenAI / Grok STT endpoint) with seamless fallback to Grok CLI in an isolated sandbox,
-// and guarantees zero session pollution in the workspace.
+func generateUUID() string {
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
+	if err != nil {
+		return fmt.Sprintf("%08x-%04x-4%03x-%04x-%012x",
+			time.Now().UnixNano()&0xffffffff,
+			time.Now().Unix()&0xffff,
+			(time.Now().UnixNano()>>16)&0x0fff,
+			(time.Now().UnixNano()>>32)&0x3fff|0x8000,
+			time.Now().UnixNano()&0xffffffffffff,
+		)
+	}
+	b[6] = (b[6] & 0x0f) | 0x40 // Version 4
+	b[8] = (b[8] & 0x3f) | 0x80 // Variant RFC4122
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+}
+
+// TranscribeAudioWithGrok runs audio transcription directly via Grok CLI in a dedicated workspace session,
+// and guarantees absolute cleanup of the temporary audio file and temporary Grok session directory.
 func (a *App) TranscribeAudioWithGrok(workspacePath, audioFilePath string) (string, error) {
 	if strings.TrimSpace(audioFilePath) == "" {
 		return "", fmt.Errorf("audio file path is empty")
@@ -887,23 +1023,10 @@ func (a *App) TranscribeAudioWithGrok(workspacePath, audioFilePath string) (stri
 		return "", fmt.Errorf("audio file does not exist at %s", audioFilePath)
 	}
 
-	// 1. First priority: Try high-speed direct audio transcription via 9Router / OpenAI STT endpoint (typically ~1-2 seconds)
-	// Read ~/.grok/config.toml or environment to discover endpoint URL and auth token
-	endpointURL := "http://127.0.0.1:20128"
-	apiKey := "sk-81f5f3ce306056d3-wh99un-4249695c"
-
-	if envURL := os.Getenv("NINEROUTER_URL"); envURL != "" {
-		endpointURL = strings.TrimSuffix(envURL, "/")
-	} else if envBase := os.Getenv("OPENAI_BASE_URL"); envBase != "" {
-		endpointURL = strings.TrimSuffix(strings.TrimSuffix(envBase, "/v1"), "/")
-	}
-
-	if envKey := os.Getenv("NINEROUTER_KEY"); envKey != "" {
-		apiKey = envKey
-	} else if envKey := os.Getenv("JCODE_9ROUTER_API_KEY"); envKey != "" {
-		apiKey = envKey
-	} else if envKey := os.Getenv("ANTHROPIC_AUTH_TOKEN"); envKey != "" {
-		apiKey = envKey
+	if strings.TrimSpace(workspacePath) == "" {
+		if ws, err := os.Getwd(); err == nil {
+			workspacePath = ws
+		}
 	}
 
 	// Clean up any preamble/conversational prefixes if present
@@ -932,64 +1055,46 @@ func (a *App) TranscribeAudioWithGrok(workspacePath, audioFilePath string) (stri
 		return text
 	}
 
-	// 1. Direct multimodal audio chat completions via gateway
-	// Prioritize models that support audio input and fast response:
-	// ag/gemini-3.7-flash-low, ag/gemini-3.8-flash-low, gemini/gemini-3.7-flash, ag/gemini-3.8-flash
-	transcript, errChat := a.transcribeAudioViaChatCompletions(endpointURL, apiKey, audioFilePath)
-	if errChat == nil && strings.TrimSpace(transcript) != "" {
-		cleaned := cleanTranscript(transcript)
-		if cleaned != "" {
-			return cleaned, nil
-		}
-	}
+	sessionUUID := generateUUID()
 
-	// 2. Secondary fallback: Speech-to-text multipart endpoint
-	transcript, errSTT := a.transcribeAudioViaSTTEndpoint(endpointURL, apiKey, audioFilePath)
-	if errSTT == nil && strings.TrimSpace(transcript) != "" {
-		cleaned := cleanTranscript(transcript)
-		if cleaned != "" {
-			return cleaned, nil
-		}
-	}
-
-	// 3. Fallback: Run Grok CLI in an isolated temp directory to prevent workspace session leakage
-	tmpDir, tmpErr := os.MkdirTemp("", "aethergrok_transcribe_*")
-	if tmpErr == nil {
-		defer os.RemoveAll(tmpDir)
-	} else {
-		tmpDir = os.TempDir()
-	}
+	// Guaranteed cleanup of temporary Grok session directory and scratch audio file on completion
+	defer func() {
+		_ = grokrunner.DeleteGrokSessionDirectory(workspacePath, sessionUUID)
+		_ = os.Remove(audioFilePath)
+	}()
 
 	grokBin := a.runner.GetBinaryPath()
 	if grokBin == "" {
 		grokBin = grokrunner.ResolveGrokBinary()
 	}
 
-	systemInstructions := "Kamu adalah transcriber audio programmer yang sangat akurat. Dengarkan rekaman audio teknis ini. Transkripsikan dengan jelas, gunakan istilah teknis, nama variabel, fungsi, bahasa pemrograman, dan tanda baca yang tepat dan rapi. PENTING: Keluarkan HANYA teks transkripsi murni. DILARANG KERAS menyertakan kalimat pembuka seperti 'Berikut adalah transkripsi...', kalimat penutup, tanda petik pembungkus, atau penjelasan tambahan."
+	systemInstructions := fmt.Sprintf(
+		"Kamu adalah transcriber audio programmer yang sangat akurat. Analisis dan dengarkan rekaman audio teknis yang terdapat pada file berikut: %s\n"+
+			"Transkripsikan seluruh isi percakapan audio tersebut dengan jelas dan rapi. Gunakan istilah teknis pemrograman, nama variabel, fungsi, bahasa pemrograman, dan tanda baca yang tepat.\n"+
+			"PENTING: Keluarkan HANYA teks transkripsi murni. DILARANG KERAS menyertakan kalimat pembuka (seperti 'Berikut adalah transkripsi...', 'Hasil transkripsi:'), kalimat penutup, tanda petik pembungkus, atau penjelasan tambahan apa pun.",
+		audioFilePath,
+	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	promptText := fmt.Sprintf("%s\n\n[Attached Audio: %s]", systemInstructions, audioFilePath)
-	cmd := exec.CommandContext(ctx, grokBin, "-p", promptText, "--no-subagents", "--disable-web-search")
-	cmd.Dir = tmpDir
+	cmd := exec.CommandContext(ctx, grokBin,
+		"--session-id", sessionUUID,
+		"--cwd", workspacePath,
+		"--output-format", "plain",
+		"--no-subagents",
+		"--disable-web-search",
+		"-p", systemInstructions,
+	)
+	cmd.Dir = workspacePath
 	cmd.Env = grokrunner.EnsureExecEnvironment()
 
 	out, errExec := cmd.CombinedOutput()
 	if errExec != nil {
-		var detailErrs []string
-		if errChat != nil {
-			detailErrs = append(detailErrs, fmt.Sprintf("Chat Audio Error: %v", errChat))
-		}
-		if errSTT != nil {
-			detailErrs = append(detailErrs, fmt.Sprintf("STT Error: %v", errSTT))
-		}
 		if ctx.Err() == context.DeadlineExceeded {
-			detailErrs = append(detailErrs, "Grok CLI timed out after 20s")
-		} else {
-			detailErrs = append(detailErrs, fmt.Sprintf("Grok CLI Error: %v (output: %s)", errExec, strings.TrimSpace(string(out))))
+			return "", fmt.Errorf("Grok CLI timed out after 60s")
 		}
-		return "", fmt.Errorf("transcription failed on all providers:\n%s", strings.Join(detailErrs, "\n"))
+		return "", fmt.Errorf("Grok CLI Error: %w (output: %s)", errExec, strings.TrimSpace(string(out)))
 	}
 
 	cliTranscript := strings.TrimSpace(string(out))
@@ -1001,196 +1106,6 @@ func (a *App) TranscribeAudioWithGrok(workspacePath, audioFilePath string) (stri
 	}
 
 	return cliTranscript, nil
-}
-
-// transcribeAudioViaSTTEndpoint performs multipart speech-to-text POST to /v1/audio/transcriptions
-func (a *App) transcribeAudioViaSTTEndpoint(baseURL, apiKey, audioFilePath string) (string, error) {
-	audioFile, err := os.Open(audioFilePath)
-	if err != nil {
-		return "", err
-	}
-	defer audioFile.Close()
-
-	var requestBody bytes.Buffer
-	writer := multipart.NewWriter(&requestBody)
-
-	// Add audio file part
-	fileName := filepath.Base(audioFilePath)
-	part, err := writer.CreateFormFile("file", fileName)
-	if err != nil {
-		return "", err
-	}
-	if _, err := io.Copy(part, audioFile); err != nil {
-		return "", err
-	}
-
-	// Model candidate list: gemini-3.8-flash, whisper-1, groq/whisper-large-v3
-	_ = writer.WriteField("model", "gemini/gemini-3.8-flash")
-	_ = writer.WriteField("prompt", "Kamu adalah transcriber audio programmer yang sangat akurat. Dengarkan rekaman teknis ini dan transkripsikan dengan istilah teknis coding, variabel, dan tanda baca yang tepat.")
-	_ = writer.WriteField("response_format", "json")
-
-	if err := writer.Close(); err != nil {
-		return "", err
-	}
-
-	targetURL := fmt.Sprintf("%s/v1/audio/transcriptions", strings.TrimSuffix(baseURL, "/"))
-	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, "POST", targetURL, &requestBody)
-	if err != nil {
-		return "", err
-	}
-
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	if apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-	}
-
-	client := &http.Client{Timeout: 12 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("STT API status %d: %s", resp.StatusCode, string(bodyBytes))
-	}
-
-	var resObj struct {
-		Text  string `json:"text"`
-		Error *struct {
-			Message string `json:"message"`
-		} `json:"error"`
-	}
-
-	if err := json.Unmarshal(bodyBytes, &resObj); err != nil {
-		return strings.TrimSpace(string(bodyBytes)), nil
-	}
-
-	if resObj.Error != nil && resObj.Error.Message != "" {
-		return "", fmt.Errorf("STT API returned error: %s", resObj.Error.Message)
-	}
-
-	return strings.TrimSpace(resObj.Text), nil
-}
-
-// transcribeAudioViaChatCompletions performs multimodal audio transcription via /v1/chat/completions
-func (a *App) transcribeAudioViaChatCompletions(baseURL, apiKey, audioFilePath string) (string, error) {
-	audioBytes, err := os.ReadFile(audioFilePath)
-	if err != nil {
-		return "", err
-	}
-
-	ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(audioFilePath)), ".")
-	if ext == "" {
-		ext = "webm"
-	}
-	audioB64 := base64.StdEncoding.EncodeToString(audioBytes)
-
-	promptText := "Kamu adalah transcriber audio programmer yang sangat akurat. Dengarkan rekaman audio teknis ini secara verbatim. Transkripsikan dengan jelas, gunakan istilah teknis, nama variabel, fungsi, bahasa pemrograman, dan tanda baca yang tepat. PENTING: Keluarkan HANYA teks transkripsi murni. Jangan menambahkan kalimat pembuka (seperti 'Berikut adalah transkripsi...', 'Here is the transcription...'), jangan menambahkan tanda petik di awal/akhir, dan jangan menambahkan penjelasan apa pun."
-
-	// Fast transcription candidate models with 1000k context window:
-	// ag/gemini-3.7-flash-low, ag/gemini-3.8-flash-low, gemini/gemini-3.7-flash
-	candidateModels := []string{"ag/gemini-3.7-flash-low", "ag/gemini-3.8-flash-low", "gemini/gemini-3.7-flash", "ag/gemini-3.7-flash-high", "ag/gemini-3.8-flash"}
-
-	var lastErr error
-	for _, modelID := range candidateModels {
-		payload := map[string]interface{}{
-			"model":  modelID,
-			"stream": false,
-			"messages": []map[string]interface{}{
-				{
-					"role": "user",
-					"content": []map[string]interface{}{
-						{
-							"type": "input_audio",
-							"input_audio": map[string]string{
-								"data":   audioB64,
-								"format": ext,
-							},
-						},
-						{
-							"type": "text",
-							"text": promptText,
-						},
-					},
-				},
-			},
-		}
-
-		jsonBytes, err := json.Marshal(payload)
-		if err != nil {
-			return "", err
-		}
-
-		targetURL := fmt.Sprintf("%s/v1/chat/completions", strings.TrimSuffix(baseURL, "/"))
-		ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
-
-		req, err := http.NewRequestWithContext(ctx, "POST", targetURL, bytes.NewBuffer(jsonBytes))
-		if err != nil {
-			cancel()
-			lastErr = err
-			continue
-		}
-
-		req.Header.Set("Content-Type", "application/json")
-		if apiKey != "" {
-			req.Header.Set("Authorization", "Bearer "+apiKey)
-		}
-
-		client := &http.Client{Timeout: 25 * time.Second}
-		resp, err := client.Do(req)
-		if err != nil {
-			cancel()
-			lastErr = err
-			continue
-		}
-
-		bodyBytes, err := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		cancel()
-
-		if err != nil {
-			lastErr = err
-			continue
-		}
-
-		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			lastErr = fmt.Errorf("Chat audio API status %d: %s", resp.StatusCode, string(bodyBytes))
-			continue
-		}
-
-		var resObj struct {
-			Choices []struct {
-				Message struct {
-					Content string `json:"content"`
-				} `json:"message"`
-			} `json:"choices"`
-			Error *struct {
-				Message string `json:"message"`
-			} `json:"error"`
-		}
-
-		if err := json.Unmarshal(bodyBytes, &resObj); err == nil && len(resObj.Choices) > 0 {
-			textResult := strings.TrimSpace(resObj.Choices[0].Message.Content)
-			if textResult != "" {
-				return textResult, nil
-			}
-		}
-	}
-
-	if lastErr != nil {
-		return "", lastErr
-	}
-
-	return "", fmt.Errorf("no response choices returned from model")
 }
 
 // PullWorkspaceChanges pulls upstream commits
@@ -1299,10 +1214,10 @@ func (a *App) DownloadAndInstallUpdate(assetURL, sha256URL string) error {
 			})
 			return err
 		}
-		// Allow NSIS to spin up before quitting Wails
+		// Allow NSIS to spin up before quitting Wails (only quit for executable installers)
 		go func() {
 			time.Sleep(800 * time.Millisecond)
-			if a.ctx != nil {
+			if a.ctx != nil && !strings.HasSuffix(strings.ToLower(filePath), ".zip") {
 				wailsRuntime.Quit(a.ctx)
 			}
 		}()

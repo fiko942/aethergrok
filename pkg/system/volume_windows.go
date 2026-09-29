@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"syscall"
 )
 
 // MuteSystemVolume mutes the Windows audio master endpoint using PowerShell / Audio endpoint if available,
@@ -14,6 +15,7 @@ import (
 func MuteSystemVolume() (SystemVolumeState, error) {
 	// Attempt query via PowerShell audio device script
 	queryScript := `
+$ErrorActionPreference = 'SilentlyContinue'
 try {
 	Add-Type -TypeDefinition @'
 using System.Runtime.InteropServices;
@@ -49,18 +51,23 @@ public class Audio {
 }
 '@
 	$vol = [Audio]::GetMasterVolume()
-	$level = 0.0
-	$muted = $false
-	$vol.GetMasterVolumeLevelScalar([ref]$level) | Out-Null
-	$vol.GetMute([ref]$muted) | Out-Null
-	$volInt = [math]::Round($level * 100)
-	Write-Output "$volInt,$muted"
-	$vol.SetMute($true, [System.Guid]::Empty) | Out-Null
+	if ($vol -ne $null) {
+		$level = 0.0
+		$muted = $false
+		$vol.GetMasterVolumeLevelScalar([ref]$level) | Out-Null
+		$vol.GetMute([ref]$muted) | Out-Null
+		$volInt = [math]::Round($level * 100)
+		Write-Output "$volInt,$muted"
+		$vol.SetMute($true, [System.Guid]::Empty) | Out-Null
+	} else {
+		Write-Output "100,False"
+	}
 } catch {
 	Write-Output "100,False"
 }
 `
 	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", queryScript)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	out, err := cmd.Output()
 	if err != nil {
 		// Fallback graceful return
@@ -88,6 +95,7 @@ public class Audio {
 // RestoreSystemVolume restores audio volume and mute state on Windows.
 func RestoreSystemVolume(state SystemVolumeState) error {
 	restoreScript := fmt.Sprintf(`
+$ErrorActionPreference = 'SilentlyContinue'
 try {
 	Add-Type -TypeDefinition @'
 using System.Runtime.InteropServices;
@@ -123,13 +131,17 @@ public class Audio {
 }
 '@
 	$vol = [Audio]::GetMasterVolume()
-	$scalar = [float]%f
-	$mute = $%t
-	$vol.SetMasterVolumeLevelScalar($scalar, [System.Guid]::Empty) | Out-Null
-	$vol.SetMute($mute, [System.Guid]::Empty) | Out-Null
+	if ($vol -ne $null) {
+		$scalar = [float]%f
+		$mute = $%t
+		$vol.SetMasterVolumeLevelScalar($scalar, [System.Guid]::Empty) | Out-Null
+		$vol.SetMute($mute, [System.Guid]::Empty) | Out-Null
+	}
 } catch {}
 `, float64(state.OriginalVolume)/100.0, state.WasMuted)
 
 	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", restoreScript)
-	return cmd.Run()
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	_ = cmd.Run()
+	return nil
 }

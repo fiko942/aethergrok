@@ -9,12 +9,8 @@ package hotkey
 #import <Foundation/Foundation.h>
 #import <Cocoa/Cocoa.h>
 
-extern void triggerHotkeyCallback();
+extern void triggerDarwinKeyEvent(int keycode, int eventType, uint64_t flags);
 
-// Atomic configuration of targets
-static int g_target_keycode = -1;
-static int g_is_modifier_alone = 0; // 1 if standalone modifier (ShiftRight, etc.)
-static uint64_t g_required_flags = 0;
 static CFMachPortRef g_event_tap = NULL;
 static CFRunLoopSourceRef g_run_loop_source = NULL;
 static CFRunLoopRef g_run_loop = NULL;
@@ -28,56 +24,10 @@ static CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEv
         return event;
     }
 
-    int target_kc = g_target_keycode;
-    if (target_kc < 0) {
-        return event;
-    }
+    int64_t keycode = CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
+    CGEventFlags flags = CGEventGetFlags(event);
 
-    if (g_is_modifier_alone) {
-        if (type == kCGEventFlagsChanged) {
-            int64_t keycode = CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
-            if (keycode == target_kc) {
-                CGEventFlags flags = CGEventGetFlags(event);
-                int is_pressed = 0;
-                // Check if the specific modifier key is now active
-                if (target_kc == 60 || target_kc == 56) { // Right shift (60) or Left shift (56)
-                    is_pressed = (flags & kCGEventFlagMaskShift) != 0;
-                } else if (target_kc == 54 || target_kc == 55) { // Right cmd (54) or Left cmd (55)
-                    is_pressed = (flags & kCGEventFlagMaskCommand) != 0;
-                } else if (target_kc == 58 || target_kc == 61) { // Left option (58) or Right option (61)
-                    is_pressed = (flags & kCGEventFlagMaskAlternate) != 0;
-                } else if (target_kc == 59 || target_kc == 62) { // Left ctrl (59) or Right ctrl (62)
-                    is_pressed = (flags & kCGEventFlagMaskControl) != 0;
-                }
-
-                if (is_pressed) {
-                    triggerHotkeyCallback();
-                }
-            }
-        }
-    } else {
-        if (type == kCGEventKeyDown) {
-            int64_t keycode = CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
-            if (keycode == target_kc) {
-                CGEventFlags flags = CGEventGetFlags(event);
-                uint64_t req = g_required_flags;
-                // Mask out device independent flags
-                bool cmdReq = (req & kCGEventFlagMaskCommand) != 0;
-                bool shiftReq = (req & kCGEventFlagMaskShift) != 0;
-                bool altReq = (req & kCGEventFlagMaskAlternate) != 0;
-                bool ctrlReq = (req & kCGEventFlagMaskControl) != 0;
-
-                bool cmdDown = (flags & kCGEventFlagMaskCommand) != 0;
-                bool shiftDown = (flags & kCGEventFlagMaskShift) != 0;
-                bool altDown = (flags & kCGEventFlagMaskAlternate) != 0;
-                bool ctrlDown = (flags & kCGEventFlagMaskControl) != 0;
-
-                if (cmdReq == cmdDown && shiftReq == shiftDown && altReq == altDown && ctrlReq == ctrlDown) {
-                    triggerHotkeyCallback();
-                }
-            }
-        }
-    }
+    triggerDarwinKeyEvent((int)keycode, (int)type, (uint64_t)flags);
 
     return event;
 }
@@ -85,7 +35,7 @@ static CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEv
 static int startEventTap() {
     if (g_is_running) return 1;
 
-    CGEventMask mask = (1 << kCGEventKeyDown) | (1 << kCGEventFlagsChanged);
+    CGEventMask mask = (1 << kCGEventKeyDown) | (1 << kCGEventKeyUp) | (1 << kCGEventFlagsChanged);
     g_event_tap = CGEventTapCreate(
         kCGSessionEventTap,
         kCGHeadInsertEventTap,
@@ -131,12 +81,6 @@ static void stopEventTap() {
     g_run_loop = NULL;
     g_is_running = 0;
 }
-
-static void configureTarget(int keycode, int is_modifier_alone, uint64_t req_flags) {
-    g_target_keycode = keycode;
-    g_is_modifier_alone = is_modifier_alone;
-    g_required_flags = req_flags;
-}
 */
 import "C"
 
@@ -144,85 +88,284 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
-var (
-	globalCallbackMu sync.Mutex
-	globalCallback   Handler
-	lastTriggerTime  time.Time
+// CGEventType constants
+const (
+	cgEventKeyDown      = 10 // kCGEventKeyDown
+	cgEventKeyUp        = 11 // kCGEventKeyUp
+	cgEventFlagsChanged = 12 // kCGEventFlagsChanged
 )
 
-//export triggerHotkeyCallback
-func triggerHotkeyCallback() {
-	globalCallbackMu.Lock()
-	cb := globalCallback
-	now := time.Now()
-	// Debounce 250ms to prevent multiple events on a single key press
-	if now.Sub(lastTriggerTime) < 250*time.Millisecond {
-		globalCallbackMu.Unlock()
-		return
-	}
-	lastTriggerTime = now
-	globalCallbackMu.Unlock()
+// CGEventFlagMask values
+const (
+	cgEventFlagMaskCommand   = 0x00100000
+	cgEventFlagMaskShift     = 0x00020000
+	cgEventFlagMaskAlternate = 0x00080000
+	cgEventFlagMaskControl   = 0x00040000
+)
 
-	if cb != nil {
-		go cb()
-	}
-}
+var (
+	darwinRegistryMu sync.RWMutex
+	darwinRegistry   = make(map[*darwinHotkeyManager]struct{})
+	darwinRunning    bool
+)
 
-type darwinManager struct {
-	running bool
-	stopCh  chan struct{}
+type darwinHotkeyManager struct {
+	mu          sync.Mutex
+	running     bool
+	handler     Handler
+	keyHandler  KeyHandler
+	shortcut    string
+	targetKC    int
+	isModAlone  int
+	reqFlags    uint64
+	isDown      bool
+	lastTrigger int64
+	events      chan func()
+	stopWorker  chan struct{}
 }
 
 func newPlatformManager() platformManager {
-	return &darwinManager{}
+	return &darwinHotkeyManager{}
 }
 
-func (d *darwinManager) start(shortcutStr string, handler Handler) error {
-	globalCallbackMu.Lock()
-	globalCallback = handler
-	globalCallbackMu.Unlock()
+//export triggerDarwinKeyEvent
+func triggerDarwinKeyEvent(keycode int, eventType int, flags uint64) {
+	darwinRegistryMu.RLock()
+	managers := make([]*darwinHotkeyManager, 0, len(darwinRegistry))
+	for m := range darwinRegistry {
+		managers = append(managers, m)
+	}
+	darwinRegistryMu.RUnlock()
 
+	for _, mgr := range managers {
+		mgr.mu.Lock()
+		targetKC := mgr.targetKC
+		isModAlone := mgr.isModAlone
+		reqFlags := mgr.reqFlags
+		isCurrentlyDown := mgr.isDown
+		h := mgr.handler
+		kh := mgr.keyHandler
+		eventChan := mgr.events
+		mgr.mu.Unlock()
+
+		if targetKC < 0 || eventChan == nil {
+			continue
+		}
+
+		if isModAlone == 1 {
+			// Standalone modifier key (ShiftRight, OptionRight, Right Command, etc.)
+			if eventType == cgEventFlagsChanged && keycode == targetKC {
+				isPressed := false
+				if targetKC == kVK_RightShift || targetKC == kVK_Shift {
+					isPressed = (flags & cgEventFlagMaskShift) != 0
+				} else if targetKC == kVK_RightCommand || targetKC == kVK_Command {
+					isPressed = (flags & cgEventFlagMaskCommand) != 0
+				} else if targetKC == kVK_RightOption || targetKC == kVK_Option {
+					isPressed = (flags & cgEventFlagMaskAlternate) != 0
+				} else if targetKC == kVK_RightControl || targetKC == kVK_Control {
+					isPressed = (flags & cgEventFlagMaskControl) != 0
+				}
+
+				if isPressed {
+					if !isCurrentlyDown {
+						mgr.mu.Lock()
+						mgr.isDown = true
+						mgr.mu.Unlock()
+
+						if kh != nil {
+							fn := func() { kh("down") }
+							select {
+							case eventChan <- fn:
+							default:
+							}
+						}
+						if h != nil {
+							now := time.Now().UnixMilli()
+							if now-atomic.LoadInt64(&mgr.lastTrigger) > 150 {
+								atomic.StoreInt64(&mgr.lastTrigger, now)
+								fn := func() { h() }
+								select {
+								case eventChan <- fn:
+								default:
+								}
+							}
+						}
+					}
+				} else {
+					if isCurrentlyDown {
+						mgr.mu.Lock()
+						mgr.isDown = false
+						mgr.mu.Unlock()
+
+						if kh != nil {
+							fn := func() { kh("up") }
+							select {
+							case eventChan <- fn:
+							default:
+							}
+						}
+					}
+				}
+			}
+		} else {
+			// Regular key or modifier combination (e.g. '\', '/', 'Cmd+Shift+S', 'Alt+Space')
+			if keycode == targetKC {
+				if eventType == cgEventKeyDown {
+					cmdReq := (reqFlags & cgEventFlagMaskCommand) != 0
+					shiftReq := (reqFlags & cgEventFlagMaskShift) != 0
+					altReq := (reqFlags & cgEventFlagMaskAlternate) != 0
+					ctrlReq := (reqFlags & cgEventFlagMaskControl) != 0
+
+					cmdDown := (flags & cgEventFlagMaskCommand) != 0
+					shiftDown := (flags & cgEventFlagMaskShift) != 0
+					altDown := (flags & cgEventFlagMaskAlternate) != 0
+					ctrlDown := (flags & cgEventFlagMaskControl) != 0
+
+					if cmdReq == cmdDown && shiftReq == shiftDown && altReq == altDown && ctrlReq == ctrlDown {
+						if !isCurrentlyDown {
+							mgr.mu.Lock()
+							mgr.isDown = true
+							mgr.mu.Unlock()
+
+							if kh != nil {
+								fn := func() { kh("down") }
+								select {
+								case eventChan <- fn:
+								default:
+								}
+							}
+							if h != nil {
+								now := time.Now().UnixMilli()
+								if now-atomic.LoadInt64(&mgr.lastTrigger) > 150 {
+									atomic.StoreInt64(&mgr.lastTrigger, now)
+									fn := func() { h() }
+									select {
+									case eventChan <- fn:
+									default:
+									}
+								}
+							}
+						}
+					}
+				} else if eventType == cgEventKeyUp {
+					if isCurrentlyDown {
+						mgr.mu.Lock()
+						mgr.isDown = false
+						mgr.mu.Unlock()
+
+						if kh != nil {
+							fn := func() { kh("up") }
+							select {
+							case eventChan <- fn:
+							default:
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func (d *darwinHotkeyManager) start(shortcutStr string, handler Handler) error {
+	return d.startWithKeyHandler(shortcutStr, handler, nil)
+}
+
+func (d *darwinHotkeyManager) startWithKeyHandler(shortcutStr string, handler Handler, keyHandler KeyHandler) error {
 	kc, isModAlone, flags, err := parseShortcutDarwin(shortcutStr)
 	if err != nil {
 		return err
 	}
 
-	C.configureTarget(C.int(kc), C.int(isModAlone), C.uint64_t(flags))
-
-	d.stopCh = make(chan struct{})
+	d.mu.Lock()
+	d.shortcut = shortcutStr
+	d.handler = handler
+	d.keyHandler = keyHandler
+	d.targetKC = kc
+	d.isModAlone = isModAlone
+	d.reqFlags = flags
 	d.running = true
-
-	startedCh := make(chan bool, 1)
+	d.isDown = false
+	d.events = make(chan func(), 64)
+	d.stopWorker = make(chan struct{})
+	eventChan := d.events
+	stopChan := d.stopWorker
+	d.mu.Unlock()
 
 	go func() {
-		// Run loop inside separate goroutine / OS thread
-		startedCh <- true
-		ok := int(C.startEventTap())
-		if ok == 0 {
-			fmt.Println("[hotkey] CGEventTap failed to create. Ensure Accessibility permission is granted in macOS System Settings.")
+		for {
+			select {
+			case fn := <-eventChan:
+				if fn != nil {
+					fn()
+				}
+			case <-stopChan:
+				return
+			}
 		}
 	}()
 
-	<-startedCh
+	darwinRegistryMu.Lock()
+	darwinRegistry[d] = struct{}{}
+	shouldStartGlobal := !darwinRunning
+	if shouldStartGlobal {
+		darwinRunning = true
+	}
+	darwinRegistryMu.Unlock()
+
+	if shouldStartGlobal {
+		go func() {
+			ok := int(C.startEventTap())
+			if ok == 0 {
+				fmt.Println("[hotkey] CGEventTap failed to create. Ensure Accessibility permission is granted in macOS System Settings.")
+			}
+		}()
+	}
+
 	return nil
 }
 
-func (d *darwinManager) update(shortcutStr string) error {
+func (d *darwinHotkeyManager) update(shortcutStr string) error {
 	kc, isModAlone, flags, err := parseShortcutDarwin(shortcutStr)
 	if err != nil {
 		return err
 	}
-	C.configureTarget(C.int(kc), C.int(isModAlone), C.uint64_t(flags))
+
+	d.mu.Lock()
+	d.shortcut = shortcutStr
+	d.targetKC = kc
+	d.isModAlone = isModAlone
+	d.reqFlags = flags
+	d.isDown = false
+	d.mu.Unlock()
+
 	return nil
 }
 
-func (d *darwinManager) stop() {
-	if d.running {
+func (d *darwinHotkeyManager) stop() {
+	d.mu.Lock()
+	d.running = false
+	d.isDown = false
+	if d.stopWorker != nil {
+		close(d.stopWorker)
+		d.stopWorker = nil
+	}
+	d.mu.Unlock()
+
+	darwinRegistryMu.Lock()
+	delete(darwinRegistry, d)
+	shouldStopGlobal := len(darwinRegistry) == 0 && darwinRunning
+	if shouldStopGlobal {
+		darwinRunning = false
+	}
+	darwinRegistryMu.Unlock()
+
+	if shouldStopGlobal {
 		C.stopEventTap()
-		d.running = false
 	}
 }
 
@@ -250,6 +393,7 @@ var darwinKeyMap = map[string]int{
 	"3": 20, "4": 21, "6": 22, "5": 23, "=": 24, "9": 25, "7": 26, "-": 27, "8": 28,
 	"0": 29, "]": 30, "o": 31, "u": 32, "[": 33, "i": 34, "p": 35, "l": 37, "j": 38,
 	"'": 39, "k": 40, ";": 41, "\\": 42, ",": 43, "/": 44, "n": 45, "m": 46, ".": 47,
+	"`": 50,
 	"space": kVK_Space, "return": kVK_Return, "enter": kVK_Return, "tab": kVK_Tab,
 	"delete": kVK_Delete, "backspace": kVK_Delete, "escape": kVK_Escape,
 }
@@ -263,25 +407,25 @@ func parseShortcutDarwin(shortcutStr string) (keycode int, isModifierAlone int, 
 	norm := strings.ToLower(strings.ReplaceAll(strings.ReplaceAll(s, " ", ""), "_", ""))
 	// Check standalone modifier keys
 	switch norm {
-	case "shiftright", "rightshift":
+	case "shiftright", "rightshift", "rshift":
 		return kVK_RightShift, 1, 0, nil
-	case "shiftleft", "leftshift", "shift":
+	case "shiftleft", "leftshift", "lshift", "shift":
 		return kVK_Shift, 1, 0, nil
-	case "metaright", "rightcmd", "cmdright", "rightcommand", "commandright":
+	case "metaright", "rightcmd", "cmdright", "rightcommand", "commandright", "rcmd":
 		return kVK_RightCommand, 1, 0, nil
-	case "metaleft", "leftcmd", "cmdleft", "leftcommand", "commandleft", "cmd", "meta":
+	case "metaleft", "leftcmd", "cmdleft", "leftcommand", "commandleft", "cmd", "meta", "lcmd":
 		return kVK_Command, 1, 0, nil
-	case "altright", "rightalt", "optionright", "rightoption", "optright", "rightopt":
+	case "altright", "rightalt", "optionright", "rightoption", "optright", "rightopt", "ropt":
 		return kVK_RightOption, 1, 0, nil
-	case "altleft", "leftalt", "optionleft", "leftoption", "optleft", "leftopt", "alt", "option":
+	case "altleft", "leftalt", "optionleft", "leftoption", "optleft", "leftopt", "alt", "option", "lopt":
 		return kVK_Option, 1, 0, nil
-	case "controlright", "rightctrl", "ctrlright", "rightcontrol":
+	case "controlright", "rightctrl", "ctrlright", "rightcontrol", "rctrl":
 		return kVK_RightControl, 1, 0, nil
-	case "controlleft", "leftctrl", "ctrlleft", "leftcontrol", "ctrl", "control":
+	case "controlleft", "leftctrl", "ctrlleft", "leftcontrol", "ctrl", "control", "lctrl":
 		return kVK_Control, 1, 0, nil
 	}
 
-	// Parse combination like CmdOrCtrl+Shift+S
+	// Parse combination like CmdOrCtrl+Shift+S or single keys like "\"
 	parts := strings.Split(s, "+")
 	var reqFlags uint64
 	var keyPart string
@@ -290,21 +434,39 @@ func parseShortcutDarwin(shortcutStr string) (keycode int, isModifierAlone int, 
 		pClean := strings.ToLower(strings.TrimSpace(p))
 		switch pClean {
 		case "cmd", "ctrl", "cmdorctrl", "meta", "command":
-			reqFlags |= 0x100000 // kCGEventFlagMaskCommand (macOS standard for CmdOrCtrl)
-		case "shift":
-			reqFlags |= 0x020000 // kCGEventFlagMaskShift
-		case "alt", "option", "opt":
-			reqFlags |= 0x080000 // kCGEventFlagMaskAlternate
+			reqFlags |= cgEventFlagMaskCommand // kCGEventFlagMaskCommand
 		case "control":
-			reqFlags |= 0x040000 // kCGEventFlagMaskControl
+			reqFlags |= cgEventFlagMaskControl
+		case "shift":
+			reqFlags |= cgEventFlagMaskShift
+		case "alt", "option", "opt":
+			reqFlags |= cgEventFlagMaskAlternate
 		default:
 			keyPart = pClean
 		}
 	}
 
-	if kc, ok := darwinKeyMap[keyPart]; ok {
-		return kc, 0, reqFlags, nil
+	if keyPart == "" {
+		// If only modifiers specified, default to standalone modifier keycode
+		if reqFlags&cgEventFlagMaskShift != 0 {
+			return kVK_RightShift, 1, 0, nil
+		}
+		if reqFlags&cgEventFlagMaskAlternate != 0 {
+			return kVK_RightOption, 1, 0, nil
+		}
+		if reqFlags&cgEventFlagMaskControl != 0 {
+			return kVK_RightControl, 1, 0, nil
+		}
+		if reqFlags&cgEventFlagMaskCommand != 0 {
+			return kVK_RightCommand, 1, 0, nil
+		}
+		return 0, 0, 0, fmt.Errorf("invalid shortcut: %s", shortcutStr)
 	}
 
-	return -1, 0, 0, fmt.Errorf("unrecognized shortcut key: %s", keyPart)
+	kc, ok := darwinKeyMap[keyPart]
+	if !ok {
+		return 0, 0, 0, fmt.Errorf("unsupported key %q in shortcut %q", keyPart, shortcutStr)
+	}
+
+	return kc, 0, reqFlags, nil
 }

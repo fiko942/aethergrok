@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -125,13 +126,16 @@ func TestStreamParser_ToolCallAndCompleteEvents(t *testing.T) {
 
 func TestRunner_LifecycleAndCancel(t *testing.T) {
 	runner := grokrunner.NewRunner()
-	// Point to bash or sh to test execution & cancellation
-	runner.SetBinaryPath("sleep")
+	if runtime.GOOS == "windows" {
+		runner.SetBinaryPath("cmd.exe")
+	} else {
+		runner.SetBinaryPath("sleep")
+	}
 
 	sessionID := "test-session-cancel"
 	req := grokrunner.PromptRequest{
 		SessionID: sessionID,
-		Prompt:    "10", // sleep 10
+		Prompt:    "10",
 	}
 
 	ctx := context.Background()

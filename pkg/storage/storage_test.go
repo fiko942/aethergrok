@@ -77,13 +77,60 @@ func TestStorageManager_Settings_DictationFallback(t *testing.T) {
 		t.Fatalf("GetSettings failed: %v", err)
 	}
 	if loaded.DictationShortcut != "\\" {
-		t.Errorf("expected DictationShortcut 'Fn', got %q", loaded.DictationShortcut)
+		t.Errorf("expected DictationShortcut '\\', got %q", loaded.DictationShortcut)
 	}
 	if loaded.DictationMuteSystemAudio == nil || !*loaded.DictationMuteSystemAudio {
 		t.Errorf("expected DictationMuteSystemAudio true, got %v", loaded.DictationMuteSystemAudio)
 	}
 	if loaded.DictationHoldThresholdMs != 300 {
 		t.Errorf("expected DictationHoldThresholdMs 300, got %d", loaded.DictationHoldThresholdMs)
+	}
+}
+
+func TestStorageManager_Settings_SanitizeInvalidFields(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "aethergrok_storage_sanitize_test_*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	sm, err := NewStorageManager(tempDir)
+	if err != nil {
+		t.Fatalf("failed to init storage: %v", err)
+	}
+
+	// 1. Write settings with empty snapshotShortcut and macOS path
+	corruptedJSON := `{"theme":"dark-studio","grokBinaryPath":"/Users/fiko942/.local/bin/grok","snapshotShortcut":""}` + "\n"
+	if err := os.WriteFile(sm.settingsFile, []byte(corruptedJSON), 0644); err != nil {
+		t.Fatalf("failed to write corrupted settings: %v", err)
+	}
+
+	loaded, err := sm.GetSettings()
+	if err != nil {
+		t.Fatalf("GetSettings failed: %v", err)
+	}
+	if loaded.SnapshotShortcut != "CmdOrCtrl+Shift+S" {
+		t.Errorf("expected sanitized SnapshotShortcut 'CmdOrCtrl+Shift+S', got %q", loaded.SnapshotShortcut)
+	}
+	if loaded.GrokBinaryPath != "" {
+		t.Errorf("expected sanitized GrokBinaryPath '', got %q", loaded.GrokBinaryPath)
+	}
+
+	// 2. Write custom snapshotShortcut like "=" or "\\" and ensure it is preserved
+	customJSON := `{"theme":"dark-studio","snapshotShortcut":"=","dictationShortcut":"\\"}` + "\n"
+	if err := os.WriteFile(sm.settingsFile, []byte(customJSON), 0644); err != nil {
+		t.Fatalf("failed to write custom settings: %v", err)
+	}
+
+	loadedCustom, err := sm.GetSettings()
+	if err != nil {
+		t.Fatalf("GetSettings failed: %v", err)
+	}
+	if loadedCustom.SnapshotShortcut != "=" {
+		t.Errorf("expected SnapshotShortcut '=', got %q", loadedCustom.SnapshotShortcut)
+	}
+	if loadedCustom.DictationShortcut != "\\" {
+		t.Errorf("expected DictationShortcut '\\', got %q", loadedCustom.DictationShortcut)
 	}
 }
 
