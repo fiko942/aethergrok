@@ -76,7 +76,15 @@ ManifestDPIAware true
 Name "${INFO_PRODUCTNAME}"
 
 !ifndef OUTFILE_NAME
-    !define OUTFILE_NAME "..\..\bin\AetherGrok-Setup.exe"
+    !ifdef SUPPORTS_ARM64
+        !ifndef SUPPORTS_AMD64
+            !define OUTFILE_NAME "..\..\bin\AetherGrok-Setup-arm64.exe"
+        !else
+            !define OUTFILE_NAME "..\..\bin\AetherGrok-Setup.exe"
+        !endif
+    !else
+        !define OUTFILE_NAME "..\..\bin\AetherGrok-Setup.exe"
+    !endif
 !endif
 OutFile "${OUTFILE_NAME}"
 
