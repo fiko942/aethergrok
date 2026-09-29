@@ -163,14 +163,16 @@
     const previousScrollTop = containerEl.scrollTop;
 
     try {
-      const loaded = sessionStore.loadEarlierTurns(10);
+      const loaded = sessionStore.loadEarlierTurns();
       if (loaded) {
         await tick();
-        // Restore precise relative scroll position to avoid jump
+        // Restore precise relative scroll position to prevent layout jump
         if (containerEl) {
           const heightDiff = containerEl.scrollHeight - previousScrollHeight;
           containerEl.scrollTop = previousScrollTop + heightDiff;
         }
+        // Wait for next animation frame so the browser settles the paint before unlocking
+        await new Promise((resolve) => requestAnimationFrame(resolve));
       }
     } finally {
       isHydrating = false;
@@ -286,6 +288,7 @@
 <div
   bind:this={containerEl}
   onscroll={handleScroll}
+  style="overflow-anchor: none;"
   class="flex-1 w-full h-full overflow-y-auto px-4 py-3 space-y-3 relative bg-ant-bg select-text flex flex-col"
 >
   <div bind:this={contentWrapperEl} class="w-full space-y-3 flex-1 flex flex-col">

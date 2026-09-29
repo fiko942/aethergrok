@@ -449,7 +449,10 @@
   }
 </script>
 
-<div class="my-1 rounded-md border border-white/5 bg-ant-bg-secondary/20 overflow-hidden text-xs transition-colors hover:border-white/10">
+<div
+  class="my-1 rounded-md border border-white/5 bg-ant-bg-secondary/20 overflow-hidden text-xs transition-colors hover:border-white/10"
+  style="content-visibility: auto; contain-intrinsic-size: auto 34px;"
+>
   <!-- Minimalist Tool Header (Anti Gravity / VSCode Style) -->
   <div
     role="button"

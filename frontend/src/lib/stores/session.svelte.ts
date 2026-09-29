@@ -118,7 +118,7 @@ export interface Session {
   updatedAt: number;
   messages: ChatMessage[];
   // Windowing state per session
-  visibleTurnCount: number; // Number of recent user turns currently in DOM window (default 10)
+  visibleTurnCount: number; // Number of recent user turns currently in DOM window (default 4)
   pendingPermission?: PermissionRequest | null;
   isPinned?: boolean;
   pinnedAt?: number;
@@ -174,8 +174,8 @@ export const STATUS_META: Record<SessionStatus, { label: string; dotClass: strin
   }
 };
 
-export const DEFAULT_WINDOW_TURNS = 10;
-export const PREPEND_CHUNK_TURNS = 10;
+export const DEFAULT_WINDOW_TURNS = 4;
+export const PREPEND_CHUNK_TURNS = 4;
 
 const WORKSPACES_STORAGE_KEY = 'aethergrok_workspaces_v1';
 const SESSIONS_STORAGE_KEY = 'aethergrok_sessions_v1';
@@ -972,7 +972,7 @@ class SessionStore {
             tokens: m.tokens,
             status: m.status || 'done'
           }));
-          session.visibleTurnCount = Math.max(session.visibleTurnCount || DEFAULT_WINDOW_TURNS, session.messages.length);
+          session.visibleTurnCount = DEFAULT_WINDOW_TURNS;
 
           // Reconcile agentMode from session message tool calls if not explicitly set
           if (!session.agentMode) {
@@ -1294,6 +1294,10 @@ class SessionStore {
     };
 
     session.messages.push(msg);
+    // When a new user turn arrives, anchor the active DOM window to the default 4-turn window
+    if (msg.role === 'user') {
+      session.visibleTurnCount = DEFAULT_WINDOW_TURNS;
+    }
     session.updatedAt = Date.now();
     this.saveSessionsToStorage();
     return msg;
