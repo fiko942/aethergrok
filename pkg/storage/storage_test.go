@@ -99,8 +99,8 @@ func TestStorageManager_Settings_SanitizeInvalidFields(t *testing.T) {
 		t.Fatalf("failed to init storage: %v", err)
 	}
 
-	// 1. Write settings with empty snapshotShortcut and macOS path
-	corruptedJSON := `{"theme":"dark-studio","grokBinaryPath":"/Users/fiko942/.local/bin/grok","snapshotShortcut":""}` + "\n"
+	// 1. Write settings with empty snapshotShortcut and non-existent path
+	corruptedJSON := `{"theme":"dark-studio","grokBinaryPath":"/nonexistent/test/path/to/grok_bin_123","snapshotShortcut":""}` + "\n"
 	if err := os.WriteFile(sm.settingsFile, []byte(corruptedJSON), 0644); err != nil {
 		t.Fatalf("failed to write corrupted settings: %v", err)
 	}

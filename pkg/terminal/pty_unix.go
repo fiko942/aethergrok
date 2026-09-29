@@ -14,20 +14,12 @@ import (
 )
 
 func startPty(cmd *exec.Cmd, rows, cols int) (*osFileWrapper, error) {
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true,
-	}
-
 	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{
 		Rows: uint16(rows),
 		Cols: uint16(cols),
 	})
 	if err != nil {
 		return nil, err
-	}
-
-	if cmd.Process != nil {
-		_ = syscall.Setpgid(cmd.Process.Pid, cmd.Process.Pid)
 	}
 
 	return &osFileWrapper{

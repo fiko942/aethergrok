@@ -9,8 +9,10 @@ package hotkey
 #import <Foundation/Foundation.h>
 #import <Cocoa/Cocoa.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 extern void triggerDarwinKeyEvent(int64_t keycode, int64_t eventType, uint64_t flags);
+extern void onDarwinTapStarted(void);
 
 static CFMachPortRef g_event_tap = NULL;
 static CFRunLoopSourceRef g_run_loop_source = NULL;
@@ -31,6 +33,10 @@ static CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEv
     triggerDarwinKeyEvent((int64_t)keycode, (int64_t)type, (uint64_t)flags);
 
     return event;
+}
+
+static int isPhysicalKeyDown(int64_t keycode) {
+    return CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, (CGKeyCode)keycode) ? 1 : 0;
 }
 
 static int startEventTap() {
@@ -55,6 +61,9 @@ static int startEventTap() {
     CFRunLoopAddSource(g_run_loop, g_run_loop_source, kCFRunLoopCommonModes);
     CGEventTapEnable(g_event_tap, true);
     g_is_running = 1;
+
+    // Notify Go that event tap is active and running before entering the runloop
+    onDarwinTapStarted();
 
     CFRunLoopRun();
     return 1;
@@ -112,21 +121,127 @@ var (
 	darwinRegistryMu sync.RWMutex
 	darwinRegistry   = make(map[*darwinHotkeyManager]struct{})
 	darwinRunning    bool
+	darwinReadyChan  chan struct{}
 )
 
+//export onDarwinTapStarted
+func onDarwinTapStarted() {
+	darwinRegistryMu.Lock()
+	darwinRunning = true
+	if darwinReadyChan != nil {
+		select {
+		case <-darwinReadyChan:
+		default:
+			close(darwinReadyChan)
+		}
+	}
+	darwinRegistryMu.Unlock()
+}
+
 type darwinHotkeyManager struct {
-	mu          sync.Mutex
-	running     bool
-	handler     Handler
-	keyHandler  KeyHandler
-	shortcut    string
-	targetKC    int
-	isModAlone  int
-	reqFlags    uint64
-	isDown      bool
-	lastTrigger int64
-	events      chan func()
-	stopWorker  chan struct{}
+	mu           sync.Mutex
+	running      bool
+	handler      Handler
+	keyHandler   KeyHandler
+	shortcut     string
+	targetKC     int
+	isModAlone   int
+	reqFlags     uint64
+	isDown       bool
+	lastTrigger  int64
+	events       chan func()
+	stopWorker   chan struct{}
+	stopWatchdog chan struct{}
+}
+
+// Helper to send events to the manager event queue with drop-resistant buffering
+func (d *darwinHotkeyManager) enqueueEvent(fn func()) {
+	if fn == nil {
+		return
+	}
+	d.mu.Lock()
+	ch := d.events
+	d.mu.Unlock()
+	if ch == nil {
+		return
+	}
+	select {
+	case ch <- fn:
+	default:
+		// Channel buffer is temporarily saturated; dispatch via background goroutine
+		go func() {
+			defer func() { _ = recover() }()
+			ch <- fn
+		}()
+	}
+}
+
+func (d *darwinHotkeyManager) startWatchdogLocked() {
+	if d.stopWatchdog != nil {
+		return
+	}
+	stopCh := make(chan struct{})
+	d.stopWatchdog = stopCh
+
+	go func(targetKC int, isModAlone int, ch chan struct{}) {
+		ticker := time.NewTicker(60 * time.Millisecond)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ch:
+				return
+			case <-ticker.C:
+				d.mu.Lock()
+				isDown := d.isDown
+				kh := d.keyHandler
+				running := d.running
+				d.mu.Unlock()
+
+				if !running {
+					return
+				}
+
+				if isDown {
+					isPhysicallyPressed := false
+					if isModAlone == 1 {
+						// For standalone modifier keys
+						isPhysicallyPressed = isPhysicalModifierDown(targetKC)
+					} else {
+						// For regular keys (like '\', space, etc.)
+						isPhysicallyPressed = (int(C.isPhysicalKeyDown(C.int64_t(targetKC))) != 0)
+					}
+
+					if !isPhysicallyPressed {
+						// Physical key was released while focus shifted or keyUp was dropped by OS
+						d.mu.Lock()
+						if d.isDown {
+							d.isDown = false
+							d.stopWatchdogLocked()
+							d.mu.Unlock()
+
+							if kh != nil {
+								d.enqueueEvent(func() { kh("up") })
+							}
+						} else {
+							d.mu.Unlock()
+						}
+					}
+				}
+			}
+		}
+	}(d.targetKC, d.isModAlone, stopCh)
+}
+
+func (d *darwinHotkeyManager) stopWatchdogLocked() {
+	if d.stopWatchdog != nil {
+		close(d.stopWatchdog)
+		d.stopWatchdog = nil
+	}
+}
+
+func isPhysicalModifierDown(targetKC int) bool {
+	return int(C.isPhysicalKeyDown(C.int64_t(targetKC))) != 0
 }
 
 func newPlatformManager() platformManager {
@@ -178,24 +293,17 @@ func triggerDarwinKeyEvent(keycode int64, eventType int64, flags uint64) {
 					if !isCurrentlyDown {
 						mgr.mu.Lock()
 						mgr.isDown = true
+						mgr.startWatchdogLocked()
 						mgr.mu.Unlock()
 
 						if kh != nil {
-							fn := func() { kh("down") }
-							select {
-							case eventChan <- fn:
-							default:
-							}
+							mgr.enqueueEvent(func() { kh("down") })
 						}
 						if h != nil {
 							now := time.Now().UnixMilli()
 							if now-atomic.LoadInt64(&mgr.lastTrigger) > 150 {
 								atomic.StoreInt64(&mgr.lastTrigger, now)
-								fn := func() { h() }
-								select {
-								case eventChan <- fn:
-								default:
-								}
+								mgr.enqueueEvent(func() { h() })
 							}
 						}
 					}
@@ -203,14 +311,11 @@ func triggerDarwinKeyEvent(keycode int64, eventType int64, flags uint64) {
 					if isCurrentlyDown {
 						mgr.mu.Lock()
 						mgr.isDown = false
+						mgr.stopWatchdogLocked()
 						mgr.mu.Unlock()
 
 						if kh != nil {
-							fn := func() { kh("up") }
-							select {
-							case eventChan <- fn:
-							default:
-							}
+							mgr.enqueueEvent(func() { kh("up") })
 						}
 					}
 				}
@@ -233,24 +338,17 @@ func triggerDarwinKeyEvent(keycode int64, eventType int64, flags uint64) {
 						if !isCurrentlyDown {
 							mgr.mu.Lock()
 							mgr.isDown = true
+							mgr.startWatchdogLocked()
 							mgr.mu.Unlock()
 
 							if kh != nil {
-								fn := func() { kh("down") }
-								select {
-								case eventChan <- fn:
-								default:
-								}
+								mgr.enqueueEvent(func() { kh("down") })
 							}
 							if h != nil {
 								now := time.Now().UnixMilli()
 								if now-atomic.LoadInt64(&mgr.lastTrigger) > 150 {
 									atomic.StoreInt64(&mgr.lastTrigger, now)
-									fn := func() { h() }
-									select {
-									case eventChan <- fn:
-									default:
-									}
+									mgr.enqueueEvent(func() { h() })
 								}
 							}
 						}
@@ -259,14 +357,11 @@ func triggerDarwinKeyEvent(keycode int64, eventType int64, flags uint64) {
 					if isCurrentlyDown {
 						mgr.mu.Lock()
 						mgr.isDown = false
+						mgr.stopWatchdogLocked()
 						mgr.mu.Unlock()
 
 						if kh != nil {
-							fn := func() { kh("up") }
-							select {
-							case eventChan <- fn:
-							default:
-							}
+							mgr.enqueueEvent(func() { kh("up") })
 						}
 					}
 				}
@@ -316,6 +411,9 @@ func (d *darwinHotkeyManager) startWithKeyHandler(shortcutStr string, handler Ha
 	darwinRegistryMu.Lock()
 	darwinRegistry[d] = struct{}{}
 	shouldStartGlobal := !darwinRunning
+	if shouldStartGlobal && darwinReadyChan == nil {
+		darwinReadyChan = make(chan struct{})
+	}
 	darwinRegistryMu.Unlock()
 
 	if shouldStartGlobal {
@@ -323,16 +421,14 @@ func (d *darwinHotkeyManager) startWithKeyHandler(shortcutStr string, handler Ha
 			for attempt := 1; attempt <= 10; attempt++ {
 				darwinRegistryMu.Lock()
 				count := len(darwinRegistry)
+				alreadyRunning := darwinRunning
 				darwinRegistryMu.Unlock()
-				if count == 0 {
+				if count == 0 || alreadyRunning {
 					return
 				}
 
 				ok := int(C.startEventTap())
 				if ok != 0 {
-					darwinRegistryMu.Lock()
-					darwinRunning = true
-					darwinRegistryMu.Unlock()
 					return
 				}
 
@@ -362,15 +458,13 @@ func (d *darwinHotkeyManager) update(shortcutStr string) error {
 	// If global event tap is not yet running (e.g. permission was granted after startup), attempt initialization
 	darwinRegistryMu.Lock()
 	isRunning := darwinRunning
+	if !isRunning && darwinReadyChan == nil {
+		darwinReadyChan = make(chan struct{})
+	}
 	darwinRegistryMu.Unlock()
 	if !isRunning {
 		go func() {
-			ok := int(C.startEventTap())
-			if ok != 0 {
-				darwinRegistryMu.Lock()
-				darwinRunning = true
-				darwinRegistryMu.Unlock()
-			}
+			_ = int(C.startEventTap())
 		}()
 	}
 
@@ -381,6 +475,7 @@ func (d *darwinHotkeyManager) stop() {
 	d.mu.Lock()
 	d.running = false
 	d.isDown = false
+	d.stopWatchdogLocked()
 	if d.stopWorker != nil {
 		close(d.stopWorker)
 		d.stopWorker = nil
@@ -392,6 +487,7 @@ func (d *darwinHotkeyManager) stop() {
 	shouldStopGlobal := len(darwinRegistry) == 0 && darwinRunning
 	if shouldStopGlobal {
 		darwinRunning = false
+		darwinReadyChan = nil
 	}
 	darwinRegistryMu.Unlock()
 

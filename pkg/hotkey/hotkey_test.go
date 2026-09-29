@@ -3,7 +3,9 @@
 package hotkey
 
 import (
+	"sync"
 	"testing"
+	"time"
 )
 
 func TestParseShortcutDarwin(t *testing.T) {
@@ -59,9 +61,12 @@ func TestParseShortcutDarwin(t *testing.T) {
 func TestDarwinKeyEventDispatch(t *testing.T) {
 	mgr := newPlatformManager()
 	var actions []string
+	var mu sync.Mutex
 
 	err := mgr.startWithKeyHandler("\\", func() {}, func(action string) {
+		mu.Lock()
 		actions = append(actions, action)
+		mu.Unlock()
 	})
 	if err != nil {
 		t.Fatalf("failed to start: %v", err)
@@ -73,8 +78,62 @@ func TestDarwinKeyEventDispatch(t *testing.T) {
 	// Simulate KeyUp for '\' (keycode 42)
 	triggerDarwinKeyEvent(42, cgEventKeyUp, 0)
 
+	// Allow goroutine event channel dispatch
+	for i := 0; i < 50; i++ {
+		mu.Lock()
+		count := len(actions)
+		mu.Unlock()
+		if count >= 2 {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
 	if len(actions) != 2 {
 		t.Fatalf("expected 2 actions (down and up), got %d: %v", len(actions), actions)
+	}
+	if actions[0] != "down" || actions[1] != "up" {
+		t.Errorf("expected [down, up], got %v", actions)
+	}
+}
+
+func TestDarwinWatchdogAutoRelease(t *testing.T) {
+	mgr := newPlatformManager()
+	var actions []string
+	var mu sync.Mutex
+
+	err := mgr.startWithKeyHandler("\\", func() {}, func(action string) {
+		mu.Lock()
+		actions = append(actions, action)
+		mu.Unlock()
+	})
+	if err != nil {
+		t.Fatalf("failed to start: %v", err)
+	}
+	defer mgr.stop()
+
+	// Simulate KeyDown for '\' (keycode 42)
+	triggerDarwinKeyEvent(42, cgEventKeyDown, 0)
+
+	// In automated tests, CGEventSourceKeyState for keycode 42 returns false (not physically held).
+	// The watchdog ticker runs every 60ms and detects that the physical key is NOT held down,
+	// automatically dispatching an "up" event!
+	for i := 0; i < 50; i++ {
+		mu.Lock()
+		count := len(actions)
+		mu.Unlock()
+		if count >= 2 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(actions) != 2 {
+		t.Fatalf("expected watchdog to emit 'up' action when physical key is not held, got %d: %v", len(actions), actions)
 	}
 	if actions[0] != "down" || actions[1] != "up" {
 		t.Errorf("expected [down, up], got %v", actions)
