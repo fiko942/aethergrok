@@ -7,57 +7,20 @@
     {
       "version": "1.0.6",
       "tag": "v1.0.6",
-      "date": "2026-09-29T12:04:07.275Z",
+      "date": "2026-09-29T12:14:54.252Z",
       "title": "AetherGrok 1.0.6 - 4-Turn DOM Virtualization, Viewport Pruning & Audio Hygiene",
-      "targetCommit": "e6d8cc2",
-      "previousCommit": "bc4a1ff",
+      "targetCommit": "385d4e3",
+      "previousCommit": "67fe230",
       "highlights": [
-        "4-Turn Virtual Sliding Window with automatic DOM pruning on new user turns",
-        "Viewport pruning with 800px tolerance buffer and zero-shift layout spacers",
-        "Deterministic scroll anchor preservation and disabled browser heuristic jumps",
-        "Automatic temporary voice dictation cache sweep and storage hygiene",
-        "Cross-platform audio input device discovery on Windows and macOS"
+        "4-Turn DOM Virtual Sliding Window: Prunes non-viewport DOM nodes outside 4 turns for lightning performance",
+        "Viewport-aware message unmounting with zero layout jump and smooth scrolling",
+        "Automated voice dictation storage hygiene with immediate cache sweep",
+        "Cross-platform parity: Windows ConPTY terminal, macOS permissions, and Linux packaging"
       ],
       "commits": [
         {
-          "hash": "e6d8cc2",
-          "message": "chore(release): use shell true and pnpm in release script preflight"
-        },
-        {
-          "hash": "802faa7",
-          "message": "chore(release): enhance release script with cross-platform validation and skip flag"
-        },
-        {
-          "hash": "f957ed8",
-          "message": "docs(superpowers): add audio storage hygiene and voice cache sweep plan"
-        },
-        {
-          "hash": "f6b7b07",
-          "message": "fix(audio): guarantee complete deletion and automated sweep of voice dictation cache"
-        },
-        {
-          "hash": "14c014c",
-          "message": "feat(chat): implement 4-turn virtual sliding window and viewport pruning with scroll anchoring"
-        },
-        {
-          "hash": "2113269",
-          "message": "fix(terminal,voice,hotkey): resolve Windows ConPTY input echo, audio transcription gateway, and macOS event tap resiliency"
-        },
-        {
-          "hash": "537523e",
-          "message": "fix(version): synchronize runtime version to 1.0.5 across backend, frontend, and installer configs"
-        },
-        {
-          "hash": "5b16e0e",
-          "message": "fix: harden global hotkey key mappings and blur protection"
-        },
-        {
-          "hash": "3929d4e",
-          "message": "feat: multi-platform desktop stabilization, global hotkeys, and Windows parity"
-        },
-        {
-          "hash": "620399d",
-          "message": "docs(superpowers): record v1.0.5 release context and auto-updater checksum fix"
+          "hash": "385d4e3",
+          "message": "chore(release): enhance release script tagging and release upsert handling"
         }
       ],
       "downloads": {
