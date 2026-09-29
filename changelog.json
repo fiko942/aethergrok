@@ -2,8 +2,48 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "AetherGrok Release Changelog",
   "description": "Central single source of truth for all AetherGrok releases, commit ranges, and download artifacts.",
-  "latest": "1.0.7",
+  "latest": "1.0.8",
   "releases": [
+    {
+      "version": "1.0.8",
+      "tag": "v1.0.8",
+      "date": "2026-09-29T17:06:23.168Z",
+      "title": "AetherGrok 1.0.8 - Real-Time Plan Tracker, Input Shielding & ACP Stream Parser",
+      "targetCommit": "b01403e",
+      "previousCommit": "8c31943",
+      "highlights": [
+        "Real-time interactive Floating Plan Tracker HUD and dedicated Plan Panel with reactive task lifecycle states",
+        "Context-aware Input Shield protecting terminal and modal inputs from hotkey collision and accidental submissions",
+        "High-performance ACP NDJSON stream parser enhancements with resilient token chunking and metadata reconciliation",
+        "Enhanced diff rendering cards with additions/deletions counters and unified diff formatting"
+      ],
+      "commits": [
+        {
+          "hash": "b01403e",
+          "message": "test(ci): ensure robust test skipping on headless/restricted environments and clean hotkey registry"
+        },
+        {
+          "hash": "af49a80",
+          "message": "feat(plan-shield): implement floating plan tracker HUD, dedicated plan panel, input shielding, and stream parser updates"
+        },
+        {
+          "hash": "f0aa712",
+          "message": "fix(nsis): prevent arm64 and amd64 installer output name collision in NSIS script"
+        },
+        {
+          "hash": "0c0a133",
+          "message": "ci(release): create versioned Windows installer and portable aliases in GitHub Actions"
+        }
+      ],
+      "downloads": {
+        "macos_arm64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.0.8/AetherGrok-1.0.8-macOS-arm64.dmg",
+        "macos_x64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.0.8/AetherGrok-1.0.8-macOS-amd64.dmg",
+        "windows_x64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.0.8/AetherGrok-1.0.8-windows-amd64-setup.exe",
+        "windows_x64_portable": "https://github.com/fiko942/aethergrok/releases/download/v1.0.8/AetherGrok-1.0.8-windows-amd64-portable.zip",
+        "windows_arm64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.0.8/AetherGrok-1.0.8-windows-arm64-setup.exe",
+        "windows_arm64_portable": "https://github.com/fiko942/aethergrok/releases/download/v1.0.8/AetherGrok-1.0.8-windows-arm64-portable.zip"
+      }
+    },
     {
       "version": "1.0.7",
       "tag": "v1.0.7",

@@ -34,7 +34,7 @@ import (
 )
 
 // AppVersion defines the current semantic version of AetherGrok Desktop Studio
-const AppVersion = "1.0.7"
+const AppVersion = "1.0.8"
 
 // App struct represents application runtime state
 type App struct {
