@@ -90,21 +90,21 @@ function runPreflightChecks() {
       title: 'Validating root TypeScript compilation (tsc -p .)',
       skip: () => process.env.SKIP_COMPILE === '1',
       fn: () => {
-        execSync('pnpm run compile', { cwd: ROOT_DIR, stdio: 'inherit', shell: true });
+        execSync('pnpm run compile', { cwd: ROOT_DIR, stdio: ['ignore', 'inherit', 'inherit'], shell: true });
       }
     },
     {
       title: 'Running unit test suite (vitest run)',
       skip: () => process.env.SKIP_TESTS === '1' || process.env.SKIP_TESTS === 'true',
       fn: () => {
-        execSync('pnpm run test', { cwd: ROOT_DIR, stdio: 'inherit', shell: true });
+        execSync('pnpm run test', { cwd: ROOT_DIR, stdio: ['ignore', 'inherit', 'inherit'], env: { ...process.env, CI: 'true' }, shell: true });
       }
     },
     {
       title: 'Compiling Vite Frontend Production Bundle',
       skip: () => process.env.SKIP_FRONTEND_BUILD === '1',
       fn: () => {
-        execSync('pnpm run build', { cwd: path.join(ROOT_DIR, 'frontend'), stdio: 'inherit', shell: true });
+        execSync('pnpm run build', { cwd: path.join(ROOT_DIR, 'frontend'), stdio: ['ignore', 'inherit', 'inherit'], shell: true });
       }
     },
     {
@@ -115,7 +115,7 @@ function runPreflightChecks() {
         const envPath = process.platform === 'win32'
           ? `C:\\Program Files\\Go\\bin;${process.env.PATH || ''}`
           : `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH || ''}`;
-        execSync(`${goBin} test ./...`, { cwd: ROOT_DIR, stdio: 'inherit', env: { ...process.env, PATH: envPath }, shell: true });
+        execSync(`${goBin} test ./...`, { cwd: ROOT_DIR, stdio: ['ignore', 'inherit', 'inherit'], env: { ...process.env, PATH: envPath }, shell: true });
       }
     },
     {
@@ -127,7 +127,7 @@ function runPreflightChecks() {
           ? `C:\\Program Files\\Go\\bin;${process.env.PATH || ''}`
           : `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH || ''}`;
         const nullOut = process.platform === 'win32' ? 'NUL' : '/dev/null';
-        execSync(`${goBin} build -o ${nullOut} .`, { cwd: ROOT_DIR, stdio: 'inherit', env: { ...process.env, PATH: envPath }, shell: true });
+        execSync(`${goBin} build -o ${nullOut} .`, { cwd: ROOT_DIR, stdio: ['ignore', 'inherit', 'inherit'], env: { ...process.env, PATH: envPath }, shell: true });
       }
     }
   ];
@@ -493,7 +493,7 @@ async function main() {
 
     // 8. Commit, Tag, and Push
     console.log('\n' + c('yellow', '6. Git commit, create tag, and push to GitHub...'));
-    run('git add changelog.json wails.json app.go app_test.go frontend/package.json build/windows/installer/wails_tools.nsh');
+    run('git add -A changelog.json wails.json app.go app_test.go frontend/package.json frontend/dist build/windows/installer/wails_tools.nsh scripts/release.mjs');
     try {
       run(`git commit -m "chore(release): ${nextTag} - ${inputTitle}"`);
       console.log(c('green', `✓ Committed release updates.`));

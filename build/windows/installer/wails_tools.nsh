@@ -14,7 +14,7 @@
     !define INFO_PRODUCTNAME "AetherGrok"
 !endif
 !ifndef INFO_PRODUCTVERSION
-    !define INFO_PRODUCTVERSION "1.0.6"
+    !define INFO_PRODUCTVERSION "1.0.7"
 !endif
 !ifndef INFO_COPYRIGHT
     !define INFO_COPYRIGHT "Copyright (c) 2026 Wiji Fiko Teren"

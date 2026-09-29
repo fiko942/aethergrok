@@ -2,8 +2,39 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "AetherGrok Release Changelog",
   "description": "Central single source of truth for all AetherGrok releases, commit ranges, and download artifacts.",
-  "latest": "1.0.6",
+  "latest": "1.0.7",
   "releases": [
+    {
+      "version": "1.0.7",
+      "tag": "v1.0.7",
+      "date": "2026-09-29T13:30:41.289Z",
+      "title": "AetherGrok 1.0.7 - Windows Snapshot Buffer Fix, Hidden CLI & Version Sync",
+      "targetCommit": "c9062e1",
+      "previousCommit": "5067e38",
+      "highlights": [
+        "Resolve Windows CreateProcess 32k character limit when attaching snapshots via temporary prompt file",
+        "Hide background Grok CLI window during voice transcription",
+        "Sync version 1.0.7 across frontend and backend"
+      ],
+      "commits": [
+        {
+          "hash": "c9062e1",
+          "message": "chore(frontend): build frontend bundle for v1.0.7"
+        },
+        {
+          "hash": "49a2443",
+          "message": "fix(vision-voice): resolve windows snapshot argument limit and hidden transcription window"
+        }
+      ],
+      "downloads": {
+        "macos_arm64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.0.7/AetherGrok-1.0.7-macOS-arm64.dmg",
+        "macos_x64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.0.7/AetherGrok-1.0.7-macOS-amd64.dmg",
+        "windows_x64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.0.7/AetherGrok-1.0.7-windows-amd64-setup.exe",
+        "windows_x64_portable": "https://github.com/fiko942/aethergrok/releases/download/v1.0.7/AetherGrok-1.0.7-windows-amd64-portable.zip",
+        "windows_arm64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.0.7/AetherGrok-1.0.7-windows-arm64-setup.exe",
+        "windows_arm64_portable": "https://github.com/fiko942/aethergrok/releases/download/v1.0.7/AetherGrok-1.0.7-windows-arm64-portable.zip"
+      }
+    },
     {
       "version": "1.0.6",
       "tag": "v1.0.6",
