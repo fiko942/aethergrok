@@ -312,16 +312,28 @@ func (d *darwinHotkeyManager) startWithKeyHandler(shortcutStr string, handler Ha
 	darwinRegistryMu.Lock()
 	darwinRegistry[d] = struct{}{}
 	shouldStartGlobal := !darwinRunning
-	if shouldStartGlobal {
-		darwinRunning = true
-	}
 	darwinRegistryMu.Unlock()
 
 	if shouldStartGlobal {
 		go func() {
-			ok := int(C.startEventTap())
-			if ok == 0 {
-				fmt.Println("[hotkey] CGEventTap failed to create. Ensure Accessibility permission is granted in macOS System Settings.")
+			for attempt := 1; attempt <= 10; attempt++ {
+				darwinRegistryMu.Lock()
+				count := len(darwinRegistry)
+				darwinRegistryMu.Unlock()
+				if count == 0 {
+					return
+				}
+
+				ok := int(C.startEventTap())
+				if ok != 0 {
+					darwinRegistryMu.Lock()
+					darwinRunning = true
+					darwinRegistryMu.Unlock()
+					return
+				}
+
+				// If Accessibility permission is pending user approval, retry every 2 seconds
+				time.Sleep(2 * time.Second)
 			}
 		}()
 	}
@@ -342,6 +354,21 @@ func (d *darwinHotkeyManager) update(shortcutStr string) error {
 	d.reqFlags = flags
 	d.isDown = false
 	d.mu.Unlock()
+
+	// If global event tap is not yet running (e.g. permission was granted after startup), attempt initialization
+	darwinRegistryMu.Lock()
+	isRunning := darwinRunning
+	darwinRegistryMu.Unlock()
+	if !isRunning {
+		go func() {
+			ok := int(C.startEventTap())
+			if ok != 0 {
+				darwinRegistryMu.Lock()
+				darwinRunning = true
+				darwinRegistryMu.Unlock()
+			}
+		}()
+	}
 
 	return nil
 }
