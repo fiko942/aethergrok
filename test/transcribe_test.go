@@ -57,13 +57,13 @@ func TestTranscriptionWithResolvedConfig(t *testing.T) {
 	baseURL, apiKey, candidateModels := grokrunner.ResolveTranscriptionConfig("")
 
 	if apiKey == "" {
-		t.Fatalf("expected non-empty apiKey from ~/.grok/config.toml")
+		t.Skip("skipping live transcription test: apiKey not configured in ~/.grok/config.toml")
 	}
 	if baseURL == "" {
-		t.Fatalf("expected non-empty baseURL")
+		t.Skip("skipping live transcription test: baseURL not configured")
 	}
 	if len(candidateModels) == 0 {
-		t.Fatalf("expected candidateModels")
+		t.Skip("skipping live transcription test: candidateModels not configured")
 	}
 
 	wavPath := createTestWav(t)

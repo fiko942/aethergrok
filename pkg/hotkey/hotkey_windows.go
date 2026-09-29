@@ -506,6 +506,13 @@ func (w *windowsHotkeyManager) startWithKeyHandler(shortcutStr string, handler H
 	hookRegistryMu.Lock()
 	hookRegistry[w] = struct{}{}
 	err = startGlobalHookLocked()
+	if err != nil {
+		delete(hookRegistry, w)
+		w.mu.Lock()
+		w.running = false
+		close(w.stopWorker)
+		w.mu.Unlock()
+	}
 	hookRegistryMu.Unlock()
 
 	return err
