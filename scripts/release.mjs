@@ -464,14 +464,22 @@ async function main() {
     // 8. Commit, Tag, and Push
     console.log('\n' + c('yellow', '6. Git commit, create tag, and push to GitHub...'));
     run('git add changelog.json wails.json');
-    run(`git commit -m "chore(release): ${nextTag} - ${inputTitle}"`);
-    console.log(c('green', `✓ Committed release updates.`));
+    try {
+      run(`git commit -m "chore(release): ${nextTag} - ${inputTitle}"`);
+      console.log(c('green', `✓ Committed release updates.`));
+    } catch (_) {
+      console.log(c('dim', `   Working tree already clean or committed.`));
+    }
 
-    run(`git tag -a ${nextTag} -m "Release ${nextTag}: ${inputTitle}"`);
-    console.log(c('green', `✓ Tag ${nextTag} created.`));
+    try {
+      run(`git tag -fa ${nextTag} -m "Release ${nextTag}: ${inputTitle}"`);
+      console.log(c('green', `✓ Tag ${nextTag} created/updated.`));
+    } catch (e) {
+      console.log(c('yellow', `   Tag notice: ${e.message}`));
+    }
 
     console.log(c('cyan', '   Pushing commits and tags to origin...'));
-    run('git push origin main --follow-tags');
+    run('git push origin main --follow-tags --force');
     console.log(c('green', `✓ Pushed to origin/main with tag ${nextTag}.`));
 
     // 9. Create GitHub Release via API
@@ -499,8 +507,9 @@ async function main() {
       releaseBody += `| **Windows** | ARM64 | Setup Installer | [${artifacts.windows_arm64_setup}](${downloadUrls.windows_arm64_setup}) |\n`;
       releaseBody += `| **Windows** | ARM64 | Portable Zip | [${artifacts.windows_arm64_portable}](${downloadUrls.windows_arm64_portable}) |\n`;
 
+      let createdRelease = null;
       try {
-        const createdRelease = await ghApi(`/repos/${owner}/${repo}/releases`, token, {
+        createdRelease = await ghApi(`/repos/${owner}/${repo}/releases`, token, {
           method: 'POST',
           body: JSON.stringify({
             tag_name: nextTag,
@@ -511,10 +520,16 @@ async function main() {
             prerelease: false,
           }),
         });
-        releaseUrl = createdRelease.html_url;
-        console.log(c('green', `✓ GitHub Release created: `) + c('bold', releaseUrl));
       } catch (err) {
-        console.log(c('yellow', `   Notice: ${err.message}`));
+        try {
+          createdRelease = await ghApi(`/repos/${owner}/${repo}/releases/tags/${nextTag}`, token);
+        } catch (_) {
+          console.log(c('yellow', `   Notice: ${err.message}`));
+        }
+      }
+      if (createdRelease && createdRelease.html_url) {
+        releaseUrl = createdRelease.html_url;
+        console.log(c('green', `✓ GitHub Release ready: `) + c('bold', releaseUrl));
       }
     }
 
