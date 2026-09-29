@@ -2,8 +2,73 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "AetherGrok Release Changelog",
   "description": "Central single source of truth for all AetherGrok releases, commit ranges, and download artifacts.",
-  "latest": "1.0.5",
+  "latest": "1.0.6",
   "releases": [
+    {
+      "version": "1.0.6",
+      "tag": "v1.0.6",
+      "date": "2026-09-29T12:04:07.275Z",
+      "title": "AetherGrok 1.0.6 - 4-Turn DOM Virtualization, Viewport Pruning & Audio Hygiene",
+      "targetCommit": "e6d8cc2",
+      "previousCommit": "bc4a1ff",
+      "highlights": [
+        "4-Turn Virtual Sliding Window with automatic DOM pruning on new user turns",
+        "Viewport pruning with 800px tolerance buffer and zero-shift layout spacers",
+        "Deterministic scroll anchor preservation and disabled browser heuristic jumps",
+        "Automatic temporary voice dictation cache sweep and storage hygiene",
+        "Cross-platform audio input device discovery on Windows and macOS"
+      ],
+      "commits": [
+        {
+          "hash": "e6d8cc2",
+          "message": "chore(release): use shell true and pnpm in release script preflight"
+        },
+        {
+          "hash": "802faa7",
+          "message": "chore(release): enhance release script with cross-platform validation and skip flag"
+        },
+        {
+          "hash": "f957ed8",
+          "message": "docs(superpowers): add audio storage hygiene and voice cache sweep plan"
+        },
+        {
+          "hash": "f6b7b07",
+          "message": "fix(audio): guarantee complete deletion and automated sweep of voice dictation cache"
+        },
+        {
+          "hash": "14c014c",
+          "message": "feat(chat): implement 4-turn virtual sliding window and viewport pruning with scroll anchoring"
+        },
+        {
+          "hash": "2113269",
+          "message": "fix(terminal,voice,hotkey): resolve Windows ConPTY input echo, audio transcription gateway, and macOS event tap resiliency"
+        },
+        {
+          "hash": "537523e",
+          "message": "fix(version): synchronize runtime version to 1.0.5 across backend, frontend, and installer configs"
+        },
+        {
+          "hash": "5b16e0e",
+          "message": "fix: harden global hotkey key mappings and blur protection"
+        },
+        {
+          "hash": "3929d4e",
+          "message": "feat: multi-platform desktop stabilization, global hotkeys, and Windows parity"
+        },
+        {
+          "hash": "620399d",
+          "message": "docs(superpowers): record v1.0.5 release context and auto-updater checksum fix"
+        }
+      ],
+      "downloads": {
+        "macos_arm64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.0.6/AetherGrok-1.0.6-macOS-arm64.dmg",
+        "macos_x64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.0.6/AetherGrok-1.0.6-macOS-amd64.dmg",
+        "windows_x64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.0.6/AetherGrok-1.0.6-windows-amd64-setup.exe",
+        "windows_x64_portable": "https://github.com/fiko942/aethergrok/releases/download/v1.0.6/AetherGrok-1.0.6-windows-amd64-portable.zip",
+        "windows_arm64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.0.6/AetherGrok-1.0.6-windows-arm64-setup.exe",
+        "windows_arm64_portable": "https://github.com/fiko942/aethergrok/releases/download/v1.0.6/AetherGrok-1.0.6-windows-arm64-portable.zip"
+      }
+    },
     {
       "version": "1.0.5",
       "tag": "v1.0.5",
