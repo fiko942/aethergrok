@@ -91,17 +91,6 @@ wails build \
 
 echo -e "${GREEN}✓ Wails macOS bundle compiled.${NC}"
 
-# Ensure macOS Privacy Usage Descriptions are present in the compiled Info.plist
-APP_PLIST="$BUILD_DIR/aethergrok.app/Contents/Info.plist"
-if [ -f "$APP_PLIST" ]; then
-  echo "Injecting privacy usage descriptions into Info.plist..."
-  /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string 'AetherGrok requires microphone access for voice dictation and speech-to-text input.'" "$APP_PLIST" 2>/dev/null || \
-  /usr/libexec/PlistBuddy -c "Set :NSMicrophoneUsageDescription 'AetherGrok requires microphone access for voice dictation and speech-to-text input.'" "$APP_PLIST" 2>/dev/null || true
-  
-  /usr/libexec/PlistBuddy -c "Add :NSSpeechRecognitionUsageDescription string 'AetherGrok uses speech recognition to convert dictated voice prompts into text.'" "$APP_PLIST" 2>/dev/null || \
-  /usr/libexec/PlistBuddy -c "Set :NSSpeechRecognitionUsageDescription 'AetherGrok uses speech recognition to convert dictated voice prompts into text.'" "$APP_PLIST" 2>/dev/null || true
-fi
-
 # Locate compiled application bundle
 APP_BUNDLE="$BUILD_DIR/aethergrok.app"
 if [ ! -d "$APP_BUNDLE" ]; then
@@ -111,6 +100,17 @@ if [ ! -d "$APP_BUNDLE" ]; then
     echo -e "${RED}Error: Application bundle not found in $BUILD_DIR${NC}"
     exit 1
   fi
+fi
+
+# Ensure macOS Privacy Usage Descriptions are present in the compiled Info.plist
+APP_PLIST="$APP_BUNDLE/Contents/Info.plist"
+if [ -f "$APP_PLIST" ]; then
+  echo "Injecting privacy usage descriptions into Info.plist..."
+  /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string 'AetherGrok requires microphone access for voice dictation and speech-to-text input.'" "$APP_PLIST" 2>/dev/null || \
+  /usr/libexec/PlistBuddy -c "Set :NSMicrophoneUsageDescription 'AetherGrok requires microphone access for voice dictation and speech-to-text input.'" "$APP_PLIST" 2>/dev/null || true
+  
+  /usr/libexec/PlistBuddy -c "Add :NSSpeechRecognitionUsageDescription string 'AetherGrok uses speech recognition to convert dictated voice prompts into text.'" "$APP_PLIST" 2>/dev/null || \
+  /usr/libexec/PlistBuddy -c "Set :NSSpeechRecognitionUsageDescription 'AetherGrok uses speech recognition to convert dictated voice prompts into text.'" "$APP_PLIST" 2>/dev/null || true
 fi
 
 # Resign bundle with explicit Designated Requirement (avoids Gatekeeper broken signature after Plist injection)
@@ -133,62 +133,79 @@ echo "Staging application bundle and Applications shortcut..."
 cp -R "$APP_BUNDLE" "$DMG_STAGE_DIR/AetherGrok.app"
 ln -s /Applications "$DMG_STAGE_DIR/Applications"
 
-# Create a writable temporary disk image
-echo "Creating writable disk image..."
-hdiutil create \
-  -volname "$APP_NAME" \
-  -srcfolder "$DMG_STAGE_DIR" \
-  -ov \
-  -fs HFS+ \
-  -format UDRW \
-  "$DMG_TMP"
+if [ -n "${CI:-}" ] || [ -n "${GITHUB_ACTIONS:-}" ]; then
+  echo "CI / Headless environment detected: generating UDZO DMG directly..."
+  hdiutil create \
+    -volname "$APP_NAME" \
+    -srcfolder "$DMG_STAGE_DIR" \
+    -ov \
+    -format UDZO \
+    -imagekey zlib-level=9 \
+    "$DMG_OUTPUT"
+  rm -rf "$DMG_STAGE_DIR"
+else
+  # Create a writable temporary disk image for interactive GUI layout styling
+  echo "Creating writable disk image..."
+  hdiutil create \
+    -volname "$APP_NAME" \
+    -srcfolder "$DMG_STAGE_DIR" \
+    -ov \
+    -fs HFS+ \
+    -format UDRW \
+    "$DMG_TMP"
 
-rm -rf "$DMG_STAGE_DIR"
+  rm -rf "$DMG_STAGE_DIR"
 
-# Mount the temporary image to apply Finder view layout & icon coordinates
-echo "Mounting disk image to configure Finder layout..."
-ATTACH_OUTPUT=$(hdiutil attach "$DMG_TMP" -noverify -noautoopen)
-DEV_NODE=$(echo "$ATTACH_OUTPUT" | grep -oE '/dev/disk[0-9]+' | head -n 1)
-MOUNT_POINT=$(echo "$ATTACH_OUTPUT" | grep -oE '/Volumes/[^ ]+' | tail -n 1)
-VOL_NAME=$(basename "$MOUNT_POINT")
+  # Mount the temporary image to apply Finder view layout & icon coordinates
+  echo "Mounting disk image to configure Finder layout..."
+  ATTACH_OUTPUT=$(hdiutil attach "$DMG_TMP" -noverify -noautoopen 2>&1 || true)
+  DEV_NODE=$(echo "$ATTACH_OUTPUT" | grep -oE '/dev/disk[0-9]+' | head -n 1 || true)
+  MOUNT_POINT=$(echo "$ATTACH_OUTPUT" | grep -oE '/Volumes/[^ ]+' | tail -n 1 || true)
 
-echo "Mounted on $MOUNT_POINT ($DEV_NODE), Volume: $VOL_NAME"
+  if [ -n "$MOUNT_POINT" ] && [ -d "$MOUNT_POINT" ]; then
+    VOL_NAME=$(basename "$MOUNT_POINT")
+    echo "Mounted on $MOUNT_POINT ($DEV_NODE), Volume: $VOL_NAME"
 
-# AppleScript to configure Finder presentation (Window size 540x320, icon 96, left: 140, right: 400)
-echo "Applying clean Finder view options, bounds, and icon positions..."
-osascript -e "
-tell application \"Finder\"
-  open disk \"$VOL_NAME\"
-  delay 1
-  set theWindow to window of disk \"$VOL_NAME\"
-  set current view of theWindow to icon view
-  set toolbar visible of theWindow to false
-  set statusbar visible of theWindow to false
-  set pathbar visible of theWindow to false
-  set the bounds of theWindow to {320, 160, 860, 480}
-  set opts to the icon view options of theWindow
-  set arrangement of opts to not arranged
-  set icon size of opts to 96
-  set label position of opts to bottom
-  set text size of opts to 12
-  set position of item \"AetherGrok.app\" of disk \"$VOL_NAME\" to {140, 130}
-  set position of item \"Applications\" of disk \"$VOL_NAME\" to {400, 130}
-  update disk \"$VOL_NAME\" without registering applications
-  delay 2
-  close theWindow
-end tell
-" || true
+    # AppleScript to configure Finder presentation (Window size 540x320, icon 96, left: 140, right: 400)
+    echo "Applying clean Finder view options, bounds, and icon positions..."
+    osascript -e "
+    tell application \"Finder\"
+      open disk \"$VOL_NAME\"
+      delay 1
+      set theWindow to window of disk \"$VOL_NAME\"
+      set current view of theWindow to icon view
+      set toolbar visible of theWindow to false
+      set statusbar visible of theWindow to false
+      set pathbar visible of theWindow to false
+      set the bounds of theWindow to {320, 160, 860, 480}
+      set opts to the icon view options of theWindow
+      set arrangement of opts to not arranged
+      set icon size of opts to 96
+      set label position of opts to bottom
+      set text size of opts to 12
+      set position of item \"AetherGrok.app\" of disk \"$VOL_NAME\" to {140, 130}
+      set position of item \"Applications\" of disk \"$VOL_NAME\" to {400, 130}
+      update disk \"$VOL_NAME\" without registering applications
+      delay 2
+      close theWindow
+    end tell
+    " || true
 
-# Sync disk and detach cleanly
-sync
-sleep 1
-hdiutil detach "$DEV_NODE" -force || true
-sleep 1
+    sync
+    sleep 1
+    if [ -n "$DEV_NODE" ]; then
+      hdiutil detach "$DEV_NODE" -force || true
+    else
+      hdiutil detach "$MOUNT_POINT" -force || true
+    fi
+    sleep 1
+  fi
 
-# Convert temporary read-write image to compressed read-only production DMG (UDZO)
-echo "Converting to compressed read-only DMG installer..."
-hdiutil convert "$DMG_TMP" -format UDZO -imagekey zlib-level=9 -o "$DMG_OUTPUT" -ov
-rm -f "$DMG_TMP"
+  # Convert temporary read-write image to compressed read-only production DMG (UDZO)
+  echo "Converting to compressed read-only DMG installer..."
+  hdiutil convert "$DMG_TMP" -format UDZO -imagekey zlib-level=9 -o "$DMG_OUTPUT" -ov
+  rm -f "$DMG_TMP"
+fi
 
 if [ ! -f "$DMG_OUTPUT" ]; then
   echo -e "${RED}Error: Failed to create DMG installer.${NC}"

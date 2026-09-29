@@ -62,12 +62,14 @@ jobs:
         shell: pwsh
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
-      - name: Build Frontend
+      - name: Install Dependencies
         shell: pwsh
         run: |
+          pnpm install --frozen-lockfile
           cd frontend
           pnpm install --frozen-lockfile
           npm run build
+          cd ..
 
       - name: Build Windows Executable & NSIS Setup (${{ matrix.arch }})
         shell: pwsh
@@ -155,11 +157,13 @@ jobs:
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
-      - name: Build Frontend
+      - name: Install Dependencies
         run: |
+          pnpm install --frozen-lockfile
           cd frontend
           pnpm install --frozen-lockfile
           npm run build
+          cd ..
 
       - name: Build macOS App, DMG & ZIP (${{ matrix.arch }})
         run: |
@@ -208,12 +212,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libgtk-3-dev \
-            libwebkit2gtk-4.0-dev \
+            libwebkit2gtk-4.1-dev \
             build-essential \
-            pkg-config || \
+            pkg-config \
+            libayatana-appindicator3-dev || \
           sudo apt-get install -y \
             libgtk-3-dev \
-            libwebkit2gtk-4.1-dev \
+            libwebkit2gtk-4.0-dev \
             build-essential \
             pkg-config
 
@@ -237,26 +242,34 @@ jobs:
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
-      - name: Build Frontend
+      - name: Install Dependencies
         run: |
+          pnpm install --frozen-lockfile
           cd frontend
           pnpm install --frozen-lockfile
           npm run build
+          cd ..
 
       - name: Build Linux Binary & Packages
         run: |
+          wails build -platform linux/amd64 -tags webkit2_41 -clean -ldflags "-s -w" || \
           wails build -platform linux/amd64 -clean -ldflags "-s -w"
 
           cd build/bin
-          chmod +x aethergrok
-          cp aethergrok aethergrok-linux-amd64
-          tar -czvf aethergrok-linux-amd64.tar.gz aethergrok
+          TARGET_BIN=""
+          if [ -f "aethergrok" ]; then
+            TARGET_BIN="aethergrok"
+          elif [ -f "AetherGrok" ]; then
+            TARGET_BIN="AetherGrok"
+          fi
 
-          for file in aethergrok-linux-amd64 aethergrok-linux-amd64.tar.gz; do
-            if [ -f "$file" ]; then
-              sha256sum "$file" > "${file}.sha256"
-            fi
-          done
+          if [ -n "$TARGET_BIN" ]; then
+            chmod +x "$TARGET_BIN"
+            cp "$TARGET_BIN" aethergrok-linux-amd64
+            tar -czvf aethergrok-linux-amd64.tar.gz aethergrok-linux-amd64
+            sha256sum aethergrok-linux-amd64 > aethergrok-linux-amd64.sha256
+            sha256sum aethergrok-linux-amd64.tar.gz > aethergrok-linux-amd64.tar.gz.sha256
+          fi
 
       - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v4

@@ -8,8 +8,9 @@ package hotkey
 #import <ApplicationServices/ApplicationServices.h>
 #import <Foundation/Foundation.h>
 #import <Cocoa/Cocoa.h>
+#include <stdint.h>
 
-extern void triggerDarwinKeyEvent(int keycode, int eventType, uint64_t flags);
+extern void triggerDarwinKeyEvent(int64_t keycode, int64_t eventType, uint64_t flags);
 
 static CFMachPortRef g_event_tap = NULL;
 static CFRunLoopSourceRef g_run_loop_source = NULL;
@@ -27,7 +28,7 @@ static CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEv
     int64_t keycode = CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
     CGEventFlags flags = CGEventGetFlags(event);
 
-    triggerDarwinKeyEvent((int)keycode, (int)type, (uint64_t)flags);
+    triggerDarwinKeyEvent((int64_t)keycode, (int64_t)type, (uint64_t)flags);
 
     return event;
 }
@@ -133,13 +134,16 @@ func newPlatformManager() platformManager {
 }
 
 //export triggerDarwinKeyEvent
-func triggerDarwinKeyEvent(keycode int, eventType int, flags uint64) {
+func triggerDarwinKeyEvent(keycode int64, eventType int64, flags uint64) {
 	darwinRegistryMu.RLock()
 	managers := make([]*darwinHotkeyManager, 0, len(darwinRegistry))
 	for m := range darwinRegistry {
 		managers = append(managers, m)
 	}
 	darwinRegistryMu.RUnlock()
+
+	kc := int(keycode)
+	evType := int(eventType)
 
 	for _, mgr := range managers {
 		mgr.mu.Lock()
@@ -158,7 +162,7 @@ func triggerDarwinKeyEvent(keycode int, eventType int, flags uint64) {
 
 		if isModAlone == 1 {
 			// Standalone modifier key (ShiftRight, OptionRight, Right Command, etc.)
-			if eventType == cgEventFlagsChanged && keycode == targetKC {
+			if evType == cgEventFlagsChanged && kc == targetKC {
 				isPressed := false
 				if targetKC == kVK_RightShift || targetKC == kVK_Shift {
 					isPressed = (flags & cgEventFlagMaskShift) != 0
@@ -213,8 +217,8 @@ func triggerDarwinKeyEvent(keycode int, eventType int, flags uint64) {
 			}
 		} else {
 			// Regular key or modifier combination (e.g. '\', '/', 'Cmd+Shift+S', 'Alt+Space')
-			if keycode == targetKC {
-				if eventType == cgEventKeyDown {
+			if kc == targetKC {
+				if evType == cgEventKeyDown {
 					cmdReq := (reqFlags & cgEventFlagMaskCommand) != 0
 					shiftReq := (reqFlags & cgEventFlagMaskShift) != 0
 					altReq := (reqFlags & cgEventFlagMaskAlternate) != 0
@@ -251,7 +255,7 @@ func triggerDarwinKeyEvent(keycode int, eventType int, flags uint64) {
 							}
 						}
 					}
-				} else if eventType == cgEventKeyUp {
+				} else if evType == cgEventKeyUp {
 					if isCurrentlyDown {
 						mgr.mu.Lock()
 						mgr.isDown = false
