@@ -103,6 +103,14 @@ jobs:
             if (-not $ResolvedDest -or $Installer.FullName -ne $ResolvedDest.Path) {
               Copy-Item -Path $Installer.FullName -Destination $DestPath -Force
             }
+
+            # Generate versioned alias names for changelog and direct release links
+            $wailsJson = Get-Content "wails.json" -Raw | ConvertFrom-Json
+            $Version = $wailsJson.version
+            if ($Version) {
+              Copy-Item -Path "build/bin/$DestName" -Destination "build/bin/AetherGrok-$Version-windows-$Arch-setup.exe" -Force
+              Copy-Item -Path "build/bin/$ZipName" -Destination "build/bin/AetherGrok-$Version-windows-$Arch-portable.zip" -Force
+            }
           }
 
           # Generate SHA256 checksums
