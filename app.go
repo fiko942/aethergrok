@@ -70,6 +70,7 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	_ = system.InitAppProcessGroup()
+	a.CleanVoiceCache()
 	if a.terminalMgr != nil {
 		a.terminalMgr.SetContext(ctx)
 	}
@@ -999,12 +1000,34 @@ func (a *App) SaveVoiceAudioRecording(base64Data, ext string) (string, error) {
 	return targetPath, nil
 }
 
-// DeleteVoiceAudioRecording deletes a temporary voice recording file
-func (a *App) DeleteVoiceAudioRecording(filePath string) error {
-	if strings.TrimSpace(filePath) == "" {
-		return nil
+// CleanVoiceCache sweeps all temporary voice dictation recordings from ~/.grok/voice_cache
+func (a *App) CleanVoiceCache() {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return
 	}
-	_ = os.Remove(filePath)
+	cacheDir := filepath.Join(homeDir, ".grok", "voice_cache")
+	entries, err := os.ReadDir(cacheDir)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if strings.HasPrefix(name, "voice_dictation_") || strings.HasPrefix(name, "recording_") {
+			_ = os.Remove(filepath.Join(cacheDir, name))
+		}
+	}
+}
+
+// DeleteVoiceAudioRecording deletes a temporary voice recording file and sweeps any orphaned cache files
+func (a *App) DeleteVoiceAudioRecording(filePath string) error {
+	if strings.TrimSpace(filePath) != "" {
+		_ = os.Remove(filePath)
+	}
+	a.CleanVoiceCache()
 	return nil
 }
 
