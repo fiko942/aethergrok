@@ -370,9 +370,9 @@ func (d *darwinHotkeyManager) startWatchdogLocked() {
 			}
 		}(d.targetKC, stopCh)
 	} else {
-		// Safety release watchdog for regular keys (auto-release after 60 seconds of continuous hold to prevent stuck state if keyup is lost)
+		// Safety release watchdog for regular keys (generous 10-minute maximum hold timeout to prevent stuck state while allowing long dictation)
 		go func(ch chan struct{}) {
-			timer := time.NewTimer(60 * time.Second)
+			timer := time.NewTimer(10 * time.Minute)
 			defer timer.Stop()
 
 			select {

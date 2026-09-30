@@ -68,7 +68,7 @@ Run: `go test -v ./pkg/hotkey/...`
 In `pkg/hotkey/hotkey_darwin.go`:
 1. Mask `flags` against standard modifier masks (`cgEventFlagMaskCommand | cgEventFlagMaskShift | cgEventFlagMaskAlternate | cgEventFlagMaskControl`) when matching shortcut modifier requirements.
 2. For standalone modifier keys (`ShiftRight`), use the 60ms ticker polling `CGEventSourceKeyState`.
-3. For regular character/symbol keys (e.g. `\`), avoid polling `CGEventSourceKeyState` in the background (which returns 0 when another app is focused) and rely on event-driven `CGEventTap` / Carbon release handlers with a 60s fallback timeout.
+3. For regular character/symbol keys (e.g. `\`), avoid polling `CGEventSourceKeyState` in the background (which returns 0 when another app is focused) and rely on event-driven `CGEventTap` / Carbon release handlers with a generous 10-minute safety timeout to support continuous long push-to-talk speech without cutting off at 60s.
 
 - [x] **Step 4: Run tests to verify they pass**
 
@@ -84,7 +84,7 @@ Run: `go test -v ./pkg/hotkey/...`
 - [x] **Step 1: Update Wails `dictation:trigger_global` handler in `frontend/src/App.svelte`**
 
 When `dictation:trigger_global` is received with `down` or `hold-start` / `double-tap-lock`:
-If `!sessionStore.activeSession && sessionStore.activeWorkspace`, automatically create a new session (`sessionStore.createSession(sessionStore.activeWorkspace.id, 'Voice Dictation')`) so that `<Composer>` is immediately mounted and ready to record audio.
+If `!sessionStore.activeSession && sessionStore.activeWorkspace`, automatically create a new session (`sessionStore.createSession(sessionStore.activeWorkspace.id, 'Voice Dictation')`) so that `<Composer>` is immediately mounted and ready to record audio. Increased inputShield lock duration to 10 minutes to match push-to-talk hold duration.
 
 - [x] **Step 2: Verify frontend builds and vitest tests pass**
 

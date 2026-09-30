@@ -910,8 +910,8 @@
       e.preventDefault();
       e.stopPropagation();
 
-      // Acquire temporary read-only shield while trigger is held down
-      inputShieldStore.acquireLock('dictation_key_hold', 30000);
+      // Acquire temporary read-only shield while trigger is held down (up to 10 minutes)
+      inputShieldStore.acquireLock('dictation_key_hold', 600000);
 
       // If no active session is open, auto-create one so Composer mounts
       if (!sessionStore.activeSession && sessionStore.activeWorkspace) {
@@ -1180,7 +1180,7 @@
       unsubGlobalDictation = window.runtime.EventsOn('dictation:trigger_global', (data: { type?: string; timestamp?: number }) => {
         const action = (data?.type || 'down') as 'down' | 'up';
         if (action === 'down') {
-          inputShieldStore.acquireLock('dictation_key_hold', 30000);
+          inputShieldStore.acquireLock('dictation_key_hold', 600000);
           // If no active session is open, auto-create one so Composer mounts and receives the event
           if (!sessionStore.activeSession && sessionStore.activeWorkspace) {
             sessionStore.createSession(sessionStore.activeWorkspace.id, 'Voice Dictation');
