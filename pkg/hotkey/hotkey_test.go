@@ -99,7 +99,48 @@ func TestDarwinKeyEventDispatch(t *testing.T) {
 	}
 }
 
-func TestDarwinWatchdogAutoRelease(t *testing.T) {
+func TestDarwinModifierWatchdogAutoRelease(t *testing.T) {
+	mgr := newPlatformManager()
+	var actions []string
+	var mu sync.Mutex
+
+	// Test with a standalone modifier key (ShiftRight) where CGEventSourceKeyState is verified
+	err := mgr.startWithKeyHandler("ShiftRight", func() {}, func(action string) {
+		mu.Lock()
+		actions = append(actions, action)
+		mu.Unlock()
+	})
+	if err != nil {
+		t.Fatalf("failed to start: %v", err)
+	}
+	defer mgr.stop()
+
+	// Simulate FlagsChanged KeyDown for Right Shift (keycode 60, flags with Shift)
+	triggerDarwinKeyEvent(kVK_RightShift, cgEventFlagsChanged, cgEventFlagMaskShift)
+
+	// In automated tests without physically holding Right Shift, the modifier watchdog
+	// detects that the key is not physically held, dispatching an "up" event.
+	for i := 0; i < 50; i++ {
+		mu.Lock()
+		count := len(actions)
+		mu.Unlock()
+		if count >= 2 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(actions) != 2 {
+		t.Fatalf("expected modifier watchdog to emit 'up' action when physical modifier is not held, got %d: %v", len(actions), actions)
+	}
+	if actions[0] != "down" || actions[1] != "up" {
+		t.Errorf("expected [down, up], got %v", actions)
+	}
+}
+
+func TestDarwinKeyEventDispatch_WithHardwareModifierNoise(t *testing.T) {
 	mgr := newPlatformManager()
 	var actions []string
 	var mu sync.Mutex
@@ -114,12 +155,11 @@ func TestDarwinWatchdogAutoRelease(t *testing.T) {
 	}
 	defer mgr.stop()
 
-	// Simulate KeyDown for '\' (keycode 42)
-	triggerDarwinKeyEvent(42, cgEventKeyDown, 0)
+	// Simulate KeyDown with extra hardware flag bits (e.g. 0x20000000 / NonCoalesced 0x100)
+	noiseFlags := uint64(0x20000100)
+	triggerDarwinKeyEvent(42, cgEventKeyDown, noiseFlags)
+	triggerDarwinKeyEvent(42, cgEventKeyUp, noiseFlags)
 
-	// In automated tests, CGEventSourceKeyState for keycode 42 returns false (not physically held).
-	// The watchdog ticker runs every 60ms and detects that the physical key is NOT held down,
-	// automatically dispatching an "up" event!
 	for i := 0; i < 50; i++ {
 		mu.Lock()
 		count := len(actions)
@@ -127,15 +167,64 @@ func TestDarwinWatchdogAutoRelease(t *testing.T) {
 		if count >= 2 {
 			break
 		}
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(5 * time.Millisecond)
 	}
 
 	mu.Lock()
 	defer mu.Unlock()
 	if len(actions) != 2 {
-		t.Fatalf("expected watchdog to emit 'up' action when physical key is not held, got %d: %v", len(actions), actions)
+		t.Fatalf("expected 2 actions with noisy hardware flags, got %d: %v", len(actions), actions)
 	}
 	if actions[0] != "down" || actions[1] != "up" {
 		t.Errorf("expected [down, up], got %v", actions)
+	}
+}
+
+func TestCarbonHotKeyDispatch(t *testing.T) {
+	mgr := newPlatformManager().(*darwinHotkeyManager)
+	var actions []string
+	var mu sync.Mutex
+
+	err := mgr.startWithKeyHandler("Cmd+Shift+S", func() {
+		mu.Lock()
+		actions = append(actions, "trigger")
+		mu.Unlock()
+	}, func(action string) {
+		mu.Lock()
+		actions = append(actions, action)
+		mu.Unlock()
+	})
+	if err != nil {
+		t.Fatalf("failed to start: %v", err)
+	}
+	defer mgr.stop()
+
+	mgr.mu.Lock()
+	carbonID := mgr.carbonID
+	mgr.mu.Unlock()
+
+	if carbonID == 0 {
+		t.Fatalf("expected non-zero carbonID for Cmd+Shift+S")
+	}
+
+	// Dispatch Carbon hotkey down event
+	dispatchCarbonHotKey(carbonID, true)
+	// Dispatch Carbon hotkey up event
+	dispatchCarbonHotKey(carbonID, false)
+
+	for i := 0; i < 50; i++ {
+		mu.Lock()
+		count := len(actions)
+		mu.Unlock()
+		if count >= 3 { // down, trigger, up
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(actions) < 2 {
+		t.Fatalf("expected at least down and up actions, got: %v", actions)
 	}
 }

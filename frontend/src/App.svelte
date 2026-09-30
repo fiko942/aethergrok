@@ -1181,6 +1181,10 @@
         const action = (data?.type || 'down') as 'down' | 'up';
         if (action === 'down') {
           inputShieldStore.acquireLock('dictation_key_hold', 30000);
+          // If no active session is open, auto-create one so Composer mounts and receives the event
+          if (!sessionStore.activeSession && sessionStore.activeWorkspace) {
+            sessionStore.createSession(sessionStore.activeWorkspace.id, 'Voice Dictation');
+          }
         } else {
           inputShieldStore.releaseLock('dictation_key_hold');
         }

@@ -4,20 +4,23 @@ package hotkey
 
 /*
 #cgo CFLAGS: -x objective-c
-#cgo LDFLAGS: -framework ApplicationServices -framework Foundation -framework Cocoa
+#cgo LDFLAGS: -framework ApplicationServices -framework Foundation -framework Cocoa -framework Carbon
 #import <ApplicationServices/ApplicationServices.h>
 #import <Foundation/Foundation.h>
 #import <Cocoa/Cocoa.h>
+#import <Carbon/Carbon.h>
 #include <stdint.h>
 #include <stdbool.h>
 
 extern void triggerDarwinKeyEvent(int64_t keycode, int64_t eventType, uint64_t flags);
 extern void onDarwinTapStarted(void);
+extern void onCarbonHotKeyAction(unsigned int hotKeyID, int isDown);
 
 static CFMachPortRef g_event_tap = NULL;
 static CFRunLoopSourceRef g_run_loop_source = NULL;
 static CFRunLoopRef g_run_loop = NULL;
 static int g_is_running = 0;
+static int g_carbon_installed = 0;
 
 static CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void *refcon) {
     if (type == kCGEventTapDisabledByTimeout || type == kCGEventTapDisabledByUserInput) {
@@ -39,22 +42,78 @@ static int isPhysicalKeyDown(int64_t keycode) {
     return CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, (CGKeyCode)keycode) ? 1 : 0;
 }
 
+static pascal OSStatus globalCarbonHotKeyHandler(EventHandlerCallRef nextHandler, EventRef theEvent, void *userData) {
+    UInt32 kind = GetEventKind(theEvent);
+    EventHotKeyID hkID;
+    GetEventParameter(theEvent, kEventParamDirectObject, typeEventHotKeyID, NULL, sizeof(hkID), NULL, &hkID);
+    
+    int isDown = (kind == kEventHotKeyPressed) ? 1 : 0;
+    onCarbonHotKeyAction((unsigned int)hkID.id, isDown);
+    return noErr;
+}
+
+static int ensureCarbonHandlerInstalled() {
+    if (g_carbon_installed) return 1;
+    EventTypeSpec eventTypes[2];
+    eventTypes[0].eventClass = kEventClassKeyboard;
+    eventTypes[0].eventKind = kEventHotKeyPressed;
+    eventTypes[1].eventClass = kEventClassKeyboard;
+    eventTypes[1].eventKind = kEventHotKeyReleased;
+    OSStatus err = InstallApplicationEventHandler(&globalCarbonHotKeyHandler, 2, eventTypes, NULL, NULL);
+    if (err == noErr) {
+        g_carbon_installed = 1;
+        return 1;
+    }
+    return 0;
+}
+
+static void *registerCarbonKeyRef(unsigned int id, unsigned int keyCode, unsigned int carbonModifiers) {
+    ensureCarbonHandlerInstalled();
+    EventHotKeyRef ref = NULL;
+    EventHotKeyID hkID;
+    hkID.signature = 'AETH';
+    hkID.id = (UInt32)id;
+    OSStatus err = RegisterEventHotKey((UInt32)keyCode, (UInt32)carbonModifiers, hkID, GetApplicationEventTarget(), 0, &ref);
+    if (err != noErr) {
+        return NULL;
+    }
+    return (void *)ref;
+}
+
+static void unregisterCarbonKeyRef(void *ref) {
+    if (ref) {
+        UnregisterEventHotKey((EventHotKeyRef)ref);
+    }
+}
+
 static int startEventTap() {
     if (g_is_running) return 1;
 
     CGEventMask mask = (1 << kCGEventKeyDown) | (1 << kCGEventKeyUp) | (1 << kCGEventFlagsChanged);
     
-    // Attempt kCGHIDEventTap first to capture hardware events system-wide before application filters
+    // Attempt kCGSessionEventTap with kCGEventTapOptionDefault to intercept global keyboard events reliably
     g_event_tap = CGEventTapCreate(
-        kCGHIDEventTap,
+        kCGSessionEventTap,
         kCGHeadInsertEventTap,
-        kCGEventTapOptionListenOnly, // Listen only, do not block or consume events
+        kCGEventTapOptionDefault,
         mask,
         eventTapCallback,
         NULL
     );
 
-    // Fall back to kCGSessionEventTap if kCGHIDEventTap is not permitted
+    // Fall back to kCGHIDEventTap if needed
+    if (!g_event_tap) {
+        g_event_tap = CGEventTapCreate(
+            kCGHIDEventTap,
+            kCGHeadInsertEventTap,
+            kCGEventTapOptionDefault,
+            mask,
+            eventTapCallback,
+            NULL
+        );
+    }
+
+    // Fall back to kCGEventTapOptionListenOnly
     if (!g_event_tap) {
         g_event_tap = CGEventTapCreate(
             kCGSessionEventTap,
@@ -126,6 +185,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 )
 
 // CGEventType constants
@@ -148,7 +208,62 @@ var (
 	darwinRegistry   = make(map[*darwinHotkeyManager]struct{})
 	darwinRunning    bool
 	darwinReadyChan  chan struct{}
+
+	carbonMu       sync.Mutex
+	carbonManagers = make(map[uint32]*darwinHotkeyManager)
+	nextCarbonID   uint32 = 1
 )
+
+//export onCarbonHotKeyAction
+func onCarbonHotKeyAction(hotKeyID C.uint, isDown C.int) {
+	dispatchCarbonHotKey(uint32(hotKeyID), isDown == 1)
+}
+
+func dispatchCarbonHotKey(id uint32, isDown bool) {
+	carbonMu.Lock()
+	mgr, ok := carbonManagers[id]
+	carbonMu.Unlock()
+	if !ok || mgr == nil {
+		return
+	}
+
+	mgr.mu.Lock()
+	kh := mgr.keyHandler
+	h := mgr.handler
+	isCurrentlyDown := mgr.isDown
+	mgr.mu.Unlock()
+
+	if isDown {
+		if !isCurrentlyDown {
+			mgr.mu.Lock()
+			mgr.isDown = true
+			mgr.startWatchdogLocked()
+			mgr.mu.Unlock()
+
+			if kh != nil {
+				mgr.enqueueEvent(func() { kh("down") })
+			}
+			if h != nil {
+				now := time.Now().UnixMilli()
+				if now-atomic.LoadInt64(&mgr.lastTrigger) > 150 {
+					atomic.StoreInt64(&mgr.lastTrigger, now)
+					mgr.enqueueEvent(func() { h() })
+				}
+			}
+		}
+	} else {
+		if isCurrentlyDown {
+			mgr.mu.Lock()
+			mgr.isDown = false
+			mgr.stopWatchdogLocked()
+			mgr.mu.Unlock()
+
+			if kh != nil {
+				mgr.enqueueEvent(func() { kh("up") })
+			}
+		}
+	}
+}
 
 //export onDarwinTapStarted
 func onDarwinTapStarted() {
@@ -173,6 +288,8 @@ type darwinHotkeyManager struct {
 	targetKC     int
 	isModAlone   int
 	reqFlags     uint64
+	carbonRef    unsafe.Pointer
+	carbonID     uint32
 	isDown       bool
 	lastTrigger  int64
 	events       chan func()
@@ -209,54 +326,76 @@ func (d *darwinHotkeyManager) startWatchdogLocked() {
 	stopCh := make(chan struct{})
 	d.stopWatchdog = stopCh
 
-	go func(targetKC int, isModAlone int, ch chan struct{}) {
-		ticker := time.NewTicker(60 * time.Millisecond)
-		defer ticker.Stop()
+	// If this is a standalone modifier (Shift/Option/Cmd/Ctrl), use session modifier key polling.
+	// For normal characters (e.g. '\'), CGEventSourceKeyState is unreliable when another app is focused;
+	// instead rely on OS KeyUp and Carbon release events, with a safety timeout.
+	if d.isModAlone == 1 {
+		go func(targetKC int, ch chan struct{}) {
+			ticker := time.NewTicker(60 * time.Millisecond)
+			defer ticker.Stop()
 
-		for {
-			select {
-			case <-ch:
-				return
-			case <-ticker.C:
-				d.mu.Lock()
-				isDown := d.isDown
-				kh := d.keyHandler
-				running := d.running
-				d.mu.Unlock()
-
-				if !running {
+			for {
+				select {
+				case <-ch:
 					return
-				}
+				case <-ticker.C:
+					d.mu.Lock()
+					isDown := d.isDown
+					kh := d.keyHandler
+					running := d.running
+					d.mu.Unlock()
 
-				if isDown {
-					isPhysicallyPressed := false
-					if isModAlone == 1 {
-						// For standalone modifier keys
-						isPhysicallyPressed = isPhysicalModifierDown(targetKC)
-					} else {
-						// For regular keys (like '\', space, etc.)
-						isPhysicallyPressed = (int(C.isPhysicalKeyDown(C.int64_t(targetKC))) != 0)
+					if !running {
+						return
 					}
 
-					if !isPhysicallyPressed {
-						// Physical key was released while focus shifted or keyUp was dropped by OS
-						d.mu.Lock()
-						if d.isDown {
-							d.isDown = false
-							d.stopWatchdogLocked()
-							d.mu.Unlock()
+					if isDown {
+						isPhysicallyPressed := isPhysicalModifierDown(targetKC)
+						if !isPhysicallyPressed {
+							d.mu.Lock()
+							if d.isDown {
+								d.isDown = false
+								d.stopWatchdogLocked()
+								d.mu.Unlock()
 
-							if kh != nil {
-								d.enqueueEvent(func() { kh("up") })
+								if kh != nil {
+									d.enqueueEvent(func() { kh("up") })
+								}
+							} else {
+								d.mu.Unlock()
 							}
-						} else {
-							d.mu.Unlock()
 						}
 					}
 				}
 			}
-		}
-	}(d.targetKC, d.isModAlone, stopCh)
+		}(d.targetKC, stopCh)
+	} else {
+		// Safety release watchdog for regular keys (auto-release after 60 seconds of continuous hold to prevent stuck state if keyup is lost)
+		go func(ch chan struct{}) {
+			timer := time.NewTimer(60 * time.Second)
+			defer timer.Stop()
+
+			select {
+			case <-ch:
+				return
+			case <-timer.C:
+				d.mu.Lock()
+				isDown := d.isDown
+				kh := d.keyHandler
+				if isDown {
+					d.isDown = false
+					d.stopWatchdogLocked()
+					d.mu.Unlock()
+
+					if kh != nil {
+						d.enqueueEvent(func() { kh("up") })
+					}
+				} else {
+					d.mu.Unlock()
+				}
+			}
+		}(stopCh)
+	}
 }
 
 func (d *darwinHotkeyManager) stopWatchdogLocked() {
@@ -396,6 +535,61 @@ func triggerDarwinKeyEvent(keycode int64, eventType int64, flags uint64) {
 	}
 }
 
+const (
+	carbonCmdKey     = 0x0100
+	carbonShiftKey   = 0x0200
+	carbonOptionKey  = 0x0800
+	carbonControlKey = 0x1000
+)
+
+func parseShortcutToCarbon(shortcutStr string) (uint32, uint32, bool) {
+	s := strings.TrimSpace(shortcutStr)
+	if s == "" {
+		return 0, 0, false
+	}
+	parts := strings.Split(s, "+")
+	var mods uint32
+	var keyPart string
+
+	for _, p := range parts {
+		clean := strings.ToLower(strings.TrimSpace(p))
+		switch clean {
+		case "cmd", "command", "cmdorctrl", "meta":
+			mods |= carbonCmdKey
+		case "ctrl", "control":
+			mods |= carbonControlKey
+		case "shift":
+			mods |= carbonShiftKey
+		case "alt", "option", "opt":
+			mods |= carbonOptionKey
+		default:
+			keyPart = clean
+		}
+	}
+
+	if keyPart == "" {
+		if mods&carbonShiftKey != 0 {
+			return uint32(kVK_RightShift), 0, true
+		}
+		if mods&carbonOptionKey != 0 {
+			return uint32(kVK_RightOption), 0, true
+		}
+		if mods&carbonControlKey != 0 {
+			return uint32(kVK_RightControl), 0, true
+		}
+		if mods&carbonCmdKey != 0 {
+			return uint32(kVK_RightCommand), 0, true
+		}
+		return 0, 0, false
+	}
+
+	kc, ok := darwinKeyMap[keyPart]
+	if !ok {
+		return 0, 0, false
+	}
+	return uint32(kc), mods, true
+}
+
 func (d *darwinHotkeyManager) start(shortcutStr string, handler Handler) error {
 	return d.startWithKeyHandler(shortcutStr, handler, nil)
 }
@@ -419,6 +613,18 @@ func (d *darwinHotkeyManager) startWithKeyHandler(shortcutStr string, handler Ha
 	d.stopWorker = make(chan struct{})
 	eventChan := d.events
 	stopChan := d.stopWorker
+
+	// Register with macOS Carbon EventHotKey subsystem as complementary background listener
+	if carbKC, carbMods, ok := parseShortcutToCarbon(shortcutStr); ok {
+		carbonMu.Lock()
+		cID := nextCarbonID
+		nextCarbonID++
+		carbonManagers[cID] = d
+		carbonMu.Unlock()
+
+		d.carbonID = cID
+		d.carbonRef = C.registerCarbonKeyRef(C.uint(cID), C.uint(carbKC), C.uint(carbMods))
+	}
 	d.mu.Unlock()
 
 	go func() {
@@ -482,6 +688,28 @@ func (d *darwinHotkeyManager) update(shortcutStr string) error {
 	d.isModAlone = isModAlone
 	d.reqFlags = flags
 	d.isDown = false
+
+	if d.carbonRef != nil {
+		C.unregisterCarbonKeyRef(d.carbonRef)
+		d.carbonRef = nil
+	}
+	if d.carbonID != 0 {
+		carbonMu.Lock()
+		delete(carbonManagers, d.carbonID)
+		carbonMu.Unlock()
+		d.carbonID = 0
+	}
+
+	if carbKC, carbMods, ok := parseShortcutToCarbon(shortcutStr); ok {
+		carbonMu.Lock()
+		cID := nextCarbonID
+		nextCarbonID++
+		carbonManagers[cID] = d
+		carbonMu.Unlock()
+
+		d.carbonID = cID
+		d.carbonRef = C.registerCarbonKeyRef(C.uint(cID), C.uint(carbKC), C.uint(carbMods))
+	}
 	d.mu.Unlock()
 
 	// If global event tap is not yet running (e.g. permission was granted after startup), attempt initialization
@@ -510,6 +738,16 @@ func (d *darwinHotkeyManager) stop() {
 	if d.stopWorker != nil {
 		close(d.stopWorker)
 		d.stopWorker = nil
+	}
+	if d.carbonRef != nil {
+		C.unregisterCarbonKeyRef(d.carbonRef)
+		d.carbonRef = nil
+	}
+	if d.carbonID != 0 {
+		carbonMu.Lock()
+		delete(carbonManagers, d.carbonID)
+		carbonMu.Unlock()
+		d.carbonID = 0
 	}
 	d.mu.Unlock()
 
