@@ -1130,8 +1130,8 @@
     >
       <!-- Visual Drag-and-Drop Active Overlay -->
       {#if isDragOver}
-        <div class="absolute inset-0 z-50 bg-[#121316]/95 border-2 border-dashed border-blue-500/50 rounded-xl flex flex-col items-center justify-center space-y-1.5 backdrop-blur-md pointer-events-none animate-in fade-in duration-100 select-none">
-          <div class="p-2 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-sm">
+        <div class="absolute inset-0 z-50 bg-ant-bg-secondary/95 dark:bg-[#121316]/95 border-2 border-dashed border-blue-500/50 rounded-xl flex flex-col items-center justify-center space-y-1.5 backdrop-blur-md pointer-events-none animate-in fade-in duration-100 select-none">
+          <div class="p-2 rounded-full bg-blue-500/10 text-blue-500 dark:text-blue-400 border border-blue-500/20 shadow-sm">
             <Upload size={18} />
           </div>
           <p class="text-xs font-serif text-ant-text font-medium">
@@ -1265,7 +1265,7 @@
               <Mic size={14} />
             </button>
           {:else if voiceState === 'recording'}
-            <div class="flex items-center space-x-2 px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/25 text-rose-300 text-[11px] font-mono animate-in fade-in duration-150 shadow-xs">
+            <div class="flex items-center space-x-2 px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-[11px] font-mono animate-in fade-in duration-150 shadow-xs">
               <!-- Pulsing recording dot -->
               <span class="relative flex h-2 w-2 flex-shrink-0">
                 <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75"></span>
@@ -1276,14 +1276,14 @@
               <div class="flex items-center gap-[2.5px] h-3.5 px-0.5" title="Microphone input level">
                 {#each volumeLevels as level, idx}
                   <span
-                    class="w-[2.5px] rounded-full bg-rose-400 transition-all duration-75 ease-out shadow-[0_0_6px_rgba(244,63,94,0.4)]"
+                    class="w-[2.5px] rounded-full bg-rose-500 dark:bg-rose-400 transition-all duration-75 ease-out shadow-[0_0_6px_rgba(244,63,94,0.4)]"
                     style="height: {Math.max(3, Math.min(14, Math.round(level * 14)))}px;"
                   ></span>
                 {/each}
               </div>
 
               <!-- Duration Counter -->
-              <span class="font-mono font-medium text-rose-200 tabular-nums">{Math.floor(voiceSeconds / 60)}:{String(voiceSeconds % 60).padStart(2, '0')}</span>
+              <span class="font-mono font-semibold text-rose-700 dark:text-rose-200 tabular-nums">{Math.floor(voiceSeconds / 60)}:{String(voiceSeconds % 60).padStart(2, '0')}</span>
 
               <!-- Stop Button -->
               <button

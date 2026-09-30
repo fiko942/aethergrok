@@ -90,10 +90,10 @@
     type="button"
     onclick={toggleOpen}
     {disabled}
-    class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all border {mode === 'plan' ? 'bg-violet-500/10 text-violet-300 border-violet-500/30 hover:bg-violet-500/20' : mode === 'yolo' ? 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20' : 'bg-ant-bg-secondary/40 hover:bg-ant-bg-tertiary text-ant-text border-transparent hover:border-white/5'} {isOpen ? '!ring-1 !ring-ant-primary/40' : ''} {disabled ? 'opacity-50 cursor-not-allowed' : ''}"
+    class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all border {mode === 'plan' ? 'bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30 hover:bg-violet-500/25' : mode === 'yolo' ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500/25' : 'bg-ant-bg-secondary/40 hover:bg-ant-bg-tertiary text-ant-text border-transparent hover:border-ant-border-secondary dark:hover:border-white/5'} {isOpen ? '!ring-1 !ring-ant-primary/40' : ''} {disabled ? 'opacity-50 cursor-not-allowed' : ''}"
     title="Choose Grok Agent Execution Mode"
   >
-    <CurrentIcon size={13} class={mode === 'plan' ? 'text-violet-400' : mode === 'yolo' ? 'text-amber-400' : 'text-ant-text-secondary'} />
+    <CurrentIcon size={13} class={mode === 'plan' ? 'text-violet-600 dark:text-violet-400' : mode === 'yolo' ? 'text-amber-600 dark:text-amber-400' : 'text-ant-text-secondary'} />
     <span class="text-[11px] font-medium">{currentModeObj.title}</span>
   </button>
 

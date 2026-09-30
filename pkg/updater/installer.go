@@ -62,15 +62,32 @@ func FormatSpeed(bytesPerSec float64) string {
 	return fmt.Sprintf("%.0f B/s", bytesPerSec)
 }
 
-// DownloadAssetWithProgress downloads a remote file to a local temp folder while streaming progress callbacks
+// GetUserDownloadsDir resolves the standard user Downloads directory across platforms
+func GetUserDownloadsDir() string {
+	home, err := os.UserHomeDir()
+	if err == nil && home != "" {
+		downloads := filepath.Join(home, "Downloads")
+		if fi, err := os.Stat(downloads); err == nil && fi.IsDir() {
+			return downloads
+		}
+		// If Downloads directory does not exist yet, attempt to create it
+		if err := os.MkdirAll(downloads, 0755); err == nil {
+			return downloads
+		}
+	}
+	return filepath.Join(os.TempDir(), "aethergrok_update")
+}
+
+// DownloadAssetWithProgress downloads a remote file to the user's Downloads folder while streaming progress callbacks
 func DownloadAssetWithProgress(ctx context.Context, downloadURL string, targetFilename string, onProgress func(UpdateProgress)) (string, error) {
 	if downloadURL == "" {
 		return "", fmt.Errorf("download URL cannot be empty")
 	}
 
-	tempDir := filepath.Join(os.TempDir(), "aethergrok_update")
-	if err := os.MkdirAll(tempDir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create update temp directory: %w", err)
+	targetDir := GetUserDownloadsDir()
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		targetDir = filepath.Join(os.TempDir(), "aethergrok_update")
+		_ = os.MkdirAll(targetDir, 0755)
 	}
 
 	if targetFilename == "" {
@@ -84,7 +101,7 @@ func DownloadAssetWithProgress(ctx context.Context, downloadURL string, targetFi
 		targetFilename = "update_package.bin"
 	}
 
-	destPath := filepath.Join(tempDir, targetFilename)
+	destPath := filepath.Join(targetDir, targetFilename)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
 	if err != nil {
@@ -489,23 +506,49 @@ func ApplyUpdateWindows(filePath string, onProgress func(UpdateProgress)) error 
 		})
 	}
 
-	// If installer executable (setup or installer)
+	// Generate a detached batch script to wait for the current AetherGrok process to exit,
+	// execute the installer (with elevated UAC), and relaunch the updated AetherGrok application.
+	// This prevents file locks and ensures the setup finishes smoothly and reopens AetherGrok.
+	tempScript := filepath.Join(os.TempDir(), fmt.Sprintf("aethergrok_update_%d.bat", time.Now().UnixNano()))
+	currentPID := os.Getpid()
+
+	var scriptContent string
 	if strings.Contains(lowerName, "setup") || strings.Contains(lowerName, "installer") {
-		cmd := exec.Command(cleanPath, "/S")
-		if err := cmd.Start(); err != nil {
-			// Fallback without /S for interactive wizard mode
-			cmd = exec.Command(cleanPath)
-			if err := cmd.Start(); err != nil {
-				return fmt.Errorf("failed to launch Windows installer: %w", err)
-			}
-		}
+		// Launch NSIS installer interactively (or allow standard wizard) and wait for completion before relaunching
+		scriptContent = fmt.Sprintf(`@echo off
+timeout /t 2 /nobreak >nul
+taskkill /F /PID %d >nul 2>&1
+start "" /wait "%s"
+del "%%~f0"
+`, currentPID, cleanPath)
 	} else {
-		// Standalone executable
-		cmd := exec.Command(cleanPath)
-		if err := cmd.Start(); err != nil {
-			_ = exec.Command("explorer.exe", fmt.Sprintf("/select,%s", cleanPath)).Start()
-			return fmt.Errorf("failed to execute binary: %w", err)
+		scriptContent = fmt.Sprintf(`@echo off
+timeout /t 2 /nobreak >nul
+taskkill /F /PID %d >nul 2>&1
+start "" "%s"
+del "%%~f0"
+`, currentPID, cleanPath)
+	}
+
+	if err := os.WriteFile(tempScript, []byte(scriptContent), 0700); err == nil {
+		cmd := exec.Command("cmd.exe", "/C", "start", "/b", tempScript)
+		if err := cmd.Start(); err == nil {
+			if onProgress != nil {
+				onProgress(UpdateProgress{
+					Stage:   "ready",
+					Percent: 100,
+					Message: "Installer launched. Restarting AetherGrok...",
+				})
+			}
+			return nil
 		}
+	}
+
+	// Fallback direct execution
+	cmd := exec.Command(cleanPath)
+	if err := cmd.Start(); err != nil {
+		_ = exec.Command("explorer.exe", fmt.Sprintf("/select,%s", cleanPath)).Start()
+		return fmt.Errorf("failed to launch installer: %w", err)
 	}
 
 	if onProgress != nil {

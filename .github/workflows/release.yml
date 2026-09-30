@@ -209,91 +209,9 @@ jobs:
             build/bin/*.sha256
           retention-days: 14
 
-  build-linux:
-    name: Build Linux (ubuntu-latest - amd64)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Install Linux Build Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev \
-            build-essential \
-            pkg-config \
-            libayatana-appindicator3-dev || \
-          sudo apt-get install -y \
-            libgtk-3-dev \
-            libwebkit2gtk-4.0-dev \
-            build-essential \
-            pkg-config
-
-      - name: Setup Go 1.24+
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.24.x'
-          check-latest: true
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Setup Node.js 20+
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
-
-      - name: Install Dependencies
-        run: |
-          pnpm install --frozen-lockfile
-          cd frontend
-          pnpm install --frozen-lockfile
-          npm run build
-          cd ..
-
-      - name: Build Linux Binary & Packages
-        run: |
-          wails build -platform linux/amd64 -tags webkit2_41 -clean -ldflags "-s -w" || \
-          wails build -platform linux/amd64 -clean -ldflags "-s -w"
-
-          cd build/bin
-          TARGET_BIN=""
-          if [ -f "aethergrok" ]; then
-            TARGET_BIN="aethergrok"
-          elif [ -f "AetherGrok" ]; then
-            TARGET_BIN="AetherGrok"
-          fi
-
-          if [ -n "$TARGET_BIN" ]; then
-            chmod +x "$TARGET_BIN"
-            cp "$TARGET_BIN" aethergrok-linux-amd64
-            tar -czvf aethergrok-linux-amd64.tar.gz aethergrok-linux-amd64
-            sha256sum aethergrok-linux-amd64 > aethergrok-linux-amd64.sha256
-            sha256sum aethergrok-linux-amd64.tar.gz > aethergrok-linux-amd64.tar.gz.sha256
-          fi
-
-      - name: Upload Linux Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: aethergrok-linux-amd64
-          path: |
-            build/bin/aethergrok-linux-amd64.tar.gz
-            build/bin/aethergrok-linux-amd64.tar.gz.sha256
-            build/bin/aethergrok-linux-amd64
-            build/bin/aethergrok-linux-amd64.sha256
-          retention-days: 14
-
   release:
     name: Create GitHub Release
-    needs: [build-windows, build-macos, build-linux]
+    needs: [build-windows, build-macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write

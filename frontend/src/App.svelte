@@ -248,10 +248,15 @@
     }
   });
 
-  // Apply data-theme attribute on document root
+  // Apply data-theme and dark class on document root for Tailwind dark: selector support
   $effect(() => {
     if (typeof document !== 'undefined') {
       document.documentElement.setAttribute('data-theme', settingsStore.theme);
+      if (settingsStore.theme === 'light-antd') {
+        document.documentElement.classList.remove('dark');
+      } else {
+        document.documentElement.classList.add('dark');
+      }
     }
   });
 
@@ -443,6 +448,9 @@
     selectedModel = payload.model;
     reasoningEffort = payload.reasoningEffort;
     sessionStore.setSessionStatus(sessionId, 'working');
+
+    // Reset any previous active plan tracker state for this session on each new prompt
+    planStore.resetPlan(sessionId);
 
     // Instantly force scroll to bottom on new prompt submission
     messageListRef?.forceScrollBottom();
@@ -1615,7 +1623,7 @@
     >
       <!-- Visual Drag-and-Drop Active Overlay across entire Chat Session -->
       {#if isSessionDragOver}
-        <div class="absolute inset-0 z-50 bg-[#121316]/95 border-2 border-dashed border-ant-primary/60 rounded-xl m-2 flex flex-col items-center justify-center space-y-3 backdrop-blur-md pointer-events-none animate-in fade-in zoom-in-95 duration-150 select-none shadow-2xl">
+        <div class="absolute inset-0 z-50 bg-ant-bg-secondary/95 dark:bg-[#121316]/95 border-2 border-dashed border-ant-primary/60 rounded-xl m-2 flex flex-col items-center justify-center space-y-3 backdrop-blur-md pointer-events-none animate-in fade-in zoom-in-95 duration-150 select-none shadow-2xl">
           <div class="w-14 h-14 rounded-2xl bg-ant-primary/15 text-ant-primary flex items-center justify-center shadow-lg border border-ant-primary/25">
             <Upload size={28} />
           </div>

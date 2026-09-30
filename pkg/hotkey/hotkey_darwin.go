@@ -43,14 +43,28 @@ static int startEventTap() {
     if (g_is_running) return 1;
 
     CGEventMask mask = (1 << kCGEventKeyDown) | (1 << kCGEventKeyUp) | (1 << kCGEventFlagsChanged);
+    
+    // Attempt kCGHIDEventTap first to capture hardware events system-wide before application filters
     g_event_tap = CGEventTapCreate(
-        kCGSessionEventTap,
+        kCGHIDEventTap,
         kCGHeadInsertEventTap,
         kCGEventTapOptionListenOnly, // Listen only, do not block or consume events
         mask,
         eventTapCallback,
         NULL
     );
+
+    // Fall back to kCGSessionEventTap if kCGHIDEventTap is not permitted
+    if (!g_event_tap) {
+        g_event_tap = CGEventTapCreate(
+            kCGSessionEventTap,
+            kCGHeadInsertEventTap,
+            kCGEventTapOptionListenOnly,
+            mask,
+            eventTapCallback,
+            NULL
+        );
+    }
 
     if (!g_event_tap) {
         return 0; // Failed to create event tap (usually lacking Accessibility permission)
@@ -59,6 +73,13 @@ static int startEventTap() {
     g_run_loop_source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, g_event_tap, 0);
     g_run_loop = CFRunLoopGetCurrent();
     CFRunLoopAddSource(g_run_loop, g_run_loop_source, kCFRunLoopCommonModes);
+
+    // Also attach to main run loop for comprehensive background event dispatch
+    CFRunLoopRef mainRL = CFRunLoopGetMain();
+    if (mainRL && mainRL != g_run_loop) {
+        CFRunLoopAddSource(mainRL, g_run_loop_source, kCFRunLoopCommonModes);
+    }
+
     CGEventTapEnable(g_event_tap, true);
     g_is_running = 1;
 
@@ -80,6 +101,10 @@ static void stopEventTap() {
     if (g_run_loop_source && g_run_loop) {
         CFRunLoopRemoveSource(g_run_loop, g_run_loop_source, kCFRunLoopCommonModes);
     }
+    CFRunLoopRef mainRL = CFRunLoopGetMain();
+    if (g_run_loop_source && mainRL && mainRL != g_run_loop) {
+        CFRunLoopRemoveSource(mainRL, g_run_loop_source, kCFRunLoopCommonModes);
+    }
     if (g_event_tap) {
         CFRelease(g_event_tap);
         g_event_tap = NULL;
@@ -96,6 +121,7 @@ import "C"
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -418,6 +444,9 @@ func (d *darwinHotkeyManager) startWithKeyHandler(shortcutStr string, handler Ha
 
 	if shouldStartGlobal {
 		go func() {
+			runtime.LockOSThread()
+			defer runtime.UnlockOSThread()
+
 			for attempt := 1; attempt <= 10; attempt++ {
 				darwinRegistryMu.Lock()
 				count := len(darwinRegistry)
@@ -464,6 +493,8 @@ func (d *darwinHotkeyManager) update(shortcutStr string) error {
 	darwinRegistryMu.Unlock()
 	if !isRunning {
 		go func() {
+			runtime.LockOSThread()
+			defer runtime.UnlockOSThread()
 			_ = int(C.startEventTap())
 		}()
 	}

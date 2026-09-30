@@ -2,8 +2,30 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "AetherGrok Release Changelog",
   "description": "Central single source of truth for all AetherGrok releases, commit ranges, and download artifacts.",
-  "latest": "1.0.8",
+  "latest": "1.1.1",
   "releases": [
+    {
+      "version": "1.1.1",
+      "tag": "v1.1.1",
+      "date": "2026-09-30T09:30:00.000Z",
+      "title": "AetherGrok 1.1.1 - Windows Session Resume, Updater Detached Elevation & Light Mode Polish",
+      "targetCommit": "HEAD",
+      "previousCommit": "115e0c5",
+      "highlights": [
+        "Fix Windows multi-prompt session fragmentation by ensuring reliable path resolution and --resume arguments in Grok runner",
+        "Save auto-update downloads directly to standard user Downloads folder across platforms",
+        "Implement detached elevation batch script for Windows installer to eliminate file locks and ensure automatic restart",
+        "Reset Active Plan Tracker on each new prompt submission for a clean execution state",
+        "Refine light mode contrast for Plan Mode pills and Plan Objective cards"
+      ],
+      "commits": [],
+      "downloads": {
+        "macos_arm64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.1/AetherGrok-1.1.1-macOS-arm64.dmg",
+        "macos_x64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.1/AetherGrok-1.1.1-macOS-amd64.dmg",
+        "windows_x64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.1/AetherGrok-1.1.1-windows-amd64-setup.exe",
+        "windows_arm64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.1/AetherGrok-1.1.1-windows-arm64-setup.exe"
+      }
+    },
     {
       "version": "1.0.8",
       "tag": "v1.0.8",

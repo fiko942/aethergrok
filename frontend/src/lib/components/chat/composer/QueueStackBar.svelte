@@ -67,10 +67,10 @@
 </script>
 
 {#if queue.length > 0}
-  <div class="mb-2 bg-[#121316] border border-white/[0.07] rounded-xl overflow-hidden shadow-2xl transition-all">
+  <div class="mb-2 bg-ant-bg-secondary dark:bg-[#121316] border border-ant-border-secondary dark:border-white/[0.07] rounded-xl overflow-hidden shadow-md dark:shadow-2xl transition-all">
     <!-- Header Summary (No redundant global steer button, pure English, subtle pill) -->
     <div
-      class="px-3.5 py-2.5 flex items-center justify-between bg-white/[0.015] hover:bg-white/[0.03] select-none cursor-pointer transition border-b border-white/[0.04]"
+      class="px-3.5 py-2.5 flex items-center justify-between bg-ant-bg/60 dark:bg-white/[0.015] hover:bg-ant-bg dark:hover:bg-white/[0.03] select-none cursor-pointer transition border-b border-ant-border-secondary dark:border-white/[0.04]"
       onclick={() => (isExpanded = !isExpanded)}
       onkeydown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -82,7 +82,7 @@
       tabindex="0"
     >
       <div class="flex items-center space-x-2.5">
-        <div class="flex items-center justify-center w-5 h-5 rounded-full bg-white/[0.08] text-ant-text font-mono text-[10.5px] font-semibold border border-white/10">
+        <div class="flex items-center justify-center w-5 h-5 rounded-full bg-ant-bg-tertiary dark:bg-white/[0.08] text-ant-text font-mono text-[10.5px] font-semibold border border-ant-border-secondary dark:border-white/10">
           {queue.length}
         </div>
         <div class="flex items-baseline space-x-2">
@@ -121,27 +121,27 @@
             ondragleave={handleDragLeave}
             ondrop={(e) => handleDrop(e, idx)}
             ondragend={handleDragEnd}
-            class="flex flex-col p-2.5 rounded-lg bg-white/[0.02] border transition-all group relative {
+            class="flex flex-col p-2.5 rounded-lg bg-ant-bg dark:bg-white/[0.02] border transition-all group relative {
               draggedIdx === idx
-                ? 'opacity-30 border-dashed border-white/20'
+                ? 'opacity-30 border-dashed border-ant-border-secondary dark:border-white/20'
                 : dragOverIdx === idx
                   ? 'border-blue-500/60 bg-blue-500/[0.05]'
-                  : 'border-white/[0.05] hover:border-white/[0.12] hover:bg-white/[0.035]'
+                  : 'border-ant-border-secondary dark:border-white/[0.05] hover:border-blue-500/30 dark:hover:border-white/[0.12] hover:bg-ant-bg-tertiary/40 dark:hover:bg-white/[0.035]'
             }"
           >
             <!-- Card Top: Drag Handle, Number, Model Badge, Individual Steer, Edit, Delete -->
-            <div class="flex items-center justify-between pb-1.5 border-b border-white/[0.03]">
+            <div class="flex items-center justify-between pb-1.5 border-b border-ant-border-secondary dark:border-white/[0.03]">
               <div class="flex items-center space-x-2">
                 <!-- Drag Grip Handle -->
                 <div
-                  class="cursor-grab active:cursor-grabbing text-ant-text-muted/60 group-hover:text-ant-text-secondary p-0.5 rounded hover:bg-white/5 transition"
+                  class="cursor-grab active:cursor-grabbing text-ant-text-muted/60 group-hover:text-ant-text-secondary p-0.5 rounded hover:bg-ant-bg-tertiary dark:hover:bg-white/5 transition"
                   title="Drag to reorder"
                 >
                   <GripVertical size={13} />
                 </div>
                 <span class="text-[10px] font-mono text-ant-text-muted">#{idx + 1}</span>
                 {#if item.model}
-                  <span class="px-1.5 py-0.2 rounded bg-white/[0.04] text-ant-text-secondary text-[10px] font-mono border border-white/5">
+                  <span class="px-1.5 py-0.2 rounded bg-ant-bg-tertiary dark:bg-white/[0.04] text-ant-text-secondary text-[10px] font-mono border border-ant-border-secondary dark:border-white/5">
                     {item.model}
                   </span>
                 {/if}
@@ -153,10 +153,10 @@
                 <button
                   type="button"
                   onclick={() => onSteer(item)}
-                  class="flex items-center space-x-1 px-2 py-0.5 rounded bg-amber-500/[0.12] hover:bg-amber-500/[0.22] text-amber-300 border border-amber-500/25 text-[10.5px] font-serif transition"
+                  class="flex items-center space-x-1 px-2 py-0.5 rounded bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[10.5px] font-serif transition"
                   title="Interrupt current execution and run this prompt immediately"
                 >
-                  <Zap size={11} class="fill-current text-amber-400" />
+                  <Zap size={11} class="fill-current text-amber-600 dark:text-amber-400" />
                   <span>Steer</span>
                 </button>
 
@@ -164,7 +164,7 @@
                 <button
                   type="button"
                   onclick={() => onEdit(item)}
-                  class="flex items-center space-x-1 px-1.5 py-0.5 rounded text-ant-text-muted hover:text-ant-text hover:bg-white/5 text-[10.5px] font-serif transition"
+                  class="flex items-center space-x-1 px-1.5 py-0.5 rounded text-ant-text-muted hover:text-ant-text hover:bg-ant-bg-tertiary dark:hover:bg-white/5 text-[10.5px] font-serif transition"
                   title="Move prompt back to input box for editing"
                 >
                   <Edit3 size={12} />
@@ -175,7 +175,7 @@
                 <button
                   type="button"
                   onclick={() => onRemove(item.id)}
-                  class="p-1 rounded text-ant-text-muted hover:text-rose-400 hover:bg-rose-500/10 transition"
+                  class="p-1 rounded text-ant-text-muted hover:text-rose-500 hover:bg-rose-500/10 transition"
                   title="Delete from queue"
                 >
                   <Trash2 size={12} />
@@ -190,11 +190,11 @@
 
             <!-- Attachment Thumbnails & Badges -->
             {#if (item.images && item.images.length > 0) || (item.attachments && item.attachments.length > 0)}
-              <div class="pt-1.5 flex items-center gap-1.5 flex-wrap border-t border-white/[0.03]">
+              <div class="pt-1.5 flex items-center gap-1.5 flex-wrap border-t border-ant-border-secondary dark:border-white/[0.03]">
                 <!-- Image Thumbnails -->
                 {#if item.images}
                   {#each item.images as img}
-                    <div class="relative group/thumb inline-flex items-center rounded overflow-hidden border border-white/10 bg-black/40">
+                    <div class="relative group/thumb inline-flex items-center rounded overflow-hidden border border-ant-border-secondary dark:border-white/10 bg-ant-bg-tertiary dark:bg-black/40">
                       {#if img.dataUrl}
                         <img
                           src={img.dataUrl}
@@ -202,8 +202,8 @@
                           class="w-7 h-7 object-cover hover:scale-105 transition-transform"
                         />
                       {:else}
-                        <div class="w-7 h-7 flex items-center justify-center bg-white/5">
-                          <ImageIcon size={12} class="text-blue-400" />
+                        <div class="w-7 h-7 flex items-center justify-center bg-ant-bg-tertiary dark:bg-white/5">
+                          <ImageIcon size={12} class="text-blue-500 dark:text-blue-400" />
                         </div>
                       {/if}
                     </div>
@@ -213,17 +213,17 @@
                 <!-- File Chips -->
                 {#if item.attachments}
                   {#each item.attachments as att}
-                    <div class="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-white/[0.03] border border-white/5 text-[10px] text-ant-text-secondary font-mono max-w-[150px]">
+                    <div class="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-ant-bg-tertiary/70 dark:bg-white/[0.03] border border-ant-border-secondary dark:border-white/5 text-[10px] text-ant-text-secondary font-mono max-w-[150px]">
                       {#if att.isImage}
                         {#if att.dataUrl}
                           <img src={att.dataUrl} alt="" class="w-3.5 h-3.5 rounded object-cover" />
                         {:else}
-                          <ImageIcon size={10} class="text-blue-400" />
+                          <ImageIcon size={10} class="text-blue-500 dark:text-blue-400" />
                         {/if}
                       {:else if isCodeFile(att.name)}
-                        <FileCode size={10} class="text-amber-400/80" />
+                        <FileCode size={10} class="text-amber-600 dark:text-amber-400/80" />
                       {:else}
-                        <FileText size={10} class="text-purple-400/80" />
+                        <FileText size={10} class="text-purple-600 dark:text-purple-400/80" />
                       {/if}
                       <span class="truncate">{att.name}</span>
                     </div>

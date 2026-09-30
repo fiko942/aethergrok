@@ -533,9 +533,7 @@ async function main() {
       releaseBody += `| **macOS** | Apple Silicon (M1-M4) | DMG Installer | [${artifacts.macos_arm64_dmg}](${downloadUrls.macos_arm64_dmg}) |\n`;
       releaseBody += `| **macOS** | Intel x64 | DMG Installer | [${artifacts.macos_x64_dmg}](${downloadUrls.macos_x64_dmg}) |\n`;
       releaseBody += `| **Windows** | x64 (64-bit) | Setup Installer | [${artifacts.windows_x64_setup}](${downloadUrls.windows_x64_setup}) |\n`;
-      releaseBody += `| **Windows** | x64 (64-bit) | Portable Zip | [${artifacts.windows_x64_portable}](${downloadUrls.windows_x64_portable}) |\n`;
       releaseBody += `| **Windows** | ARM64 | Setup Installer | [${artifacts.windows_arm64_setup}](${downloadUrls.windows_arm64_setup}) |\n`;
-      releaseBody += `| **Windows** | ARM64 | Portable Zip | [${artifacts.windows_arm64_portable}](${downloadUrls.windows_arm64_portable}) |\n`;
 
       let createdRelease = null;
       try {

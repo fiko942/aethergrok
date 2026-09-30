@@ -86,40 +86,40 @@
             <!-- Status Badge/Icon -->
             <div class="mt-0.5 shrink-0">
               {#if todo.status === 'completed'}
-                <div class="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/40">
+                <div class="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/40">
                   <Check size={10} class="stroke-[3]" />
                 </div>
               {:else if todo.status === 'in_progress'}
-                <div class="w-4 h-4 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/40 animate-pulse">
+                <div class="w-4 h-4 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/40 animate-pulse">
                   <Loader2 size={10} class="animate-spin" />
                 </div>
               {:else if todo.status === 'cancelled'}
-                <div class="w-4 h-4 rounded-full bg-zinc-800 text-zinc-500 flex items-center justify-center border border-zinc-700">
+                <div class="w-4 h-4 rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-500 flex items-center justify-center border border-zinc-300 dark:border-zinc-700">
                   <X size={10} />
                 </div>
               {:else}
-                <div class="w-4 h-4 rounded-full border border-zinc-600 bg-zinc-800/40 flex items-center justify-center">
+                <div class="w-4 h-4 rounded-full border border-zinc-300 dark:border-zinc-600 bg-zinc-100 dark:bg-zinc-800/40 flex items-center justify-center">
                 </div>
               {/if}
             </div>
 
             <div class="flex-1 min-w-0">
-              <p class="text-xs leading-relaxed font-serif {todo.status === 'completed' ? 'line-through text-zinc-500 dark:text-zinc-500' : 'text-ant-text'}">
+              <p class="text-xs leading-relaxed font-serif {todo.status === 'completed' ? 'line-through text-ant-text-muted' : 'text-ant-text'}">
                 {todo.content}
               </p>
 
               <div class="flex items-center space-x-2 mt-1.5 font-mono text-[9.5px]">
                 <span class="px-1.5 py-0.2 rounded uppercase tracking-wider font-semibold {
-                  todo.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400' :
-                  todo.status === 'in_progress' ? 'bg-amber-500/10 text-amber-400' :
-                  'bg-zinc-700/30 text-zinc-400'
+                  todo.status === 'completed' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' :
+                  todo.status === 'in_progress' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20' :
+                  'bg-ant-bg-tertiary text-ant-text-secondary border border-ant-border-secondary'
                 }">
                   {todo.status.replace('_', ' ')}
                 </span>
 
                 {#if todo.priority}
-                  <span class="text-zinc-500">•</span>
-                  <span class="text-zinc-400 capitalize">
+                  <span class="text-ant-text-muted">•</span>
+                  <span class="text-ant-text-secondary capitalize">
                     {todo.priority} priority
                   </span>
                 {/if}

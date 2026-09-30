@@ -55,10 +55,23 @@ func ResolveWorkspaceSessionsDir(sessionsDir, workspacePath string) string {
 	}
 	cleanWs := filepath.Clean(workspacePath)
 
-	// 1. Try exact encoded path
+	// 1. Try exact encoded path (with native clean path)
 	primary := filepath.Join(sessionsDir, EncodeGrokWorkspacePath(cleanWs))
 	if fi, err := os.Stat(primary); err == nil && fi.IsDir() {
 		return primary
+	}
+
+	// 1b. On Windows or cross-platform, try with forward-slashed and backslashed variations
+	wsSlash := filepath.ToSlash(cleanWs)
+	slashEncoded := filepath.Join(sessionsDir, EncodeGrokWorkspacePath(wsSlash))
+	if fi, err := os.Stat(slashEncoded); err == nil && fi.IsDir() {
+		return slashEncoded
+	}
+
+	wsBackslash := strings.ReplaceAll(wsSlash, "/", "\\")
+	backslashEncoded := filepath.Join(sessionsDir, EncodeGrokWorkspacePath(wsBackslash))
+	if fi, err := os.Stat(backslashEncoded); err == nil && fi.IsDir() {
+		return backslashEncoded
 	}
 
 	// 2. Try legacy url.PathEscape
@@ -70,7 +83,8 @@ func ResolveWorkspaceSessionsDir(sessionsDir, workspacePath string) string {
 	// 3. Scan all directory entries in sessionsDir and match decoded folder names
 	entries, err := os.ReadDir(sessionsDir)
 	if err == nil {
-		normalizedTarget := strings.ToLower(filepath.ToSlash(cleanWs))
+		normalizedTarget := strings.ToLower(strings.TrimRight(filepath.ToSlash(cleanWs), "/"))
+		// Also compare target without trailing drive backslash if Windows drive root e.g. "c:"
 		for _, entry := range entries {
 			if !entry.IsDir() {
 				continue
@@ -81,8 +95,12 @@ func ResolveWorkspaceSessionsDir(sessionsDir, workspacePath string) string {
 				decoded, unerr = url.QueryUnescape(name)
 			}
 			if unerr == nil {
-				normalizedDecoded := strings.ToLower(filepath.ToSlash(filepath.Clean(decoded)))
-				if normalizedDecoded == normalizedTarget || strings.TrimRight(normalizedDecoded, "/") == strings.TrimRight(normalizedTarget, "/") {
+				normalizedDecoded := strings.ToLower(strings.TrimRight(filepath.ToSlash(filepath.Clean(decoded)), "/"))
+				if normalizedDecoded == normalizedTarget {
+					return filepath.Join(sessionsDir, name)
+				}
+				// Also handle Windows drive letter cases e.g. "c:/" vs "c:"
+				if strings.TrimSuffix(normalizedDecoded, "/") == strings.TrimSuffix(normalizedTarget, "/") {
 					return filepath.Join(sessionsDir, name)
 				}
 			}

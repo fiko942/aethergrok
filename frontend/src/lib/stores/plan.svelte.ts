@@ -100,14 +100,25 @@ export class PlanStore {
   }
 
   /**
-   * Reset or clear plan for a deleted session
+   * Reset or clear plan for a session (e.g. on new prompt submission or deleted session)
    */
-  removeSessionPlan(sessionId: string) {
+  resetPlan(sessionId: string) {
     if (this.sessionPlans[sessionId]) {
       const copy = { ...this.sessionPlans };
       delete copy[sessionId];
       this.sessionPlans = copy;
+      this.hasNewUpdate = false;
+      if (this.lastUpdatedSessionId === sessionId) {
+        this.lastUpdatedSessionId = null;
+      }
     }
+  }
+
+  /**
+   * Reset or clear plan for a deleted session
+   */
+  removeSessionPlan(sessionId: string) {
+    this.resetPlan(sessionId);
   }
 }
 

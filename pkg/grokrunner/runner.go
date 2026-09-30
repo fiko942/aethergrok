@@ -268,13 +268,13 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 	args := []string{"--output-format", "streaming-json"}
 
 	// Determine session continuation vs new session:
-	// If GrokSessionID is specified, or req.SessionID is a valid UUID that already exists on disk, use --resume.
+	// If GrokSessionID is specified (or req.SessionID is a valid UUID that already exists on disk or was previously known),
+	// we resume that session via `--resume <UUID>`.
 	targetGrokID := req.Options.GrokSessionID
 	if targetGrokID == "" && isUUID(req.SessionID) {
 		targetGrokID = req.SessionID
 	}
 
-	// Check if the target session exists on disk to resume
 	if targetGrokID != "" {
 		homeDir, _ := os.UserHomeDir()
 		wsPath := req.Options.WorkingDir
@@ -283,9 +283,18 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 		}
 		sessionsDir := filepath.Join(homeDir, ".grok", "sessions")
 		targetWsDir := ResolveWorkspaceSessionsDir(sessionsDir, wsPath)
-		sessionFolder := filepath.Join(targetWsDir, targetGrokID)
-		if fi, err := os.Stat(sessionFolder); err == nil && fi.IsDir() {
-			args = append(args, "--resume", targetGrokID)
+		sessionFolder, resolvedID := ResolveSessionFolder(targetWsDir, targetGrokID)
+		
+		// If GrokSessionID was explicitly provided by frontend (meaning it's an existing session in this chat),
+		// OR if the resolved session folder exists on disk, we pass `--resume` with the target ID.
+		if req.Options.GrokSessionID != "" {
+			if resolvedID != "" {
+				args = append(args, "--resume", resolvedID)
+			} else {
+				args = append(args, "--resume", req.Options.GrokSessionID)
+			}
+		} else if fi, err := os.Stat(sessionFolder); err == nil && fi.IsDir() {
+			args = append(args, "--resume", resolvedID)
 		} else if isUUID(targetGrokID) {
 			// Brand new session with an explicitly requested UUID
 			args = append(args, "--session-id", targetGrokID)

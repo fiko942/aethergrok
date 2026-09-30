@@ -838,46 +838,46 @@
         </div>
       {:else if detectedTodos && detectedTodos.length > 0}
         <!-- 2e. Structured Plan / TodosUpdated List View -->
-        <div class="rounded-lg border border-indigo-500/20 bg-indigo-950/10 overflow-hidden text-xs">
-          <div class="flex items-center justify-between px-3 py-1.5 bg-indigo-900/20 border-b border-indigo-500/20 text-[11px] select-none text-indigo-300">
+        <div class="rounded-lg border border-indigo-500/30 bg-ant-bg-secondary/90 dark:bg-indigo-950/10 overflow-hidden text-xs">
+          <div class="flex items-center justify-between px-3 py-1.5 bg-indigo-500/10 dark:bg-indigo-900/20 border-b border-indigo-500/20 text-[11px] select-none text-indigo-700 dark:text-indigo-300">
             <div class="flex items-center space-x-1.5 font-medium">
-              <ListTodo size={13} class="text-indigo-400" />
+              <ListTodo size={13} class="text-indigo-600 dark:text-indigo-400" />
               <span>Execution Plan Tasks</span>
             </div>
-            <span class="font-mono text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-semibold">
+            <span class="font-mono text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-semibold">
               {detectedTodos.filter(t => t.status === 'completed').length} / {detectedTodos.length} Completed
             </span>
           </div>
 
           <div class="p-2 space-y-1.5 max-h-72 overflow-y-auto scrollbar-thin">
             {#each detectedTodos as todo (todo.id)}
-              <div class="flex items-start space-x-2.5 p-2 rounded-md bg-white/[0.02] border border-white/[0.04] transition-colors hover:bg-white/[0.04]">
+              <div class="flex items-start space-x-2.5 p-2 rounded-md bg-ant-bg dark:bg-white/[0.02] border border-ant-border-secondary dark:border-white/[0.04] transition-colors hover:bg-ant-bg-tertiary/60 dark:hover:bg-white/[0.04]">
                 <div class="mt-0.5 shrink-0">
                   {#if todo.status === 'completed'}
-                    <div class="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/40">
+                    <div class="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/40">
                       <Check size={10} class="stroke-[3]" />
                     </div>
                   {:else if todo.status === 'in_progress'}
-                    <div class="w-4 h-4 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/40 animate-pulse">
+                    <div class="w-4 h-4 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/40 animate-pulse">
                       <Loader2 size={10} class="animate-spin" />
                     </div>
                   {:else}
-                    <div class="w-4 h-4 rounded-full border border-zinc-600 bg-zinc-800/50 flex items-center justify-center">
+                    <div class="w-4 h-4 rounded-full border border-zinc-300 dark:border-zinc-600 bg-zinc-100 dark:bg-zinc-800/50 flex items-center justify-center">
                     </div>
                   {/if}
                 </div>
 
                 <div class="flex-1 min-w-0 font-serif leading-relaxed">
-                  <p class="text-xs {todo.status === 'completed' ? 'line-through text-zinc-400' : 'text-zinc-200'}">
+                  <p class="text-xs {todo.status === 'completed' ? 'line-through text-ant-text-muted' : 'text-ant-text'}">
                     {todo.content}
                   </p>
                 </div>
 
                 {#if todo.priority}
                   <span class="text-[9px] uppercase tracking-wider font-mono px-1.5 py-0.2 rounded border {
-                    todo.priority === 'high' ? 'bg-rose-500/10 text-rose-300 border-rose-500/20' :
-                    todo.priority === 'medium' ? 'bg-amber-500/10 text-amber-300 border-amber-500/20' :
-                    'bg-blue-500/10 text-blue-300 border-blue-500/20'
+                    todo.priority === 'high' ? 'bg-rose-500/10 text-rose-600 dark:text-rose-300 border-rose-500/20' :
+                    todo.priority === 'medium' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20' :
+                    'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20'
                   }">
                     {todo.priority}
                   </span>
@@ -888,16 +888,16 @@
         </div>
       {:else if (toolParsed.type === 'plan_enter' || toolParsed.type === 'plan_exit') && (displayPlanMarkdown || toolParsed.reason || toolCall.result || toolParsed.planPath)}
         <!-- 2d. Rich Markdown Plan Document Viewer -->
-        <div class="rounded-lg border border-violet-500/20 bg-violet-950/10 overflow-hidden text-xs">
-          <div class="flex items-center justify-between px-3 py-1.5 bg-violet-900/20 border-b border-violet-500/20 text-[11px] select-none text-violet-300">
+        <div class="rounded-lg border border-violet-500/30 bg-ant-bg-secondary/90 dark:bg-violet-950/10 overflow-hidden text-xs">
+          <div class="flex items-center justify-between px-3 py-1.5 bg-violet-500/10 dark:bg-violet-900/20 border-b border-violet-500/20 text-[11px] select-none text-violet-700 dark:text-violet-300">
             <div class="flex items-center space-x-1.5 font-medium">
-              <BookOpen size={13} class="text-violet-400" />
+              <BookOpen size={13} class="text-violet-600 dark:text-violet-400" />
               <span>{toolParsed.type === 'plan_enter' ? 'Active Engineering Plan Document' : 'Completed Execution Plan'}</span>
             </div>
 
             <div class="flex items-center space-x-2">
               {#if toolParsed.planPath}
-                <span class="font-mono text-[10px] text-violet-300/70 max-w-xs truncate" title={toolParsed.planPath}>
+                <span class="font-mono text-[10px] text-violet-700/80 dark:text-violet-300/70 max-w-xs truncate" title={toolParsed.planPath}>
                   {toolParsed.planPath}
                 </span>
 
@@ -906,7 +906,7 @@
                   type="button"
                   onclick={() => loadPlanContent(true)}
                   disabled={isPlanLoading}
-                  class="p-1 rounded text-violet-300/70 hover:text-violet-200 hover:bg-violet-800/30 transition disabled:opacity-50"
+                  class="p-1 rounded text-violet-700 dark:text-violet-300/70 hover:text-violet-900 dark:hover:text-violet-200 hover:bg-violet-500/10 dark:hover:bg-violet-800/30 transition disabled:opacity-50"
                   title="Reload plan file from disk"
                 >
                   <RotateCw size={11} class={isPlanLoading ? 'animate-spin' : ''} />
@@ -918,12 +918,12 @@
                 <button
                   type="button"
                   onclick={copyPlanMarkdown}
-                  class="flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] text-violet-300/80 hover:text-white hover:bg-violet-800/30 transition"
+                  class="flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] text-violet-700 dark:text-violet-300/80 hover:text-violet-900 dark:hover:text-white hover:bg-violet-500/10 dark:hover:bg-violet-800/30 transition"
                   title="Copy plan markdown"
                 >
                   {#if copiedPlan}
-                    <Check size={10} class="text-emerald-400" />
-                    <span class="text-emerald-400">Copied</span>
+                    <Check size={10} class="text-emerald-500 dark:text-emerald-400" />
+                    <span class="text-emerald-500 dark:text-emerald-400">Copied</span>
                   {:else}
                     <Copy size={10} />
                     <span>Copy</span>
@@ -942,18 +942,18 @@
             {:else if displayPlanMarkdown}
               {@html renderMarkdown(displayPlanMarkdown)}
             {:else if toolParsed.reason}
-              <div class="p-2.5 rounded bg-violet-900/10 border border-violet-500/15 space-y-2">
-                <div class="text-xs text-zinc-300">
-                  <p class="font-semibold text-violet-300 mb-1">Plan Objective / Context:</p>
-                  <p>{toolParsed.reason}</p>
+              <div class="p-2.5 rounded bg-violet-500/10 dark:bg-violet-900/15 border border-violet-500/20 space-y-2">
+                <div class="text-xs text-ant-text">
+                  <p class="font-semibold text-violet-700 dark:text-violet-300 mb-1">Plan Objective / Context:</p>
+                  <p class="text-ant-text-secondary leading-relaxed">{toolParsed.reason}</p>
                 </div>
                 {#if toolParsed.planPath}
-                  <div class="pt-2 border-t border-violet-500/10 flex items-center justify-between text-[11px] text-zinc-400">
+                  <div class="pt-2 border-t border-violet-500/15 flex items-center justify-between text-[11px] text-ant-text-muted">
                     <span class="italic">Plan file initialized. Waiting for agent to write specifications.</span>
                     <button
                       type="button"
                       onclick={() => loadPlanContent(true)}
-                      class="px-2 py-0.5 rounded bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/30 flex items-center gap-1 transition"
+                      class="px-2 py-0.5 rounded bg-violet-600/15 hover:bg-violet-600/25 text-violet-700 dark:text-violet-300 border border-violet-500/30 flex items-center gap-1 transition"
                     >
                       <RotateCw size={10} class={isPlanLoading ? 'animate-spin' : ''} />
                       <span>Check for Updates</span>
@@ -962,18 +962,18 @@
                 {/if}
               </div>
             {:else if planLoadError}
-              <div class="p-3 rounded bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300 flex items-center justify-between">
+              <div class="p-3 rounded bg-rose-500/10 border border-rose-500/20 text-xs text-rose-600 dark:text-rose-300 flex items-center justify-between">
                 <span>Failed to load plan file: {planLoadError}</span>
                 <button
                   type="button"
                   onclick={() => loadPlanContent(true)}
-                  class="px-2 py-0.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/40"
+                  class="px-2 py-0.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-700 dark:text-rose-200 border border-rose-500/40"
                 >
                   Retry
                 </button>
               </div>
             {:else}
-              <div class="text-xs text-zinc-400 italic">
+              <div class="text-xs text-ant-text-muted italic">
                 No markdown plan file available.
               </div>
             {/if}
