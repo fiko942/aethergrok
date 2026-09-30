@@ -60,6 +60,16 @@ export class PlanStore {
    * Scan and ingest a tool call result or params to see if it contains plan updates
    */
   inspectToolForPlan(sessionId: string, toolId: string, toolName: string, params: unknown, result: unknown): boolean {
+    const isTodoWrite = (toolName || '').toLowerCase().includes('todo_write');
+    let isMerge = true;
+
+    if (params && typeof params === 'object') {
+      const p = params as Record<string, any>;
+      if (typeof p.merge === 'boolean') {
+        isMerge = p.merge;
+      }
+    }
+
     // 1. Check result first
     let todos = parseTodosUpdated(result);
     // 2. Check params/input next (e.g. todo_write tool)
@@ -68,7 +78,32 @@ export class PlanStore {
     }
 
     if (todos && todos.length > 0) {
-      this.updatePlan(sessionId, todos, toolId, toolName);
+      const existing = this.sessionPlans[sessionId];
+      if (existing && existing.todos && isMerge && isTodoWrite) {
+        // Merge updated todos into existing list by id
+        const mergedMap = new Map<string, TodoItem>();
+        for (const item of existing.todos) {
+          mergedMap.set(item.id, { ...item });
+        }
+        for (const update of todos) {
+          const prev = mergedMap.get(update.id);
+          if (prev) {
+            mergedMap.set(update.id, {
+              ...prev,
+              ...update,
+              status: update.status || prev.status,
+              content: update.content || prev.content,
+              updatedAt: Date.now()
+            });
+          } else {
+            mergedMap.set(update.id, update);
+          }
+        }
+        this.updatePlan(sessionId, Array.from(mergedMap.values()), toolId, toolName);
+      } else {
+        // Complete replacement (merge: false, or fresh task generation)
+        this.updatePlan(sessionId, todos, toolId, toolName);
+      }
       return true;
     }
     return false;

@@ -50,6 +50,7 @@ export function normalizeTodoStatus(status: unknown): 'pending' | 'in_progress' 
  * 3. { "state": { "todos": { ... } } }
  * 4. { "todos": [ { "id": "...", "content": "..." } ] }
  * 5. todo_write tool params { "todos": [...] }
+ * 6. Markdown todo lists "- [completed] id: content" or "- [x] content"
  */
 export function parseTodosUpdated(raw: unknown): TodoItem[] | null {
   if (!raw) return null;
@@ -59,8 +60,47 @@ export function parseTodosUpdated(raw: unknown): TodoItem[] | null {
   if (typeof raw === 'string') {
     const trimmed = raw.trim();
     if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+      // Check for markdown list items (e.g. "- [completed] task: description" or "- [ ] task")
+      const lines = trimmed.split('\n').map((l) => l.trim()).filter(Boolean);
+      const markdownTodos: TodoItem[] = [];
+      const mdRegex = /^[-*]\s*\[([ xX/_\-a-zA-Z]+)\]\s*(?:([a-zA-Z0-9_\-]+):\s*)?(.*)$/;
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const match = line.match(mdRegex);
+        if (match) {
+          const rawStatus = match[1].trim().toLowerCase();
+          const namedId = match[2]?.trim();
+          const content = (match[3] || '').trim();
+          let status: 'pending' | 'in_progress' | 'completed' | 'cancelled' = 'pending';
+
+          if (rawStatus === 'x' || rawStatus === 'completed' || rawStatus === 'done') {
+            status = 'completed';
+          } else if (rawStatus === '/' || rawStatus === 'in_progress' || rawStatus === 'running' || rawStatus === 'active') {
+            status = 'in_progress';
+          } else if (rawStatus === 'cancelled' || rawStatus === 'canceled' || rawStatus === '-') {
+            status = 'cancelled';
+          }
+
+          if (content || namedId) {
+            markdownTodos.push({
+              id: namedId || `task-${i + 1}`,
+              content: content || namedId || `Task ${i + 1}`,
+              status,
+              priority: 'medium',
+              updatedAt: Date.now()
+            });
+          }
+        }
+      }
+
+      if (markdownTodos.length > 0) {
+        return deduplicateTodos(markdownTodos);
+      }
+
       return null;
     }
+
     try {
       obj = JSON.parse(trimmed);
     } catch {
@@ -92,6 +132,9 @@ export function parseTodosUpdated(raw: unknown): TodoItem[] | null {
     todosSource = obj.state.todos;
   } else if (obj.todos) {
     todosSource = obj.todos;
+  } else if (obj.result) {
+    // Nested result property
+    return parseTodosUpdated(obj.result);
   }
 
   if (!todosSource) return null;
@@ -136,7 +179,20 @@ export function parseTodosUpdated(raw: unknown): TodoItem[] | null {
     });
   }
 
-  return result.length > 0 ? result : null;
+  return result.length > 0 ? deduplicateTodos(result) : null;
+}
+
+/**
+ * Deduplicates todos list keeping the latest status and unique ID
+ */
+export function deduplicateTodos(todos: TodoItem[]): TodoItem[] {
+  const map = new Map<string, TodoItem>();
+  for (const item of todos) {
+    const key = item.id.trim() || item.content.trim();
+    if (!key) continue;
+    map.set(key, item);
+  }
+  return Array.from(map.values());
 }
 
 /**

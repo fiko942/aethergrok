@@ -27,7 +27,13 @@
   let { sessionId, onOpenRightSidebarTab }: Props = $props();
 
   const currentSessionId = $derived(sessionId || sessionStore.activeSessionId);
+  const activeSession = $derived(sessionStore.sessions.find(s => s.id === currentSessionId) || sessionStore.activeSession);
   const planState = $derived<SessionPlanState | null>(planStore.getPlan(currentSessionId));
+
+  // Determine if the Right Sidebar is currently open showing the Plan tab
+  const isSidebarPlanOpen = $derived(
+    Boolean(activeSession && activeSession.rightSidebarOpen && activeSession.rightSidebarTab === 'plan')
+  );
 
   let isHovered = $state(false);
 
@@ -60,7 +66,7 @@
   }
 </script>
 
-{#if planState && planState.todos && planState.todos.length > 0 && planStore.isFloatingVisible}
+{#if planState && planState.todos && planState.todos.length > 0 && planStore.isFloatingVisible && !isSidebarPlanOpen}
   <!-- Floating Plan Tracker Container (Positioned gracefully at top-right of main chat stage) -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
