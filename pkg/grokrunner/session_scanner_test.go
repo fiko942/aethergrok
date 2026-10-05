@@ -284,16 +284,56 @@ func TestGetSessionUsage_SignalsAndUsage(t *testing.T) {
 		t.Errorf("Expected 8585469 TotalInput, got %d", stats1.TotalInput)
 	}
 
-	// Test 2: Placeholder sess_ lookup (auto-resolves to newest session folder)
+	// Test 2: Unmatched or temporary placeholder sess_ lookup must return empty stats and NOT borrow unrelated session
 	stats2, err := GetSessionUsage(testWs, "sess_abc123456_random")
 	if err != nil {
 		t.Fatalf("GetSessionUsage with placeholder failed: %v", err)
 	}
-	if stats2.UsedTokens != 168180 {
-		t.Errorf("Expected placeholder to resolve to 168180 UsedTokens, got %d", stats2.UsedTokens)
+	if stats2.UsedTokens != 0 {
+		t.Errorf("Expected placeholder to resolve to 0 UsedTokens (isolated), got %d", stats2.UsedTokens)
 	}
-	if stats2.SessionID != "01a0-real-uuid-1234" {
-		t.Errorf("Expected placeholder to resolve to '01a0-real-uuid-1234', got '%s'", stats2.SessionID)
+	if stats2.SessionID != "sess_abc123456_random" {
+		t.Errorf("Expected placeholder to retain its own ID 'sess_abc123456_random', got '%s'", stats2.SessionID)
+	}
+}
+
+func TestResolveSessionFolder_Isolation(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testWs := "/tmp/test-workspace-isolation-unique"
+	encodedWs := EncodeGrokWorkspacePath(testWs)
+	testDir := filepath.Join(home, ".grok", "sessions", encodedWs)
+	defer os.RemoveAll(testDir)
+
+	sess1Dir := filepath.Join(testDir, "11111111-1111-1111-1111-111111111111")
+	sess2Dir := filepath.Join(testDir, "22222222-2222-2222-2222-222222222222")
+	_ = os.MkdirAll(sess1Dir, 0755)
+	_ = os.MkdirAll(sess2Dir, 0755)
+
+	_ = os.WriteFile(filepath.Join(sess1Dir, "chat_history.jsonl"), []byte("{}\n"), 0644)
+	_ = os.WriteFile(filepath.Join(sess2Dir, "chat_history.jsonl"), []byte("{}\n"), 0644)
+
+	// Exact match
+	_, id1 := ResolveSessionFolder(testDir, "11111111-1111-1111-1111-111111111111")
+	if id1 != "11111111-1111-1111-1111-111111111111" {
+		t.Errorf("Expected exact match id1, got %s", id1)
+	}
+
+	// Unrelated session ID must NOT resolve to sess1 or sess2
+	unrelated := "33333333-3333-3333-3333-333333333333"
+	_, idUnrelated := ResolveSessionFolder(testDir, unrelated)
+	if idUnrelated == "11111111-1111-1111-1111-111111111111" || idUnrelated == "22222222-2222-2222-2222-222222222222" {
+		t.Errorf("ResolveSessionFolder leaked an unrelated session folder: got %s", idUnrelated)
+	}
+
+	// Frontend placeholder must NOT resolve to sess1 or sess2
+	placeholder := "sess_abc123"
+	_, idPlaceholder := ResolveSessionFolder(testDir, placeholder)
+	if idPlaceholder == "11111111-1111-1111-1111-111111111111" || idPlaceholder == "22222222-2222-2222-2222-222222222222" {
+		t.Errorf("ResolveSessionFolder leaked an existing session to placeholder: got %s", idPlaceholder)
 	}
 }
 

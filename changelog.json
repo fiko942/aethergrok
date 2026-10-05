@@ -2,8 +2,29 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "AetherGrok Release Changelog",
   "description": "Central single source of truth for all AetherGrok releases, commit ranges, and download artifacts.",
-  "latest": "1.1.2",
+  "latest": "1.1.3",
   "releases": [
+    {
+      "version": "1.1.3",
+      "tag": "v1.1.3",
+      "date": "2026-10-05T05:30:00.000Z",
+      "title": "AetherGrok 1.1.3 - Session Isolation & In-Flight Prompt Persistence",
+      "targetCommit": "HEAD",
+      "previousCommit": "1f15461",
+      "highlights": [
+        "Eliminate cross-session contamination in the same workspace by replacing newest-folder fallback with strict UUID matching in session scanner",
+        "Generate RFC4122 v4 UUIDs on new session creation and pass explicit --session-id to Grok CLI runner",
+        "Preserve in-flight prompts and active streaming status when switching tabs or sessions by guarding disk reloads during active working state",
+        "Harden session isolation unit test suite validating zero signal leakage between independent sessions"
+      ],
+      "commits": [],
+      "downloads": {
+        "macos_arm64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.3/AetherGrok-1.1.3-macOS-arm64.dmg",
+        "macos_x64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.3/AetherGrok-1.1.3-macOS-amd64.dmg",
+        "windows_x64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.3/AetherGrok-1.1.3-windows-amd64-setup.exe",
+        "windows_arm64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.3/AetherGrok-1.1.3-windows-arm64-setup.exe"
+      }
+    },
     {
       "version": "1.1.2",
       "tag": "v1.1.2",

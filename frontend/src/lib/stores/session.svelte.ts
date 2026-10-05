@@ -232,7 +232,7 @@ class SessionStore {
           const activeSess = this.sessions.find((s) => s.id === this.activeSessionId);
           if (activeSess) {
             logger.info('SESSION', `Auto-hydrating active session on launch: ${activeSess.id}`, { title: activeSess.title });
-            if (activeSess.messages.length === 0 || activeSess.grokSessionId) {
+            if (activeSess.messages.length === 0 && activeSess.status !== 'working') {
               await this.loadSessionHistoryFromDisk(activeSess);
             }
             await this.loadSessionUsage(activeSess);
@@ -480,11 +480,24 @@ class SessionStore {
     this.saveWorkspacesToStorage();
   }
 
+  private generateSessionUUID(): string {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    // Fallback standard RFC4122 v4 UUID generator
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+
   private createNewSessionModel(title?: string, wsId?: string): Session {
-    const id = 'sess_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36);
+    const id = this.generateSessionUUID();
     const workspaceId = wsId || this.activeWorkspaceId || (this.workspaces[0]?.id ?? '');
     return {
       id,
+      grokSessionId: id,
       workspaceId,
       title: title || (workspaceId ? `Session ${this.sessions.filter((s) => s.workspaceId === workspaceId).length + 1}` : `Session ${this.sessions.length + 1}`),
       status: 'idle',
@@ -846,8 +859,9 @@ class SessionStore {
     }
     this.saveSessionsToStorage();
 
-    // Lazy load real chat history from disk if session has 0 messages
-    if (target.messages.length === 0 || target.grokSessionId) {
+    // Lazy load real chat history from disk only if the session is NOT actively working
+    // and currently has 0 in-memory messages. Never overwrite an in-flight prompt!
+    if (target.messages.length === 0 && target.status !== 'working') {
       await this.loadSessionHistoryFromDisk(target);
     }
 
@@ -1075,7 +1089,7 @@ class SessionStore {
   async switchSession(id: string): Promise<void> {
     if (this.activeSessionId === id) {
       const target = this.sessions.find((s) => s.id === id);
-      if (target && target.messages.length === 0) {
+      if (target && target.messages.length === 0 && target.status !== 'working') {
         await this.loadSessionHistoryFromDisk(target);
         await this.loadSessionUsage(target);
       }
@@ -1239,8 +1253,10 @@ class SessionStore {
     const source = this.sessions.find((s) => s.id === id);
     if (!source) return null;
 
+    const forkedId = this.generateSessionUUID();
     const forked: Session = {
-      id: 'sess_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36),
+      id: forkedId,
+      grokSessionId: forkedId,
       workspaceId: source.workspaceId,
       title: `${source.title} (Fork)`,
       status: 'idle',

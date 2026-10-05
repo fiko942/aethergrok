@@ -12,7 +12,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"time"
 )
 
 // GrokSessionMetadata represents metadata of a discovered Grok session from disk
@@ -110,13 +109,17 @@ func ResolveWorkspaceSessionsDir(sessionsDir, workspacePath string) string {
 	return primary
 }
 
-// ResolveSessionFolder resolves the session folder path and true Grok UUID inside targetDir
+// ResolveSessionFolder strictly resolves the session folder path and true Grok UUID inside targetDir.
+// It only matches exact or case-insensitive UUID folder names, and never falls back to
+// unrelated session folders to avoid cross-session contamination.
 func ResolveSessionFolder(targetDir, sessionID string) (string, string) {
-	if sessionID != "" {
-		exactPath := filepath.Join(targetDir, sessionID)
-		if fi, err := os.Stat(exactPath); err == nil && fi.IsDir() {
-			return exactPath, sessionID
-		}
+	if sessionID == "" {
+		return "", ""
+	}
+
+	exactPath := filepath.Join(targetDir, sessionID)
+	if fi, err := os.Stat(exactPath); err == nil && fi.IsDir() {
+		return exactPath, sessionID
 	}
 
 	entries, err := os.ReadDir(targetDir)
@@ -124,48 +127,45 @@ func ResolveSessionFolder(targetDir, sessionID string) (string, string) {
 		return filepath.Join(targetDir, sessionID), sessionID
 	}
 
-	// 1. Search for matching folder name (case-insensitive or prefix/suffix)
-	if sessionID != "" {
-		sLower := strings.ToLower(sessionID)
+	// Search for matching folder name (case-insensitive or prefix match for truncated UUIDs)
+	sLower := strings.ToLower(sessionID)
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		eName := entry.Name()
+		eLower := strings.ToLower(eName)
+		if eLower == sLower {
+			return filepath.Join(targetDir, eName), eName
+		}
+	}
+
+	// Secondary check: if sessionID is at least an 8-character UUID prefix, match it
+	if len(sessionID) >= 8 && isUUIDPrefix(sessionID) {
 		for _, entry := range entries {
 			if !entry.IsDir() {
 				continue
 			}
 			eName := entry.Name()
-			eLower := strings.ToLower(eName)
-			if eLower == sLower || strings.HasPrefix(eLower, sLower) || strings.HasPrefix(sLower, eLower) {
+			if strings.HasPrefix(strings.ToLower(eName), sLower) {
 				return filepath.Join(targetDir, eName), eName
 			}
 		}
 	}
 
-	// 2. If sessionID is a frontend temporary ID (sess_...) or not found, find the most recently modified session folder
-	type sessionDirInfo struct {
-		name    string
-		modTime time.Time
-	}
-	var validDirs []sessionDirInfo
-	for _, entry := range entries {
-		if !entry.IsDir() {
+	return filepath.Join(targetDir, sessionID), sessionID
+}
+
+func isUUIDPrefix(str string) bool {
+	for _, ch := range str {
+		if ch == '-' {
 			continue
 		}
-		folderPath := filepath.Join(targetDir, entry.Name())
-		if hasSessionRecord(folderPath) {
-			info, err := entry.Info()
-			if err == nil {
-				validDirs = append(validDirs, sessionDirInfo{name: entry.Name(), modTime: info.ModTime()})
-			}
+		if !((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')) {
+			return false
 		}
 	}
-
-	if len(validDirs) > 0 {
-		sort.Slice(validDirs, func(i, j int) bool {
-			return validDirs[i].modTime.After(validDirs[j].modTime)
-		})
-		return filepath.Join(targetDir, validDirs[0].name), validDirs[0].name
-	}
-
-	return filepath.Join(targetDir, sessionID), sessionID
+	return true
 }
 
 func hasSessionRecord(folderPath string) bool {
