@@ -342,6 +342,31 @@ class SessionStore {
       if (rawSessions) {
         const parsed = JSON.parse(rawSessions);
         if (Array.isArray(parsed)) {
+          // Sanitize any stale session or message states:
+          // If the app was closed while a turn was running or stalled, reset 'working' or 'waiting_permission'
+          // to 'idle' so the UI never starts up locked in an infinite loading spinner.
+          for (const s of parsed) {
+            if (s.status === 'working' || s.status === 'waiting_permission') {
+              s.status = 'idle';
+            }
+            if (s.pendingPermission) {
+              s.pendingPermission = null;
+            }
+            if (Array.isArray(s.messages)) {
+              for (const m of s.messages) {
+                if (m.status === 'streaming') {
+                  m.status = 'done';
+                }
+                if (Array.isArray(m.toolCalls)) {
+                  for (const tc of m.toolCalls) {
+                    if (tc.status === 'running') {
+                      tc.status = 'error';
+                    }
+                  }
+                }
+              }
+            }
+          }
           this.sessions = parsed;
         }
       }

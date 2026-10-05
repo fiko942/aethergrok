@@ -151,6 +151,8 @@ type StreamParser struct {
 	grokSessionID string
 	callbacks     StreamCallbacks
 	flushChan     chan struct{}
+	firstLineChan chan struct{}
+	firstLineOnce sync.Once
 	mu            sync.Mutex
 	hasCompleted  bool
 }
@@ -158,10 +160,16 @@ type StreamParser struct {
 // NewStreamParser creates a new stream parser for a session
 func NewStreamParser(sessionID string, callbacks StreamCallbacks) *StreamParser {
 	return &StreamParser{
-		sessionID: sessionID,
-		callbacks: callbacks,
-		flushChan: make(chan struct{}, 1),
+		sessionID:     sessionID,
+		callbacks:     callbacks,
+		flushChan:     make(chan struct{}, 1),
+		firstLineChan: make(chan struct{}),
 	}
+}
+
+// FirstLineChan returns a channel that is closed upon receiving the first non-empty stdout line
+func (p *StreamParser) FirstLineChan() <-chan struct{} {
+	return p.firstLineChan
 }
 
 // HasCompleted returns true if a turn completion or fatal error was emitted
@@ -197,6 +205,10 @@ func (p *StreamParser) EmitComplete(status string, errMsg string) {
 
 // Parse reads from the given reader until EOF or context cancellation
 func (p *StreamParser) Parse(ctx context.Context, r io.Reader) error {
+	defer p.firstLineOnce.Do(func() {
+		close(p.firstLineChan)
+	})
+
 	scanner := bufio.NewScanner(r)
 	buf := make([]byte, 1024*1024)
 	scanner.Buffer(buf, 10*1024*1024)
@@ -257,6 +269,10 @@ func (p *StreamParser) Parse(ctx context.Context, r io.Reader) error {
 		if line == "" {
 			continue
 		}
+
+		p.firstLineOnce.Do(func() {
+			close(p.firstLineChan)
+		})
 
 		var raw RawNDJSONEvent
 		if err := json.Unmarshal([]byte(line), &raw); err != nil {

@@ -195,3 +195,23 @@ func TestACPStreamParser_PermissionRequest(t *testing.T) {
 		t.Errorf("expected description 'Write to app.go', got '%s'", permReq.Description)
 	}
 }
+
+func TestStreamParser_FirstLineChan(t *testing.T) {
+	parser := NewStreamParser("test-sess-firstline", StreamCallbacks{})
+	select {
+	case <-parser.FirstLineChan():
+		t.Fatalf("firstLineChan should not be closed initially")
+	default:
+	}
+
+	input := "{\"type\":\"available_commands\"}\n{\"type\":\"delta\",\"delta\":\"hi\"}\n"
+	ctx := context.Background()
+	_ = parser.Parse(ctx, strings.NewReader(input))
+
+	select {
+	case <-parser.FirstLineChan():
+		// Success!
+	default:
+		t.Fatalf("firstLineChan should be closed after parsing lines")
+	}
+}

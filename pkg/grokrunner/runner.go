@@ -1,6 +1,7 @@
 package grokrunner
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -12,6 +13,9 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
+
 	"aethergrok/pkg/storage"
 )
 
@@ -21,6 +25,7 @@ type ActiveSession struct {
 	Cmd       *exec.Cmd
 	Cancel    context.CancelFunc
 	Stdin     io.WriteCloser
+	Stdout    io.ReadCloser
 	Done      chan struct{}
 }
 
@@ -414,8 +419,18 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 		return fmt.Errorf("failed to create stdout pipe: %w", err)
 	}
 
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		_ = stdout.Close()
+		r.mu.Unlock()
+		cancel()
+		return fmt.Errorf("failed to create stderr pipe: %w", err)
+	}
+
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
+		_ = stdout.Close()
+		_ = stderr.Close()
 		r.mu.Unlock()
 		cancel()
 		return fmt.Errorf("failed to create stdin pipe: %w", err)
@@ -426,6 +441,7 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 		Cmd:       cmd,
 		Cancel:    cancel,
 		Stdin:     stdin,
+		Stdout:    stdout,
 		Done:      make(chan struct{}),
 	}
 	r.sessions[req.SessionID] = active
@@ -435,6 +451,8 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 		if promptTempFile != "" {
 			_ = os.Remove(promptTempFile)
 		}
+		_ = stdout.Close()
+		_ = stderr.Close()
 		r.mu.Lock()
 		delete(r.sessions, req.SessionID)
 		r.mu.Unlock()
@@ -442,6 +460,46 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 		close(active.Done)
 		return fmt.Errorf("failed to start grok command: %w", err)
 	}
+
+	var stderrBuf bytes.Buffer
+	var stderrMu sync.Mutex
+	go func() {
+		buf := make([]byte, 4096)
+		for {
+			n, rErr := stderr.Read(buf)
+			if n > 0 {
+				stderrMu.Lock()
+				if stderrBuf.Len() < 64*1024 {
+					stderrBuf.Write(buf[:n])
+				}
+				stderrMu.Unlock()
+			}
+			if rErr != nil {
+				break
+			}
+		}
+	}()
+
+	parser := NewStreamParser(req.SessionID, callbacks)
+
+	// Startup watchdog: if Grok CLI produces zero stdout lines within 45s (e.g. startup deadlock / corrupted history),
+	// terminate the process immediately and fail fast.
+	const startupTimeout = 45 * time.Second
+	var timedOutDuringStartup atomic.Bool
+	watchdogDone := make(chan struct{})
+
+	go func() {
+		defer close(watchdogDone)
+		select {
+		case <-sessionCtx.Done():
+		case <-parser.FirstLineChan():
+		case <-time.After(startupTimeout):
+			timedOutDuringStartup.Store(true)
+			_ = killProcessGroup(cmd)
+			_ = stdout.Close()
+			cancel()
+		}
+	}()
 
 	go func() {
 		defer func() {
@@ -453,9 +511,9 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 			cancel()
 		}()
 
-		parser := NewStreamParser(req.SessionID, callbacks)
 		parseErr := parser.Parse(sessionCtx, stdout)
 		waitErr := cmd.Wait()
+		<-watchdogDone
 
 		// Guaranteed Turn Completion Fallback:
 		// If parser did not receive an explicit completion signal before process exit/EOF,
@@ -463,15 +521,36 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 		if !parser.HasCompleted() {
 			status := "success"
 			var errStr string
-			if sessionCtx.Err() != nil {
+
+			stderrMu.Lock()
+			capturedStderr := strings.TrimSpace(stderrBuf.String())
+			stderrMu.Unlock()
+
+			if timedOutDuringStartup.Load() {
+				status = "error"
+				errStr = "Grok CLI startup timed out after 45s (no response from CLI process). The session history may be too large or corrupted."
+				if capturedStderr != "" {
+					errStr += "\nCLI Output:\n" + capturedStderr
+				}
+			} else if sessionCtx.Err() != nil {
 				status = "interrupted"
 				errStr = "Turn interrupted"
 			} else if waitErr != nil {
 				status = "error"
 				errStr = waitErr.Error()
+				if capturedStderr != "" {
+					errStr += "\nCLI Output:\n" + capturedStderr
+				}
 			} else if parseErr != nil && parseErr != io.EOF {
 				status = "error"
 				errStr = parseErr.Error()
+				if capturedStderr != "" {
+					errStr += "\nCLI Output:\n" + capturedStderr
+				}
+			}
+
+			if status == "error" && callbacks.OnError != nil {
+				callbacks.OnError(fmt.Errorf("%s", errStr))
 			}
 			parser.EmitComplete(status, errStr)
 		}
@@ -510,6 +589,9 @@ func (r *Runner) Cancel(sessionID string) error {
 	}
 
 	active.Cancel()
+	if active.Stdout != nil {
+		_ = active.Stdout.Close()
+	}
 	return killProcessGroup(active.Cmd)
 }
 

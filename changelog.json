@@ -2,8 +2,29 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "AetherGrok Release Changelog",
   "description": "Central single source of truth for all AetherGrok releases, commit ranges, and download artifacts.",
-  "latest": "1.1.1",
+  "latest": "1.1.2",
   "releases": [
+    {
+      "version": "1.1.2",
+      "tag": "v1.1.2",
+      "date": "2026-10-05T04:15:00.000Z",
+      "title": "AetherGrok 1.1.2 - CLI Startup Watchdog, Deadlock Defense & Session Recovery",
+      "targetCommit": "HEAD",
+      "previousCommit": "d08e77d",
+      "highlights": [
+        "45-second startup watchdog in Grok runner to detect and terminate frozen CLI processes when resuming massive or corrupted session histories",
+        "Buffered stderr capture providing clear error diagnostics upon CLI startup or execution failures",
+        "Frontend session store sanitization resetting stale loading states and hung spinners on application startup",
+        "Robust error rendering in chat conversation ensuring failed turns never lock the composer"
+      ],
+      "commits": [],
+      "downloads": {
+        "macos_arm64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.2/AetherGrok-1.1.2-macOS-arm64.dmg",
+        "macos_x64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.2/AetherGrok-1.1.2-macOS-amd64.dmg",
+        "windows_x64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.2/AetherGrok-1.1.2-windows-amd64-setup.exe",
+        "windows_arm64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.2/AetherGrok-1.1.2-windows-arm64-setup.exe"
+      }
+    },
     {
       "version": "1.1.1",
       "tag": "v1.1.1",

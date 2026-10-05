@@ -1320,13 +1320,29 @@
         }
       });
 
-      unsubComplete = window.runtime.EventsOn('grok:complete', async (event: { sessionId: string; status: string; grokSessionId?: string; title?: string }) => {
+      unsubComplete = window.runtime.EventsOn('grok:complete', async (event: { sessionId: string; status: string; grokSessionId?: string; title?: string; error?: string }) => {
         if (event.sessionId) {
           const finalStatus = event.status === 'success' ? 'finished' : event.status === 'interrupted' ? 'idle' : 'error';
           sessionStore.setSessionStatus(event.sessionId, finalStatus);
           sessionStore.updateLastMessage(event.sessionId, (msg) => {
             msg.status = 'done';
           });
+
+          // Ensure error message is visibly presented if turn completed with error
+          if (event.status === 'error' && event.error) {
+            const sessionObj = sessionStore.sessions.find((s) => s.id === event.sessionId);
+            const lastMsg = sessionObj?.messages[sessionObj.messages.length - 1];
+            if (!lastMsg || lastMsg.role === 'user') {
+              sessionStore.addMessage(event.sessionId, {
+                role: 'assistant',
+                content: event.error,
+                status: 'error'
+              });
+            } else if (lastMsg.role === 'assistant' && !lastMsg.content) {
+              lastMsg.content = event.error;
+              lastMsg.status = 'error';
+            }
+          }
 
           // Finalize any lingering 'running' tool calls across all messages in this session
           const sessionObj = sessionStore.sessions.find((s) => s.id === event.sessionId);
@@ -1378,13 +1394,16 @@
       unsubError = window.runtime.EventsOn('grok:error', (event: { sessionId: string; error: string }) => {
         if (event.sessionId) {
           sessionStore.setSessionStatus(event.sessionId, 'error');
-          sessionStore.addMessage(event.sessionId, {
-            role: 'assistant',
-            content: `Error: ${event.error}`,
-            status: 'error'
-          });
-
           const sessionObj = sessionStore.sessions.find((s) => s.id === event.sessionId);
+          const lastMsg = sessionObj?.messages[sessionObj.messages.length - 1];
+          if (!lastMsg || lastMsg.role !== 'assistant' || !lastMsg.content.includes(event.error)) {
+            sessionStore.addMessage(event.sessionId, {
+              role: 'assistant',
+              content: `Error: ${event.error}`,
+              status: 'error'
+            });
+          }
+
           if (sessionObj) {
             for (const msg of sessionObj.messages) {
               if (msg.toolCalls && msg.toolCalls.length > 0) {
