@@ -358,3 +358,61 @@ func TestResolveWorkspaceSessionsDir_CrossPlatformDecoded(t *testing.T) {
 		t.Errorf("Expected %s, got %s", testDir, resolved)
 	}
 }
+
+func TestSessionFolderExists_Validation(t *testing.T) {
+	tempBase, err := os.MkdirTemp("", "grok_sessions_test_*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempBase)
+
+	ws1Dir := filepath.Join(tempBase, "workspace1")
+	ws2Dir := filepath.Join(tempBase, "workspace2")
+	_ = os.MkdirAll(ws1Dir, 0755)
+	_ = os.MkdirAll(ws2Dir, 0755)
+
+	// 1. Non-existent session
+	exists, _, _ := SessionFolderExists(tempBase, ws1Dir, "non-existent-uuid")
+	if exists {
+		t.Errorf("Expected exists=false for non-existent session, got true")
+	}
+
+	// 2. Empty directory (no session records)
+	emptySessionDir := filepath.Join(ws1Dir, "empty-session-uuid")
+	_ = os.MkdirAll(emptySessionDir, 0755)
+	existsEmpty, _, _ := SessionFolderExists(tempBase, ws1Dir, "empty-session-uuid")
+	if existsEmpty {
+		t.Errorf("Expected exists=false for empty session directory, got true")
+	}
+
+	// 3. Initialized session in ws1
+	validSessionDir := filepath.Join(ws1Dir, "valid-session-uuid")
+	_ = os.MkdirAll(validSessionDir, 0755)
+	_ = os.WriteFile(filepath.Join(validSessionDir, "chat_history.jsonl"), []byte("{}\n"), 0644)
+	existsValid, fPath, resolvedID := SessionFolderExists(tempBase, ws1Dir, "valid-session-uuid")
+	if !existsValid {
+		t.Errorf("Expected exists=true for initialized session, got false")
+	}
+	if resolvedID != "valid-session-uuid" {
+		t.Errorf("Expected resolvedID 'valid-session-uuid', got '%s'", resolvedID)
+	}
+	if fPath != validSessionDir {
+		t.Errorf("Expected fPath '%s', got '%s'", validSessionDir, fPath)
+	}
+
+	// 4. Session exists in ws2 (fallback lookup when checking ws1)
+	ws2SessionDir := filepath.Join(ws2Dir, "ws2-session-uuid")
+	_ = os.MkdirAll(ws2SessionDir, 0755)
+	_ = os.WriteFile(filepath.Join(ws2SessionDir, "summary.json"), []byte("{}\n"), 0644)
+	existsFallback, fPath2, resolvedID2 := SessionFolderExists(tempBase, ws1Dir, "ws2-session-uuid")
+	if !existsFallback {
+		t.Errorf("Expected exists=true via fallback lookup, got false")
+	}
+	if resolvedID2 != "ws2-session-uuid" {
+		t.Errorf("Expected resolvedID 'ws2-session-uuid', got '%s'", resolvedID2)
+	}
+	if fPath2 != ws2SessionDir {
+		t.Errorf("Expected fPath '%s', got '%s'", ws2SessionDir, fPath2)
+	}
+}
+

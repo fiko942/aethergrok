@@ -2,8 +2,28 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "AetherGrok Release Changelog",
   "description": "Central single source of truth for all AetherGrok releases, commit ranges, and download artifacts.",
-  "latest": "1.1.4",
+  "latest": "1.1.5",
   "releases": [
+    {
+      "version": "1.1.5",
+      "tag": "v1.1.5",
+      "date": "2026-10-05T06:30:00.000Z",
+      "title": "AetherGrok 1.1.5 - Fix Remote Session Restore 404 on Fresh Sessions",
+      "targetCommit": "HEAD",
+      "previousCommit": "439d5e3",
+      "highlights": [
+        "Prevent Grok CLI 'session not found locally, restoring conversation from remote... 404 Not Found' error by ensuring --resume is only passed when an initialized local session exists",
+        "Add SessionFolderExists validation that verifies session folder and chat records on disk across workspace session stores before selecting --resume vs --session-id",
+        "Safely initialize fresh sessions with explicit --session-id without triggering remote cloud registry lookups"
+      ],
+      "commits": [],
+      "downloads": {
+        "macos_arm64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.5/AetherGrok-1.1.5-macOS-arm64.dmg",
+        "macos_x64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.5/AetherGrok-1.1.5-macOS-amd64.dmg",
+        "windows_x64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.5/AetherGrok-1.1.5-windows-amd64-setup.exe",
+        "windows_arm64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.5/AetherGrok-1.1.5-windows-arm64-setup.exe"
+      }
+    },
     {
       "version": "1.1.4",
       "tag": "v1.1.4",

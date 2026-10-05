@@ -178,6 +178,52 @@ func hasSessionRecord(folderPath string) bool {
 	return false
 }
 
+// SessionFolderExists checks whether an initialized session directory actually exists on disk.
+// It first checks targetWsDir, and then scans sessionsDir across all workspaces as a fallback.
+func SessionFolderExists(sessionsDir, targetWsDir, sessionID string) (bool, string, string) {
+	if sessionID == "" {
+		return false, "", ""
+	}
+
+	checkDir := func(dir string) (bool, string, string) {
+		folderPath, resolvedID := ResolveSessionFolder(dir, sessionID)
+		if fi, err := os.Stat(folderPath); err == nil && fi.IsDir() {
+			if hasSessionRecord(folderPath) {
+				return true, folderPath, resolvedID
+			}
+		}
+		return false, "", ""
+	}
+
+	// 1. Check in target workspace directory
+	if targetWsDir != "" {
+		if ok, fPath, resolvedID := checkDir(targetWsDir); ok {
+			return true, fPath, resolvedID
+		}
+	}
+
+	// 2. Fallback: check across all workspace directories in sessionsDir
+	if sessionsDir != "" {
+		entries, err := os.ReadDir(sessionsDir)
+		if err == nil {
+			for _, wsEntry := range entries {
+				if !wsEntry.IsDir() {
+					continue
+				}
+				wsDirPath := filepath.Join(sessionsDir, wsEntry.Name())
+				if wsDirPath == targetWsDir {
+					continue
+				}
+				if ok, fPath, resolvedID := checkDir(wsDirPath); ok {
+					return true, fPath, resolvedID
+				}
+			}
+		}
+	}
+
+	return false, "", ""
+}
+
 // DiscoverGrokSessions scans ~/.grok/sessions/ for sessions matching workspacePath
 func DiscoverGrokSessions(workspacePath string) ([]GrokSessionMetadata, error) {
 	home, err := os.UserHomeDir()

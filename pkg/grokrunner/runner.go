@@ -297,25 +297,25 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 	targetWsDir := ResolveWorkspaceSessionsDir(sessionsDir, wsPath)
 
 	if targetGrokID != "" {
-		sessionFolder, resolvedID := ResolveSessionFolder(targetWsDir, targetGrokID)
+		exists, _, resolvedID := SessionFolderExists(sessionsDir, targetWsDir, targetGrokID)
 		
-		// If the resolved session folder exists on disk, resume it.
-		// If grokSessionId was provided, prioritize resume.
-		if req.Options.GrokSessionID != "" {
+		// Only pass --resume if an initialized session directory actually exists on disk locally.
+		// If it does not exist locally (brand new session or unsaved ID), pass --session-id
+		// so Grok CLI creates the local folder and never attempts a remote registry restore.
+		if exists {
 			if resolvedID != "" {
 				args = append(args, "--resume", resolvedID)
 			} else {
-				args = append(args, "--resume", req.Options.GrokSessionID)
+				args = append(args, "--resume", targetGrokID)
 			}
-		} else if fi, err := os.Stat(sessionFolder); err == nil && fi.IsDir() {
-			args = append(args, "--resume", resolvedID)
 		} else if isUUID(targetGrokID) {
-			// Brand new session with a valid UUID: explicit session-id
 			args = append(args, "--session-id", targetGrokID)
+		} else {
+			newUUID := generateUUIDv4()
+			args = append(args, "--session-id", newUUID)
 		}
 	} else {
-		// If no UUID was provided (e.g. temporary legacy frontend ID), generate a fresh UUID
-		// so Grok CLI creates an isolated session rather than resuming or colliding with existing ones.
+		// If no UUID was provided, generate a fresh UUID
 		newUUID := generateUUIDv4()
 		args = append(args, "--session-id", newUUID)
 	}
