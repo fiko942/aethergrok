@@ -2,8 +2,28 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "AetherGrok Release Changelog",
   "description": "Central single source of truth for all AetherGrok releases, commit ranges, and download artifacts.",
-  "latest": "1.1.3",
+  "latest": "1.1.4",
   "releases": [
+    {
+      "version": "1.1.4",
+      "tag": "v1.1.4",
+      "date": "2026-10-05T06:00:00.000Z",
+      "title": "AetherGrok 1.1.4 - Large Document Attachments & Windows CLI Command Length Fix",
+      "targetCommit": "HEAD",
+      "previousCommit": "eab8380",
+      "highlights": [
+        "Resolve 'The filename or extension is too long' Windows CreateProcess limit (32,767 chars) by offloading large prompts and attached files to temporary UTF-8 files via --prompt-file",
+        "Enable seamless attachment of large documents (Markdown, code, logs) without command line buffer exhaustion",
+        "Maintain temporary prompt file hygiene with automatic post-run cleanup"
+      ],
+      "commits": [],
+      "downloads": {
+        "macos_arm64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.4/AetherGrok-1.1.4-macOS-arm64.dmg",
+        "macos_x64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.4/AetherGrok-1.1.4-macOS-amd64.dmg",
+        "windows_x64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.4/AetherGrok-1.1.4-windows-amd64-setup.exe",
+        "windows_arm64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.4/AetherGrok-1.1.4-windows-arm64-setup.exe"
+      }
+    },
     {
       "version": "1.1.3",
       "tag": "v1.1.3",

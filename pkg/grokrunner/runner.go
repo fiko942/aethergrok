@@ -352,9 +352,9 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 	}
 
 	// Prepare prompt arguments:
-	// If images are attached or prompt text is provided, write content blocks or text to a temporary
-	// prompt file and pass `--prompt-file <path>` to prevent Win32 CreateProcess command line limit
-	// (32,767 characters) errors when passing base64 encoded images.
+	// To prevent Windows CreateProcess command line limit (32,767 characters) and filename too long errors,
+	// write the prompt to a temporary file and pass `--prompt-file <path>` whenever the prompt is large
+	// (> 4,000 characters), contains multiple newlines, or when images are attached.
 	var promptTempFile string
 	if len(req.Images) > 0 {
 		var contentBlocks []map[string]interface{}
@@ -406,8 +406,19 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 		} else {
 			args = append(args, "-p", req.Prompt)
 		}
+	} else if len(req.Prompt) > 4000 || strings.Contains(req.Prompt, "\n") {
+		// Offload large prompts and multi-line attached file contexts to a temporary UTF-8 text file
+		tmpFile, tmpErr := os.CreateTemp("", "grok-prompt-*.txt")
+		if tmpErr == nil {
+			_, _ = tmpFile.WriteString(req.Prompt)
+			_ = tmpFile.Close()
+			promptTempFile = tmpFile.Name()
+			args = append(args, "--prompt-file", promptTempFile)
+		} else {
+			args = append(args, "-p", req.Prompt)
+		}
 	} else {
-		// Non-interactive text-only prompt turn
+		// Small, single-line prompt turn
 		args = append(args, "-p", req.Prompt)
 	}
 
