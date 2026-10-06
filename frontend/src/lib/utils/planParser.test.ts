@@ -60,7 +60,7 @@ describe('planParser', () => {
 });
 
 describe('PlanStore', () => {
-  let store: PlanStore;
+  let store: InstanceType<typeof PlanStore>;
 
   beforeEach(() => {
     store = new PlanStore();

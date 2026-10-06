@@ -60,12 +60,7 @@ export interface ChatMessage {
   status?: 'streaming' | 'done' | 'error';
   isSteer?: boolean;
   errorKind?: 'max_tokens_truncation' | 'general_error';
-  errorDetails?: {
-    numTurns?: number;
-    totalTokens?: number;
-    model?: string;
-    rawJson?: string;
-  };
+  errorDetails?: TokenTruncationDetails;
 }
 
 export interface SessionUsage {
@@ -146,9 +141,11 @@ export interface TokenTruncationDetails {
   totalTokens?: number;
   model?: string;
   rawJson?: string;
+  modelCalls?: number;
+  reasoningTokens?: number;
 }
 
-export function parseTokenTruncationDetails(rawError: string): TokenTruncationDetails | null {
+export function parseTokenTruncationDetails(rawError?: string | null): TokenTruncationDetails | null {
   if (!rawError) return null;
   const lower = rawError.toLowerCase();
   const isTrunc = lower.includes('max_tokens') || lower.includes('response truncated') || lower.includes('context limit reached');
@@ -157,12 +154,20 @@ export function parseTokenTruncationDetails(rawError: string): TokenTruncationDe
   let numTurns: number | undefined;
   let totalTokens: number | undefined;
   let model: string | undefined;
+  let modelCalls: number | undefined;
+  let reasoningTokens: number | undefined;
 
   const matchTurns = rawError.match(/"numTurns":\s*(\d+)/i) || rawError.match(/after (\d+) tool iterations/i);
   if (matchTurns) numTurns = parseInt(matchTurns[1], 10);
 
   const matchTokens = rawError.match(/"totalTokens":\s*(\d+)/i) || rawError.match(/\((\d+) accumulated tokens\)/i);
   if (matchTokens) totalTokens = parseInt(matchTokens[1], 10);
+
+  const matchCalls = rawError.match(/"modelCalls":\s*(\d+)/i) || rawError.match(/(\d+) model calls/i);
+  if (matchCalls) modelCalls = parseInt(matchCalls[1], 10);
+
+  const matchReasoning = rawError.match(/"reasoningTokens":\s*(\d+)/i);
+  if (matchReasoning) reasoningTokens = parseInt(matchReasoning[1], 10);
 
   const matchModel = rawError.match(/"([a-zA-Z0-9\.\-_]+)":\s*{\s*"inputTokens"/);
   if (matchModel) model = matchModel[1];
@@ -171,7 +176,9 @@ export function parseTokenTruncationDetails(rawError: string): TokenTruncationDe
     numTurns,
     totalTokens,
     model,
-    rawJson: rawError
+    rawJson: rawError,
+    modelCalls,
+    reasoningTokens
   };
 }
 
