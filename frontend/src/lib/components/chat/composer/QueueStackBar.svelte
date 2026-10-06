@@ -107,7 +107,7 @@
           {#if isPaused}
             <span class="text-[11px] text-amber-500 font-sans font-medium flex items-center gap-1">
               <PauseCircle size={11} />
-              Antrean Dijeda
+              Queue Paused
             </span>
           {:else}
             <span class="text-[11px] text-ant-text-muted font-sans hidden sm:inline">
@@ -133,7 +133,7 @@
       <div class="px-3.5 py-2 bg-amber-500/10 dark:bg-amber-950/40 border-b border-amber-500/20 flex flex-wrap items-center justify-between gap-2 text-xs">
         <div class="flex items-center space-x-2 text-amber-600 dark:text-amber-400 font-sans">
           <AlertTriangle size={13} class="text-amber-500 flex-shrink-0" />
-          <span class="font-medium text-[11.5px]">Antrean dijeda demi keamanan. Prompt tersimpan aman dan tidak dieksekusi otomatis.</span>
+          <span class="font-medium text-[11.5px]">Queue paused for safety. Prompts are preserved safely and will not execute automatically.</span>
         </div>
         <div class="flex items-center space-x-2">
           {#if onResumeQueue}
@@ -141,10 +141,10 @@
               type="button"
               onclick={(e) => { e.stopPropagation(); onResumeQueue(); }}
               class="flex items-center space-x-1 px-2.5 py-1 rounded bg-amber-500 hover:bg-amber-600 text-white font-medium text-[11px] transition shadow-sm"
-              title="Lanjutkan eksekusi antrean prompt"
+              title="Resume prompt queue execution"
             >
               <Play size={10} class="fill-current" />
-              <span>Lanjutkan Antrean</span>
+              <span>Resume Queue</span>
             </button>
           {/if}
           {#if onClearQueue}
@@ -152,10 +152,10 @@
               type="button"
               onclick={(e) => { e.stopPropagation(); onClearQueue(); }}
               class="flex items-center space-x-1 px-2 py-1 rounded text-ant-text-muted hover:text-rose-500 hover:bg-rose-500/10 text-[11px] transition"
-              title="Hapus semua prompt di antrean"
+              title="Clear all queued prompts"
             >
               <Trash2 size={11} />
-              <span>Hapus Semua</span>
+              <span>Clear All</span>
             </button>
           {/if}
         </div>

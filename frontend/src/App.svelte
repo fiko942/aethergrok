@@ -426,13 +426,13 @@
 
       sessionStore.addMessage(sessionId, {
         role: 'assistant',
-        content: `⚠️ *Respon terpotong oleh batas token (max_tokens). Melanjutkan tugas secara otomatis (percobaan ${sessionObj.autoRetryCount}/${MAX_AUTO_RETRIES})...*`,
+        content: `⚠️ *Response truncated by token limit (max_tokens). Automatically resuming task (attempt ${sessionObj.autoRetryCount}/${MAX_AUTO_RETRIES})...*`,
         status: 'streaming'
       });
 
       setTimeout(() => {
         executeTurn(sessionId, {
-          text: 'Lanjutkan dan selesaikan tugas sebelumnya yang terpotong. Fokus pada langkah yang belum terselesaikan.',
+          text: 'Continue and finish the previous truncated task. Focus on the remaining uncompleted steps.',
           images: [],
           attachments: [],
           model: selectedModel,
@@ -608,7 +608,7 @@
     if (!activeSession) return;
     activeSession.autoRetryCount = 0;
     await executeTurn(activeSession.id, {
-      text: 'Lanjutkan dan selesaikan tugas sebelumnya yang terpotong. Fokus pada langkah yang belum terselesaikan.',
+      text: 'Continue and finish the previous truncated task. Focus on the remaining uncompleted steps.',
       images: [],
       attachments: [],
       model: selectedModel,

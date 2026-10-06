@@ -174,7 +174,7 @@
         if (dir) {
           const folderName = dir.split(/[/\\]/).filter(Boolean).pop() || 'workspace';
           const newWs = sessionStore.addWorkspace(folderName, dir);
-          showToast(`Workspace "${folderName}" dibuka`);
+          showToast(`Workspace "${folderName}" opened`);
           syncGrokSessionsForWorkspace(newWs.id, dir);
         }
       } catch (err) {
@@ -182,11 +182,11 @@
       }
     } else {
       const defaultPath = typeof navigator !== 'undefined' && /Win/.test(navigator.platform || navigator.userAgent) ? 'C:\\workspace' : '/workspace';
-      const path = window.prompt('Masukkan absolute path folder workspace:', defaultPath);
+      const path = window.prompt('Enter absolute workspace folder path:', defaultPath);
       if (path && path.trim()) {
         const folderName = path.trim().split(/[/\\]/).filter(Boolean).pop() || 'workspace';
         const newWs = sessionStore.addWorkspace(folderName, path.trim());
-        showToast(`Workspace "${folderName}" ditambahkan`);
+        showToast(`Workspace "${folderName}" added`);
       }
     }
   }
@@ -538,7 +538,7 @@
             if (e.key === 'Enter' && !isMissing) handleToggleWorkspace(ws.id);
           }}
           class="flex items-center justify-between px-2.5 py-1.5 {isMissing ? 'bg-rose-500/10 cursor-not-allowed opacity-90' : 'bg-ant-bg-secondary hover:bg-ant-bg-tertiary cursor-pointer'} transition select-none group border-b {isExpanded ? 'border-ant-border-secondary dark:border-white/5' : 'border-transparent'}"
-          title={isMissing ? `Folder ini sudah tidak ada lagi di disk: ${ws.path}` : ws.path}
+          title={isMissing ? `This folder no longer exists on disk: ${ws.path}` : ws.path}
         >
           <div class="flex items-center space-x-1.5 min-w-0 flex-1">
             <span class="{isMissing ? 'text-rose-400' : 'text-ant-text-muted'} transition-transform">
@@ -564,14 +564,14 @@
                 type="button"
                 onclick={(e) => handleRemoveWorkspace(ws, e)}
                 class="p-1 rounded text-rose-400 hover:bg-rose-500/20 transition flex items-center"
-                title="Hapus workspace yang hilang dari daftar"
+                title="Remove missing workspace from list"
               >
                 <Trash2 size={12} />
               </button>
             {:else}
               <button
                 type="button"
-                onclick={(e) => { e.stopPropagation(); syncGrokSessionsForWorkspace(ws.id, ws.path); showToast('Memperbarui session Grok...'); }}
+                onclick={(e) => { e.stopPropagation(); syncGrokSessionsForWorkspace(ws.id, ws.path); showToast('Syncing Grok sessions...'); }}
                 class="p-1 rounded text-ant-text-muted hover:text-ant-text hover:bg-ant-bg transition"
                 title="Refresh / Sync Grok Sessions"
               >
@@ -581,7 +581,7 @@
                 type="button"
                 onclick={(e) => { e.stopPropagation(); handleCreateNewSession(ws.id); }}
                 class="p-1 rounded text-ant-primary hover:bg-ant-primary/15 transition flex items-center"
-                title="Buat Sesi Baru di Folder ini"
+                title="Create New Session in this folder"
               >
                 <Plus size={13} />
               </button>
@@ -589,7 +589,7 @@
                 type="button"
                 onclick={(e) => handleRemoveWorkspace(ws, e)}
                 class="p-1 rounded text-ant-text-muted hover:text-ant-error hover:bg-ant-error/15 transition flex items-center"
-                title="Hapus Folder Workspace dari Daftar"
+                title="Remove Workspace Folder from list"
               >
                 <Trash2 size={12} />
               </button>

@@ -480,16 +480,16 @@
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center justify-between">
                       <span class="text-xs font-semibold text-amber-500 dark:text-amber-400">
-                        Respon Terpotong Batas Token (max_tokens)
+                        Response Truncated by Token Limit (max_tokens)
                       </span>
                       {#if message.errorDetails?.totalTokens || message.tokens?.total}
                         <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                          {((message.errorDetails?.totalTokens || message.tokens?.total || 0)).toLocaleString()} token akumulasi
+                          {((message.errorDetails?.totalTokens || message.tokens?.total || 0)).toLocaleString()} accumulated tokens
                         </span>
                       {/if}
                     </div>
                     <p class="text-[11.5px] text-ant-text-secondary mt-1 leading-relaxed select-text">
-                      Model mencapai batas token setelah iterasi panjang. Sesuai aturan keamanan antrean, tugas berikutnya <strong>dijeda secara aman</strong> dan tidak akan berjalan sebelum masalah ini diselesaikan.
+                      The model reached the token limit after extended iterations. In accordance with queue safety policies, upcoming tasks have been <strong>safely paused</strong> and will not run until this is resolved.
                     </p>
                   </div>
                 </div>
@@ -499,7 +499,7 @@
                   <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-amber-500/15 text-[10.5px] font-mono">
                     {#if message.errorDetails.numTurns}
                       <div class="p-1.5 rounded bg-black/20 border border-white/5 flex flex-col">
-                        <span class="text-ant-text-muted text-[9.5px]">Iterasi Tool</span>
+                        <span class="text-ant-text-muted text-[9.5px]">Tool Turns</span>
                         <span class="text-ant-text font-semibold">{message.errorDetails.numTurns} turns</span>
                       </div>
                     {/if}
@@ -528,7 +528,7 @@
                 {#if (sessionStore.activeSession?.queuedPrompts?.length || 0) > 0}
                   <div class="px-2.5 py-1.5 rounded bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-400 flex items-center space-x-2">
                     <ShieldAlert size={12} class="flex-shrink-0" />
-                    <span><strong>Antrean Dilindungi:</strong> {sessionStore.activeSession?.queuedPrompts?.length} prompt dalam antrean tetap aman dan terjeda.</span>
+                    <span><strong>Queue Protected:</strong> {sessionStore.activeSession?.queuedPrompts?.length} queued prompt(s) safely retained and paused.</span>
                   </div>
                 {/if}
 
@@ -538,34 +538,34 @@
                     type="button"
                     onclick={() => onRetryTurn?.(message)}
                     class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-medium text-xs shadow-sm transition"
-                    title="Lanjutkan tugas yang terpotong tanpa kehilangan progres"
+                    title="Resume the truncated task without losing progress"
                   >
                     <RefreshCw size={12} />
-                    <span>Coba Lagi / Lanjutkan Tugas</span>
+                    <span>Retry / Continue Task</span>
                   </button>
 
                   <button
                     type="button"
                     onclick={async () => { await sessionStore.compactActiveSession(); }}
                     class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-white/10 font-medium text-xs transition"
-                    title="Ringkas riwayat percakapan untuk mengosongkan ruang konteks"
+                    title="Compact conversation history to free up context space"
                   >
                     <Sparkles size={12} class="text-indigo-400" />
-                    <span>Ringkas Konteks (Compact)</span>
+                    <span>Compact Context</span>
                   </button>
 
                   <button
                     type="button"
                     onclick={() => {
                       if (sessionStore.activeWorkspace) {
-                        sessionStore.createSession(sessionStore.activeWorkspace.id, 'Sesi Baru');
+                        sessionStore.createSession('New Session', sessionStore.activeWorkspace.id);
                       }
                     }}
                     class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-white/10 font-medium text-xs transition"
-                    title="Mulai sesi bersih baru di workspace ini"
+                    title="Start a fresh new session in this workspace"
                   >
                     <PlusCircle size={12} class="text-emerald-400" />
-                    <span>Sesi Baru</span>
+                    <span>New Session</span>
                   </button>
                 </div>
               </div>

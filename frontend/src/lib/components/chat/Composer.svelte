@@ -1144,7 +1144,7 @@
       <div class="flex items-center space-x-2 min-w-0">
         <AlertTriangle size={13} class="text-amber-500 flex-shrink-0" />
         <span class="truncate">
-          <strong>Kapasitas Konteks Tinggi:</strong> Sesi menggunakan {contextUsage.percentage}% ({Math.round(contextUsage.used / 1000)}k / {Math.round(contextUsage.max / 1000)}k token). Eksekusi tool panjang berisiko terpotong (max_tokens).
+          <strong>High Context Usage:</strong> Session is using {contextUsage.percentage}% ({Math.round(contextUsage.used / 1000)}k / {Math.round(contextUsage.max / 1000)}k tokens). Long tool executions risk being truncated (max_tokens).
         </span>
       </div>
       <div class="flex items-center space-x-2 flex-shrink-0 ml-2">
@@ -1153,13 +1153,13 @@
           onclick={async () => { await sessionStore.compactActiveSession(); }}
           class="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 font-medium text-[11px] border border-amber-500/30 transition whitespace-nowrap"
         >
-          Ringkas Konteks
+          Compact Context
         </button>
         <button
           type="button"
           onclick={() => highContextDismissed = true}
           class="p-0.5 text-ant-text-muted hover:text-ant-text transition"
-          title="Tutup peringatan"
+          title="Dismiss warning"
         >
           <X size={12} />
         </button>
