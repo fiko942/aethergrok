@@ -32,7 +32,8 @@
     Upload,
     Mic,
     MicOff,
-    WifiOff
+    WifiOff,
+    AlertTriangle
   } from 'lucide-svelte';
 
   interface Props {
@@ -49,9 +50,20 @@
     onSteer?: (prompt: QueuedPrompt) => void;
     onCancel?: () => void;
     onOpenSkillsCatalog?: () => void;
+    onResumeQueue?: () => void;
+    onClearQueue?: () => void;
   }
 
-  let { disabled = false, isWorking = false, onSend, onSteer, onCancel, onOpenSkillsCatalog }: Props = $props();
+  let {
+    disabled = false,
+    isWorking = false,
+    onSend,
+    onSteer,
+    onCancel,
+    onOpenSkillsCatalog,
+    onResumeQueue,
+    onClearQueue
+  }: Props = $props();
 
   let text = $state('');
   let textareaEl = $state<HTMLTextAreaElement | null>(null);
@@ -88,6 +100,34 @@
 
   // Active session queue
   const currentQueue = $derived(sessionStore.activeSession?.queuedPrompts || []);
+  const isQueuePaused = $derived(
+    sessionStore.activeSession?.status === 'error' && currentQueue.length > 0
+  );
+
+  // Pre-flight context token tracking & warnings
+  const contextUsage = $derived.by(() => {
+    const sess = sessionStore.activeSession;
+    if (!sess || !sess.usage) return null;
+    const used = sess.usage.usedTokens || 0;
+    const max = sess.usage.maxTokens || 200000;
+    if (max <= 0) return null;
+    const ratio = used / max;
+    return {
+      used,
+      max,
+      ratio,
+      percentage: Math.round(ratio * 100),
+      isHighContext: ratio >= 0.70
+    };
+  });
+  let highContextDismissed = $state(false);
+
+  $effect(() => {
+    // If context drops below 60%, re-arm warning banner
+    if (contextUsage && contextUsage.ratio < 0.6) {
+      highContextDismissed = false;
+    }
+  });
 
   // Expose appendPrompt to inject terminal logs or attachments directly
   export function appendPrompt(appendContent: string) {
@@ -1075,6 +1115,9 @@
   <div class="px-3 pt-2">
     <QueueStackBar
       queue={currentQueue}
+      isPaused={isQueuePaused}
+      onResumeQueue={onResumeQueue}
+      onClearQueue={onClearQueue}
       onSteer={(prompt) => {
         if (onSteer) {
           onSteer(prompt);
@@ -1094,6 +1137,35 @@
       }}
     />
   </div>
+
+  <!-- High Context Pre-Flight Warning Banner -->
+  {#if contextUsage && contextUsage.isHighContext && !highContextDismissed}
+    <div class="mx-3 mt-1 px-3 py-1.5 bg-amber-500/10 dark:bg-amber-950/30 border border-amber-500/25 rounded-lg flex items-center justify-between text-xs text-amber-600 dark:text-amber-400 font-sans shadow-sm">
+      <div class="flex items-center space-x-2 min-w-0">
+        <AlertTriangle size={13} class="text-amber-500 flex-shrink-0" />
+        <span class="truncate">
+          <strong>Kapasitas Konteks Tinggi:</strong> Sesi menggunakan {contextUsage.percentage}% ({Math.round(contextUsage.used / 1000)}k / {Math.round(contextUsage.max / 1000)}k token). Eksekusi tool panjang berisiko terpotong (max_tokens).
+        </span>
+      </div>
+      <div class="flex items-center space-x-2 flex-shrink-0 ml-2">
+        <button
+          type="button"
+          onclick={async () => { await sessionStore.compactActiveSession(); }}
+          class="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 font-medium text-[11px] border border-amber-500/30 transition whitespace-nowrap"
+        >
+          Ringkas Konteks
+        </button>
+        <button
+          type="button"
+          onclick={() => highContextDismissed = true}
+          class="p-0.5 text-ant-text-muted hover:text-ant-text transition"
+          title="Tutup peringatan"
+        >
+          <X size={12} />
+        </button>
+      </div>
+    </div>
+  {/if}
 
   {#if snapshotError}
     <div class="px-3 py-1 bg-ant-error/15 text-ant-error text-[11px] border-b border-ant-error/20 flex items-center justify-between">

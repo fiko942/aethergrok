@@ -59,6 +59,13 @@ export interface ChatMessage {
   reasoningContent?: string;
   status?: 'streaming' | 'done' | 'error';
   isSteer?: boolean;
+  errorKind?: 'max_tokens_truncation' | 'general_error';
+  errorDetails?: {
+    numTurns?: number;
+    totalTokens?: number;
+    model?: string;
+    rawJson?: string;
+  };
 }
 
 export interface SessionUsage {
@@ -130,6 +137,42 @@ export interface Session {
   rightSidebarTab?: RightSidebarTab;
   // Per-session execution mode ('agent' | 'plan' | 'yolo')
   agentMode?: 'agent' | 'plan' | 'yolo';
+  // Auto-retry attempt counter for transient failures (e.g. max_tokens_truncation)
+  autoRetryCount?: number;
+}
+
+export interface TokenTruncationDetails {
+  numTurns?: number;
+  totalTokens?: number;
+  model?: string;
+  rawJson?: string;
+}
+
+export function parseTokenTruncationDetails(rawError: string): TokenTruncationDetails | null {
+  if (!rawError) return null;
+  const lower = rawError.toLowerCase();
+  const isTrunc = lower.includes('max_tokens') || lower.includes('response truncated') || lower.includes('context limit reached');
+  if (!isTrunc) return null;
+
+  let numTurns: number | undefined;
+  let totalTokens: number | undefined;
+  let model: string | undefined;
+
+  const matchTurns = rawError.match(/"numTurns":\s*(\d+)/i) || rawError.match(/after (\d+) tool iterations/i);
+  if (matchTurns) numTurns = parseInt(matchTurns[1], 10);
+
+  const matchTokens = rawError.match(/"totalTokens":\s*(\d+)/i) || rawError.match(/\((\d+) accumulated tokens\)/i);
+  if (matchTokens) totalTokens = parseInt(matchTokens[1], 10);
+
+  const matchModel = rawError.match(/"([a-zA-Z0-9\.\-_]+)":\s*{\s*"inputTokens"/);
+  if (matchModel) model = matchModel[1];
+
+  return {
+    numTurns,
+    totalTokens,
+    model,
+    rawJson: rawError
+  };
 }
 
 export interface WorkspaceFolder {
@@ -368,6 +411,7 @@ class SessionStore {
             }
           }
           this.sessions = parsed;
+          this.deduplicateSessions();
         }
       }
 
@@ -383,9 +427,77 @@ class SessionStore {
       if (rawActiveSession !== null) {
         this.activeSessionId = rawActiveSession || null;
       }
+
+      this.deduplicateSessions();
     } catch (e) {
       console.warn('Failed to load sessions from storage:', e);
     }
+  }
+
+  // Deduplicate sessions by (workspaceId + grokSessionId) and session ID to prevent ghost duplicate proliferation
+  deduplicateSessions(): void {
+    const seenGrokIds = new Map<string, Session>();
+    const seenIds = new Set<string>();
+    const uniqueSessions: Session[] = [];
+
+    for (const session of this.sessions) {
+      if (!session || !session.id) continue;
+
+      // Deduplicate by workspaceId and grokSessionId when grokSessionId exists
+      const grokKey = session.grokSessionId ? `${session.workspaceId}:${session.grokSessionId}` : null;
+      if (grokKey && seenGrokIds.has(grokKey)) {
+        const existing = seenGrokIds.get(grokKey)!;
+        // Merge messages and preserve best data
+        if (session.messages && session.messages.length > existing.messages.length) {
+          existing.messages = session.messages;
+        }
+        if (session.isCustomTitle) {
+          existing.title = session.title;
+          existing.isCustomTitle = true;
+        }
+        if (session.updatedAt > existing.updatedAt) {
+          existing.updatedAt = session.updatedAt;
+        }
+        if (session.isPinned) {
+          existing.isPinned = true;
+        }
+        // If the open tab references this duplicate session id, remap it to existing.id
+        const tabIdx = this.openTabSessionIds.indexOf(session.id);
+        if (tabIdx !== -1) {
+          this.openTabSessionIds.splice(tabIdx, 1);
+          if (!this.openTabSessionIds.includes(existing.id)) {
+            this.openTabSessionIds.push(existing.id);
+          }
+        }
+        if (this.activeSessionId === session.id) {
+          this.activeSessionId = existing.id;
+        }
+        continue;
+      }
+
+      // Check if session.id is already in uniqueSessions
+      if (seenIds.has(session.id)) {
+        continue;
+      }
+
+      seenIds.add(session.id);
+      if (grokKey) {
+        seenGrokIds.set(grokKey, session);
+      }
+      uniqueSessions.push(session);
+    }
+
+    this.sessions = uniqueSessions;
+
+    // Deduplicate and validate openTabSessionIds
+    const validSessionIds = new Set(this.sessions.map((s) => s.id));
+    const dedupedTabs: string[] = [];
+    for (const tid of this.openTabSessionIds) {
+      if (validSessionIds.has(tid) && !dedupedTabs.includes(tid)) {
+        dedupedTabs.push(tid);
+      }
+    }
+    this.openTabSessionIds = dedupedTabs;
   }
 
   saveSessionsToStorage() {
@@ -1131,6 +1243,10 @@ class SessionStore {
   closeSession(id: string): void {
     const targetSession = this.sessions.find((s) => s.id === id);
     if (targetSession) {
+      // Cancel active runner turn if in progress
+      if (targetSession.status === 'working' && window.go?.main?.App?.CancelSession) {
+        window.go.main.App.CancelSession(id).catch(() => {});
+      }
       // Purge temporary files from disk for this session
       this.purgeTempFilesForSessions([targetSession]);
     }
@@ -1168,53 +1284,46 @@ class SessionStore {
   syncDiscoveredGrokSessions(wsId: string, grokSessions: Array<{ id: string; title: string; createdAt: number; updatedAt: number }>): void {
     if (!grokSessions || grokSessions.length === 0) return;
 
-    // Remove empty placeholder sessions if real grok sessions are found
-    const hasExistingPlaceholders = this.sessions.filter(
-      (s) => s.workspaceId === wsId && s.messages.length === 0 && (s.title.startsWith('New ') || s.title.startsWith('Session ') || s.title.startsWith('Task for '))
-    );
-
     for (const gs of grokSessions) {
-      const existing = this.sessions.find((s) => s.id === gs.id);
+      // Find existing session in this workspace matching either id or grokSessionId
+      const existing = this.sessions.find(
+        (s) => s.workspaceId === wsId && (s.id === gs.id || s.grokSessionId === gs.id)
+      );
+
       if (existing) {
+        if (!existing.grokSessionId || existing.grokSessionId !== gs.id) {
+          existing.grokSessionId = gs.id;
+        }
         // Update generic title only if user has not explicitly edited it and existing has not already been derived
         if (gs.title && !existing.isCustomTitle && (existing.title.startsWith('Session ') || existing.title.startsWith('Percakapan ') || existing.title.startsWith('New '))) {
           existing.title = gs.title;
         }
-        if (gs.updatedAt) {
+        if (gs.updatedAt && gs.updatedAt > existing.updatedAt) {
           existing.updatedAt = gs.updatedAt;
         }
       } else {
-        this.sessions.push({
-          id: gs.id,
-          workspaceId: wsId,
-          title: gs.title || `Session ${this.sessions.filter((s) => s.workspaceId === wsId).length + 1}`,
-          status: 'idle',
-          createdAt: gs.createdAt || Date.now(),
-          updatedAt: gs.updatedAt || Date.now(),
-          messages: [],
-          visibleTurnCount: DEFAULT_WINDOW_TURNS,
-          pendingPermission: null
-        });
-      }
-    }
-
-    // If active session was a placeholder and we now have real sessions, clean placeholder and switch to newest real session
-    if (hasExistingPlaceholders.length > 0 && grokSessions.length > 0) {
-      const realFirst = this.sessions.find((s) => s.workspaceId === wsId && grokSessions.some((gs) => gs.id === s.id));
-      for (const ph of hasExistingPlaceholders) {
-        if (!grokSessions.some((gs) => gs.id === ph.id)) {
-          const idx = this.sessions.findIndex((s) => s.id === ph.id);
-          if (idx !== -1) {
-            this.sessions.splice(idx, 1);
-          }
+        // Also ensure not already present anywhere in this.sessions under matching ID
+        const duplicate = this.sessions.find((s) => s.id === gs.id || s.grokSessionId === gs.id);
+        if (!duplicate) {
+          this.sessions.push({
+            id: gs.id,
+            grokSessionId: gs.id,
+            workspaceId: wsId,
+            title: gs.title || `Session ${this.sessions.filter((s) => s.workspaceId === wsId).length + 1}`,
+            status: 'idle',
+            createdAt: gs.createdAt || Date.now(),
+            updatedAt: gs.updatedAt || Date.now(),
+            messages: [],
+            visibleTurnCount: DEFAULT_WINDOW_TURNS,
+            pendingPermission: null
+          });
         }
       }
-      if (realFirst && (!this.activeSessionId || hasExistingPlaceholders.some((ph) => ph.id === this.activeSessionId))) {
-        this.openSessionInTab(realFirst.id);
-      }
     }
 
+    this.deduplicateSessions();
     this.reconcileSessionState();
+    this.saveSessionsToStorage();
   }
 
   renameSession(id: string, title: string): void {
@@ -1363,6 +1472,12 @@ class SessionStore {
     const session = this.sessions.find((s) => s.id === sessionId);
     if (!session || !session.queuedPrompts || session.queuedPrompts.length === 0) return undefined;
     return session.queuedPrompts.shift();
+  }
+
+  clearQueuedPrompts(sessionId: string): void {
+    const session = this.sessions.find((s) => s.id === sessionId);
+    if (!session || !session.queuedPrompts) return;
+    session.queuedPrompts = [];
   }
 
   addMessage(sessionId: string, message: Omit<ChatMessage, 'id' | 'timestamp'> & { id?: string; timestamp?: number }): ChatMessage {

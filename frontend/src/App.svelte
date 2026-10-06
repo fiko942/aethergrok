@@ -33,6 +33,7 @@
   import type { SkillItem, SnapshotResult } from './app.d';
   import {
     sessionStore,
+    parseTokenTruncationDetails,
     type VisionImage,
     type AttachedFile,
     type QueuedPrompt,
@@ -410,7 +411,38 @@
     }
 
     // Execute immediately if idle
+    activeSession.autoRetryCount = 0;
     await executeTurn(sessionId, payload);
+  }
+
+  // Attempt automatic continuation retry on transient token truncation errors
+  async function attemptAutoRetry(sessionId: string, sessionObj: any, truncationDetails: any): Promise<boolean> {
+    const currentRetries = sessionObj.autoRetryCount || 0;
+    const MAX_AUTO_RETRIES = 2;
+
+    if (currentRetries < MAX_AUTO_RETRIES) {
+      sessionObj.autoRetryCount = currentRetries + 1;
+      sessionStore.setSessionStatus(sessionId, 'working');
+
+      sessionStore.addMessage(sessionId, {
+        role: 'assistant',
+        content: `⚠️ *Respon terpotong oleh batas token (max_tokens). Melanjutkan tugas secara otomatis (percobaan ${sessionObj.autoRetryCount}/${MAX_AUTO_RETRIES})...*`,
+        status: 'streaming'
+      });
+
+      setTimeout(() => {
+        executeTurn(sessionId, {
+          text: 'Lanjutkan dan selesaikan tugas sebelumnya yang terpotong. Fokus pada langkah yang belum terselesaikan.',
+          images: [],
+          attachments: [],
+          model: selectedModel,
+          reasoningEffort: reasoningEffort as 'low' | 'medium' | 'high'
+        });
+      }, 600);
+      return true;
+    }
+
+    return false;
   }
 
   // Execute a prompt turn
@@ -470,7 +502,7 @@
       try {
         const sessionObj = sessionStore.sessions.find((s) => s.id === sessionId);
         const sessionWs = sessionObj ? sessionStore.workspaces.find((w) => w.id === sessionObj.workspaceId) : null;
-        const workingDir = sessionWs?.path || sessionStore.activeWorkspace?.path;
+        const workingDir = sessionWs ? sessionWs.path : sessionStore.activeWorkspace?.path;
         const grokSessionId = sessionObj?.grokSessionId || (sessionObj?.id && !sessionObj.id.startsWith('sess_') ? sessionObj.id : undefined);
 
         await window.go.main.App.RunPromptStream({
@@ -491,7 +523,7 @@
           status: 'error'
         });
         sessionStore.setSessionStatus(sessionId, 'error');
-        checkAndDispatchNextQueue(sessionId);
+        // Do NOT dispatch next queue; pause queue on error so remaining tasks are preserved
       }
     } else {
       // Browser preview mode: simulate agent lifecycle with rich tool calls and diff card
@@ -570,21 +602,50 @@
     }, 200);
   }
 
-  // Cancel running session
-  async function handleCancelSession() {
+  // Manual retry trigger for truncated turns or recovery card actions
+  async function handleManualRetry() {
     const activeSession = sessionStore.activeSession;
     if (!activeSession) return;
+    activeSession.autoRetryCount = 0;
+    await executeTurn(activeSession.id, {
+      text: 'Lanjutkan dan selesaikan tugas sebelumnya yang terpotong. Fokus pada langkah yang belum terselesaikan.',
+      images: [],
+      attachments: [],
+      model: selectedModel,
+      reasoningEffort: reasoningEffort as 'low' | 'medium' | 'high'
+    });
+  }
+
+  // Resume paused queue execution
+  function handleResumeQueue() {
+    const activeSession = sessionStore.activeSession;
+    if (!activeSession) return;
+    sessionStore.setSessionStatus(activeSession.id, 'working');
+    checkAndDispatchNextQueue(activeSession.id);
+  }
+
+  // Clear all queued prompts for active session
+  function handleClearQueue() {
+    const activeSession = sessionStore.activeSession;
+    if (!activeSession) return;
+    sessionStore.clearQueuedPrompts(activeSession.id);
+  }
+
+  // Cancel running session
+  async function handleCancelSession(targetSessionId?: string) {
+    const sId = targetSessionId || sessionStore.activeSession?.id;
+    if (!sId) return;
 
     if (window.go?.main?.App?.CancelSession) {
       try {
-        await window.go.main.App.CancelSession(activeSession.id);
+        await window.go.main.App.CancelSession(sId);
       } catch (err) {
         console.error('Failed to cancel session:', err);
       }
     }
 
-    sessionStore.setSessionStatus(activeSession.id, 'idle');
-    sessionStore.updateLastMessage(activeSession.id, (msg) => {
+    sessionStore.setSessionStatus(sId, 'idle');
+    sessionStore.updateLastMessage(sId, (msg) => {
       if (msg.status === 'streaming') {
         msg.status = 'done';
         msg.content += '\n\n*(Turn cancelled by user)*';
@@ -599,7 +660,7 @@
 
     // 1. Cancel session if currently running
     if (activeSession.status === 'working') {
-      await handleCancelSession();
+      await handleCancelSession(activeSession.id);
     }
 
     // 2. Perform rollback in session store
@@ -607,7 +668,8 @@
     if (!rollback) return;
 
     // 3. Revert workspace files modified during this turn if in git repo
-    const ws = sessionStore.activeWorkspace;
+    const sessionWs = activeSession ? sessionStore.workspaces.find((w) => w.id === activeSession.workspaceId) : null;
+    const ws = sessionWs || sessionStore.activeWorkspace;
     if (ws && rollback.revertFiles.length > 0 && window.go?.main?.App?.RevertWorkspaceFiles) {
       try {
         await window.go.main.App.RevertWorkspaceFiles(ws.path, rollback.revertFiles);
@@ -627,8 +689,10 @@
   }
 
   // Permission modal resolution
-  async function handlePermissionDecision(decision: 'allow_once' | 'allow_always' | 'reject') {
-    const session = sessionStore.activeSession;
+  async function handlePermissionDecision(decision: 'allow_once' | 'allow_always' | 'reject', targetSessionId?: string) {
+    const sId = targetSessionId || sessionStore.activeSession?.id;
+    if (!sId) return;
+    const session = sessionStore.sessions.find((s) => s.id === sId);
     if (!session || !session.pendingPermission) return;
 
     const req = session.pendingPermission;
@@ -1304,15 +1368,15 @@
           // If permission mode is bypass/unrestricted or auto, auto-approve immediately
           const permMode = settingsStore.permissionMode;
           if (permMode === 'bypassPermissions') {
-            handlePermissionDecision('allow_always');
+            handlePermissionDecision('allow_always', event.sessionId);
             return;
           } else if (permMode === 'auto') {
-            handlePermissionDecision('allow_once');
+            handlePermissionDecision('allow_once', event.sessionId);
             return;
           } else if (permMode === 'acceptEdits') {
             const isFileEdit = event.toolName === 'write' || event.toolName === 'search_replace' || event.toolName === 'edit';
             if (isFileEdit) {
-              handlePermissionDecision('allow_once');
+              handlePermissionDecision('allow_once', event.sessionId);
               return;
             }
           }
@@ -1360,6 +1424,8 @@
                 }
               }
             }
+            // Persist grokSessionId immediately to storage so continuation never loses it
+            sessionStore.saveSessionsToStorage();
           }
 
           // Auto-update title if Grok emitted a summary title
@@ -1369,12 +1435,11 @@
 
           // Rescan workspace on disk to sync official Grok titles & IDs from summary.json
           const sessionWs = sessionObj ? sessionStore.workspaces.find((w) => w.id === sessionObj.workspaceId) : null;
-          const ws = sessionWs || sessionStore.activeWorkspace;
-          if (ws && window.go?.main?.App?.DiscoverGrokSessions) {
+          if (sessionWs && window.go?.main?.App?.DiscoverGrokSessions) {
             try {
-              const diskSessions = await window.go.main.App.DiscoverGrokSessions(ws.path);
+              const diskSessions = await window.go.main.App.DiscoverGrokSessions(sessionWs.path);
               if (diskSessions && diskSessions.length > 0) {
-                sessionStore.syncDiscoveredGrokSessions(ws.id, diskSessions);
+                sessionStore.syncDiscoveredGrokSessions(sessionWs.id, diskSessions);
               }
             } catch (err) {
               console.error('Failed to auto-sync sessions after turn:', err);
@@ -1386,22 +1451,52 @@
             await sessionStore.loadSessionUsage(sessionObj);
           }
 
-          // Automatically pop and dispatch next queued prompt if available
-          checkAndDispatchNextQueue(event.sessionId);
+          if (event.status === 'success' || (!event.error && event.status !== 'error')) {
+            if (sessionObj) {
+              sessionObj.autoRetryCount = 0;
+            }
+            // Automatically pop and dispatch next queued prompt if available
+            checkAndDispatchNextQueue(event.sessionId);
+          } else {
+            // If turn completed with an error, check if it's truncation error for auto-retry
+            const truncationDetails = parseTokenTruncationDetails(event.error);
+            if (truncationDetails && sessionObj) {
+              const retried = await attemptAutoRetry(event.sessionId, sessionObj, truncationDetails);
+              if (retried) return;
+            }
+            sessionStore.setSessionStatus(event.sessionId, 'error');
+            // Do NOT call checkAndDispatchNextQueue! Leave queue paused.
+          }
         }
       });
 
-      unsubError = window.runtime.EventsOn('grok:error', (event: { sessionId: string; error: string }) => {
+      unsubError = window.runtime.EventsOn('grok:error', async (event: { sessionId: string; error: string }) => {
         if (event.sessionId) {
-          sessionStore.setSessionStatus(event.sessionId, 'error');
           const sessionObj = sessionStore.sessions.find((s) => s.id === event.sessionId);
+          const truncationDetails = parseTokenTruncationDetails(event.error);
+
+          // If truncation error occurred, attempt auto-retry
+          if (truncationDetails && sessionObj) {
+            const retried = await attemptAutoRetry(event.sessionId, sessionObj, truncationDetails);
+            if (retried) {
+              return; // Successfully triggered retry; leave queue paused on this prompt
+            }
+          }
+
+          sessionStore.setSessionStatus(event.sessionId, 'error');
           const lastMsg = sessionObj?.messages[sessionObj.messages.length - 1];
-          if (!lastMsg || lastMsg.role !== 'assistant' || !lastMsg.content.includes(event.error)) {
+          if (!lastMsg || lastMsg.role !== 'assistant' || (!lastMsg.content.includes(event.error) && !lastMsg.errorKind)) {
             sessionStore.addMessage(event.sessionId, {
               role: 'assistant',
-              content: `Error: ${event.error}`,
-              status: 'error'
+              content: truncationDetails ? 'Context limit reached: Response truncated by max_tokens' : `Error: ${event.error}`,
+              status: 'error',
+              errorKind: truncationDetails ? 'max_tokens_truncation' : 'general_error',
+              errorDetails: truncationDetails || undefined
             });
+          }
+
+          if (truncationDetails && sessionObj) {
+            sessionStore.loadSessionUsage(sessionObj).catch(() => {});
           }
 
           if (sessionObj) {
@@ -1417,7 +1512,8 @@
             }
           }
 
-          checkAndDispatchNextQueue(event.sessionId);
+          // Do NOT call checkAndDispatchNextQueue here!
+          // Remaining queued prompts stay safe and paused.
         }
       });
     }
@@ -1675,6 +1771,7 @@
                 bind:this={messageListRef}
                 onEditLastTurn={handleEditLastTurn}
                 onPlanAction={handlePlanAction}
+                onRetryTurn={handleManualRetry}
               />
 
               <!-- Floating Plan Tracker Widget -->
@@ -1697,6 +1794,8 @@
               onSteer={handleSteerPrompt}
               onCancel={handleCancelSession}
               onOpenSkillsCatalog={() => skillsCatalogVisible = true}
+              onResumeQueue={handleResumeQueue}
+              onClearQueue={handleClearQueue}
             />
 
             <!-- Bottom Docked Terminal Panel (Positioned below Prompt Box) -->

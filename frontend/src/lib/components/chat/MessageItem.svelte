@@ -23,7 +23,12 @@
     Zap,
     Copy,
     Check,
-    Edit3
+    Edit3,
+    AlertTriangle,
+    RefreshCw,
+    Sparkles,
+    PlusCircle,
+    ShieldAlert
   } from 'lucide-svelte';
 
   interface Props {
@@ -33,9 +38,10 @@
     onEditLastTurn?: () => void;
     onOpenImage?: (src: string, title?: string) => void;
     onPlanAction?: (action: 'approve' | 'reject' | 'custom', feedback?: string) => void;
+    onRetryTurn?: (message: ChatMessage) => void;
   }
 
-  let { message, turnNumber, isLastUserTurn = false, onEditLastTurn, onOpenImage, onPlanAction }: Props = $props();
+  let { message, turnNumber, isLastUserTurn = false, onEditLastTurn, onOpenImage, onPlanAction, onRetryTurn }: Props = $props();
 
   let showReasoning = $state(false);
   let showToolDetails = $state(true);
@@ -86,6 +92,17 @@
     const hasPlanHeading = lower.includes('### execution plan') || lower.includes('## plan') || lower.includes('### plan') || lower.includes('rancangan perencanaan') || lower.includes('implementation plan');
     const hasExitPlanTool = message.toolCalls?.some(tc => tc.tool.includes('exit_plan_mode') || tc.tool.includes('plan'));
     return (hasPlanHeading || hasExitPlanTool) && message.status === 'done';
+  });
+
+  // Check if message is a response truncated by max_tokens or context limit
+  const isTruncationError = $derived.by(() => {
+    return (
+      message.errorKind === 'max_tokens_truncation' ||
+      (message.content &&
+        (message.content.includes('max_tokens') ||
+          message.content.includes('Context limit reached') ||
+          message.content.includes('response truncated')))
+    );
   });
 
   function formatTime(timestamp: number): string {
@@ -450,6 +467,108 @@
               <PlanReviewCard
                 onAction={onPlanAction}
               />
+            {/if}
+
+            <!-- Token Truncation & Error Recovery Card -->
+            {#if isTruncationError}
+              <div class="mt-3 p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.04] dark:bg-amber-950/20 text-ant-text space-y-3 font-sans shadow-sm select-none">
+                <!-- Header -->
+                <div class="flex items-start space-x-2.5">
+                  <div class="p-1.5 rounded-lg bg-amber-500/15 text-amber-500 flex-shrink-0 mt-0.5">
+                    <AlertTriangle size={15} />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between">
+                      <span class="text-xs font-semibold text-amber-500 dark:text-amber-400">
+                        Respon Terpotong Batas Token (max_tokens)
+                      </span>
+                      {#if message.errorDetails?.totalTokens || message.tokens?.total}
+                        <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                          {((message.errorDetails?.totalTokens || message.tokens?.total || 0)).toLocaleString()} token akumulasi
+                        </span>
+                      {/if}
+                    </div>
+                    <p class="text-[11.5px] text-ant-text-secondary mt-1 leading-relaxed select-text">
+                      Model mencapai batas token setelah iterasi panjang. Sesuai aturan keamanan antrean, tugas berikutnya <strong>dijeda secara aman</strong> dan tidak akan berjalan sebelum masalah ini diselesaikan.
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Usage Statistics Grid -->
+                {#if message.errorDetails}
+                  <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-amber-500/15 text-[10.5px] font-mono">
+                    {#if message.errorDetails.numTurns}
+                      <div class="p-1.5 rounded bg-black/20 border border-white/5 flex flex-col">
+                        <span class="text-ant-text-muted text-[9.5px]">Iterasi Tool</span>
+                        <span class="text-ant-text font-semibold">{message.errorDetails.numTurns} turns</span>
+                      </div>
+                    {/if}
+                    {#if message.errorDetails.modelCalls}
+                      <div class="p-1.5 rounded bg-black/20 border border-white/5 flex flex-col">
+                        <span class="text-ant-text-muted text-[9.5px]">Model Calls</span>
+                        <span class="text-ant-text font-semibold">{message.errorDetails.modelCalls} calls</span>
+                      </div>
+                    {/if}
+                    {#if message.errorDetails.reasoningTokens}
+                      <div class="p-1.5 rounded bg-black/20 border border-white/5 flex flex-col">
+                        <span class="text-ant-text-muted text-[9.5px]">Reasoning Tokens</span>
+                        <span class="text-ant-text font-semibold">{message.errorDetails.reasoningTokens.toLocaleString()}</span>
+                      </div>
+                    {/if}
+                    {#if message.errorDetails.totalTokens}
+                      <div class="p-1.5 rounded bg-black/20 border border-white/5 flex flex-col">
+                        <span class="text-ant-text-muted text-[9.5px]">Total Tokens</span>
+                        <span class="text-ant-text font-semibold">{message.errorDetails.totalTokens.toLocaleString()}</span>
+                      </div>
+                    {/if}
+                  </div>
+                {/if}
+
+                <!-- Queued Prompts Protection Banner -->
+                {#if (sessionStore.activeSession?.queuedPrompts?.length || 0) > 0}
+                  <div class="px-2.5 py-1.5 rounded bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-400 flex items-center space-x-2">
+                    <ShieldAlert size={12} class="flex-shrink-0" />
+                    <span><strong>Antrean Dilindungi:</strong> {sessionStore.activeSession?.queuedPrompts?.length} prompt dalam antrean tetap aman dan terjeda.</span>
+                  </div>
+                {/if}
+
+                <!-- Interactive Action Buttons -->
+                <div class="flex items-center flex-wrap gap-2 pt-1">
+                  <button
+                    type="button"
+                    onclick={() => onRetryTurn?.(message)}
+                    class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-medium text-xs shadow-sm transition"
+                    title="Lanjutkan tugas yang terpotong tanpa kehilangan progres"
+                  >
+                    <RefreshCw size={12} />
+                    <span>Coba Lagi / Lanjutkan Tugas</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onclick={async () => { await sessionStore.compactActiveSession(); }}
+                    class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-white/10 font-medium text-xs transition"
+                    title="Ringkas riwayat percakapan untuk mengosongkan ruang konteks"
+                  >
+                    <Sparkles size={12} class="text-indigo-400" />
+                    <span>Ringkas Konteks (Compact)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onclick={() => {
+                      if (sessionStore.activeWorkspace) {
+                        sessionStore.createSession(sessionStore.activeWorkspace.id, 'Sesi Baru');
+                      }
+                    }}
+                    class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-white/10 font-medium text-xs transition"
+                    title="Mulai sesi bersih baru di workspace ini"
+                  >
+                    <PlusCircle size={12} class="text-emerald-400" />
+                    <span>Sesi Baru</span>
+                  </button>
+                </div>
+              </div>
             {/if}
           </div>
         </div>

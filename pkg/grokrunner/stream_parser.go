@@ -18,6 +18,53 @@ func cleanANSI(s string) string {
 	return ansiRegex.ReplaceAllString(s, "")
 }
 
+type TruncationPayload struct {
+	Message     string `json:"message"`
+	ErrorKind   string `json:"error_kind"`
+	PromptUsage struct {
+		InputTokens     int64 `json:"inputTokens"`
+		OutputTokens    int64 `json:"outputTokens"`
+		TotalTokens     int64 `json:"totalTokens"`
+		ReasoningTokens int64 `json:"reasoningTokens"`
+		ModelCalls      int64 `json:"modelCalls"`
+		NumTurns        int   `json:"numTurns"`
+	} `json:"promptUsage"`
+}
+
+func parseTruncationError(errMsg string) (isTruncation bool, normalizedMsg string, totalTokens int, usageMap map[string]interface{}) {
+	if !strings.Contains(errMsg, "max_tokens") && !strings.Contains(errMsg, "response truncated") {
+		return false, errMsg, 0, nil
+	}
+
+	idx := strings.Index(errMsg, "{")
+	if idx != -1 {
+		jsonPart := errMsg[idx:]
+		var tp TruncationPayload
+		if err := json.Unmarshal([]byte(jsonPart), &tp); err == nil && (tp.ErrorKind == "max_tokens_truncation" || strings.Contains(tp.Message, "max_tokens")) {
+			totalTokens = int(tp.PromptUsage.TotalTokens)
+			if totalTokens == 0 {
+				totalTokens = int(tp.PromptUsage.InputTokens + tp.PromptUsage.OutputTokens)
+			}
+			usageMap = map[string]interface{}{
+				"inputTokens":     tp.PromptUsage.InputTokens,
+				"outputTokens":    tp.PromptUsage.OutputTokens,
+				"totalTokens":     tp.PromptUsage.TotalTokens,
+				"reasoningTokens": tp.PromptUsage.ReasoningTokens,
+				"modelCalls":      tp.PromptUsage.ModelCalls,
+				"numTurns":        tp.PromptUsage.NumTurns,
+			}
+			turnsStr := ""
+			if tp.PromptUsage.NumTurns > 0 {
+				turnsStr = fmt.Sprintf(" after %d tool iterations", tp.PromptUsage.NumTurns)
+			}
+			normalizedMsg = fmt.Sprintf("Context limit reached: Response truncated by max_tokens%s (%d accumulated tokens)", turnsStr, totalTokens)
+			return true, normalizedMsg, totalTokens, usageMap
+		}
+	}
+
+	return true, "Context limit reached: Response truncated by max_tokens", 0, nil
+}
+
 // extractTextContent recursively extracts text strings from polymorphic content blocks
 func extractTextContent(content interface{}) string {
 	if content == nil {
@@ -164,6 +211,15 @@ func NewStreamParser(sessionID string, callbacks StreamCallbacks) *StreamParser 
 		callbacks:     callbacks,
 		flushChan:     make(chan struct{}, 1),
 		firstLineChan: make(chan struct{}),
+	}
+}
+
+// SetInitialGrokSessionID sets the underlying Grok session UUID if not already set
+func (p *StreamParser) SetInitialGrokSessionID(id string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.grokSessionID == "" && id != "" {
+		p.grokSessionID = id
 	}
 }
 
@@ -583,13 +639,26 @@ func (p *StreamParser) Parse(ctx context.Context, r io.Reader) error {
 					errStr = raw.Error
 				}
 
+				errorKind := ""
+				var usageMap map[string]interface{}
+				if isTrunc, normMsg, tokens, uMap := parseTruncationError(errStr); isTrunc {
+					errorKind = "max_tokens_truncation"
+					errStr = normMsg
+					if totalTokens == 0 {
+						totalTokens = tokens
+					}
+					usageMap = uMap
+				}
+
 				p.callbacks.OnComplete(TurnCompleteEvent{
 					SessionID:     p.sessionID,
 					GrokSessionID: p.grokSessionID,
 					Title:         title,
 					Status:        status,
 					Error:         errStr,
+					ErrorKind:     errorKind,
 					TotalTokens:   totalTokens,
+					Usage:         usageMap,
 					FinishReason:  finishReason,
 				})
 			}
@@ -614,6 +683,16 @@ func (p *StreamParser) Parse(ctx context.Context, r io.Reader) error {
 				errMsg = "Grok execution error"
 			}
 
+			errorKind := ""
+			totalTokens := 0
+			var usageMap map[string]interface{}
+			if isTrunc, normMsg, tokens, uMap := parseTruncationError(errMsg); isTrunc {
+				errorKind = "max_tokens_truncation"
+				errMsg = normMsg
+				totalTokens = tokens
+				usageMap = uMap
+			}
+
 			if p.callbacks.OnError != nil {
 				p.callbacks.OnError(fmt.Errorf("%s", errMsg))
 			}
@@ -623,6 +702,9 @@ func (p *StreamParser) Parse(ctx context.Context, r io.Reader) error {
 					GrokSessionID: p.grokSessionID,
 					Status:        "error",
 					Error:         errMsg,
+					ErrorKind:     errorKind,
+					TotalTokens:   totalTokens,
+					Usage:         usageMap,
 					FinishReason:  "error",
 				})
 			}

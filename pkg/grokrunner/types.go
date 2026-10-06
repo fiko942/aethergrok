@@ -118,13 +118,15 @@ type SessionUsageStats struct {
 
 // TurnCompleteEvent signals that the turn has completed
 type TurnCompleteEvent struct {
-	SessionID     string `json:"sessionId"`
-	GrokSessionID string `json:"grokSessionId,omitempty"`
-	Title         string `json:"title,omitempty"`
-	Status        string `json:"status"` // "success", "interrupted", "error"
-	Error         string `json:"error,omitempty"`
-	TotalTokens   int    `json:"totalTokens,omitempty"`
-	FinishReason  string `json:"finishReason,omitempty"`
+	SessionID     string                 `json:"sessionId"`
+	GrokSessionID string                 `json:"grokSessionId,omitempty"`
+	Title         string                 `json:"title,omitempty"`
+	Status        string                 `json:"status"` // "success", "interrupted", "error"
+	Error         string                 `json:"error,omitempty"`
+	ErrorKind     string                 `json:"errorKind,omitempty"`
+	TotalTokens   int                    `json:"totalTokens,omitempty"`
+	FinishReason  string                 `json:"finishReason,omitempty"`
+	Usage         map[string]interface{} `json:"usage,omitempty"`
 }
 
 // RawNDJSONEvent models incoming JSON messages from `grok --output-format streaming-json`

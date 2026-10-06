@@ -10,18 +10,33 @@
     GripVertical,
     FileText,
     FileCode,
-    Image as ImageIcon
+    Image as ImageIcon,
+    Play,
+    AlertTriangle,
+    PauseCircle
   } from 'lucide-svelte';
 
   interface Props {
     queue: QueuedPrompt[];
+    isPaused?: boolean;
+    onResumeQueue?: () => void;
+    onClearQueue?: () => void;
     onSteer: (prompt: QueuedPrompt) => void;
     onReorder: (fromIdx: number, toIdx: number) => void;
     onRemove: (id: string) => void;
     onEdit: (prompt: QueuedPrompt) => void;
   }
 
-  let { queue = [], onSteer, onReorder, onRemove, onEdit }: Props = $props();
+  let {
+    queue = [],
+    isPaused = false,
+    onResumeQueue,
+    onClearQueue,
+    onSteer,
+    onReorder,
+    onRemove,
+    onEdit
+  }: Props = $props();
 
   let isExpanded = $state(true);
   let draggedIdx = $state<number | null>(null);
@@ -89,9 +104,16 @@
           <span class="text-xs font-serif font-medium text-ant-text tracking-tight">
             {queue.length === 1 ? 'Queued Prompt' : `${queue.length} Queued Prompts`}
           </span>
-          <span class="text-[11px] text-ant-text-muted font-sans hidden sm:inline">
-            (Executes automatically once current turn finishes)
-          </span>
+          {#if isPaused}
+            <span class="text-[11px] text-amber-500 font-sans font-medium flex items-center gap-1">
+              <PauseCircle size={11} />
+              Antrean Dijeda
+            </span>
+          {:else}
+            <span class="text-[11px] text-ant-text-muted font-sans hidden sm:inline">
+              (Executes automatically once current turn finishes)
+            </span>
+          {/if}
         </div>
       </div>
 
@@ -106,6 +128,39 @@
         {/if}
       </div>
     </div>
+
+    {#if isPaused}
+      <div class="px-3.5 py-2 bg-amber-500/10 dark:bg-amber-950/40 border-b border-amber-500/20 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div class="flex items-center space-x-2 text-amber-600 dark:text-amber-400 font-sans">
+          <AlertTriangle size={13} class="text-amber-500 flex-shrink-0" />
+          <span class="font-medium text-[11.5px]">Antrean dijeda demi keamanan. Prompt tersimpan aman dan tidak dieksekusi otomatis.</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          {#if onResumeQueue}
+            <button
+              type="button"
+              onclick={(e) => { e.stopPropagation(); onResumeQueue(); }}
+              class="flex items-center space-x-1 px-2.5 py-1 rounded bg-amber-500 hover:bg-amber-600 text-white font-medium text-[11px] transition shadow-sm"
+              title="Lanjutkan eksekusi antrean prompt"
+            >
+              <Play size={10} class="fill-current" />
+              <span>Lanjutkan Antrean</span>
+            </button>
+          {/if}
+          {#if onClearQueue}
+            <button
+              type="button"
+              onclick={(e) => { e.stopPropagation(); onClearQueue(); }}
+              class="flex items-center space-x-1 px-2 py-1 rounded text-ant-text-muted hover:text-rose-500 hover:bg-rose-500/10 text-[11px] transition"
+              title="Hapus semua prompt di antrean"
+            >
+              <Trash2 size={11} />
+              <span>Hapus Semua</span>
+            </button>
+          {/if}
+        </div>
+      </div>
+    {/if}
 
     <!-- Draggable Queue List -->
     {#if isExpanded}

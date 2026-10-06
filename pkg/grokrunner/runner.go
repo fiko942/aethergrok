@@ -266,6 +266,42 @@ func generateUUIDv4() string {
 	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 }
 
+// ResolveSessionArgs determines the CLI flags for session continuation or new session creation.
+// When a session directory exists in targetWsDir, it produces ["--resume", <id>].
+// Otherwise, it produces ["--session-id", <uuid>] to safely initialize the session in Grok CLI.
+func ResolveSessionArgs(sessionsDir, targetWsDir, targetGrokID string) (args []string, isResume bool, resolvedID string) {
+	trimmedID := strings.TrimSpace(targetGrokID)
+	if trimmedID != "" {
+		exists, _, rID := SessionFolderExists(sessionsDir, targetWsDir, trimmedID)
+		if exists {
+			finalID := trimmedID
+			if rID != "" {
+				finalID = rID
+			}
+			return []string{"--resume", finalID}, true, finalID
+		}
+
+		// If the directory already exists on disk in targetWsDir (even if partially initialized),
+		// Grok CLI strictly refuses --session-id with "Session ID is already in use".
+		// We must resume instead of crashing.
+		folderPath, rID := ResolveSessionFolder(targetWsDir, trimmedID)
+		if fi, err := os.Stat(folderPath); err == nil && fi.IsDir() {
+			finalID := trimmedID
+			if rID != "" {
+				finalID = rID
+			}
+			return []string{"--resume", finalID}, true, finalID
+		}
+
+		if isUUID(trimmedID) {
+			return []string{"--session-id", trimmedID}, false, trimmedID
+		}
+	}
+
+	newUUID := generateUUIDv4()
+	return []string{"--session-id", newUUID}, false, newUUID
+}
+
 // StartSession launches a grok subprocess for a prompt request and streams events via callbacks
 func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks StreamCallbacks) error {
 	r.mu.Lock()
@@ -283,7 +319,7 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 
 	// Determine session continuation vs new session:
 	// If GrokSessionID is specified, or req.SessionID is a valid UUID, target that UUID.
-	targetGrokID := req.Options.GrokSessionID
+	targetGrokID := strings.TrimSpace(req.Options.GrokSessionID)
 	if targetGrokID == "" && isUUID(req.SessionID) {
 		targetGrokID = req.SessionID
 	}
@@ -296,29 +332,8 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 	sessionsDir := filepath.Join(homeDir, ".grok", "sessions")
 	targetWsDir := ResolveWorkspaceSessionsDir(sessionsDir, wsPath)
 
-	if targetGrokID != "" {
-		exists, _, resolvedID := SessionFolderExists(sessionsDir, targetWsDir, targetGrokID)
-		
-		// Only pass --resume if an initialized session directory actually exists on disk locally.
-		// If it does not exist locally (brand new session or unsaved ID), pass --session-id
-		// so Grok CLI creates the local folder and never attempts a remote registry restore.
-		if exists {
-			if resolvedID != "" {
-				args = append(args, "--resume", resolvedID)
-			} else {
-				args = append(args, "--resume", targetGrokID)
-			}
-		} else if isUUID(targetGrokID) {
-			args = append(args, "--session-id", targetGrokID)
-		} else {
-			newUUID := generateUUIDv4()
-			args = append(args, "--session-id", newUUID)
-		}
-	} else {
-		// If no UUID was provided, generate a fresh UUID
-		newUUID := generateUUIDv4()
-		args = append(args, "--session-id", newUUID)
-	}
+	sessArgs, _, resolvedSessionUUID := ResolveSessionArgs(sessionsDir, targetWsDir, targetGrokID)
+	args = append(args, sessArgs...)
 
 	// Check if default model or options need fallback from storage settings
 	if r.storageMgr != nil {
@@ -506,6 +521,7 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 	}()
 
 	parser := NewStreamParser(req.SessionID, callbacks)
+	parser.SetInitialGrokSessionID(resolvedSessionUUID)
 
 	// Startup watchdog: if Grok CLI produces zero stdout lines within 45s (e.g. startup deadlock / corrupted history),
 	// terminate the process immediately and fail fast.

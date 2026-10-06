@@ -337,6 +337,69 @@ func TestResolveSessionFolder_Isolation(t *testing.T) {
 	}
 }
 
+func TestSessionFolderExists_StrictWorkspaceIsolation(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sessionsDir := filepath.Join(home, ".grok", "sessions")
+	ws1 := filepath.Join(t.TempDir(), "ws1")
+	ws2 := filepath.Join(t.TempDir(), "ws2")
+	_ = os.MkdirAll(ws1, 0755)
+	_ = os.MkdirAll(ws2, 0755)
+
+	ws1Dir := ResolveWorkspaceSessionsDir(sessionsDir, ws1)
+	ws2Dir := ResolveWorkspaceSessionsDir(sessionsDir, ws2)
+	_ = os.MkdirAll(ws1Dir, 0755)
+	_ = os.MkdirAll(ws2Dir, 0755)
+	defer os.RemoveAll(ws1Dir)
+	defer os.RemoveAll(ws2Dir)
+
+	sessID := "99999999-1111-2222-3333-444444444444"
+	sessFolder1 := filepath.Join(ws1Dir, sessID)
+	_ = os.MkdirAll(sessFolder1, 0755)
+	_ = os.WriteFile(filepath.Join(sessFolder1, "chat_history.jsonl"), []byte("{}\n"), 0644)
+
+	// ws1 should find sessID
+	exists1, _, _ := SessionFolderExists(sessionsDir, ws1Dir, sessID)
+	if !exists1 {
+		t.Fatalf("Expected session to exist in ws1")
+	}
+
+	// ws2 MUST NOT find sessID under any circumstances (no cross-workspace fallback)
+	exists2, _, _ := SessionFolderExists(sessionsDir, ws2Dir, sessID)
+	if exists2 {
+		t.Fatalf("Session from ws1 MUST NOT be found when querying ws2; cross-workspace fallback must be disabled")
+	}
+}
+
+func TestResolveWorkspaceSessionsDir_SymlinkCanonicalization(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sessionsDir := filepath.Join(home, ".grok", "sessions")
+	realDir := t.TempDir()
+	symlinkBase := t.TempDir()
+	symlinkPath := filepath.Join(symlinkBase, "linked_ws")
+	if err := os.Symlink(realDir, symlinkPath); err != nil {
+		t.Skipf("Symlink creation not supported: %v", err)
+	}
+
+	// Canonical path as stored by Grok
+	canonicalTargetDir := filepath.Join(sessionsDir, EncodeGrokWorkspacePath(realDir))
+	_ = os.MkdirAll(canonicalTargetDir, 0755)
+	defer os.RemoveAll(canonicalTargetDir)
+
+	resolved := ResolveWorkspaceSessionsDir(sessionsDir, symlinkPath)
+	if resolved != canonicalTargetDir {
+		t.Errorf("Expected ResolveWorkspaceSessionsDir to resolve canonical symlink directory %s, got %s", canonicalTargetDir, resolved)
+	}
+}
+
+
 func TestResolveWorkspaceSessionsDir_CrossPlatformDecoded(t *testing.T) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -400,13 +463,19 @@ func TestSessionFolderExists_Validation(t *testing.T) {
 		t.Errorf("Expected fPath '%s', got '%s'", validSessionDir, fPath)
 	}
 
-	// 4. Session exists in ws2 (fallback lookup when checking ws1)
+	// 4. Session exists in ws2 (MUST NOT leak into ws1 lookup)
 	ws2SessionDir := filepath.Join(ws2Dir, "ws2-session-uuid")
 	_ = os.MkdirAll(ws2SessionDir, 0755)
 	_ = os.WriteFile(filepath.Join(ws2SessionDir, "summary.json"), []byte("{}\n"), 0644)
-	existsFallback, fPath2, resolvedID2 := SessionFolderExists(tempBase, ws1Dir, "ws2-session-uuid")
-	if !existsFallback {
-		t.Errorf("Expected exists=true via fallback lookup, got false")
+	existsFallback, _, _ := SessionFolderExists(tempBase, ws1Dir, "ws2-session-uuid")
+	if existsFallback {
+		t.Errorf("Expected exists=false when session belongs to ws2, but got true (cross-workspace leak)")
+	}
+
+	// 5. Querying ws2 directly finds ws2 session
+	existsDirect, fPath2, resolvedID2 := SessionFolderExists(tempBase, ws2Dir, "ws2-session-uuid")
+	if !existsDirect {
+		t.Errorf("Expected exists=true when querying ws2 directly, got false")
 	}
 	if resolvedID2 != "ws2-session-uuid" {
 		t.Errorf("Expected resolvedID 'ws2-session-uuid', got '%s'", resolvedID2)

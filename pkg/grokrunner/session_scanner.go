@@ -47,66 +47,113 @@ func EncodeGrokWorkspacePath(workspacePath string) string {
 	return sb.String()
 }
 
-// ResolveWorkspaceSessionsDir returns the directory path under ~/.grok/sessions for workspacePath
+// ResolveWorkspaceSessionsDir returns the directory path under ~/.grok/sessions for workspacePath.
+// It checks both the provided path and the canonical symlink-evaluated path (e.g. macOS /var -> /private/var),
+// because Grok CLI uses Rust's std::fs::canonicalize when storing session directories.
 func ResolveWorkspaceSessionsDir(sessionsDir, workspacePath string) string {
 	if workspacePath == "" {
 		return sessionsDir
 	}
 	cleanWs := filepath.Clean(workspacePath)
 
-	// 1. Try exact encoded path (with native clean path)
-	primary := filepath.Join(sessionsDir, EncodeGrokWorkspacePath(cleanWs))
-	if fi, err := os.Stat(primary); err == nil && fi.IsDir() {
-		return primary
+	// Collect candidate workspace paths (original clean path, canonical symlink resolved path,
+	// and macOS /private variations)
+	candidates := []string{cleanWs}
+	if evalPath, err := filepath.EvalSymlinks(cleanWs); err == nil && evalPath != "" && evalPath != cleanWs {
+		candidates = append(candidates, evalPath)
 	}
 
-	// 1b. On Windows or cross-platform, try with forward-slashed and backslashed variations
-	wsSlash := filepath.ToSlash(cleanWs)
-	slashEncoded := filepath.Join(sessionsDir, EncodeGrokWorkspacePath(wsSlash))
-	if fi, err := os.Stat(slashEncoded); err == nil && fi.IsDir() {
-		return slashEncoded
+	// On macOS, /var, /tmp, /etc symlink to /private/var, /private/tmp, /private/etc.
+	// Rust std::fs::canonicalize resolves these to /private/..., while some tools keep /var/...
+	var macVariations []string
+	for _, c := range candidates {
+		if strings.HasPrefix(c, "/private/") {
+			unpriv := strings.TrimPrefix(c, "/private")
+			macVariations = append(macVariations, unpriv)
+		} else if strings.HasPrefix(c, "/var/") || strings.HasPrefix(c, "/tmp/") || strings.HasPrefix(c, "/etc/") {
+			priv := "/private" + c
+			macVariations = append(macVariations, priv)
+		}
+	}
+	for _, mv := range macVariations {
+		found := false
+		for _, c := range candidates {
+			if c == mv {
+				found = true
+				break
+			}
+		}
+		if !found {
+			candidates = append(candidates, mv)
+		}
 	}
 
-	wsBackslash := strings.ReplaceAll(wsSlash, "/", "\\")
-	backslashEncoded := filepath.Join(sessionsDir, EncodeGrokWorkspacePath(wsBackslash))
-	if fi, err := os.Stat(backslashEncoded); err == nil && fi.IsDir() {
-		return backslashEncoded
+	// Check each candidate for existing sessions directories
+	for _, ws := range candidates {
+		// 1. Try exact encoded path (with native clean path)
+		primary := filepath.Join(sessionsDir, EncodeGrokWorkspacePath(ws))
+		if fi, err := os.Stat(primary); err == nil && fi.IsDir() {
+			return primary
+		}
+
+		// 1b. On Windows or cross-platform, try with forward-slashed and backslashed variations
+		wsSlash := filepath.ToSlash(ws)
+		slashEncoded := filepath.Join(sessionsDir, EncodeGrokWorkspacePath(wsSlash))
+		if fi, err := os.Stat(slashEncoded); err == nil && fi.IsDir() {
+			return slashEncoded
+		}
+
+		wsBackslash := strings.ReplaceAll(wsSlash, "/", "\\")
+		backslashEncoded := filepath.Join(sessionsDir, EncodeGrokWorkspacePath(wsBackslash))
+		if fi, err := os.Stat(backslashEncoded); err == nil && fi.IsDir() {
+			return backslashEncoded
+		}
+
+		// 2. Try legacy url.PathEscape
+		legacy := filepath.Join(sessionsDir, url.PathEscape(ws))
+		if fi, err := os.Stat(legacy); err == nil && fi.IsDir() {
+			return legacy
+		}
 	}
 
-	// 2. Try legacy url.PathEscape
-	legacy := filepath.Join(sessionsDir, url.PathEscape(cleanWs))
-	if fi, err := os.Stat(legacy); err == nil && fi.IsDir() {
-		return legacy
-	}
-
-	// 3. Scan all directory entries in sessionsDir and match decoded folder names
+	// 3. Scan all directory entries in sessionsDir and match decoded folder names against all candidates
 	entries, err := os.ReadDir(sessionsDir)
 	if err == nil {
-		normalizedTarget := strings.ToLower(strings.TrimRight(filepath.ToSlash(cleanWs), "/"))
-		// Also compare target without trailing drive backslash if Windows drive root e.g. "c:"
-		for _, entry := range entries {
-			if !entry.IsDir() {
-				continue
-			}
-			name := entry.Name()
-			decoded, unerr := url.PathUnescape(name)
-			if unerr != nil {
-				decoded, unerr = url.QueryUnescape(name)
-			}
-			if unerr == nil {
-				normalizedDecoded := strings.ToLower(strings.TrimRight(filepath.ToSlash(filepath.Clean(decoded)), "/"))
-				if normalizedDecoded == normalizedTarget {
-					return filepath.Join(sessionsDir, name)
+		for _, ws := range candidates {
+			normalizedTarget := strings.ToLower(strings.TrimRight(filepath.ToSlash(ws), "/"))
+			// Also compare target without trailing drive backslash if Windows drive root e.g. "c:"
+			for _, entry := range entries {
+				if !entry.IsDir() {
+					continue
 				}
-				// Also handle Windows drive letter cases e.g. "c:/" vs "c:"
-				if strings.TrimSuffix(normalizedDecoded, "/") == strings.TrimSuffix(normalizedTarget, "/") {
-					return filepath.Join(sessionsDir, name)
+				name := entry.Name()
+				decoded, unerr := url.PathUnescape(name)
+				if unerr != nil {
+					decoded, unerr = url.QueryUnescape(name)
+				}
+				if unerr == nil {
+					normalizedDecoded := strings.ToLower(strings.TrimRight(filepath.ToSlash(filepath.Clean(decoded)), "/"))
+					if normalizedDecoded == normalizedTarget {
+						return filepath.Join(sessionsDir, name)
+					}
+					// Also handle Windows drive letter cases e.g. "c:/" vs "c:"
+					if strings.TrimSuffix(normalizedDecoded, "/") == strings.TrimSuffix(normalizedTarget, "/") {
+						return filepath.Join(sessionsDir, name)
+					}
 				}
 			}
 		}
 	}
 
-	return primary
+	// Fallback to canonical encoded path if evaluated path differs and already exists, else primary
+	if len(candidates) > 1 {
+		canonicalDir := filepath.Join(sessionsDir, EncodeGrokWorkspacePath(candidates[1]))
+		if fi, err := os.Stat(canonicalDir); err == nil && fi.IsDir() {
+			return canonicalDir
+		}
+	}
+
+	return filepath.Join(sessionsDir, EncodeGrokWorkspacePath(cleanWs))
 }
 
 // ResolveSessionFolder strictly resolves the session folder path and true Grok UUID inside targetDir.
@@ -169,7 +216,15 @@ func isUUIDPrefix(str string) bool {
 }
 
 func hasSessionRecord(folderPath string) bool {
-	files := []string{"signals.json", "usage.json", "chat_history.jsonl", "summary.json", "updates.jsonl"}
+	files := []string{
+		"signals.json",
+		"usage.json",
+		"chat_history.jsonl",
+		"summary.json",
+		"updates.jsonl",
+		"events.jsonl",
+		"prompt_context.json",
+	}
 	for _, f := range files {
 		if _, err := os.Stat(filepath.Join(folderPath, f)); err == nil {
 			return true
@@ -178,46 +233,17 @@ func hasSessionRecord(folderPath string) bool {
 	return false
 }
 
-// SessionFolderExists checks whether an initialized session directory actually exists on disk.
-// It first checks targetWsDir, and then scans sessionsDir across all workspaces as a fallback.
+// SessionFolderExists checks whether an initialized session directory actually exists on disk in targetWsDir.
+// Cross-workspace fallback is strictly prohibited to guarantee session isolation between different workspaces.
 func SessionFolderExists(sessionsDir, targetWsDir, sessionID string) (bool, string, string) {
-	if sessionID == "" {
+	if sessionID == "" || targetWsDir == "" {
 		return false, "", ""
 	}
 
-	checkDir := func(dir string) (bool, string, string) {
-		folderPath, resolvedID := ResolveSessionFolder(dir, sessionID)
-		if fi, err := os.Stat(folderPath); err == nil && fi.IsDir() {
-			if hasSessionRecord(folderPath) {
-				return true, folderPath, resolvedID
-			}
-		}
-		return false, "", ""
-	}
-
-	// 1. Check in target workspace directory
-	if targetWsDir != "" {
-		if ok, fPath, resolvedID := checkDir(targetWsDir); ok {
-			return true, fPath, resolvedID
-		}
-	}
-
-	// 2. Fallback: check across all workspace directories in sessionsDir
-	if sessionsDir != "" {
-		entries, err := os.ReadDir(sessionsDir)
-		if err == nil {
-			for _, wsEntry := range entries {
-				if !wsEntry.IsDir() {
-					continue
-				}
-				wsDirPath := filepath.Join(sessionsDir, wsEntry.Name())
-				if wsDirPath == targetWsDir {
-					continue
-				}
-				if ok, fPath, resolvedID := checkDir(wsDirPath); ok {
-					return true, fPath, resolvedID
-				}
-			}
+	folderPath, resolvedID := ResolveSessionFolder(targetWsDir, sessionID)
+	if fi, err := os.Stat(folderPath); err == nil && fi.IsDir() {
+		if hasSessionRecord(folderPath) {
+			return true, folderPath, resolvedID
 		}
 	}
 

@@ -8,9 +8,10 @@
   interface Props {
     onEditLastTurn?: () => void;
     onPlanAction?: (action: 'approve' | 'reject' | 'custom', feedback?: string) => void;
+    onRetryTurn?: (message: ChatMessage) => void;
   }
 
-  let { onEditLastTurn, onPlanAction }: Props = $props();
+  let { onEditLastTurn, onPlanAction, onRetryTurn }: Props = $props();
 
   export function forceScrollBottom() {
     autoScrollToBottom = true;
@@ -354,6 +355,7 @@
           onEditLastTurn={onEditLastTurn}
           onOpenImage={handleOpenImage}
           onPlanAction={onPlanAction}
+          onRetryTurn={onRetryTurn}
         />
       {/each}
 

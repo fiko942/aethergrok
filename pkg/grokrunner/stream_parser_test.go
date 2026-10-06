@@ -215,3 +215,41 @@ func TestStreamParser_FirstLineChan(t *testing.T) {
 		t.Fatalf("firstLineChan should be closed after parsing lines")
 	}
 }
+
+func TestStreamParser_MaxTokensTruncationError(t *testing.T) {
+	rawJSON := `{"type":"error","error":"Internal error: {\n  \"message\": \"response truncated by max_tokens\",\n  \"error_kind\": \"max_tokens_truncation\",\n  \"promptUsage\": {\n    \"inputTokens\": 5777245,\n    \"outputTokens\": 23083,\n    \"totalTokens\": 5800328,\n    \"reasoningTokens\": 18377,\n    \"modelCalls\": 54,\n    \"numTurns\": 54\n  }\n}"}`
+
+	var completedEvent *TurnCompleteEvent
+	var errReceived error
+
+	callbacks := StreamCallbacks{
+		OnError: func(err error) {
+			errReceived = err
+		},
+		OnComplete: func(evt TurnCompleteEvent) {
+			completedEvent = &evt
+		},
+	}
+
+	parser := NewStreamParser("sess-1", callbacks)
+	err := parser.Parse(context.Background(), strings.NewReader(rawJSON+"\n"))
+	if err != nil {
+		t.Fatalf("unexpected parse error: %v", err)
+	}
+
+	if completedEvent == nil {
+		t.Fatal("expected TurnCompleteEvent to be emitted")
+	}
+	if completedEvent.ErrorKind != "max_tokens_truncation" {
+		t.Fatalf("expected ErrorKind 'max_tokens_truncation', got '%s'", completedEvent.ErrorKind)
+	}
+	if completedEvent.TotalTokens != 5800328 {
+		t.Fatalf("expected TotalTokens 5800328, got %d", completedEvent.TotalTokens)
+	}
+	if errReceived == nil {
+		t.Fatal("expected OnError callback to be invoked")
+	}
+	if !strings.Contains(errReceived.Error(), "Context limit reached: Response truncated by max_tokens") {
+		t.Fatalf("expected normalized error message, got: %v", errReceived)
+	}
+}
