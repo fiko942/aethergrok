@@ -105,6 +105,12 @@
     );
   });
 
+  const autoRetriesCount = $derived(sessionStore.activeSession?.autoRetryCount || 0);
+  const isAutoResuming = $derived(
+    sessionStore.activeSession?.status === 'working' ||
+    (autoRetriesCount > 0 && autoRetriesCount < 3 && sessionStore.activeSession?.status !== 'error')
+  );
+
   function formatTime(timestamp: number): string {
     const d = new Date(timestamp);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -532,42 +538,59 @@
                   </div>
                 {/if}
 
-                <!-- Interactive Action Buttons -->
-                <div class="flex items-center flex-wrap gap-2 pt-1">
-                  <button
-                    type="button"
-                    onclick={() => onRetryTurn?.(message)}
-                    class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-medium text-xs shadow-sm transition"
-                    title="Resume the truncated task without losing progress"
-                  >
-                    <RefreshCw size={12} />
-                    <span>Retry / Continue Task</span>
-                  </button>
+                <!-- Auto-Resuming Notice vs Manual Recovery Card -->
+                {#if isAutoResuming}
+                  <div class="flex items-center justify-between p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-400 text-xs">
+                    <div class="flex items-center space-x-2">
+                      <RefreshCw size={13} class="animate-spin text-amber-400 flex-shrink-0" />
+                      <span class="font-medium">Auto-resuming task in progress (attempt {Math.max(1, autoRetriesCount)}/3)...</span>
+                    </div>
+                    <span class="text-[11px] text-amber-400/80">Continuing previous turn automatically</span>
+                  </div>
+                {:else}
+                  <!-- Exhausted Retries Notice & Manual Recovery Actions -->
+                  <div class="px-2.5 py-1.5 rounded bg-red-500/10 border border-red-500/25 text-[11.5px] text-red-400 flex items-center space-x-2">
+                    <AlertTriangle size={13} class="flex-shrink-0 text-red-400" />
+                    <span>Automatic continuation reached the maximum limit (3/3 attempts). Manual action is required to proceed.</span>
+                  </div>
 
-                  <button
-                    type="button"
-                    onclick={async () => { await sessionStore.compactActiveSession(); }}
-                    class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-white/10 font-medium text-xs transition"
-                    title="Compact conversation history to free up context space"
-                  >
-                    <Sparkles size={12} class="text-indigo-400" />
-                    <span>Compact Context</span>
-                  </button>
+                  <!-- Interactive Action Buttons -->
+                  <div class="flex items-center flex-wrap gap-2 pt-1">
+                    <button
+                      type="button"
+                      onclick={() => onRetryTurn?.(message)}
+                      class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-medium text-xs shadow-sm transition"
+                      title="Resume the truncated task without losing progress"
+                    >
+                      <RefreshCw size={12} />
+                      <span>Retry / Continue Task</span>
+                    </button>
 
-                  <button
-                    type="button"
-                    onclick={() => {
-                      if (sessionStore.activeWorkspace) {
-                        sessionStore.createSession('New Session', sessionStore.activeWorkspace.id);
-                      }
-                    }}
-                    class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-white/10 font-medium text-xs transition"
-                    title="Start a fresh new session in this workspace"
-                  >
-                    <PlusCircle size={12} class="text-emerald-400" />
-                    <span>New Session</span>
-                  </button>
-                </div>
+                    <button
+                      type="button"
+                      onclick={async () => { await sessionStore.compactActiveSession(); }}
+                      class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-white/10 font-medium text-xs transition"
+                      title="Compact conversation history to free up context space"
+                    >
+                      <Sparkles size={12} class="text-indigo-400" />
+                      <span>Compact Context</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onclick={() => {
+                        if (sessionStore.activeWorkspace) {
+                          sessionStore.createSession('New Session', sessionStore.activeWorkspace.id);
+                        }
+                      }}
+                      class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-white/10 font-medium text-xs transition"
+                      title="Start a fresh new session in this workspace"
+                    >
+                      <PlusCircle size={12} class="text-emerald-400" />
+                      <span>New Session</span>
+                    </button>
+                  </div>
+                {/if}
               </div>
             {/if}
           </div>

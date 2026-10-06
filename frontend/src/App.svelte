@@ -415,22 +415,33 @@
     await executeTurn(sessionId, payload);
   }
 
+  // Concurrency guard to deduplicate auto-retry triggers between grok:error and grok:complete
+  const autoRetryingSessionIds = new Set<string>();
+
   // Attempt automatic continuation retry on transient token truncation errors
   async function attemptAutoRetry(sessionId: string, sessionObj: any, truncationDetails: any): Promise<boolean> {
+    if (autoRetryingSessionIds.has(sessionId)) {
+      return true;
+    }
+
     const currentRetries = sessionObj.autoRetryCount || 0;
-    const MAX_AUTO_RETRIES = 2;
+    const MAX_AUTO_RETRIES = 3;
 
     if (currentRetries < MAX_AUTO_RETRIES) {
+      autoRetryingSessionIds.add(sessionId);
       sessionObj.autoRetryCount = currentRetries + 1;
       sessionStore.setSessionStatus(sessionId, 'working');
 
       sessionStore.addMessage(sessionId, {
         role: 'assistant',
-        content: `⚠️ *Response truncated by token limit (max_tokens). Automatically resuming task (attempt ${sessionObj.autoRetryCount}/${MAX_AUTO_RETRIES})...*`,
-        status: 'streaming'
+        content: `⚠️ *Response reached token limit (max_tokens). Automatically resuming task (attempt ${sessionObj.autoRetryCount}/${MAX_AUTO_RETRIES})...*`,
+        status: 'streaming',
+        errorKind: 'max_tokens_truncation',
+        errorDetails: truncationDetails || undefined
       });
 
       setTimeout(() => {
+        autoRetryingSessionIds.delete(sessionId);
         executeTurn(sessionId, {
           text: 'Continue and finish the previous truncated task. Focus on the remaining uncompleted steps.',
           images: [],
@@ -438,7 +449,7 @@
           model: selectedModel,
           reasoningEffort: reasoningEffort as 'low' | 'medium' | 'high'
         });
-      }, 600);
+      }, 500);
       return true;
     }
 
@@ -1386,6 +1397,22 @@
 
       unsubComplete = window.runtime.EventsOn('grok:complete', async (event: { sessionId: string; status: string; grokSessionId?: string; title?: string; error?: string }) => {
         if (event.sessionId) {
+          // If auto-retry is already in flight for this session from truncation, ignore completion event from the truncated predecessor turn
+          if (autoRetryingSessionIds.has(event.sessionId)) {
+            return;
+          }
+
+          const sessionObj = sessionStore.sessions.find((s) => s.id === event.sessionId);
+
+          // If turn completed with an error, check if it's truncation error for auto-retry BEFORE setting final status
+          if (event.status === 'error' || event.error) {
+            const truncationDetails = parseTokenTruncationDetails(event.error);
+            if (truncationDetails && sessionObj) {
+              const retried = await attemptAutoRetry(event.sessionId, sessionObj, truncationDetails);
+              if (retried) return;
+            }
+          }
+
           const finalStatus = event.status === 'success' ? 'finished' : event.status === 'interrupted' ? 'idle' : 'error';
           sessionStore.setSessionStatus(event.sessionId, finalStatus);
           sessionStore.updateLastMessage(event.sessionId, (msg) => {
@@ -1394,7 +1421,6 @@
 
           // Ensure error message is visibly presented if turn completed with error
           if (event.status === 'error' && event.error) {
-            const sessionObj = sessionStore.sessions.find((s) => s.id === event.sessionId);
             const lastMsg = sessionObj?.messages[sessionObj.messages.length - 1];
             if (!lastMsg || lastMsg.role === 'user') {
               sessionStore.addMessage(event.sessionId, {
@@ -1409,7 +1435,6 @@
           }
 
           // Finalize any lingering 'running' tool calls across all messages in this session
-          const sessionObj = sessionStore.sessions.find((s) => s.id === event.sessionId);
           if (sessionObj) {
             if (event.grokSessionId && !sessionObj.grokSessionId && !event.grokSessionId.startsWith('sess_')) {
               sessionObj.grokSessionId = event.grokSessionId;
@@ -1472,6 +1497,11 @@
 
       unsubError = window.runtime.EventsOn('grok:error', async (event: { sessionId: string; error: string }) => {
         if (event.sessionId) {
+          // If auto-retry is already in flight for this session from truncation, ignore duplicate error event
+          if (autoRetryingSessionIds.has(event.sessionId)) {
+            return;
+          }
+
           const sessionObj = sessionStore.sessions.find((s) => s.id === event.sessionId);
           const truncationDetails = parseTokenTruncationDetails(event.error);
 

@@ -11,7 +11,7 @@ export interface QueueState {
 export function handleTurnError(
   state: QueueState,
   isTruncation: boolean,
-  maxRetries = 2
+  maxRetries = 3
 ): { action: 'retry' | 'pause'; nextPrompt?: string } {
   state.status = 'error';
 
@@ -20,7 +20,7 @@ export function handleTurnError(
     state.status = 'working';
     return {
       action: 'retry',
-      nextPrompt: 'Lanjutkan dan selesaikan tugas sebelumnya yang terpotong. Fokus pada langkah yang belum terselesaikan.'
+      nextPrompt: 'Continue and finish the previous truncated task. Focus on the remaining uncompleted steps.'
     };
   }
 
@@ -45,7 +45,7 @@ describe('Queue Error Isolation & Auto-Retry', () => {
     expect(state.status).toBe('error');
   });
 
-  it('triggers auto-retry on max_tokens_truncation up to maxRetries', () => {
+  it('triggers auto-retry on max_tokens_truncation up to 3x before pausing', () => {
     const state: QueueState = {
       sessionId: 's1',
       queuedPrompts: ['Next task'],
@@ -55,20 +55,27 @@ describe('Queue Error Isolation & Auto-Retry', () => {
     };
 
     // First truncation -> Retry 1
-    const res1 = handleTurnError(state, true, 2);
+    const res1 = handleTurnError(state, true, 3);
     expect(res1.action).toBe('retry');
+    expect(res1.nextPrompt).toContain('Continue and finish');
     expect(state.retryCount).toBe(1);
     expect(state.queuedPrompts).toHaveLength(1); // Queue untouched!
 
     // Second truncation -> Retry 2
-    const res2 = handleTurnError(state, true, 2);
+    const res2 = handleTurnError(state, true, 3);
     expect(res2.action).toBe('retry');
     expect(state.retryCount).toBe(2);
     expect(state.queuedPrompts).toHaveLength(1); // Queue untouched!
 
-    // Third truncation -> Exhausted -> Pause queue
-    const res3 = handleTurnError(state, true, 2);
-    expect(res3.action).toBe('pause');
+    // Third truncation -> Retry 3
+    const res3 = handleTurnError(state, true, 3);
+    expect(res3.action).toBe('retry');
+    expect(state.retryCount).toBe(3);
+    expect(state.queuedPrompts).toHaveLength(1); // Queue untouched!
+
+    // Fourth truncation -> Exhausted (3 reached) -> Pause queue
+    const res4 = handleTurnError(state, true, 3);
+    expect(res4.action).toBe('pause');
     expect(state.status).toBe('error');
     expect(state.queuedPrompts).toHaveLength(1); // Next task safe!
   });
