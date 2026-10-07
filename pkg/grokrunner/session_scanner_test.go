@@ -52,13 +52,23 @@ func TestDiscoverGrokSessions_ExtractionAndFiltering(t *testing.T) {
 	})
 	os.WriteFile(filepath.Join(sess3, "summary.json"), ghostSummary, 0644)
 
+	// 4. Subagent internal session (session_kind = "subagent")
+	sess4 := filepath.Join(testDir, "sess-subagent")
+	os.MkdirAll(sess4, 0755)
+	subagentSummary, _ := json.Marshal(map[string]interface{}{
+		"session_summary": "Subagent Background Review Task",
+		"session_kind":    "subagent",
+		"num_messages":    12,
+	})
+	os.WriteFile(filepath.Join(sess4, "summary.json"), subagentSummary, 0644)
+
 	results, err := DiscoverGrokSessions(testWs)
 	if err != nil {
 		t.Fatalf("DiscoverGrokSessions failed: %v", err)
 	}
 
 	if len(results) != 2 {
-		t.Fatalf("Expected 2 valid sessions (ghost filtered out), got %d", len(results))
+		t.Fatalf("Expected 2 valid sessions (ghost and subagent filtered out), got %d", len(results))
 	}
 
 	foundSummary := false

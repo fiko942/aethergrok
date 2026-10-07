@@ -295,12 +295,18 @@ func DiscoverGrokSessions(workspacePath string) ([]GrokSessionMetadata, error) {
 			var summaryObj struct {
 				SessionSummary  string `json:"session_summary"`
 				GeneratedTitle  string `json:"generated_title"`
+				SessionKind     string `json:"session_kind"`
 				NumMessages     int    `json:"num_messages"`
 				NumChatMessages int    `json:"num_chat_messages"`
 				CreatedAt       string `json:"created_at"`
 				UpdatedAt       string `json:"updated_at"`
 			}
 			if json.Unmarshal(data, &summaryObj) == nil {
+				// Exclude internal subagent sessions from user-visible session lists
+				if strings.HasPrefix(strings.ToLower(summaryObj.SessionKind), "subagent") {
+					continue
+				}
+
 				numMessages = summaryObj.NumMessages
 				if summaryObj.SessionSummary != "" {
 					title = strings.TrimSpace(summaryObj.SessionSummary)
