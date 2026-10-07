@@ -475,11 +475,12 @@
       }
     }
 
-    // Record user message with vision images
+    // Record user message with vision images and file attachments
     const userMsg = sessionStore.addMessage(sessionId, {
       role: 'user',
       content: payload.text,
       images: payload.images.length > 0 ? payload.images : undefined,
+      attachments: payload.attachments && payload.attachments.length > 0 ? payload.attachments : undefined,
       isSteer: payload.isSteer,
       tokens: {
         input: Math.ceil(fullPromptText.length / 4) + payload.images.length * 100,

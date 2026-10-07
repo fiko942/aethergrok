@@ -688,7 +688,38 @@
   export function restorePrompt(payload: { text: string; images?: VisionImage[]; attachments?: AttachedFile[] }) {
     text = payload.text || '';
     attachedImages = payload.images ? [...payload.images] : [];
-    attachedFiles = payload.attachments ? [...payload.attachments] : [];
+    
+    // Ensure attachedFiles has entries for all images so visual chips are rendered in the prompt box
+    const files: AttachedFile[] = payload.attachments ? [...payload.attachments] : [];
+    if (payload.images && payload.images.length > 0) {
+      for (const img of payload.images) {
+        if (!files.some((f) => f.id === img.id || (f.filePath && f.filePath === img.filePath))) {
+          files.push({
+            id: img.id,
+            name: img.filePath.split(/[/\\]/).pop() || 'Attachment.jpg',
+            filePath: img.filePath,
+            sizeBytes: img.sizeBytes,
+            dataUrl: img.dataUrl,
+            isImage: true,
+            timestamp: img.timestamp || Date.now()
+          });
+        }
+      }
+    }
+    // Also sync any image attachments into attachedImages if missing
+    for (const f of files) {
+      if (f.isImage && !attachedImages.some((img) => img.id === f.id || (f.filePath && img.filePath === f.filePath))) {
+        attachedImages.push({
+          id: f.id,
+          filePath: f.filePath,
+          dataUrl: f.dataUrl,
+          sizeBytes: f.sizeBytes,
+          timestamp: f.timestamp
+        });
+      }
+    }
+
+    attachedFiles = files;
 
     tick().then(() => {
       adjustTextareaHeight();
@@ -700,7 +731,37 @@
   function handleEditQueuedPrompt(promptItem: QueuedPrompt) {
     text = promptItem.text || '';
     attachedImages = [...(promptItem.images || [])];
-    attachedFiles = [...(promptItem.attachments || [])];
+    
+    const files: AttachedFile[] = promptItem.attachments ? [...promptItem.attachments] : [];
+    if (promptItem.images && promptItem.images.length > 0) {
+      for (const img of promptItem.images) {
+        if (!files.some((f) => f.id === img.id || (f.filePath && f.filePath === img.filePath))) {
+          files.push({
+            id: img.id,
+            name: img.filePath.split(/[/\\]/).pop() || 'Attachment.jpg',
+            filePath: img.filePath,
+            sizeBytes: img.sizeBytes,
+            dataUrl: img.dataUrl,
+            isImage: true,
+            timestamp: img.timestamp || Date.now()
+          });
+        }
+      }
+    }
+    // Also sync any image attachments into attachedImages if missing
+    for (const f of files) {
+      if (f.isImage && !attachedImages.some((img) => img.id === f.id || (f.filePath && img.filePath === f.filePath))) {
+        attachedImages.push({
+          id: f.id,
+          filePath: f.filePath,
+          dataUrl: f.dataUrl,
+          sizeBytes: f.sizeBytes,
+          timestamp: f.timestamp
+        });
+      }
+    }
+
+    attachedFiles = files;
 
     // Remove from queue
     if (sessionStore.activeSessionId) {

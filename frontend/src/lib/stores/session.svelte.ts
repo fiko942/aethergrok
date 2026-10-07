@@ -1500,6 +1500,7 @@ class SessionStore {
       tokens: message.tokens,
       toolCalls: message.toolCalls ? [...message.toolCalls] : undefined,
       images: message.images ? [...message.images] : undefined,
+      attachments: message.attachments ? [...message.attachments] : undefined,
       status: message.status,
       isSteer: message.isSteer
     };
