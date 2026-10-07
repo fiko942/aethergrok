@@ -583,8 +583,10 @@
     // 1. Remove this item from queue
     sessionStore.removeQueuedPrompt(sessionId, promptItem.id);
 
-    // 2. Cancel current running turn
-    await handleCancelSession();
+    // 2. Cancel current running turn if active and wait for process to settle
+    if (activeSession.status === 'working') {
+      await handleCancelSession(sessionId, false);
+    }
 
     // 3. Immediately dispatch the steer prompt
     await executeTurn(sessionId, {
@@ -599,7 +601,13 @@
 
   // Auto-dequeue helper
   function checkAndDispatchNextQueue(sessionId: string) {
+    const session = sessionStore.sessions.find((s) => s.id === sessionId);
+    if (!session || session.status === 'working') return;
+
     setTimeout(() => {
+      const current = sessionStore.sessions.find((s) => s.id === sessionId);
+      if (!current || current.status === 'working') return;
+
       const next = sessionStore.popNextQueuedPrompt(sessionId);
       if (next) {
         executeTurn(sessionId, {
@@ -610,21 +618,7 @@
           reasoningEffort: next.reasoningEffort
         });
       }
-    }, 200);
-  }
-
-  // Manual retry trigger for truncated turns or recovery card actions
-  async function handleManualRetry() {
-    const activeSession = sessionStore.activeSession;
-    if (!activeSession) return;
-    activeSession.autoRetryCount = 0;
-    await executeTurn(activeSession.id, {
-      text: 'Continue and finish the previous truncated task. Focus on the remaining uncompleted steps.',
-      images: [],
-      attachments: [],
-      model: selectedModel,
-      reasoningEffort: reasoningEffort as 'low' | 'medium' | 'high'
-    });
+    }, 250);
   }
 
   // Resume paused queue execution
@@ -643,25 +637,28 @@
   }
 
   // Cancel running session
-  async function handleCancelSession(targetSessionId?: string) {
-    const sId = targetSessionId || sessionStore.activeSession?.id;
-    if (!sId) return;
+  async function handleCancelSession(targetSessionId?: string, pauseQueue = true) {
+    const sessionId = targetSessionId || sessionStore.activeSession?.id;
+    if (!sessionId) return;
 
     if (window.go?.main?.App?.CancelSession) {
       try {
-        await window.go.main.App.CancelSession(sId);
+        await window.go.main.App.CancelSession(sessionId);
       } catch (err) {
         console.error('Failed to cancel session:', err);
       }
     }
 
-    sessionStore.setSessionStatus(sId, 'idle');
-    sessionStore.updateLastMessage(sId, (msg) => {
+    sessionStore.setSessionStatus(sessionId, 'idle');
+    sessionStore.updateLastMessage(sessionId, (msg) => {
       if (msg.status === 'streaming') {
         msg.status = 'done';
         msg.content += '\n\n*(Turn cancelled by user)*';
       }
     });
+
+    // Small delay to ensure OS process cleanup before any subsequent turn
+    await new Promise((resolve) => setTimeout(resolve, 150));
   }
 
   // Edit last user turn: rollback turn on disk/session and load payload into composer
@@ -1476,13 +1473,14 @@
             await sessionStore.loadSessionUsage(sessionObj);
           }
 
-          if (event.status === 'success' || (!event.error && event.status !== 'error')) {
+          if (event.status === 'success') {
             if (sessionObj) {
               sessionObj.autoRetryCount = 0;
             }
-            // Automatically pop and dispatch next queued prompt if available
+            // Automatically pop and dispatch next queued prompt ONLY on natural success completion,
+            // never when interrupted or cancelled by the user.
             checkAndDispatchNextQueue(event.sessionId);
-          } else {
+          } else if (event.status === 'error' || event.error) {
             // If turn completed with an error, check if it's truncation error for auto-retry
             const truncationDetails = parseTokenTruncationDetails(event.error);
             if (truncationDetails && sessionObj) {

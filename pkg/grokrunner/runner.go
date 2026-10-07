@@ -523,9 +523,13 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 	parser := NewStreamParser(req.SessionID, callbacks)
 	parser.SetInitialGrokSessionID(resolvedSessionUUID)
 
-	// Startup watchdog: if Grok CLI produces zero stdout lines within 45s (e.g. startup deadlock / corrupted history),
-	// terminate the process immediately and fail fast.
-	const startupTimeout = 45 * time.Second
+	// Startup watchdog: if Grok CLI produces zero stdout lines within startupTimeout (e.g. startup deadlock / corrupted history),
+	// terminate the process immediately and fail fast. For image/vision requests or large workspace contexts,
+	// grant a 90s window to avoid killing legitimate heavy initializations.
+	startupTimeout := 45 * time.Second
+	if len(req.Images) > 0 {
+		startupTimeout = 90 * time.Second
+	}
 	var timedOutDuringStartup atomic.Bool
 	watchdogDone := make(chan struct{})
 
@@ -632,6 +636,9 @@ func (r *Runner) Cancel(sessionID string) error {
 	active.Cancel()
 	if active.Stdout != nil {
 		_ = active.Stdout.Close()
+	}
+	if active.Stdin != nil {
+		_ = active.Stdin.Close()
 	}
 	return killProcessGroup(active.Cmd)
 }

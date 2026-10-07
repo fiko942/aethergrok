@@ -1287,6 +1287,13 @@ class SessionStore {
     }
   }
 
+  clearQueuedPrompts(sessionId: string): void {
+    const session = this.sessions.find((s) => s.id === sessionId);
+    if (!session || !session.queuedPrompts) return;
+    session.queuedPrompts = [];
+    this.saveSessionsToStorage();
+  }
+
   // Load external Grok sessions discovered from ~/.grok/sessions
   syncDiscoveredGrokSessions(wsId: string, grokSessions: Array<{ id: string; title: string; createdAt: number; updatedAt: number }>): void {
     if (!grokSessions || grokSessions.length === 0) return;
@@ -1479,12 +1486,6 @@ class SessionStore {
     const session = this.sessions.find((s) => s.id === sessionId);
     if (!session || !session.queuedPrompts || session.queuedPrompts.length === 0) return undefined;
     return session.queuedPrompts.shift();
-  }
-
-  clearQueuedPrompts(sessionId: string): void {
-    const session = this.sessions.find((s) => s.id === sessionId);
-    if (!session || !session.queuedPrompts) return;
-    session.queuedPrompts = [];
   }
 
   addMessage(sessionId: string, message: Omit<ChatMessage, 'id' | 'timestamp'> & { id?: string; timestamp?: number }): ChatMessage {

@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parseTodosUpdated, calculatePlanMetrics, deduplicateTodos, type TodoItem } from './planParser';
 
 // Define Svelte 5 runes mock on globalThis for node test environment
 if (typeof (globalThis as any).$state === 'undefined') {
@@ -9,6 +8,7 @@ if (typeof (globalThis as any).$derived === 'undefined') {
   (globalThis as any).$derived = (v: any) => v;
 }
 
+import { parseTodosUpdated, calculatePlanMetrics, deduplicateTodos, type TodoItem } from './planParser';
 const { PlanStore } = await import('../stores/plan.svelte');
 
 describe('planParser', () => {
