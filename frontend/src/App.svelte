@@ -456,6 +456,23 @@
     return false;
   }
 
+  // Manual continuation retry for exhausted auto-retries or user-initiated turn retry
+  async function handleManualRetry(message?: any) {
+    if (!sessionStore.activeSession) return;
+    const sessionId = sessionStore.activeSession.id;
+    const sessionObj = sessionStore.sessions.find((s) => s.id === sessionId);
+    if (sessionObj) {
+      sessionObj.autoRetryCount = 0;
+    }
+    await executeTurn(sessionId, {
+      text: 'Continue and finish the previous truncated task. Focus on the remaining uncompleted steps.',
+      images: [],
+      attachments: [],
+      model: selectedModel,
+      reasoningEffort: reasoningEffort as 'low' | 'medium' | 'high'
+    });
+  }
+
   // Execute a prompt turn
   async function executeTurn(sessionId: string, payload: {
     text: string;

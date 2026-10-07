@@ -711,10 +711,10 @@
       if (f.isImage && !attachedImages.some((img) => img.id === f.id || (f.filePath && img.filePath === f.filePath))) {
         attachedImages.push({
           id: f.id,
-          filePath: f.filePath,
-          dataUrl: f.dataUrl,
+          filePath: f.filePath || '',
+          dataUrl: f.dataUrl || '',
           sizeBytes: f.sizeBytes,
-          timestamp: f.timestamp
+          timestamp: f.timestamp || Date.now()
         });
       }
     }
@@ -753,10 +753,10 @@
       if (f.isImage && !attachedImages.some((img) => img.id === f.id || (f.filePath && img.filePath === f.filePath))) {
         attachedImages.push({
           id: f.id,
-          filePath: f.filePath,
-          dataUrl: f.dataUrl,
+          filePath: f.filePath || '',
+          dataUrl: f.dataUrl || '',
           sizeBytes: f.sizeBytes,
-          timestamp: f.timestamp
+          timestamp: f.timestamp || Date.now()
         });
       }
     }

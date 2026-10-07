@@ -2,8 +2,30 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "AetherGrok Release Changelog",
   "description": "Central single source of truth for all AetherGrok releases, commit ranges, and download artifacts.",
-  "latest": "1.1.5",
+  "latest": "1.1.10",
   "releases": [
+    {
+      "version": "1.1.10",
+      "tag": "v1.1.10",
+      "date": "2026-10-08T07:00:00.000Z",
+      "title": "AetherGrok 1.1.10 - Fix Blank Screen on App Launch & Restore Prompt Attachment Sync",
+      "targetCommit": "HEAD",
+      "previousCommit": "5d245c2",
+      "highlights": [
+        "Fix critical ReferenceError: handleManualRetry is not defined in App.svelte that caused the desktop app to render a blank window on startup",
+        "Add handleManualRetry callback for manual task continuation after exhausted token truncation auto-retries",
+        "Fix AttachedFile and VisionImage filePath / dataUrl / timestamp typing consistency in Composer.svelte",
+        "Exclude internal subagent sessions from workspace session discovery list",
+        "Restore full file and image attachment synchronization on prompt edit and turn rollback"
+      ],
+      "commits": [],
+      "downloads": {
+        "macos_arm64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.10/AetherGrok-1.1.10-macOS-arm64.dmg",
+        "macos_x64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.10/AetherGrok-1.1.10-macOS-amd64.dmg",
+        "windows_x64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.10/AetherGrok-1.1.10-windows-amd64-setup.exe",
+        "windows_arm64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.10/AetherGrok-1.1.10-windows-arm64-setup.exe"
+      }
+    },
     {
       "version": "1.1.5",
       "tag": "v1.1.5",
