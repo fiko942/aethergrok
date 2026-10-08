@@ -2,8 +2,28 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "AetherGrok Release Changelog",
   "description": "Central single source of truth for all AetherGrok releases, commit ranges, and download artifacts.",
-  "latest": "1.1.10",
+  "latest": "1.1.11",
   "releases": [
+    {
+      "version": "1.1.11",
+      "tag": "v1.1.11",
+      "date": "2026-10-08T08:00:00.000Z",
+      "title": "AetherGrok 1.1.11 - Human-Friendly Plan Update Summaries & Accurate Cumulative Task Tracking",
+      "targetCommit": "HEAD",
+      "previousCommit": "09e18e1",
+      "highlights": [
+        "Replace confusing jumping task numbers (e.g. 0/4, 0/8, 10/10) with informative action-based labels in chat feed tool cards (e.g. 'Completed Step 1 → Started Step 2')",
+        "Enrich partial diffs (merge: true) with full task names from session plan state",
+        "Display accurate cumulative progress metrics (e.g. '3/10 completed') based on total session plan rather than isolated partial updates",
+        "Add formatPlanUpdateSummary and resolveTodoContent utility functions with comprehensive Vitest coverage"
+      ],
+      "downloads": {
+        "macos_arm64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.11/AetherGrok-1.1.11-macOS-arm64.dmg",
+        "macos_x64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.11/AetherGrok-1.1.11-macOS-amd64.dmg",
+        "windows_x64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.11/AetherGrok-1.1.11-windows-amd64-setup.exe",
+        "windows_arm64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.11/AetherGrok-1.1.11-windows-arm64-setup.exe"
+      }
+    },
     {
       "version": "1.1.10",
       "tag": "v1.1.10",

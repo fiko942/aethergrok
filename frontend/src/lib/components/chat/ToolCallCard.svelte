@@ -6,11 +6,15 @@
   import DiffCard from './DiffCard.svelte';
   import { renderMarkdown } from '$lib/utils/markdownRenderer';
   import { inputShieldStore } from '$lib/stores/inputShield.svelte';
+  import { planStore } from '$lib/stores/plan.svelte';
+  import { sessionStore } from '$lib/stores/session.svelte';
   import {
     parseTodosUpdated,
     type TodoItem,
     extractPlanFilePath,
-    extractPlanMarkdownFromResult
+    extractPlanMarkdownFromResult,
+    formatPlanUpdateSummary,
+    resolveTodoContent
   } from '$lib/utils/planParser';
   import {
     Terminal,
@@ -148,10 +152,15 @@
 
     // 0. Todos / Plan Update Tool (e.g. todo_write or write/task output containing TodosUpdated)
     if (detectedTodos && detectedTodos.length > 0) {
-      const completedCount = detectedTodos.filter(t => t.status === 'completed').length;
-      const targetText = `${completedCount}/${detectedTodos.length} tasks completed`;
+      let isMerge = true;
+      if (p && typeof p.merge === 'boolean') {
+        isMerge = p.merge;
+      }
+      const sessionPlan = planStore.getPlan(sessionStore.activeSessionId);
+      const targetText = formatPlanUpdateSummary(detectedTodos, isMerge, sessionPlan);
+      const verb = isMerge ? 'Update Plan' : 'Create Plan';
       return {
-        verb: 'Update Plan',
+        verb,
         type: 'todos_update' as const,
         target: targetText,
         todos: detectedTodos,
@@ -844,32 +853,44 @@
               <ListTodo size={13} class="text-indigo-600 dark:text-indigo-400" />
               <span>Execution Plan Tasks</span>
             </div>
-            <span class="font-mono text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-semibold">
-              {detectedTodos.filter(t => t.status === 'completed').length} / {detectedTodos.length} Completed
-            </span>
+            {#if planStore.getPlan(sessionStore.activeSessionId)}
+              {@const sp = planStore.getPlan(sessionStore.activeSessionId)}
+              <span class="font-mono text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-semibold">
+                {sp ? `${sp.completedCount} / ${sp.totalCount} Overall Completed` : `${detectedTodos.filter(t => t.status === 'completed').length} / ${detectedTodos.length} Completed`}
+              </span>
+            {:else}
+              <span class="font-mono text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-semibold">
+                {detectedTodos.filter(t => t.status === 'completed').length} / {detectedTodos.length} Completed
+              </span>
+            {/if}
           </div>
 
           <div class="p-2 space-y-1.5 max-h-72 overflow-y-auto scrollbar-thin">
             {#each detectedTodos as todo (todo.id)}
+              {@const content = resolveTodoContent(todo, planStore.getPlan(sessionStore.activeSessionId))}
               <div class="flex items-start space-x-2.5 p-2 rounded-md bg-ant-bg dark:bg-white/[0.02] border border-ant-border-secondary dark:border-white/[0.04] transition-colors hover:bg-ant-bg-tertiary/60 dark:hover:bg-white/[0.04]">
                 <div class="mt-0.5 shrink-0">
                   {#if todo.status === 'completed'}
-                    <div class="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/40">
+                    <div class="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/40" title="Completed">
                       <Check size={10} class="stroke-[3]" />
                     </div>
                   {:else if todo.status === 'in_progress'}
-                    <div class="w-4 h-4 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/40 animate-pulse">
+                    <div class="w-4 h-4 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/40 animate-pulse" title="In Progress">
                       <Loader2 size={10} class="animate-spin" />
                     </div>
+                  {:else if todo.status === 'cancelled'}
+                    <div class="w-4 h-4 rounded-full bg-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-500/40" title="Cancelled">
+                      <XCircle size={10} />
+                    </div>
                   {:else}
-                    <div class="w-4 h-4 rounded-full border border-zinc-300 dark:border-zinc-600 bg-zinc-100 dark:bg-zinc-800/50 flex items-center justify-center">
+                    <div class="w-4 h-4 rounded-full border border-zinc-300 dark:border-zinc-600 bg-zinc-100 dark:bg-zinc-800/50 flex items-center justify-center" title="Pending">
                     </div>
                   {/if}
                 </div>
 
                 <div class="flex-1 min-w-0 font-serif leading-relaxed">
                   <p class="text-xs {todo.status === 'completed' ? 'line-through text-ant-text-muted' : 'text-ant-text'}">
-                    {todo.content}
+                    {content}
                   </p>
                 </div>
 

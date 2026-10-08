@@ -8,7 +8,14 @@ if (typeof (globalThis as any).$derived === 'undefined') {
   (globalThis as any).$derived = (v: any) => v;
 }
 
-import { parseTodosUpdated, calculatePlanMetrics, deduplicateTodos, type TodoItem } from './planParser';
+import {
+  parseTodosUpdated,
+  calculatePlanMetrics,
+  deduplicateTodos,
+  formatPlanUpdateSummary,
+  resolveTodoContent,
+  type TodoItem
+} from './planParser';
 const { PlanStore } = await import('../stores/plan.svelte');
 
 describe('planParser', () => {
@@ -56,6 +63,42 @@ describe('planParser', () => {
     const deduplicated = deduplicateTodos(todos);
     expect(deduplicated).toHaveLength(2);
     expect(deduplicated.find((t) => t.id === 'task-1')?.status).toBe('completed');
+  });
+
+  it('formats descriptive summary for plan creation and task completion', () => {
+    const freshTodos: TodoItem[] = [
+      { id: 't1', content: 'Investigate bug', status: 'in_progress' },
+      { id: 't2', content: 'Implement fix', status: 'pending' },
+      { id: 't3', content: 'Verify tests', status: 'pending' },
+    ];
+
+    // Non-merge creation
+    const freshSummary = formatPlanUpdateSummary(freshTodos, false);
+    expect(freshSummary).toBe('Created plan with 3 tasks');
+
+    // Single task completion with session plan context
+    const sessionPlan = calculatePlanMetrics(freshTodos);
+    sessionPlan.completedCount = 1;
+    sessionPlan.totalCount = 3;
+
+    const singleDone = formatPlanUpdateSummary(
+      [{ id: 't1', content: 'Investigate bug', status: 'completed' }],
+      true,
+      sessionPlan
+    );
+    expect(singleDone).toContain('Completed "Investigate bug"');
+    expect(singleDone).toContain('1/3 completed');
+
+    // Transition: one done, one started
+    const transition = formatPlanUpdateSummary(
+      [
+        { id: 't1', content: 'Investigate bug', status: 'completed' },
+        { id: 't2', content: 'Implement fix', status: 'in_progress' },
+      ],
+      true,
+      sessionPlan
+    );
+    expect(transition).toContain('Completed "Investigate bug" → Started "Implement fix"');
   });
 });
 

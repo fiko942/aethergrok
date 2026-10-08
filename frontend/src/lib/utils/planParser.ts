@@ -323,3 +323,82 @@ export function extractPlanMarkdownFromResult(result: unknown): string {
 
   return '';
 }
+
+/**
+ * Resolves the display content for a Todo item, checking the full session plan if content is missing or placeholder.
+ */
+export function resolveTodoContent(item: TodoItem, sessionPlan?: SessionPlanState | null): string {
+  if (item.content && item.content !== item.id && !item.content.startsWith('task-')) {
+    return item.content;
+  }
+  if (sessionPlan && sessionPlan.todos) {
+    const found = sessionPlan.todos.find((t) => t.id === item.id);
+    if (found && found.content) {
+      return found.content;
+    }
+  }
+  return item.content || item.id;
+}
+
+/**
+ * Truncates text with an ellipsis if it exceeds maxLen.
+ */
+export function truncatePlanText(text: string, maxLen = 32): string {
+  if (!text) return '';
+  return text.length > maxLen ? text.slice(0, maxLen - 1) + '…' : text;
+}
+
+/**
+ * Generates a human-friendly, informative summary label for a plan update / todo_write action.
+ */
+export function formatPlanUpdateSummary(
+  todos: TodoItem[],
+  isMerge = true,
+  sessionPlan?: SessionPlanState | null
+): string {
+  if (!todos || todos.length === 0) {
+    return 'Plan updated';
+  }
+
+  // If not a merge (fresh plan creation or full replacement)
+  if (!isMerge) {
+    const count = todos.length;
+    return `Created plan with ${count} ${count === 1 ? 'task' : 'tasks'}`;
+  }
+
+  const completedItems = todos.filter((t) => t.status === 'completed');
+  const inProgressItems = todos.filter((t) => t.status === 'in_progress');
+  const cancelledItems = todos.filter((t) => t.status === 'cancelled');
+
+  let actionText = '';
+
+  if (completedItems.length === 1 && inProgressItems.length === 1) {
+    const doneName = resolveTodoContent(completedItems[0], sessionPlan);
+    const startName = resolveTodoContent(inProgressItems[0], sessionPlan);
+    actionText = `Completed "${truncatePlanText(doneName, 24)}" → Started "${truncatePlanText(startName, 24)}"`;
+  } else if (completedItems.length === 1 && inProgressItems.length === 0) {
+    const doneName = resolveTodoContent(completedItems[0], sessionPlan);
+    actionText = `Completed "${truncatePlanText(doneName, 36)}"`;
+  } else if (inProgressItems.length === 1 && completedItems.length === 0) {
+    const startName = resolveTodoContent(inProgressItems[0], sessionPlan);
+    actionText = `Started "${truncatePlanText(startName, 36)}"`;
+  } else if (cancelledItems.length === 1 && todos.length === 1) {
+    const cancelName = resolveTodoContent(cancelledItems[0], sessionPlan);
+    actionText = `Cancelled "${truncatePlanText(cancelName, 36)}"`;
+  } else if (completedItems.length > 0 && inProgressItems.length > 0) {
+    actionText = `Completed ${completedItems.length} & Started ${inProgressItems.length} tasks`;
+  } else if (completedItems.length > 0) {
+    actionText = `Completed ${completedItems.length} ${completedItems.length === 1 ? 'task' : 'tasks'}`;
+  } else if (inProgressItems.length > 0) {
+    actionText = `In Progress: ${inProgressItems.length} ${inProgressItems.length === 1 ? 'task' : 'tasks'}`;
+  } else {
+    actionText = `Updated ${todos.length} ${todos.length === 1 ? 'task' : 'tasks'}`;
+  }
+
+  // Append cumulative session progress if available
+  if (sessionPlan && sessionPlan.totalCount > 0) {
+    return `${actionText} · ${sessionPlan.completedCount}/${sessionPlan.totalCount} completed`;
+  }
+
+  return actionText;
+}
