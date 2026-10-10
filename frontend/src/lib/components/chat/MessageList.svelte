@@ -251,10 +251,17 @@
 
     // Use ResizeObserver on contentWrapperEl to instantly follow streaming text/tool UI height expansions when pinned to bottom
     let resizeObserver: ResizeObserver | null = null;
+    let rAFId: number | null = null;
     if (typeof ResizeObserver !== 'undefined' && contentWrapperEl) {
       resizeObserver = new ResizeObserver(() => {
         if (autoScrollToBottom && containerEl) {
-          containerEl.scrollTop = containerEl.scrollHeight;
+          if (rAFId !== null) cancelAnimationFrame(rAFId);
+          rAFId = requestAnimationFrame(() => {
+            rAFId = null;
+            if (autoScrollToBottom && containerEl) {
+              containerEl.scrollTop = containerEl.scrollHeight;
+            }
+          });
         }
       });
       resizeObserver.observe(contentWrapperEl);
@@ -280,6 +287,7 @@
     }
 
     return () => {
+      if (rAFId !== null) cancelAnimationFrame(rAFId);
       if (resizeObserver) resizeObserver.disconnect();
       if (intersectionObserver) intersectionObserver.disconnect();
     };

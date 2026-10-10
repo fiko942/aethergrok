@@ -220,6 +220,7 @@
   onMount(() => {
     let resizeObserver: ResizeObserver | null = null;
     let intersectionObserver: IntersectionObserver | null = null;
+    let rAFId: number | null = null;
 
     if (itemContainerEl) {
       const h = itemContainerEl.offsetHeight;
@@ -229,12 +230,16 @@
 
       if (typeof ResizeObserver !== 'undefined') {
         resizeObserver = new ResizeObserver(() => {
-          if (shouldRenderChildren && itemContainerEl) {
-            const currentHeight = itemContainerEl.offsetHeight;
-            if (currentHeight > 0) {
-              lastMeasuredHeight = currentHeight;
+          if (rAFId !== null) cancelAnimationFrame(rAFId);
+          rAFId = requestAnimationFrame(() => {
+            rAFId = null;
+            if (shouldRenderChildren && itemContainerEl) {
+              const currentHeight = itemContainerEl.offsetHeight;
+              if (currentHeight > 0 && (lastMeasuredHeight === null || Math.abs(currentHeight - lastMeasuredHeight) > 1)) {
+                lastMeasuredHeight = currentHeight;
+              }
             }
-          }
+          });
         });
         resizeObserver.observe(itemContainerEl);
       }
@@ -258,6 +263,7 @@
     }
 
     return () => {
+      if (rAFId !== null) cancelAnimationFrame(rAFId);
       if (resizeObserver) resizeObserver.disconnect();
       if (intersectionObserver) intersectionObserver.disconnect();
     };

@@ -54,7 +54,15 @@ class LoggerStore {
     if (typeof window === 'undefined') return;
 
     window.addEventListener('error', (event) => {
-      this.error('SYSTEM', `Uncaught window error: ${event.message}`, {
+      const msg = event.message || '';
+      if (
+        msg.includes('ResizeObserver loop completed with undelivered notifications') ||
+        msg.includes('ResizeObserver loop limit exceeded')
+      ) {
+        return;
+      }
+
+      this.error('SYSTEM', `Uncaught window error: ${msg}`, {
         filename: event.filename,
         lineno: event.lineno,
         colno: event.colno,
@@ -232,3 +240,4 @@ class LoggerStore {
 }
 
 export const logger = new LoggerStore();
+export const loggerStore = logger;
