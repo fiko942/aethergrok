@@ -4,6 +4,7 @@ package terminal
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -41,7 +42,7 @@ func resizePty(file *osFileWrapper, rows, cols int) error {
 
 // killChildProcessesOfUnix finds and terminates child processes of parentPID
 func killChildProcessesOfUnix(parentPID int, sig syscall.Signal) error {
-	if parentPID <= 0 {
+	if parentPID <= 0 || parentPID == os.Getpid() {
 		return nil
 	}
 
@@ -56,7 +57,7 @@ func killChildProcessesOfUnix(parentPID int, sig syscall.Signal) error {
 		if line == "" {
 			continue
 		}
-		if childPID, err := strconv.Atoi(line); err == nil && childPID > 0 && childPID != parentPID {
+		if childPID, err := strconv.Atoi(line); err == nil && childPID > 0 && childPID != parentPID && childPID != os.Getpid() {
 			_ = killChildProcessesOfUnix(childPID, sig)
 			_ = syscall.Kill(childPID, sig)
 		}
@@ -70,10 +71,11 @@ func interruptProcess(cmd *exec.Cmd, ptmx *osFileWrapper) error {
 		_, _ = ptmx.Write([]byte{3}) // \x03 (Ctrl+C)
 	}
 
-	if cmd != nil && cmd.Process != nil && cmd.Process.Pid > 0 {
+	if cmd != nil && cmd.Process != nil && cmd.Process.Pid > 0 && cmd.Process.Pid != os.Getpid() {
 		pid := cmd.Process.Pid
+		myPgid, _ := syscall.Getpgid(os.Getpid())
 		pgid, err := syscall.Getpgid(pid)
-		if err == nil && pgid > 0 {
+		if err == nil && pgid > 1 && pgid != myPgid {
 			_ = syscall.Kill(-pgid, syscall.SIGINT)
 		}
 		_ = killChildProcessesOfUnix(pid, syscall.SIGINT)
@@ -82,15 +84,16 @@ func interruptProcess(cmd *exec.Cmd, ptmx *osFileWrapper) error {
 	return nil
 }
 
-// killProcessTree terminates the command and its full process tree
+// killProcessTree terminates the command and its full process tree safely
 func killProcessTree(cmd *exec.Cmd) error {
-	if cmd == nil || cmd.Process == nil {
+	if cmd == nil || cmd.Process == nil || cmd.Process.Pid <= 0 || cmd.Process.Pid == os.Getpid() {
 		return nil
 	}
 
 	pid := cmd.Process.Pid
+	myPgid, _ := syscall.Getpgid(os.Getpid())
 	pgid, err := syscall.Getpgid(pid)
-	if err == nil && pgid > 0 {
+	if err == nil && pgid > 1 && pgid != myPgid {
 		// Send SIGTERM to entire process group (-pgid)
 		_ = syscall.Kill(-pgid, syscall.SIGTERM)
 
