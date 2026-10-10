@@ -1029,7 +1029,7 @@
     // When focused in terminal, let standard terminal control sequences pass through cleanly
     if (inTerminal && !e.altKey && (e.ctrlKey || (!isEditing && e.metaKey))) {
       const k = e.key.toLowerCase();
-      if (['w', 'k', 't', 'b', 'c', 'v', 'l', 'u', 'r', 'a', 'e', 'd', 'z', 'p', 'n', 'f'].includes(k)) {
+      if (['k', 't', 'b', 'c', 'v', 'l', 'u', 'r', 'a', 'e', 'd', 'z', 'p', 'n', 'f'].includes(k)) {
         return;
       }
     }
@@ -1055,9 +1055,25 @@
       return;
     }
 
-    // Cmd/Ctrl + W: Close active session tab (allows 0 tabs in view)
-    if (isMetaOrCtrl && !inTerminal && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'w') {
+    // Intercept Cmd/Ctrl + W everywhere to prevent macOS [NSWindow performClose:] from killing the app
+    if (isMetaOrCtrl && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'w') {
       e.preventDefault();
+      e.stopPropagation();
+
+      // If inside terminal, close active terminal pane/tab first
+      if (inTerminal && sessionStore.activeSessionId) {
+        const activeTermId = terminalStore.activeTerminalIdPerSession[sessionStore.activeSessionId];
+        if (activeTermId) {
+          if (typeof (terminalStore as any).closeTerminalTab === 'function') {
+            (terminalStore as any).closeTerminalTab(sessionStore.activeSessionId, activeTermId);
+          } else {
+            terminalStore.closeTerminal(sessionStore.activeSessionId, activeTermId);
+          }
+          return;
+        }
+      }
+
+      // Otherwise close active session tab
       if (sessionStore.activeSessionId) {
         sessionStore.closeSessionTab(sessionStore.activeSessionId);
       }
