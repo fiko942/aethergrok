@@ -57,7 +57,7 @@ func killChildProcessesOfUnix(parentPID int, sig syscall.Signal) error {
 		if line == "" {
 			continue
 		}
-		if childPID, err := strconv.Atoi(line); err == nil && childPID > 0 && childPID != parentPID && childPID != os.Getpid() {
+		if childPID, err := strconv.Atoi(line); err == nil && childPID > 1 && childPID != parentPID && childPID != os.Getpid() {
 			_ = killChildProcessesOfUnix(childPID, sig)
 			_ = syscall.Kill(childPID, sig)
 		}

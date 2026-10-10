@@ -54,7 +54,7 @@ class LoggerStore {
     if (typeof window === 'undefined') return;
 
     window.addEventListener('error', (event) => {
-      const msg = event.message || '';
+      const msg = event.message || (event.error?.message ?? '');
       if (
         msg.includes('ResizeObserver loop completed with undelivered notifications') ||
         msg.includes('ResizeObserver loop limit exceeded')

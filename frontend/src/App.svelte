@@ -1072,11 +1072,7 @@
       if (inTerminal && sessionStore.activeSessionId) {
         const activeTermId = terminalStore.activeTerminalIdPerSession[sessionStore.activeSessionId];
         if (activeTermId) {
-          if (typeof (terminalStore as any).closeTerminalTab === 'function') {
-            (terminalStore as any).closeTerminalTab(sessionStore.activeSessionId, activeTermId);
-          } else {
-            terminalStore.closeTerminal(sessionStore.activeSessionId, activeTermId);
-          }
+          terminalStore.closeTerminal(sessionStore.activeSessionId, activeTermId);
           return;
         }
       }

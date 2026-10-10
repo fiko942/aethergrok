@@ -32,7 +32,9 @@ func TestKillProcessGroup_SelfPgidProtected(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get my pgid: %v", err)
 	}
-	_ = myPgid
+	if myPgid <= 0 {
+		t.Fatalf("invalid process group id: %d", myPgid)
+	}
 
 	cmdSelf := &exec.Cmd{Process: &os.Process{Pid: myPid}}
 	// killProcessGroup must detect that pgid == myPgid and refrain from calling syscall.Kill(-pgid, ...)
