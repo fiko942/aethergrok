@@ -32,7 +32,7 @@
 - Consumes: `syscall.Getpgid`, `syscall.Getpgrp`, `syscall.Kill`, `os.Getpid`
 - Produces: Safe `killProcessGroup(cmd *exec.Cmd) error`, `interruptProcess(cmd *exec.Cmd, ptmx *osFileWrapper) error`, `killProcessTree(cmd *exec.Cmd) error`
 
-- [ ] **Step 1: Write failing tests in `pkg/grokrunner/proc_unix_test.go`**
+- [x] **Step 1: Write failing tests in `pkg/grokrunner/proc_unix_test.go`**
 
 Create `pkg/grokrunner/proc_unix_test.go` testing that `killProcessGroup` safely handles nil process, PID <= 0, and commands that share the caller's process group without killing the caller:
 
@@ -85,12 +85,12 @@ func TestKillProcessGroup_SelfPgidProtected(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify behavior / failure**
+- [x] **Step 2: Run test to verify behavior / failure**
 
 Run: `go test -v ./pkg/grokrunner -run TestKillProcessGroup`
 Expected: If `cmdSelf` is killed, the test runner exits prematurely; otherwise passes after guard is implemented.
 
-- [ ] **Step 3: Implement safe PGID guards in `pkg/grokrunner/proc_unix.go` and `pkg/terminal/pty_unix.go`**
+- [x] **Step 3: Implement safe PGID guards in `pkg/grokrunner/proc_unix.go` and `pkg/terminal/pty_unix.go`**
 
 In `pkg/grokrunner/proc_unix.go`:
 ```go
@@ -219,12 +219,12 @@ func killProcessTree(cmd *exec.Cmd) error {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `go test -v ./pkg/grokrunner/... ./pkg/terminal/...`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add pkg/grokrunner/proc_unix.go pkg/grokrunner/proc_unix_test.go pkg/terminal/pty_unix.go
@@ -244,7 +244,7 @@ git commit -m "fix(system): protect parent process group from killProcessGroup a
 - Consumes: `wails.Run options.App`, `terminalStore.activeTerminalIdPerSession`, `terminalStore.closeTerminalTab`
 - Produces: `HideWindowOnClose: true`, non-leaking `Cmd+W` handling across terminal and tab surfaces
 
-- [ ] **Step 1: Write test for Cmd+W keyboard interception**
+- [x] **Step 1: Write test for Cmd+W keyboard interception**
 
 Create `test/shortcut-window-close.test.ts` testing that Cmd+W events with terminal or tabs prevent default:
 
@@ -266,12 +266,12 @@ describe('Cmd+W Keyboard Interception', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it passes**
+- [x] **Step 2: Run test to verify it passes**
 
 Run: `npx vitest run test/shortcut-window-close.test.ts`
 Expected: PASS
 
-- [ ] **Step 3: Update `main.go` and `frontend/src/App.svelte`**
+- [x] **Step 3: Update `main.go` and `frontend/src/App.svelte`**
 
 1. In `main.go`, set `HideWindowOnClose: true`:
 ```go
@@ -322,12 +322,12 @@ And adjust line 1030 in `App.svelte` so `'w'` is removed from the pass-through a
     }
 ```
 
-- [ ] **Step 4: Run frontend tests and verify build**
+- [x] **Step 4: Run frontend tests and verify build**
 
 Run: `npx vitest run test/shortcut-window-close.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add main.go frontend/src/App.svelte test/shortcut-window-close.test.ts
@@ -348,7 +348,7 @@ git commit -m "fix(window): enable HideWindowOnClose and intercept Cmd+W to prev
 - Consumes: `loggerStore.setupGlobalErrorHandlers`, `MessageItem.svelte`
 - Produces: Filtered logger that ignores `ResizeObserver loop` notifications, debounced requestAnimationFrame in `MessageItem.svelte`
 
-- [ ] **Step 1: Write failing test in `test/logger-filter.test.ts`**
+- [x] **Step 1: Write failing test in `test/logger-filter.test.ts`**
 
 ```ts
 import { describe, it, expect, vi } from 'vitest';
@@ -375,12 +375,12 @@ describe('Logger Filter for Benign Engine Errors', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run test/logger-filter.test.ts`
 Expected: FAIL (errorSpy was called)
 
-- [ ] **Step 3: Implement filtering in `logger.svelte.ts` and debouncing in `MessageItem.svelte`**
+- [x] **Step 3: Implement filtering in `logger.svelte.ts` and debouncing in `MessageItem.svelte`**
 
 1. In `frontend/src/lib/stores/logger.svelte.ts`:
 Filter out benign `ResizeObserver loop` errors:
@@ -431,12 +431,12 @@ And cancel any pending `rAFId` in the teardown return function.
 3. In `frontend/src/lib/components/chat/MessageList.svelte`:
 Wrap `containerEl.scrollTop = containerEl.scrollHeight` in `requestAnimationFrame` inside the `ResizeObserver` callback.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run test/logger-filter.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add frontend/src/lib/stores/logger.svelte.ts frontend/src/lib/components/chat/MessageItem.svelte frontend/src/lib/components/chat/MessageList.svelte test/logger-filter.test.ts
@@ -450,17 +450,34 @@ git commit -m "fix(perf): eliminate ResizeObserver infinite loop and suppress ha
 **Files:**
 - All modified files
 
-- [ ] **Step 1: Run all Go tests**
+- [x] **Step 1: Run all Go tests**
 
 Run: `go test -v ./...`
 Expected: All package tests PASS.
 
-- [ ] **Step 2: Run full Vitest frontend suite**
+- [x] **Step 2: Run full Vitest frontend suite**
 
 Run: `npx vitest run`
 Expected: All frontend test suites PASS.
 
-- [ ] **Step 3: Verify running application status**
+- [x] **Step 3: Verify running application status**
 
 Run: `ps -p 15859`
 Expected: PID 15859 remains active, unaffected, and healthy.
+
+---
+
+## Execution Summary
+
+Executed via `superpowers:subagent-driven-development` with isolated TDD subagents and reviewer subagents per task.
+
+- **Task 1 (Process Group Suicide Guard):** Complete (`c160b03`)
+- **Task 2 (macOS Window Close & Cmd+W Interception):** Complete (`3bb0928`, `079e6e2`)
+- **Task 3 (ResizeObserver Loop & Logger Filtering):** Complete (`f6c5e55`)
+- **Task 4 (Verification & Polish):** Complete (`f63d9d7`)
+- **Final Test Results:**
+  - Go Backend: 100% pass across all packages (`go test ./...`)
+  - Frontend Vitest: 240 test files passed, 5,346 tests passed (`npx vitest run`)
+  - Svelte Typecheck: 0 errors (`npm --prefix frontend run check`)
+  - Runtime Stability: PID 15859 healthy and continuous throughout execution.
+
