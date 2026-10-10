@@ -1029,6 +1029,10 @@
     // When focused in terminal, let standard terminal control sequences pass through cleanly
     if (inTerminal && !e.altKey && (e.ctrlKey || (!isEditing && e.metaKey))) {
       const k = e.key.toLowerCase();
+      // Ctrl+W is readline unix-word-rubout in terminal - pass through when ctrlKey and !metaKey
+      if (k === 'w' && e.ctrlKey && !e.metaKey) {
+        return;
+      }
       if (['k', 't', 'b', 'c', 'v', 'l', 'u', 'r', 'a', 'e', 'd', 'z', 'p', 'n', 'f'].includes(k)) {
         return;
       }
@@ -1055,8 +1059,12 @@
       return;
     }
 
-    // Intercept Cmd/Ctrl + W everywhere to prevent macOS [NSWindow performClose:] from killing the app
+    // Intercept Cmd/Ctrl + W to close tabs and prevent macOS [NSWindow performClose:] from killing the app
+    // Preserve Ctrl+W inside terminal for readline unix-word-rubout
     if (isMetaOrCtrl && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'w') {
+      if (inTerminal && e.ctrlKey && !e.metaKey) {
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
 
