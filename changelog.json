@@ -2,8 +2,30 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "AetherGrok Release Changelog",
   "description": "Central single source of truth for all AetherGrok releases, commit ranges, and download artifacts.",
-  "latest": "1.1.12",
+  "latest": "1.1.13",
   "releases": [
+    {
+      "version": "1.1.13",
+      "tag": "v1.1.13",
+      "date": "2026-10-18T15:30:00.000Z",
+      "title": "AetherGrok 1.1.13 - Session-Bound Turn Timer, DOM Active Windowing & Command In/Out Inspector",
+      "targetCommit": "HEAD",
+      "previousCommit": "c23d230",
+      "highlights": [
+        "Isolate prompt execution timers per session tab and display Grok CLI-style 'Waiting for response... [timer]' indicator next to the Stop button",
+        "Refine in-transcript activity text with accurate contextual status ('Executing shell command...', 'Grok is formulating response...', 'Waiting for response...')",
+        "Enable dynamic DOM Active Turn Windowing connected to user settings with automatic background turn flushing when returning to bottom or completing a prompt",
+        "Introduce structured human-readable command descriptions and separate copyable IN (full command) and OUT (clean execution output) panels on terminal tool cards",
+        "Add keyboard shortcuts ('c' for copy OUT, 'i' or 'Shift+C' for copy IN) when terminal cards are focused and expanded",
+        "Prevent background window disappearance via 1500ms screen capture watchdog and Cmd+H/Cmd+W keydown interception"
+      ],
+      "downloads": {
+        "macos_arm64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.13/AetherGrok-1.1.13-macOS-arm64.dmg",
+        "macos_x64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.13/AetherGrok-1.1.13-macOS-amd64.dmg",
+        "windows_x64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.13/AetherGrok-1.1.13-windows-amd64-setup.exe",
+        "windows_arm64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.13/AetherGrok-1.1.13-windows-arm64-setup.exe"
+      }
+    },
     {
       "version": "1.1.12",
       "tag": "v1.1.12",

@@ -42,28 +42,34 @@
     lightboxVisible = true;
   }
 
-  // Live thinking timer state for in-transcript activity indicator
+  // Live thinking timer state bound reactively to active session
   let elapsedMs = $state(0);
   let thinkingTimer: ReturnType<typeof setInterval> | null = null;
-  let startTimestamp = 0;
 
   const isWorking = $derived(sessionStore.activeSession?.status === 'working');
 
   // Track live elapsed timer for the transcript thinking indicator (in ms and seconds)
   $effect(() => {
-    if (isWorking) {
-      elapsedMs = 0;
-      startTimestamp = Date.now();
+    const curSession = sessionStore.activeSession;
+    const working = isWorking && curSession?.status === 'working';
+
+    if (working) {
+      const getStart = () => curSession?.turnStartTime || Date.now();
+      elapsedMs = Math.max(0, Date.now() - getStart());
+
       if (thinkingTimer) clearInterval(thinkingTimer);
       thinkingTimer = setInterval(() => {
-        elapsedMs = Date.now() - startTimestamp;
+        const start = curSession?.turnStartTime;
+        if (start) {
+          elapsedMs = Math.max(0, Date.now() - start);
+        }
       }, 100);
     } else {
       if (thinkingTimer) {
         clearInterval(thinkingTimer);
         thinkingTimer = null;
       }
-      elapsedMs = 0;
+      elapsedMs = curSession?.lastTurnDurationMs || 0;
     }
 
     return () => {
@@ -78,8 +84,13 @@
     if (elapsedMs < 1000) {
       return `${elapsedMs}ms`;
     }
-    const sec = (elapsedMs / 1000).toFixed(1);
-    return `${sec}s`;
+    const sec = Math.floor(elapsedMs / 1000);
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    if (m === 0) {
+      return `${(elapsedMs / 1000).toFixed(1)}s`;
+    }
+    return `${m}m ${s < 10 ? '0' : ''}${s}s`;
   });
 
   // Determine intelligent contextual thinking status text
@@ -95,16 +106,20 @@
         if (name.includes('read')) return 'Reading workspace file...';
         if (name.includes('search') || name.includes('grep')) return 'Searching codebase & patterns...';
         if (name.includes('edit') || name.includes('replace')) return 'Applying file modifications...';
-        if (name.includes('terminal') || name.includes('bash')) return 'Executing shell command...';
+        if (name.includes('terminal') || name.includes('bash') || name.includes('cmd')) return 'Executing shell command...';
         return `Running tool: ${activeTool.tool}...`;
       }
-      return 'Evaluating tool outputs & preparing response...';
+      // If tool calls are finished and assistant is generating stream or waiting
+      if (lastMsg.status === 'streaming') {
+        return 'Grok is formulating response...';
+      }
+      return 'Waiting for response...';
     }
 
     if (elapsedMs > 8000) {
       return 'Formulating comprehensive response...';
     }
-    return 'Grok is reasoning and planning actions...';
+    return 'Waiting for response...';
   });
 
   // Derive turn numbers for all messages in the active session
@@ -180,6 +195,17 @@
     }
   }
 
+  let isUserManualScrolling = false;
+  let userScrollTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  function markUserScrolling() {
+    isUserManualScrolling = true;
+    if (userScrollTimeout) clearTimeout(userScrollTimeout);
+    userScrollTimeout = setTimeout(() => {
+      isUserManualScrolling = false;
+    }, 1200);
+  }
+
   // Handle scroll events: trigger auto-load near top & detect manual upward scrolling
   function handleScroll() {
     if (!containerEl) return;
@@ -193,6 +219,10 @@
 
     if (autoScrollToBottom) {
       unreadActivityBelow = false;
+      // If user navigated all the way to the bottom, park/flush earlier turns beyond active window
+      if (sessionStore.activeSession && sessionStore.activeSession.visibleTurnCount > 10) {
+        sessionStore.flushEarlierTurnsToWindow();
+      }
     }
 
     // Acknowledge finished turn when viewing the bottom of conversation (only reset from 'finished' to 'idle', never interrupt 'working')
@@ -203,8 +233,9 @@
       }
     }
 
-    // Trigger progressive prepend if user scrolls within 200px of top
-    if (scrollTop < 200 && sessionStore.remainingHiddenTurns > 0 && !isHydrating) {
+    // Trigger progressive prepend ONLY when user explicitly and manually scrolls upward within 150px of top
+    // (Prevents accidental auto-load cascades when streaming new chunks or resizing DOM)
+    if (isUserManualScrolling && scrollTop < 150 && sessionStore.remainingHiddenTurns > 0 && !isHydrating) {
       loadEarlier();
     }
   }
@@ -297,6 +328,8 @@
 <div
   bind:this={containerEl}
   onscroll={handleScroll}
+  onwheel={markUserScrolling}
+  ontouchmove={markUserScrolling}
   style="overflow-anchor: none;"
   class="flex-1 w-full h-full overflow-y-auto px-4 py-3 space-y-3 relative bg-ant-bg select-text flex flex-col"
 >

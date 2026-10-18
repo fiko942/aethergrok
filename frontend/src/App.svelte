@@ -508,6 +508,7 @@
 
     selectedModel = payload.model;
     reasoningEffort = payload.reasoningEffort;
+    sessionStore.setTurnStartTime(sessionId, Date.now());
     sessionStore.setSessionStatus(sessionId, 'working');
 
     // Reset any previous active plan tracker state for this session on each new prompt
@@ -643,6 +644,7 @@
   function handleResumeQueue() {
     const activeSession = sessionStore.activeSession;
     if (!activeSession) return;
+    sessionStore.setTurnStartTime(activeSession.id, Date.now());
     sessionStore.setSessionStatus(activeSession.id, 'working');
     checkAndDispatchNextQueue(activeSession.id);
   }

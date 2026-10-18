@@ -407,26 +407,32 @@
     window.removeEventListener('blur', handleWindowBlur);
   });
 
-  // Elapsed execution timer state (in milliseconds and seconds)
+  // Elapsed execution timer state bound reactively to active session
   let elapsedMs = $state(0);
   let timerInterval: ReturnType<typeof setInterval> | null = null;
-  let timerStart = 0;
 
-  // Track elapsed thinking/working timer
+  // Track elapsed thinking/working timer per active session
   $effect(() => {
-    if (isWorking) {
-      elapsedMs = 0;
-      timerStart = Date.now();
+    const curSession = sessionStore.activeSession;
+    const working = isWorking && curSession?.status === 'working';
+
+    if (working) {
+      const getStart = () => curSession?.turnStartTime || Date.now();
+      elapsedMs = Math.max(0, Date.now() - getStart());
+
       if (timerInterval) clearInterval(timerInterval);
       timerInterval = setInterval(() => {
-        elapsedMs = Date.now() - timerStart;
+        const start = curSession?.turnStartTime;
+        if (start) {
+          elapsedMs = Math.max(0, Date.now() - start);
+        }
       }, 100);
     } else {
       if (timerInterval) {
         clearInterval(timerInterval);
         timerInterval = null;
       }
-      elapsedMs = 0;
+      elapsedMs = curSession?.lastTurnDurationMs || 0;
     }
 
     return () => {
@@ -1507,10 +1513,14 @@
           />
 
           {#if isWorking}
-            <!-- Live Elapsed Execution Timer -->
-            <div class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-ant-bg-tertiary border border-ant-border-secondary dark:border-white/5 text-ant-text text-[11px] font-mono shadow-2xs">
-              <Timer size={11} class="animate-spin text-ant-primary" />
-              <span class="font-medium">{formatElapsed(elapsedMs)}</span>
+            <!-- Grok CLI Style Waiting For Response Live Timer Indicator -->
+            <div
+              class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-ant-bg-tertiary border border-ant-border-secondary dark:border-white/5 text-ant-text text-[11px] font-mono shadow-2xs select-none"
+              title="Total elapsed execution time for current turn"
+            >
+              <Loader2 size={11} class="animate-spin text-ant-primary flex-shrink-0" />
+              <span class="text-ant-text-secondary hidden sm:inline">Waiting for response</span>
+              <span class="font-semibold text-ant-primary ml-1">{formatElapsed(elapsedMs)}</span>
             </div>
 
             <!-- Stop/Cancel Execution Button -->

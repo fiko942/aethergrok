@@ -1,5 +1,6 @@
 import { logger } from './logger.svelte';
 import { terminalStore } from './terminal.svelte';
+import { settingsStore } from './settings.svelte';
 
 export type SessionStatus = 'working' | 'waiting_permission' | 'finished' | 'error' | 'idle';
 
@@ -134,6 +135,9 @@ export interface Session {
   agentMode?: 'agent' | 'plan' | 'yolo';
   // Auto-retry attempt counter for transient failures (e.g. max_tokens_truncation)
   autoRetryCount?: number;
+  // Per-session live prompt execution timestamps
+  turnStartTime?: number;
+  lastTurnDurationMs?: number;
 }
 
 export interface TokenTruncationDetails {
@@ -226,6 +230,13 @@ export const STATUS_META: Record<SessionStatus, { label: string; dotClass: strin
 
 export const DEFAULT_WINDOW_TURNS = 4;
 export const PREPEND_CHUNK_TURNS = 4;
+
+export function getActiveWindowTurns(): number {
+  if (typeof settingsStore !== 'undefined' && typeof settingsStore.activeWindowTurnCount === 'number') {
+    return Math.max(2, Math.min(50, settingsStore.activeWindowTurnCount));
+  }
+  return DEFAULT_WINDOW_TURNS;
+}
 
 const WORKSPACES_STORAGE_KEY = 'aethergrok_workspaces_v1';
 const SESSIONS_STORAGE_KEY = 'aethergrok_sessions_v1';
@@ -623,7 +634,7 @@ class SessionStore {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       messages: [],
-      visibleTurnCount: DEFAULT_WINDOW_TURNS,
+      visibleTurnCount: getActiveWindowTurns(),
       pendingPermission: null,
       usage: {
         usedTokens: 2500, // Accurate baseline token calculation (system prompt, tools & harness overhead)
@@ -971,7 +982,7 @@ class SessionStore {
       this.openTabSessionIds.push(id);
     }
 
-    target.visibleTurnCount = DEFAULT_WINDOW_TURNS;
+    target.visibleTurnCount = getActiveWindowTurns();
     this.activeSessionId = id;
     if (target.workspaceId && target.workspaceId !== this.activeWorkspaceId) {
       this.activeWorkspaceId = target.workspaceId;
@@ -1177,7 +1188,7 @@ class SessionStore {
             tokens: m.tokens,
             status: m.status || 'done'
           }));
-          session.visibleTurnCount = DEFAULT_WINDOW_TURNS;
+          session.visibleTurnCount = getActiveWindowTurns();
 
           // Reconcile agentMode from session message tool calls if not explicitly set
           if (!session.agentMode) {
@@ -1274,7 +1285,7 @@ class SessionStore {
 
     if (this.activeSessionId === id) {
       this.activeSessionId = remainingInWs[0].id;
-      remainingInWs[0].visibleTurnCount = DEFAULT_WINDOW_TURNS;
+      remainingInWs[0].visibleTurnCount = getActiveWindowTurns();
     }
     this.saveSessionsToStorage();
   }
@@ -1328,7 +1339,7 @@ class SessionStore {
             createdAt: gs.createdAt || Date.now(),
             updatedAt: gs.updatedAt || Date.now(),
             messages: [],
-            visibleTurnCount: DEFAULT_WINDOW_TURNS,
+            visibleTurnCount: getActiveWindowTurns(),
             pendingPermission: null
           });
         }
@@ -1386,7 +1397,7 @@ class SessionStore {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       messages: JSON.parse(JSON.stringify(source.messages)),
-      visibleTurnCount: DEFAULT_WINDOW_TURNS,
+      visibleTurnCount: getActiveWindowTurns(),
       pendingPermission: null
     };
 
@@ -1402,6 +1413,24 @@ class SessionStore {
     const session = this.sessions.find((s) => s.id === id);
     if (session) {
       session.status = status;
+      if (status === 'working') {
+        if (!session.turnStartTime) {
+          session.turnStartTime = Date.now();
+        }
+      } else {
+        if (session.turnStartTime) {
+          session.lastTurnDurationMs = Math.max(0, Date.now() - session.turnStartTime);
+          session.turnStartTime = undefined;
+        }
+      }
+      session.updatedAt = Date.now();
+    }
+  }
+
+  setTurnStartTime(id: string, startTime = Date.now()): void {
+    const session = this.sessions.find((s) => s.id === id);
+    if (session) {
+      session.turnStartTime = startTime;
       session.updatedAt = Date.now();
     }
   }
@@ -1433,6 +1462,17 @@ class SessionStore {
     const [moved] = this.openTabSessionIds.splice(fromIndex, 1);
     this.openTabSessionIds.splice(toIndex, 0, moved);
     this.saveSessionsToStorage();
+  }
+
+  flushEarlierTurnsToWindow(sessionId?: string): boolean {
+    const session = sessionId ? this.sessions.find((s) => s.id === sessionId) : this.activeSession;
+    if (!session) return false;
+    const windowLimit = getActiveWindowTurns();
+    if (session.visibleTurnCount > windowLimit) {
+      session.visibleTurnCount = windowLimit;
+      return true;
+    }
+    return false;
   }
 
   loadEarlierTurns(chunk = PREPEND_CHUNK_TURNS): boolean {
@@ -1506,9 +1546,9 @@ class SessionStore {
     };
 
     session.messages.push(msg);
-    // When a new user turn arrives, anchor the active DOM window to the default 4-turn window
+    // When a new user turn arrives, anchor the active DOM window to the configured turn window
     if (msg.role === 'user') {
-      session.visibleTurnCount = DEFAULT_WINDOW_TURNS;
+      session.visibleTurnCount = getActiveWindowTurns();
     }
     session.updatedAt = Date.now();
     this.saveSessionsToStorage();
@@ -1608,6 +1648,9 @@ class SessionStore {
     if (!session || session.messages.length === 0) return;
     const last = session.messages[session.messages.length - 1];
     updater(last);
+    if (last.status === 'done') {
+      this.flushEarlierTurnsToWindow(sessionId);
+    }
     session.updatedAt = Date.now();
   }
 
