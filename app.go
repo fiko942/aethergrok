@@ -47,6 +47,8 @@ type App struct {
 	dictationHotkeyMgr *hotkey.Manager
 	terminalMgr        *terminal.Manager
 	storageMgr         *storage.StorageManager
+	forceQuit          bool
+	quitMu             sync.Mutex
 }
 
 // NewApp creates a new App application struct
@@ -114,24 +116,82 @@ func (a *App) startup(ctx context.Context) {
 func (a *App) domReady(ctx context.Context) {
 }
 
+// GetRunningTasksCount returns the total number of running Grok turns across all sessions
+func (a *App) GetRunningTasksCount() int {
+	count := 0
+	if a.runner != nil {
+		count += a.runner.GetRunningSessionCount()
+	}
+	return count
+}
+
+// RequestQuitApplication initiates standard application exit with active-task confirmation guard
+func (a *App) RequestQuitApplication() {
+	if a.ctx != nil {
+		wailsRuntime.Quit(a.ctx)
+	}
+}
+
+// ForceQuitApplication forces immediate application exit without confirmation
+func (a *App) ForceQuitApplication() {
+	a.quitMu.Lock()
+	a.forceQuit = true
+	a.quitMu.Unlock()
+	if a.ctx != nil {
+		wailsRuntime.Quit(a.ctx)
+	}
+}
+
 // beforeClose is called when the application is about to quit,
 // either by clicking the window close button or calling runtime.Quit.
 // Returning true will cause the application to continue, false will continue shutdown.
 func (a *App) beforeClose(ctx context.Context) (prevent bool) {
-	// If the user has active background tasks or working sessions,
-	// ensure they are properly cleaned up before application teardown
-	if a.runner != nil {
-		a.runner.CancelAll()
+	a.quitMu.Lock()
+	forced := a.forceQuit
+	a.quitMu.Unlock()
+
+	if forced {
+		a.cleanupAndShutdown()
+		return false
 	}
-	if a.terminalMgr != nil {
-		a.terminalMgr.CloseAll()
+
+	runningCount := a.GetRunningTasksCount()
+	if runningCount > 0 {
+		var msg string
+		if runningCount == 1 {
+			msg = "There is 1 session currently executing a task.\n\nQuitting now will cancel this task. Are you sure you want to quit AetherGrok?"
+		} else {
+			msg = fmt.Sprintf("There are %d sessions currently executing tasks.\n\nQuitting now will cancel these tasks. Are you sure you want to quit AetherGrok?", runningCount)
+		}
+
+		choice, err := wailsRuntime.MessageDialog(a.ctx, wailsRuntime.MessageDialogOptions{
+			Type:          wailsRuntime.QuestionDialog,
+			Title:         "Active Tasks in Progress",
+			Message:       msg,
+			Buttons:       []string{"Cancel", "Quit AetherGrok"},
+			DefaultButton: "Cancel",
+			CancelButton:  "Cancel",
+		})
+
+		// On Windows, QuestionDialog returns "Yes" or "No".
+		// On macOS, it returns the button text clicked ("Cancel" or "Quit AetherGrok").
+		if err == nil && (choice == "Quit AetherGrok" || strings.ToLower(choice) == "yes") {
+			a.quitMu.Lock()
+			a.forceQuit = true
+			a.quitMu.Unlock()
+			a.cleanupAndShutdown()
+			return false // Proceed to close and terminate
+		}
+
+		// User chose to stay in app
+		return true // Prevent close!
 	}
-	system.CleanupOrphanProcesses()
+
+	a.cleanupAndShutdown()
 	return false
 }
 
-// shutdown is called at application termination
-func (a *App) shutdown(ctx context.Context) {
+func (a *App) cleanupAndShutdown() {
 	if a.hotkeyMgr != nil {
 		a.hotkeyMgr.Unregister()
 	}
@@ -142,10 +202,14 @@ func (a *App) shutdown(ctx context.Context) {
 		a.runner.CancelAll()
 	}
 	if a.terminalMgr != nil {
-		// Clean up all running terminal instances and their process groups
 		a.terminalMgr.CloseAll()
 	}
 	system.CleanupOrphanProcesses()
+}
+
+// shutdown is called at application termination
+func (a *App) shutdown(ctx context.Context) {
+	a.cleanupAndShutdown()
 }
 
 // Greet returns a greeting for the given name
