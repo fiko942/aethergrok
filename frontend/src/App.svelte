@@ -991,9 +991,11 @@
   function handleQuitRequest(): void {
     if (sessionStore.hasActiveRunningSessions()) {
       const count = sessionStore.getActiveRunningSessionCount();
+      const titles = sessionStore.getActiveRunningSessionTitles().slice(0, 3);
+      const titleList = titles.length > 0 ? `\n\nActive tasks:\n• ${titles.join('\n• ')}${count > 3 ? `\n...and ${count - 3} more` : ''}` : '';
       dialogStore.openConfirm({
         title: 'Active Tasks in Progress',
-        content: `There are ${count} session(s) currently executing tasks or queued prompts. Quitting now will abort all running operations. Are you sure you want to quit AetherGrok?`,
+        content: `There are ${count} session(s) currently executing tasks or queued prompts.${titleList}\n\nQuitting now will abort all running operations. Are you sure you want to quit AetherGrok?`,
         confirmText: 'Quit AetherGrok',
         cancelText: 'Cancel',
         type: 'danger',
@@ -1129,20 +1131,6 @@
       e.stopPropagation();
       handleQuitRequest();
       return;
-    }
-
-    // Support Cmd/Ctrl + C close intent when outside of text input and without active text selection
-    if (isMetaOrCtrl && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'c') {
-      const isEditing = isEditingElement(e);
-      const hasSelection = typeof window !== 'undefined' && Boolean(window.getSelection()?.toString().trim());
-
-      // If user is editing or has selected text, allow standard clipboard copy
-      if (!isEditing && !hasSelection && !inTerminal) {
-        e.preventDefault();
-        e.stopPropagation();
-        handleQuitRequest();
-        return;
-      }
     }
 
     // Cmd/Ctrl + Alt + B: Toggle right sidebar (workspace explorer / git inspector)

@@ -148,6 +148,32 @@ func (m *mockWindowRuntimeOps) WindowIsMinimised() bool {
 	return m.isMinimised
 }
 
+func TestAppCloseGuard_DirectMethods(t *testing.T) {
+	app := NewApp()
+
+	// Initial running tasks count must be 0
+	if count := app.GetRunningTasksCount(); count != 0 {
+		t.Fatalf("expected 0 running tasks, got %d", count)
+	}
+
+	// forceQuit initially false
+	if app.forceQuit {
+		t.Fatalf("expected forceQuit to be false initially")
+	}
+
+	// Calling ForceQuitApplication sets forceQuit = true
+	app.ForceQuitApplication()
+	if !app.forceQuit {
+		t.Fatalf("expected forceQuit to be true after ForceQuitApplication")
+	}
+
+	// When forced, beforeClose returns false (proceeds to close cleanly)
+	prevent := app.beforeClose(nil)
+	if prevent {
+		t.Fatalf("expected beforeClose to return false when forceQuit is true")
+	}
+}
+
 func (m *mockWindowRuntimeOps) WindowGetPosition() (int, int) {
 	return m.posX, m.posY
 }

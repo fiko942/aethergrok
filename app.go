@@ -164,18 +164,40 @@ func (a *App) beforeClose(ctx context.Context) (prevent bool) {
 			msg = fmt.Sprintf("There are %d sessions currently executing tasks.\n\nQuitting now will cancel these tasks. Are you sure you want to quit AetherGrok?", runningCount)
 		}
 
-		choice, err := wailsRuntime.MessageDialog(a.ctx, wailsRuntime.MessageDialogOptions{
+		dialogCtx := ctx
+		if dialogCtx == nil {
+			dialogCtx = a.ctx
+		}
+
+		defaultBtn := "Cancel"
+		cancelBtn := "Cancel"
+		if runtime.GOOS == "windows" {
+			defaultBtn = "No"
+			cancelBtn = "No"
+		}
+
+		choice, err := wailsRuntime.MessageDialog(dialogCtx, wailsRuntime.MessageDialogOptions{
 			Type:          wailsRuntime.QuestionDialog,
 			Title:         "Active Tasks in Progress",
 			Message:       msg,
 			Buttons:       []string{"Cancel", "Quit AetherGrok"},
-			DefaultButton: "Cancel",
-			CancelButton:  "Cancel",
+			DefaultButton: defaultBtn,
+			CancelButton:  cancelBtn,
 		})
+
+		if err != nil {
+			_ = logger.GetDiskLogger().Append(logger.LogEntry{
+				Level:    "error",
+				Category: "lifecycle",
+				Message:  fmt.Sprintf("Failed to display quit confirmation dialog: %v. Allowing shutdown.", err),
+			})
+			a.cleanupAndShutdown()
+			return false
+		}
 
 		// On Windows, QuestionDialog returns "Yes" or "No".
 		// On macOS, it returns the button text clicked ("Cancel" or "Quit AetherGrok").
-		if err == nil && (choice == "Quit AetherGrok" || strings.ToLower(choice) == "yes") {
+		if choice == "Quit AetherGrok" || strings.ToLower(choice) == "yes" {
 			a.quitMu.Lock()
 			a.forceQuit = true
 			a.quitMu.Unlock()

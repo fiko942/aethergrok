@@ -1,57 +1,37 @@
 import { describe, it, expect } from 'vitest';
 
-describe('Quit Shortcut Intent & Text Selection Guard', () => {
-  function shouldTriggerQuitFromCmdC(input: {
+describe('Application Quit Shortcut & Clipboard Safety Guard', () => {
+  function shouldTriggerQuit(e: {
     isMetaOrCtrl: boolean;
     key: string;
     shiftKey: boolean;
     altKey: boolean;
-    isEditing: boolean;
-    hasSelection: boolean;
   }): boolean {
-    if (!input.isMetaOrCtrl || input.shiftKey || input.altKey || input.key.toLowerCase() !== 'c') {
-      return false;
-    }
-    // If editing or text is selected, do NOT trigger quit (must copy)
-    if (input.isEditing || input.hasSelection) {
-      return false;
-    }
-    return true;
+    const isCmdOrCtrlQ = e.isMetaOrCtrl && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'q';
+    const isAltF4 = e.altKey && e.key === 'F4';
+    return isCmdOrCtrlQ || isAltF4;
   }
 
-  it('preserves normal copy when text is selected', () => {
-    const res = shouldTriggerQuitFromCmdC({
-      isMetaOrCtrl: true,
-      key: 'c',
-      shiftKey: false,
-      altKey: false,
-      isEditing: false,
-      hasSelection: true
-    });
-    expect(res).toBe(false);
+  function shouldPreserveStandardCopy(e: {
+    isMetaOrCtrl: boolean;
+    key: string;
+  }): boolean {
+    // Cmd+C / Ctrl+C must always be preserved for clipboard copy
+    return e.isMetaOrCtrl && e.key.toLowerCase() === 'c';
+  }
+
+  it('triggers quit on Cmd+Q (macOS) and Ctrl+Q (Windows)', () => {
+    expect(shouldTriggerQuit({ isMetaOrCtrl: true, key: 'q', shiftKey: false, altKey: false })).toBe(true);
+    expect(shouldTriggerQuit({ isMetaOrCtrl: true, key: 'Q', shiftKey: false, altKey: false })).toBe(true);
   });
 
-  it('preserves normal copy/kill inside terminal or text input', () => {
-    const res = shouldTriggerQuitFromCmdC({
-      isMetaOrCtrl: true,
-      key: 'c',
-      shiftKey: false,
-      altKey: false,
-      isEditing: true,
-      hasSelection: false
-    });
-    expect(res).toBe(false);
+  it('triggers quit on Alt+F4 (Windows standard quit)', () => {
+    expect(shouldTriggerQuit({ isMetaOrCtrl: false, key: 'F4', shiftKey: false, altKey: true })).toBe(true);
   });
 
-  it('triggers quit intent when Cmd+C is pressed outside of text inputs without selection', () => {
-    const res = shouldTriggerQuitFromCmdC({
-      isMetaOrCtrl: true,
-      key: 'c',
-      shiftKey: false,
-      altKey: false,
-      isEditing: false,
-      hasSelection: false
-    });
-    expect(res).toBe(true);
+  it('never intercepts Cmd+C or Ctrl+C for quit to preserve standard clipboard copy', () => {
+    expect(shouldTriggerQuit({ isMetaOrCtrl: true, key: 'c', shiftKey: false, altKey: false })).toBe(false);
+    expect(shouldPreserveStandardCopy({ isMetaOrCtrl: true, key: 'c' })).toBe(true);
+    expect(shouldPreserveStandardCopy({ isMetaOrCtrl: true, key: 'C' })).toBe(true);
   });
 });
