@@ -988,6 +988,36 @@
     }
   }
 
+  function handleQuitRequest(): void {
+    if (sessionStore.hasActiveRunningSessions()) {
+      const count = sessionStore.getActiveRunningSessionCount();
+      dialogStore.openConfirm({
+        title: 'Active Tasks in Progress',
+        content: `There are ${count} session(s) currently executing tasks or queued prompts. Quitting now will abort all running operations. Are you sure you want to quit AetherGrok?`,
+        confirmText: 'Quit AetherGrok',
+        cancelText: 'Cancel',
+        type: 'danger',
+        onConfirm: () => {
+          const app = (window.go?.main?.App as any);
+          if (app?.ForceQuitApplication) {
+            app.ForceQuitApplication();
+          } else if (window.runtime?.Quit) {
+            window.runtime.Quit();
+          }
+        }
+      });
+      return;
+    }
+
+    // No running sessions -> quit cleanly and immediately
+    const app = (window.go?.main?.App as any);
+    if (app?.RequestQuitApplication) {
+      app.RequestQuitApplication();
+    } else if (window.runtime?.Quit) {
+      window.runtime.Quit();
+    }
+  }
+
   // Global Keyboard Shortcuts Handler
   function handleGlobalKeyDown(e: KeyboardEvent) {
     if (e.key === 'Escape' && inputShieldStore.isReadOnly) {
@@ -1091,6 +1121,28 @@
         sessionStore.closeSessionTab(sessionStore.activeSessionId);
       }
       return;
+    }
+
+    // Intercept Cmd/Ctrl + Q to check for running sessions before quitting
+    if ((isMetaOrCtrl && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'q') || (e.altKey && e.key === 'F4')) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleQuitRequest();
+      return;
+    }
+
+    // Support Cmd/Ctrl + C close intent when outside of text input and without active text selection
+    if (isMetaOrCtrl && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'c') {
+      const isEditing = isEditingElement(e);
+      const hasSelection = typeof window !== 'undefined' && Boolean(window.getSelection()?.toString().trim());
+
+      // If user is editing or has selected text, allow standard clipboard copy
+      if (!isEditing && !hasSelection && !inTerminal) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleQuitRequest();
+        return;
+      }
     }
 
     // Cmd/Ctrl + Alt + B: Toggle right sidebar (workspace explorer / git inspector)
