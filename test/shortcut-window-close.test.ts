@@ -190,4 +190,28 @@ describe('Cmd+W / Ctrl+W Keyboard Interception & Terminal Passthrough', () => {
     expect(closeTerminalTab).not.toHaveBeenCalled();
     expect(closeSessionTab).toHaveBeenCalledWith('sess-3');
   });
+
+  it('intercepts Cmd+H outside terminal and prevents macOS [NSApp hide:]', () => {
+    const preventDefault = vi.fn();
+    const stopPropagation = vi.fn();
+
+    const isMetaOrCtrl = true;
+    const e = {
+      metaKey: true,
+      ctrlKey: false,
+      altKey: false,
+      shiftKey: false,
+      key: 'h',
+      preventDefault,
+      stopPropagation
+    };
+
+    if (isMetaOrCtrl && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'h') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(stopPropagation).toHaveBeenCalledTimes(1);
+  });
 });

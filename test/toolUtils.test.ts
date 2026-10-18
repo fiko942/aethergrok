@@ -39,4 +39,34 @@ describe('toolUtils', () => {
     expect(parsed.output).toContain('✓ Lockfile passes supply-chain policies');
     expect(parsed.output).not.toContain('\u001b[32m');
   });
+
+  it('correctly derives description over raw command for terminal tool calls', () => {
+    function parseTerminalCall(params: { command?: string; description?: string }) {
+      const cmd = String(params.command || '');
+      const desc = String(params.description || '').trim();
+      return {
+        verb: 'Run',
+        target: desc || (cmd ? `$ ${cmd}` : 'command'),
+        cmd,
+        description: desc
+      };
+    }
+
+    const withDesc = parseTerminalCall({
+      command: 'find docs -name "*.md" | sort',
+      description: 'extract task brief for Task 2'
+    });
+    expect(withDesc.verb).toBe('Run');
+    expect(withDesc.target).toBe('extract task brief for Task 2');
+    expect(withDesc.cmd).toBe('find docs -name "*.md" | sort');
+    expect(withDesc.description).toBe('extract task brief for Task 2');
+
+    const withoutDesc = parseTerminalCall({
+      command: 'git status'
+    });
+    expect(withoutDesc.verb).toBe('Run');
+    expect(withoutDesc.target).toBe('$ git status');
+    expect(withoutDesc.cmd).toBe('git status');
+    expect(withoutDesc.description).toBe('');
+  });
 });

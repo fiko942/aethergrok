@@ -1059,6 +1059,13 @@
       return;
     }
 
+    // Intercept Cmd/Ctrl + H to prevent accidental macOS [NSApp hide:] disappearance
+    if (isMetaOrCtrl && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'h') {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
     // Intercept Cmd/Ctrl + W to close tabs and prevent macOS [NSWindow performClose:] from killing the app
     // Preserve Ctrl+W inside terminal for readline unix-word-rubout
     if (isMetaOrCtrl && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'w') {

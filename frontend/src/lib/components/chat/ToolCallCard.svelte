@@ -49,6 +49,7 @@
 
   let isExpanded = $state(false);
   let copiedOutput = $state(false);
+  let copiedCommand = $state(false);
   let copiedPlan = $state(false);
   let planMarkdownContent = $state<string>('');
   let isPlanLoading = $state(false);
@@ -259,10 +260,12 @@
     // 6. Terminal / Bash / Exec
     if (rawTool.includes('run_terminal_command') || rawTool.includes('terminal') || rawTool.includes('bash') || rawTool.includes('exec') || rawTool.includes('cmd')) {
       const cmd = String(p.command || p.cmd || '');
+      const desc = String(p.description || p.desc || p.summary || p.reason || '').trim();
       return {
         verb: 'Run',
         type: 'terminal' as const,
-        target: cmd ? `$ ${cmd}` : 'command',
+        target: desc || (cmd ? `$ ${cmd}` : 'command'),
+        description: desc,
         cmd,
         icon: Terminal,
         iconClass: 'text-indigo-400'
@@ -271,6 +274,7 @@
 
     // 7. Get Command / Subagent Output
     if (rawTool.includes('get_command_or_subagent_output') || rawTool.includes('command_output') || rawTool.includes('subagent_output')) {
+      const desc = String(p.description || p.desc || p.summary || p.reason || '').trim();
       let targetDesc = '';
       if (Array.isArray(p.task_ids) && p.task_ids.length > 0) {
         targetDesc = p.task_ids.join(', ');
@@ -280,7 +284,8 @@
       return {
         verb: 'Output',
         type: 'task_output' as const,
-        target: targetDesc || 'task output',
+        target: desc || targetDesc || 'task output',
+        description: desc,
         icon: Bot,
         iconClass: 'text-cyan-400'
       };
@@ -510,6 +515,18 @@
     return formatToolResult(toolCall.result);
   });
 
+  async function copyCommandText() {
+    const cmd = ('cmd' in toolParsed && toolParsed.cmd) ? toolParsed.cmd : (parsedOutput.command || '');
+    if (!cmd) return;
+    try {
+      await navigator.clipboard.writeText(cmd);
+      copiedCommand = true;
+      setTimeout(() => (copiedCommand = false), 2000);
+    } catch {
+      // ignore
+    }
+  }
+
   async function copyOutputText() {
     let textToCopy = '';
     if (toolParsed.type === 'read' && readLines.length > 0) {
@@ -529,6 +546,32 @@
     }
   }
 
+  function handleCardKeyDown(e: KeyboardEvent) {
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      isExpanded = !isExpanded;
+      return;
+    }
+
+    // When card is expanded, provide quick copy shortcuts:
+    // 'c' to copy output, 'i' or 'Alt+C' to copy input/command
+    if (isExpanded) {
+      if (e.key.toLowerCase() === 'c' && !e.metaKey && !e.ctrlKey) {
+        if (e.altKey || e.shiftKey) {
+          e.preventDefault();
+          copyCommandText();
+        } else {
+          e.preventDefault();
+          copyOutputText();
+        }
+      } else if (e.key.toLowerCase() === 'i' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        copyCommandText();
+      }
+    }
+  }
   function toggleExpand(e: MouseEvent) {
     const target = e.target as HTMLElement;
     if (target.closest('button') || target.closest('a')) return;
@@ -545,7 +588,7 @@
     role="button"
     tabindex="0"
     onclick={toggleExpand}
-    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); isExpanded = !isExpanded; } }}
+    onkeydown={handleCardKeyDown}
     class="flex items-center justify-between px-2.5 py-1.5 cursor-pointer select-none hover:bg-ant-bg-secondary/50 transition-colors"
   >
     <!-- Left: Chevron, Icon, Clean Verb & Target -->
@@ -999,6 +1042,81 @@
               </div>
             {/if}
           </div>
+        </div>
+      {:else if toolParsed.type === 'terminal'}
+        <!-- 2f. Dedicated Terminal Command Card (Clean In & Out Inspector) -->
+        <div class="space-y-1.5 text-[11px]">
+          <!-- Panel IN: Full Command Script -->
+          {#if toolParsed.cmd}
+            <div class="rounded border border-indigo-500/20 bg-ant-bg-secondary/60 overflow-hidden">
+              <div class="flex items-center justify-between px-2.5 py-1 bg-indigo-500/10 border-b border-indigo-500/15 text-[10px] select-none text-indigo-400">
+                <div class="flex items-center space-x-1.5 font-medium">
+                  <span class="px-1 py-0.2 rounded bg-indigo-500/20 text-indigo-300 font-bold uppercase tracking-wider text-[9px]">IN</span>
+                  <span class="text-ant-text-secondary font-mono">Command</span>
+                </div>
+                <button
+                  type="button"
+                  onclick={copyCommandText}
+                  class="flex items-center space-x-1 text-ant-text-muted hover:text-white transition px-1.5 py-0.5 rounded hover:bg-ant-bg"
+                  title="Copy command (Press 'i' or 'Shift+C')"
+                >
+                  {#if copiedCommand}
+                    <Check size={10} class="text-ant-success" />
+                    <span class="text-ant-success">Copied</span>
+                  {:else}
+                    <Copy size={10} />
+                    <span>Copy IN</span>
+                  {/if}
+                </button>
+              </div>
+              <pre class="p-2 leading-relaxed overflow-x-auto max-h-48 scrollbar-thin text-indigo-300 font-mono text-[11px] whitespace-pre-wrap break-all select-text"><code>$ {toolParsed.cmd}</code></pre>
+            </div>
+          {/if}
+
+          <!-- Panel OUT: Terminal Execution Output -->
+          {#if toolCall.result !== undefined}
+            <div class="rounded border border-white/5 bg-ant-bg-secondary/50 overflow-hidden">
+              <div class="flex items-center justify-between px-2.5 py-1 bg-ant-bg-tertiary/60 border-b border-white/5 text-[10px] select-none text-ant-text-muted">
+                <div class="flex items-center space-x-2">
+                  <span class="px-1 py-0.2 rounded bg-white/10 text-ant-text font-bold uppercase tracking-wider text-[9px]">OUT</span>
+                  <span class="uppercase tracking-wider font-semibold {toolCall.status === 'error' || parsedOutput.status === 'failed' || (parsedOutput.exitCode !== undefined && parsedOutput.exitCode !== 0) ? 'text-ant-error' : 'text-ant-text-secondary'}">
+                    {toolCall.status === 'error' || parsedOutput.status === 'failed' || (parsedOutput.exitCode !== undefined && parsedOutput.exitCode !== 0) ? 'Execution Failed' : 'Output'}
+                  </span>
+                  {#if parsedOutput.exitCode !== undefined}
+                    <span class="font-mono text-[10px] px-1 py-0.2 rounded {parsedOutput.exitCode === 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}">
+                      exit: {parsedOutput.exitCode}
+                    </span>
+                  {/if}
+                  {#if parsedOutput.durationSecs !== undefined}
+                    <span class="text-[10px] font-mono text-zinc-400">
+                      {parsedOutput.durationSecs.toFixed(1)}s
+                    </span>
+                  {/if}
+                </div>
+                <button
+                  type="button"
+                  onclick={copyOutputText}
+                  class="flex items-center space-x-1 text-ant-text-muted hover:text-white transition px-1.5 py-0.5 rounded hover:bg-ant-bg"
+                  title="Copy output (Press 'c')"
+                >
+                  {#if copiedOutput}
+                    <Check size={10} class="text-ant-success" />
+                    <span class="text-ant-success">Copied</span>
+                  {:else}
+                    <Copy size={10} />
+                    <span>Copy OUT</span>
+                  {/if}
+                </button>
+              </div>
+              <pre class="p-2 leading-relaxed overflow-x-auto max-h-64 scrollbar-thin {toolCall.status === 'error' || parsedOutput.status === 'failed' || (parsedOutput.exitCode !== undefined && parsedOutput.exitCode !== 0) ? 'text-rose-700 dark:text-rose-300' : 'text-ant-text'}"><code>{parsedOutput.output || '(empty)'}</code></pre>
+              {#if parsedOutput.truncated && parsedOutput.outputFile}
+                <div class="px-2 py-1 bg-ant-bg-tertiary/40 border-t border-white/5 text-[10px] text-ant-text-muted flex items-center justify-between">
+                  <span>Output truncated</span>
+                  <span class="font-mono truncate max-w-xs text-ant-text-secondary" title={parsedOutput.outputFile}>{parsedOutput.outputFile}</span>
+                </div>
+              {/if}
+            </div>
+          {/if}
         </div>
       {:else if toolCall.result !== undefined && (!toolCall.diff || !isGenericEditAck || toolCall.status === 'error')}
         <!-- 3. General Output Block (Terminal / TaskOutput / Search / Write) -->

@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"aethergrok/pkg/gitutil"
@@ -117,6 +118,8 @@ func (a *App) domReady(ctx context.Context) {
 // either by clicking the window close button or calling runtime.Quit.
 // Returning true will cause the application to continue, false will continue shutdown.
 func (a *App) beforeClose(ctx context.Context) (prevent bool) {
+	// If the user has active background tasks or working sessions,
+	// ensure they are properly cleaned up before application teardown
 	if a.runner != nil {
 		a.runner.CancelAll()
 	}
@@ -309,8 +312,11 @@ func (d *defaultWailsRuntimeOps) WindowGetSize() (int, int) {
 }
 
 type wailsWindowController struct {
-	ops   windowRuntimeOps
-	state WindowState
+	ops      windowRuntimeOps
+	state    WindowState
+	mu       sync.Mutex
+	isShown  bool
+	watchdog *time.Timer
 }
 
 func newWailsWindowController(ctx context.Context) *wailsWindowController {
@@ -323,6 +329,9 @@ func (w *wailsWindowController) Hide() {
 	if w.ops == nil {
 		return
 	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	w.state = WindowState{
 		IsFullscreen: w.ops.WindowIsFullscreen(),
 		IsMaximised:  w.ops.WindowIsMaximised(),
@@ -331,13 +340,35 @@ func (w *wailsWindowController) Hide() {
 	}
 	w.state.X, w.state.Y = w.ops.WindowGetPosition()
 	w.state.Width, w.state.Height = w.ops.WindowGetSize()
+	w.isShown = false
 
 	w.ops.WindowHide()
+
+	// Fail-safe watchdog: Guarantee the window is restored within 1500ms even if
+	// screen capture takes too long, fails, or crashes
+	if w.watchdog != nil {
+		w.watchdog.Stop()
+	}
+	w.watchdog = time.AfterFunc(1500*time.Millisecond, func() {
+		w.Show()
+	})
 }
 
 func (w *wailsWindowController) Show() {
 	if w.ops == nil {
 		return
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if w.isShown {
+		return
+	}
+	w.isShown = true
+
+	if w.watchdog != nil {
+		w.watchdog.Stop()
+		w.watchdog = nil
 	}
 
 	w.ops.WindowShow()
