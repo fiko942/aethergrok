@@ -2,8 +2,30 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "AetherGrok Release Changelog",
   "description": "Central single source of truth for all AetherGrok releases, commit ranges, and download artifacts.",
-  "latest": "1.1.14",
+  "latest": "1.1.15",
   "releases": [
+    {
+      "version": "1.1.15",
+      "tag": "v1.1.15",
+      "date": "2026-10-19T01:30:00.000Z",
+      "title": "AetherGrok 1.1.15 - Autonomous Subagent Card, Live Stopwatch Timer & Process Detail Inspector",
+      "targetCommit": "HEAD",
+      "previousCommit": "b04228f",
+      "highlights": [
+        "Introduce dedicated violet-themed Autonomous Subagent Card for spawn_subagent and delegated background operations",
+        "Display clean human task description directly in the card header instead of raw unparsed JSON payloads",
+        "Add dynamic 1-second reactive stopwatch timer (e.g. 'Running · 1m 24s') updating live while subagents are actively executing",
+        "Introduce interactive Subagent Process Detail Modal (SubagentDetailModal) accessible by clicking any subagent card or inspect button",
+        "Inspect full subagent task prompts, execution metadata (model, role, isolation mode, background status), and clean formatted markdown output",
+        "Provide one-click copy buttons for prompt and cleaned subagent results with automatic removal of internal XML tags and CLI boilerplate"
+      ],
+      "downloads": {
+        "macos_arm64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.15/AetherGrok-1.1.15-macOS-arm64.dmg",
+        "macos_x64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.15/AetherGrok-1.1.15-macOS-amd64.dmg",
+        "windows_x64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.15/AetherGrok-1.1.15-windows-amd64-setup.exe",
+        "windows_arm64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.15/AetherGrok-1.1.15-windows-arm64-setup.exe"
+      }
+    },
     {
       "version": "1.1.14",
       "tag": "v1.1.14",
