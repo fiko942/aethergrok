@@ -657,6 +657,26 @@ func (r *Runner) CancelAll() {
 	}
 }
 
+// HasRunningSessions returns true if any grok process is actively executing
+func (r *Runner) HasRunningSessions() bool {
+	if r == nil {
+		return false
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return len(r.sessions) > 0
+}
+
+// GetRunningSessionCount returns the count of currently running grok processes
+func (r *Runner) GetRunningSessionCount() int {
+	if r == nil {
+		return 0
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return len(r.sessions)
+}
+
 func (r *Runner) cleanupSession(sessionID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
