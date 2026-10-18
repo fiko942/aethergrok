@@ -1,7 +1,13 @@
 <script lang="ts">
   import type { ToolCall } from '$lib/stores/session.svelte';
   import { calculateDiffStat, computeStringDiff } from '$lib/utils/diffUtils';
-  import { formatToolResult } from '$lib/utils/toolUtils';
+  import {
+    formatToolResult,
+    isSubagentToolCall,
+    extractSubagentMeta,
+    formatSubagentDuration
+  } from '$lib/utils/toolUtils';
+  import SubagentDetailModal from './SubagentDetailModal.svelte';
   import { highlightCode } from '$lib/utils/codeHighlighter';
   import DiffCard from './DiffCard.svelte';
   import { renderMarkdown } from '$lib/utils/markdownRenderer';
@@ -59,6 +65,17 @@
   let dirSearchQuery = $state('');
   let dirFilterTab = $state<'all' | 'folders' | 'files'>('all');
   let dirShowAll = $state(false);
+  let showSubagentModal = $state(false);
+  let now = $state(Date.now());
+
+  // Active ticking timer for running subagents and tool calls
+  $effect(() => {
+    if (toolCall.status !== 'running') return;
+    const interval = setInterval(() => {
+      now = Date.now();
+    }, 1000);
+    return () => clearInterval(interval);
+  });
 
   // Load plan content from disk via Go backend
   async function loadPlanContent(force = false) {
@@ -118,6 +135,10 @@
   // Derive formatted execution duration
   const formattedDuration = $derived.by(() => {
     if (!toolCall.startTime) return null;
+    if (toolParsed.type === 'subagent') {
+      const end = toolCall.endTime || (toolCall.status === 'running' ? now : toolCall.startTime);
+      return formatSubagentDuration(Math.max(0, end - toolCall.startTime));
+    }
     const end = toolCall.endTime || Date.now();
     const ms = Math.max(0, end - toolCall.startTime);
 
@@ -167,6 +188,19 @@
         todos: detectedTodos,
         icon: ListTodo,
         iconClass: 'text-indigo-400'
+      };
+    }
+
+    // Subagent Autonomous Delegation
+    if (isSubagentToolCall(rawTool, toolCall.params || p)) {
+      const subagentMeta = extractSubagentMeta(toolCall.params || p);
+      return {
+        verb: 'Subagent',
+        type: 'subagent' as const,
+        target: subagentMeta.description,
+        meta: subagentMeta,
+        icon: Bot,
+        iconClass: 'text-violet-400'
       };
     }
 
@@ -551,6 +585,10 @@
 
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
+      if (toolParsed.type === 'subagent') {
+        showSubagentModal = true;
+        return;
+      }
       isExpanded = !isExpanded;
       return;
     }
@@ -575,12 +613,16 @@
   function toggleExpand(e: MouseEvent) {
     const target = e.target as HTMLElement;
     if (target.closest('button') || target.closest('a')) return;
+    if (toolParsed.type === 'subagent') {
+      showSubagentModal = true;
+      return;
+    }
     isExpanded = !isExpanded;
   }
 </script>
 
 <div
-  class="my-1 rounded-md border border-white/5 bg-ant-bg-secondary/20 overflow-hidden text-xs transition-colors hover:border-white/10"
+  class="my-1 rounded-md border {toolParsed.type === 'subagent' ? 'border-violet-500/20 hover:border-violet-500/40 bg-violet-950/10' : 'border-white/5 bg-ant-bg-secondary/20 hover:border-white/10'} overflow-hidden text-xs transition-colors"
   style="content-visibility: auto; contain-intrinsic-size: auto 34px;"
 >
   <!-- Minimalist Tool Header (Anti Gravity / VSCode Style) -->
@@ -621,6 +663,8 @@
           <Compass size={13} class="text-violet-400" />
         {:else if toolParsed.type === 'plan_exit'}
           <CheckSquare size={13} class="text-emerald-400" />
+        {:else if toolParsed.type === 'subagent'}
+          <Bot size={13} class="text-violet-400" />
         {:else}
           <FileText size={13} class="text-ant-primary" />
         {/if}
@@ -647,13 +691,28 @@
       {/if}
 
       {#if formattedDuration !== null}
-        <span class="text-[10px] font-mono text-ant-text-muted">
+        <span class="text-[10px] font-mono {toolParsed.type === 'subagent' ? 'text-violet-300' : 'text-ant-text-muted'}">
           {formattedDuration}
         </span>
       {/if}
 
+      {#if toolParsed.type === 'subagent'}
+        <button
+          type="button"
+          onclick={(e) => {
+            e.stopPropagation();
+            showSubagentModal = true;
+          }}
+          class="flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium text-violet-300 bg-violet-500/15 border border-violet-500/30 hover:bg-violet-500/25 hover:text-white transition cursor-pointer"
+          title="Inspect Subagent Details"
+        >
+          <Bot size={11} />
+          <span>Inspect</span>
+        </button>
+      {/if}
+
       {#if toolCall.status === 'running'}
-        <span class="flex items-center text-[10px] font-medium text-ant-primary animate-pulse">
+        <span class="flex items-center text-[10px] font-medium {toolParsed.type === 'subagent' ? 'text-violet-400' : 'text-ant-primary'} animate-pulse">
           <Loader2 size={11} class="animate-spin mr-1" />
         </span>
       {:else if toolCall.status === 'completed'}
@@ -1171,3 +1230,12 @@
     </div>
   {/if}
 </div>
+
+{#if toolParsed.type === 'subagent'}
+  <SubagentDetailModal
+    visible={showSubagentModal}
+    {toolCall}
+    meta={toolParsed.meta}
+    onClose={() => (showSubagentModal = false)}
+  />
+{/if}
