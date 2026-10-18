@@ -70,6 +70,8 @@ export function EnsureTerminal(arg1:string,arg2:string,arg3:string,arg4:string):
 
 export function ExecuteSkillSetupCommand(arg1:string,arg2:string):Promise<void>;
 
+export function ForceQuitApplication():Promise<void>;
+
 export function GetAppSettings():Promise<storage.AppSettings>;
 
 export function GetAppVersion():Promise<string>;
@@ -83,6 +85,8 @@ export function GetGrokBinaryPath():Promise<string>;
 export function GetInstalledSkills():Promise<Array<skills.Skill>>;
 
 export function GetPlanContent(arg1:string):Promise<string>;
+
+export function GetRunningTasksCount():Promise<number>;
 
 export function GetSessionUsage(arg1:string,arg2:string):Promise<grokrunner.SessionUsageStats>;
 
@@ -139,6 +143,8 @@ export function RegisterGlobalDictationShortcut(arg1:string):Promise<void>;
 export function RegisterGlobalSnapshotShortcut(arg1:string):Promise<void>;
 
 export function RequestMicrophonePermission():Promise<permissions.Status>;
+
+export function RequestQuitApplication():Promise<void>;
 
 export function RequestScreenCapturePermission():Promise<permissions.Status>;
 

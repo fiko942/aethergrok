@@ -122,6 +122,10 @@ export function ExecuteSkillSetupCommand(arg1, arg2) {
   return window['go']['main']['App']['ExecuteSkillSetupCommand'](arg1, arg2);
 }
 
+export function ForceQuitApplication() {
+  return window['go']['main']['App']['ForceQuitApplication']();
+}
+
 export function GetAppSettings() {
   return window['go']['main']['App']['GetAppSettings']();
 }
@@ -148,6 +152,10 @@ export function GetInstalledSkills() {
 
 export function GetPlanContent(arg1) {
   return window['go']['main']['App']['GetPlanContent'](arg1);
+}
+
+export function GetRunningTasksCount() {
+  return window['go']['main']['App']['GetRunningTasksCount']();
 }
 
 export function GetSessionUsage(arg1, arg2) {
@@ -260,6 +268,10 @@ export function RegisterGlobalSnapshotShortcut(arg1) {
 
 export function RequestMicrophonePermission() {
   return window['go']['main']['App']['RequestMicrophonePermission']();
+}
+
+export function RequestQuitApplication() {
+  return window['go']['main']['App']['RequestQuitApplication']();
 }
 
 export function RequestScreenCapturePermission() {
