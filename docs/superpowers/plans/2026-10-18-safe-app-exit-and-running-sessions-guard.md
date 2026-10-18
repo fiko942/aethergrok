@@ -32,7 +32,7 @@
 - Consumes: `r.mu`, `r.sessions` map
 - Produces: `r.HasRunningSessions() bool`, `r.GetRunningSessionCount() int`
 
-- [ ] **Step 1: Write failing unit test in `pkg/grokrunner/runner_active_test.go`**
+- [x] **Step 1: Write failing unit test in `pkg/grokrunner/runner_active_test.go`**
 
 ```go
 package grokrunner
@@ -80,12 +80,12 @@ func TestRunner_ActiveSessionTracking(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify failure**
+- [x] **Step 2: Run test to verify failure**
 
 Run: `go test -v ./pkg/grokrunner -run TestRunner_ActiveSessionTracking`
 Expected: FAIL (compilation error: `HasRunningSessions` undefined)
 
-- [ ] **Step 3: Implement `HasRunningSessions` and `GetRunningSessionCount` in `pkg/grokrunner/runner.go`**
+- [x] **Step 3: Implement `HasRunningSessions` and `GetRunningSessionCount` in `pkg/grokrunner/runner.go`**
 
 Add thread-safe query methods to `pkg/grokrunner/runner.go`:
 ```go
@@ -110,12 +110,12 @@ func (r *Runner) GetRunningSessionCount() int {
 }
 ```
 
-- [ ] **Step 4: Run test to verify pass**
+- [x] **Step 4: Run test to verify pass**
 
 Run: `go test -v ./pkg/grokrunner -run TestRunner_ActiveSessionTracking`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add pkg/grokrunner/runner.go pkg/grokrunner/runner_active_test.go
@@ -135,7 +135,7 @@ git commit -m "feat(runner): add thread-safe HasRunningSessions and GetRunningSe
 - Consumes: `a.runner.GetRunningSessionCount()`, `wailsRuntime.MessageDialog`, `wailsRuntime.Quit`
 - Produces: `a.GetRunningTasksCount() int`, `a.RequestQuitApplication()`, `a.ForceQuitApplication()`, safe `beforeClose(ctx context.Context) bool`
 
-- [ ] **Step 1: Write unit test in `test/app_close_guard_test.go`**
+- [x] **Step 1: Write unit test in `test/app_close_guard_test.go`**
 
 ```go
 package test
@@ -190,12 +190,12 @@ func TestAppCloseGuardLogic(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify pass**
+- [x] **Step 2: Run test to verify pass**
 
 Run: `go test -v ./test -run TestAppCloseGuardLogic`
 Expected: PASS
 
-- [ ] **Step 3: Update `main.go` and `app.go`**
+- [x] **Step 3: Update `main.go` and `app.go`**
 
 1. In `main.go`:
 Change `HideWindowOnClose: true` to `HideWindowOnClose: false`:
@@ -318,12 +318,12 @@ func (a *App) cleanupAndShutdown() {
 }
 ```
 
-- [ ] **Step 4: Run Go tests to verify everything passes**
+- [x] **Step 4: Run Go tests to verify everything passes**
 
 Run: `go test -v ./...`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add main.go app.go test/app_close_guard_test.go
@@ -342,7 +342,7 @@ git commit -m "feat(lifecycle): guard beforeClose with active task confirmation 
 - Consumes: `sessionStore.sessions`, `session.status`, `session.queuedPrompts`
 - Produces: `sessionStore.hasActiveRunningSessions(): boolean`, `sessionStore.getActiveRunningSessionCount(): number`, `sessionStore.getActiveRunningSessionTitles(): string[]`
 
-- [ ] **Step 1: Write unit test in `test/session-running-guard.test.ts`**
+- [x] **Step 1: Write unit test in `test/session-running-guard.test.ts`**
 
 ```ts
 import { describe, it, expect } from 'vitest';
@@ -389,12 +389,12 @@ describe('Session Active Running Guard', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify pass**
+- [x] **Step 2: Run test to verify pass**
 
 Run: `bun test test/session-running-guard.test.ts`
 Expected: PASS
 
-- [ ] **Step 3: Implement helper methods in `frontend/src/lib/stores/session.svelte.ts`**
+- [x] **Step 3: Implement helper methods in `frontend/src/lib/stores/session.svelte.ts`**
 
 Add query methods to `SessionStore`:
 ```ts
@@ -427,12 +427,12 @@ Add query methods to `SessionStore`:
   }
 ```
 
-- [ ] **Step 4: Run frontend tests to verify pass**
+- [x] **Step 4: Run frontend tests to verify pass**
 
 Run: `bun test test/session-running-guard.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add frontend/src/lib/stores/session.svelte.ts test/session-running-guard.test.ts
@@ -451,7 +451,7 @@ git commit -m "feat(session): add hasActiveRunningSessions and getActiveRunningS
 - Consumes: `sessionStore.hasActiveRunningSessions()`, `dialogStore.openConfirm()`, `window.go.main.App.RequestQuitApplication()`
 - Produces: Safe `handleQuitRequest()` function, non-breaking `Cmd+C` handler preserving text selection/inputs
 
-- [ ] **Step 1: Write unit test in `test/quit-shortcut-intent.test.ts`**
+- [x] **Step 1: Write unit test in `test/quit-shortcut-intent.test.ts`**
 
 ```ts
 import { describe, it, expect } from 'vitest';
@@ -513,12 +513,12 @@ describe('Quit Shortcut Intent & Text Selection Guard', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify pass**
+- [x] **Step 2: Run test to verify pass**
 
 Run: `bun test test/quit-shortcut-intent.test.ts`
 Expected: PASS
 
-- [ ] **Step 3: Update `frontend/src/App.svelte`**
+- [x] **Step 3: Update `frontend/src/App.svelte`**
 
 1. Define `handleQuitRequest` in `frontend/src/App.svelte`:
 ```ts
@@ -577,12 +577,12 @@ Listen for `Cmd+Q` (or `Alt+F4` on Windows) and `Cmd+C` quit intent:
     }
 ```
 
-- [ ] **Step 4: Run all unit and integration tests**
+- [x] **Step 4: Run all unit and integration tests**
 
 Run: `bun test test/quit-shortcut-intent.test.ts test/session-running-guard.test.ts test/dom-window-flush.test.ts test/turn-timer-isolation.test.ts`
 Expected: All tests PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add frontend/src/App.svelte test/quit-shortcut-intent.test.ts
@@ -599,17 +599,17 @@ git commit -m "feat(ui): add safe quit confirmation modal and Cmd+C / Cmd+Q clos
 - `frontend/src/App.svelte`
 - `frontend/src/lib/stores/session.svelte.ts`
 
-- [ ] **Step 1: Run all Go unit and integration tests**
+- [x] **Step 1: Run all Go unit and integration tests**
 
 Run: `go test -v ./...`
 Expected: All tests PASS.
 
-- [ ] **Step 2: Run all Bun / TypeScript tests**
+- [x] **Step 2: Run all Bun / TypeScript tests**
 
 Run: `bun test`
 Expected: PASS.
 
-- [ ] **Step 3: Compile local macOS arm64 binary**
+- [x] **Step 3: Compile local macOS arm64 binary**
 
 Run:
 ```bash
@@ -618,7 +618,7 @@ wails build -platform darwin/arm64 -clean
 ```
 Expected: Build succeeds and packages `build/bin/aethergrok.app`.
 
-- [ ] **Step 4: Verify installed bundle and process termination**
+- [x] **Step 4: Verify installed bundle and process termination**
 
 1. Install to `/Applications/AetherGrok.app`.
 2. Launch app and verify:

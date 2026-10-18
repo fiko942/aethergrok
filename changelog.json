@@ -2,8 +2,30 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "AetherGrok Release Changelog",
   "description": "Central single source of truth for all AetherGrok releases, commit ranges, and download artifacts.",
-  "latest": "1.1.13",
+  "latest": "1.1.14",
   "releases": [
+    {
+      "version": "1.1.14",
+      "tag": "v1.1.14",
+      "date": "2026-10-18T17:00:00.000Z",
+      "title": "AetherGrok 1.1.14 - Safe Exit Guard, Active Tasks Protection & Zero Background Leak",
+      "targetCommit": "HEAD",
+      "previousCommit": "63f7f47",
+      "highlights": [
+        "Add proactive exit confirmation guard when closing via window close button, Cmd+Q (macOS), or Alt+F4 (Windows) while tasks are executing or prompts are queued",
+        "Inspect all sessions across background and unopened tabs before allowing application exit to prevent accidental task cancellation",
+        "Ensure complete process termination on macOS with zero background processes left running upon confirmed exit (HideWindowOnClose: false)",
+        "Fully preserve normal clipboard copy behavior: Cmd+C and Ctrl+C remain 100% dedicated to copying text and never trigger exit",
+        "Configure native OS dialogs with defensive default button mapping (DefaultButton 'No' / MB_DEFBUTTON2 on Windows) to prevent accidental enter/space confirm",
+        "Implement graceful cleanup sequence (runner.CancelAll, hotkeyMgr.UnregisterAll, terminalMgr.CloseAll, system.CleanupOrphanProcesses) on confirmed shutdown"
+      ],
+      "downloads": {
+        "macos_arm64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.14/AetherGrok-1.1.14-macOS-arm64.dmg",
+        "macos_x64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.14/AetherGrok-1.1.14-macOS-amd64.dmg",
+        "windows_x64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.14/AetherGrok-1.1.14-windows-amd64-setup.exe",
+        "windows_arm64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.14/AetherGrok-1.1.14-windows-arm64-setup.exe"
+      }
+    },
     {
       "version": "1.1.13",
       "tag": "v1.1.13",
