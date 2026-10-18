@@ -744,6 +744,34 @@ class SessionStore {
     return remaining > 0 ? remaining : 0;
   }
 
+  /**
+   * Returns true if any session (foreground or background tab) is actively working,
+   * waiting for permission, or has queued prompts waiting to execute.
+   */
+  hasActiveRunningSessions(): boolean {
+    return this.sessions.some(
+      (s) => s.status === 'working' || s.status === 'waiting_permission' || (s.queuedPrompts && s.queuedPrompts.length > 0)
+    );
+  }
+
+  /**
+   * Returns total count of sessions with active or queued work across all tabs.
+   */
+  getActiveRunningSessionCount(): number {
+    return this.sessions.filter(
+      (s) => s.status === 'working' || s.status === 'waiting_permission' || (s.queuedPrompts && s.queuedPrompts.length > 0)
+    ).length;
+  }
+
+  /**
+   * Returns list of titles for sessions currently executing tasks.
+   */
+  getActiveRunningSessionTitles(): string[] {
+    return this.sessions
+      .filter((s) => s.status === 'working' || s.status === 'waiting_permission' || (s.queuedPrompts && s.queuedPrompts.length > 0))
+      .map((s) => s.title || 'Untitled Session');
+  }
+
   // Workspace Actions
   addWorkspace(name: string, path: string): WorkspaceFolder {
     const existing = this.workspaces.find((w) => w.path === path);
