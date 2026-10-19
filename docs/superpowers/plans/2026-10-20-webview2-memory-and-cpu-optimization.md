@@ -1,6 +1,6 @@
 # WebView2 Memory and CPU Optimization Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Reduce Microsoft Edge WebView2 RAM from ~1.28 GB to <350 MB and idle/streaming CPU from ~12-15% to <2% across 3 concurrent sessions by eliminating synchronous storage serialization, throttling high-frequency timers, coalescing IPC streaming deltas, and pruning GPU backdrop-blur layers.
 
@@ -34,7 +34,7 @@
 - Consumes: `Session`, `ChatSession`, `window.localStorage`
 - Produces: `sanitizeSessionForStorage(session: Session): SessionMetadata`, `evictInactiveSessionMessages(activeSessionId: string)`
 
-- [ ] **Step 1: Write failing test for lightweight session storage and memory eviction**
+- [x] **Step 1: Write failing test for lightweight session storage and memory eviction**
 
 Create `test/session-memory-persistence.test.ts`:
 ```ts
@@ -107,12 +107,12 @@ describe('Session Memory & Storage Optimization', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run test/session-memory-persistence.test.ts`
 Expected: FAIL with "sanitizeSessionForStorage is not a function"
 
-- [ ] **Step 3: Implement lightweight serialization and eviction helpers in `session.svelte.ts`**
+- [x] **Step 3: Implement lightweight serialization and eviction helpers in `session.svelte.ts`**
 
 In `frontend/src/lib/stores/session.svelte.ts`, export the pure functions:
 ```ts
@@ -194,17 +194,17 @@ In `switchSession(id: string)`:
     }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run test/session-memory-persistence.test.ts`
 Expected: PASS (2/2 tests pass)
 
-- [ ] **Step 5: Run existing regression tests**
+- [x] **Step 5: Run existing regression tests**
 
 Run: `npx vitest run test/sessions.test.ts test/persisted-state.test.ts`
 Expected: PASS
 
-- [ ] **Step 6: Commit changes**
+- [x] **Step 6: Commit changes**
 
 ```bash
 git add frontend/src/lib/stores/session.svelte.ts test/session-memory-persistence.test.ts
@@ -225,7 +225,7 @@ git commit -m "perf: serialize lightweight session metadata and support on-deman
 - Consumes: `curSession.turnStartTime`, `curSession.status`
 - Produces: `calculateTimerInterval(elapsedMs: number): number`, throttled reactive updates
 
-- [ ] **Step 1: Write failing test for timer throttling**
+- [x] **Step 1: Write failing test for timer throttling**
 
 Create `test/turn-timer-throttling.test.ts`:
 ```ts
@@ -248,12 +248,12 @@ describe('Turn Execution Timer Throttling', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it passes baseline**
+- [x] **Step 2: Run test to verify it passes baseline**
 
 Run: `npx vitest run test/turn-timer-throttling.test.ts`
 Expected: PASS
 
-- [ ] **Step 3: Update `MessageList.svelte` and `Composer.svelte` intervals**
+- [x] **Step 3: Update `MessageList.svelte` and `Composer.svelte` intervals**
 
 In `frontend/src/lib/components/chat/MessageList.svelte`:
 Replace lines 61-67:
@@ -288,12 +288,12 @@ Ensure ticking interval is 1000ms:
     }, 1000);
 ```
 
-- [ ] **Step 4: Verify turn timer isolation test still passes**
+- [x] **Step 4: Verify turn timer isolation test still passes**
 
 Run: `npx vitest run test/turn-timer-isolation.test.ts test/turn-timer-throttling.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit changes**
+- [x] **Step 5: Commit changes**
 
 ```bash
 git add frontend/src/lib/components/chat/MessageList.svelte frontend/src/lib/components/chat/Composer.svelte frontend/src/lib/components/chat/ToolCallCard.svelte test/turn-timer-throttling.test.ts
@@ -314,7 +314,7 @@ git commit -m "perf: throttle elapsed thinking timer intervals to eliminate cont
 - Consumes: Go NDJSON stream, Wails runtime event `grok:delta_batch`
 - Produces: 40ms coalesced streaming tokens, non-reactive background session delta buffering
 
-- [ ] **Step 1: Write test for stream delta coalescing in Go**
+- [x] **Step 1: Write test for stream delta coalescing in Go**
 
 In `pkg/grokrunner/stream_parser_test.go`, add or verify:
 ```go
@@ -355,12 +355,12 @@ func TestStreamParser_CoalescedTicker(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run Go test to verify**
+- [x] **Step 2: Run Go test to verify**
 
 Run: `go test -v ./pkg/grokrunner -run TestStreamParser_CoalescedTicker`
 Expected: PASS
 
-- [ ] **Step 3: Adjust ticker in `stream_parser.go` from 16ms to 40ms**
+- [x] **Step 3: Adjust ticker in `stream_parser.go` from 16ms to 40ms**
 
 In `pkg/grokrunner/stream_parser.go` line 292:
 ```go
@@ -369,7 +369,7 @@ In `pkg/grokrunner/stream_parser.go` line 292:
 	defer ticker.Stop()
 ```
 
-- [ ] **Step 4: Optimize `appendDelta` in `session.svelte.ts` for background sessions**
+- [x] **Step 4: Optimize `appendDelta` in `session.svelte.ts` for background sessions**
 
 In `frontend/src/lib/stores/session.svelte.ts` around line 2030:
 ```ts
@@ -394,13 +394,13 @@ In `frontend/src/lib/stores/session.svelte.ts` around line 2030:
     }
 ```
 
-- [ ] **Step 5: Run tests**
+- [x] **Step 5: Run tests**
 
 Run: `go test -v ./pkg/grokrunner`
 Run: `npm test`
 Expected: PASS
 
-- [ ] **Step 6: Commit changes**
+- [x] **Step 6: Commit changes**
 
 ```bash
 git add pkg/grokrunner/stream_parser.go frontend/src/lib/stores/session.svelte.ts pkg/grokrunner/stream_parser_test.go
@@ -423,7 +423,7 @@ git commit -m "perf: coalesce stream parser deltas to 40ms and optimize backgrou
 - Consumes: Tailwind CSS classes
 - Produces: CSS layouts without offscreen Gaussian blur texture compositing during streaming
 
-- [ ] **Step 1: Write test verifying non-blocking classes on high-frequency feed components**
+- [x] **Step 1: Write test verifying non-blocking classes on high-frequency feed components**
 
 Create `test/gpu-layer-styling.test.ts`:
 ```ts
@@ -445,12 +445,12 @@ describe('GPU Layer Styling Audit', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails initially**
+- [x] **Step 2: Run test to verify it fails initially**
 
 Run: `npx vitest run test/gpu-layer-styling.test.ts`
 Expected: FAIL
 
-- [ ] **Step 3: Refactor high-frequency feed styling and terminal scrollback**
+- [x] **Step 3: Refactor high-frequency feed styling and terminal scrollback**
 
 In `frontend/src/lib/components/chat/MessageList.svelte`:
 Replace line 407:
@@ -480,17 +480,17 @@ In `frontend/src/lib/components/terminal/TerminalPanel.svelte`:
 Line 458:
 Change `scrollback: 5000` to `scrollback: 2000`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run test/gpu-layer-styling.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Run DOM test suite**
+- [x] **Step 5: Run DOM test suite**
 
 Run: `npx vitest run test/history-window.dom.test.ts test/dom-window-flush.test.ts`
 Expected: PASS
 
-- [ ] **Step 6: Commit changes**
+- [x] **Step 6: Commit changes**
 
 ```bash
 git add frontend/src/lib/components/chat/MessageList.svelte frontend/src/lib/components/chat/FloatingPlanTracker.svelte frontend/src/lib/components/chat/PlanReviewCard.svelte frontend/src/lib/components/terminal/TerminalPanel.svelte test/gpu-layer-styling.test.ts
@@ -505,7 +505,7 @@ git commit -m "perf: replace continuous backdrop-blur shaders with opaque backgr
 - Create: `test/webview-performance-stress.test.ts`
 - Run: Full vitest suite & Go test suite
 
-- [ ] **Step 1: Write multi-session performance simulation test**
+- [x] **Step 1: Write multi-session performance simulation test**
 
 Create `test/webview-performance-stress.test.ts`:
 ```ts
@@ -542,18 +542,18 @@ describe('Multi-Session Performance & Memory Simulation', () => {
 });
 ```
 
-- [ ] **Step 2: Run performance test**
+- [x] **Step 2: Run performance test**
 
 Run: `npx vitest run test/webview-performance-stress.test.ts`
 Expected: PASS
 
-- [ ] **Step 3: Run complete project test suites**
+- [x] **Step 3: Run complete project test suites**
 
 Run: `npm test`
 Run: `go test ./...`
 Expected: ALL PASS with 0 failures
 
-- [ ] **Step 4: Commit changes**
+- [x] **Step 4: Commit changes**
 
 ```bash
 git add test/webview-performance-stress.test.ts
