@@ -356,3 +356,40 @@ func TestACPStreamParser_SubagentRouting(t *testing.T) {
 	}
 }
 
+func TestStreamParser_CoalescedTicker(t *testing.T) {
+	var deltas []string
+	var mu sync.Mutex
+
+	callbacks := StreamCallbacks{
+		OnDelta: func(e DeltaEvent) {
+			mu.Lock()
+			deltas = append(deltas, e.Delta)
+			mu.Unlock()
+		},
+	}
+
+	parser := NewStreamParser("sess-1", callbacks)
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
+	input := `{"type":"delta","delta":"Hello "}
+{"type":"delta","delta":"World "}
+{"type":"delta","delta":"From "}
+{"type":"delta","delta":"Grok"}`
+
+	err := parser.Parse(ctx, strings.NewReader(input))
+	if err != nil && err != context.DeadlineExceeded {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	mu.Lock()
+	totalDeltas := len(deltas)
+	mu.Unlock()
+
+	// Deltas should be coalesced into fewer events than raw lines
+	if totalDeltas > 3 {
+		t.Errorf("expected deltas to be coalesced, got %d separate events", totalDeltas)
+	}
+}
+
+

@@ -2099,6 +2099,26 @@ export class SessionStore {
       session.grokSessionId = grokSessionId;
     }
 
+    const isTargetActive = this.activeSessionId === sessionId;
+
+    // For background sessions, update content without cloning parts array on every single delta
+    if (!isTargetActive) {
+      if (session.messages.length > 0) {
+        const lastMsg = session.messages[session.messages.length - 1];
+        if (lastMsg.role === role) {
+          lastMsg.content += delta;
+          lastMsg.status = 'streaming';
+          const lastPart = lastMsg.parts ? lastMsg.parts[lastMsg.parts.length - 1] : null;
+          if (lastPart && lastPart.type === 'text') {
+            lastPart.text += delta;
+          } else if (lastMsg.parts) {
+            lastMsg.parts.push({ type: 'text', text: delta });
+          }
+          return;
+        }
+      }
+    }
+
     if (session.messages.length === 0 || session.messages[session.messages.length - 1].role !== role) {
       this.addMessage(sessionId, {
         role,

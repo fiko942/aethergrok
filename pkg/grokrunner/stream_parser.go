@@ -289,7 +289,8 @@ func (p *StreamParser) Parse(ctx context.Context, r io.Reader) error {
 	var lastRole string
 	var lastLiveTokens int
 
-	ticker := time.NewTicker(16 * time.Millisecond)
+	// 40ms ticker (~25 FPS) balances smooth visual rendering with 60% fewer IPC messages
+	ticker := time.NewTicker(40 * time.Millisecond)
 	defer ticker.Stop()
 
 	flushDelta := func() {
