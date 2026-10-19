@@ -4,6 +4,7 @@ import { settingsStore } from './settings.svelte';
 import {
   isSubagentToolCall,
   extractSubagentMeta,
+  extractSubagentIdFromText,
   isSubagentOutputPoller,
   extractTaskPollerResults,
   isSubagentBackgroundAck
@@ -53,6 +54,18 @@ export interface VisionImage {
   timestamp: number;
 }
 
+export interface MessageTextPart {
+  type: 'text';
+  text: string;
+}
+
+export interface MessageToolCallsPart {
+  type: 'tool_calls';
+  toolCalls: ToolCall[];
+}
+
+export type MessagePart = MessageTextPart | MessageToolCallsPart;
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -64,6 +77,7 @@ export interface ChatMessage {
     total?: number;
   };
   toolCalls?: ToolCall[];
+  parts?: MessagePart[];
   images?: VisionImage[];
   attachments?: AttachedFile[];
   reasoningContent?: string;
@@ -248,11 +262,70 @@ export function getActiveWindowTurns(): number {
 }
 
 /**
+ * Helper to sync updated tool call properties into message parts
+ */
+export function syncMessageToolCallParts(message: { toolCalls?: ToolCall[]; parts?: MessagePart[] }): void {
+  if (!message) return;
+  if (!Array.isArray(message.parts) && Array.isArray(message.toolCalls) && message.toolCalls.length > 0) {
+    message.parts = [{
+      type: 'tool_calls',
+      toolCalls: [...message.toolCalls]
+    }];
+  }
+  if (!Array.isArray(message.parts) || !Array.isArray(message.toolCalls)) return;
+
+  for (const part of message.parts) {
+    if (part.type === 'tool_calls' && Array.isArray(part.toolCalls)) {
+      for (const ptc of part.toolCalls) {
+        const match = message.toolCalls.find((t) => t.id === ptc.id);
+        if (match) {
+          // Bi-directionally preserve best subagent and execution data
+          if (match.childToolCalls && match.childToolCalls.length > 0) {
+            ptc.childToolCalls = match.childToolCalls;
+          } else if (ptc.childToolCalls && ptc.childToolCalls.length > 0) {
+            match.childToolCalls = ptc.childToolCalls;
+          }
+
+          if (match.childSessionId) {
+            ptc.childSessionId = match.childSessionId;
+          } else if (ptc.childSessionId) {
+            match.childSessionId = ptc.childSessionId;
+          }
+
+          if (match.status && match.status !== 'running') {
+            ptc.status = match.status;
+          } else if (ptc.status && ptc.status !== 'running') {
+            match.status = ptc.status;
+          } else {
+            ptc.status = match.status;
+          }
+
+          if (match.result && !isSubagentBackgroundAck(match.result)) {
+            ptc.result = match.result;
+          } else if (ptc.result && !isSubagentBackgroundAck(ptc.result)) {
+            match.result = ptc.result;
+          } else if (match.result) {
+            ptc.result = match.result;
+          }
+
+          if (match.endTime) {
+            ptc.endTime = match.endTime;
+          } else if (ptc.endTime) {
+            match.endTime = ptc.endTime;
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
  * Reconciles subagent outputs from task pollers across all messages in a session.
  * Folds poller outputs into their corresponding subagent ToolCalls.
  */
 export function reconcileSessionSubagents(session: Session): void {
   if (!session || !Array.isArray(session.messages)) return;
+  let changed = false;
   for (const msg of session.messages) {
     if (!Array.isArray(msg.toolCalls) || msg.toolCalls.length === 0) continue;
 
@@ -273,12 +346,15 @@ export function reconcileSessionSubagents(session: Session): void {
                   if (res.durationMs && subTc.startTime) {
                     subTc.endTime = subTc.startTime + res.durationMs;
                   }
+                  changed = true;
                 } else if (res.status === 'failed') {
                   subTc.status = 'error';
                   if (res.output) subTc.result = res.output;
+                  changed = true;
                 }
               }
             }
+            syncMessageToolCallParts(m);
           }
         }
       }
@@ -293,13 +369,18 @@ export async function populateSessionSubagentChildCalls(session: Session, wsPath
   if (!session || !Array.isArray(session.messages)) return;
   if (typeof window === 'undefined') return;
 
+  let changed = false;
   for (const msg of session.messages) {
     if (!Array.isArray(msg.toolCalls)) continue;
     for (const tc of msg.toolCalls) {
       if (isSubagentToolCall(tc.tool, tc.params)) {
         const meta = extractSubagentMeta(tc.params, tc.result);
-        const sid = meta.taskId || tc.childSessionId;
+        const sid = tc.childSessionId || meta.taskId || extractSubagentIdFromText(tc.result);
         if (sid) {
+          if (!tc.childSessionId) {
+            tc.childSessionId = sid;
+            changed = true;
+          }
           try {
             if (window.go?.main?.App?.LoadSubagentDetails) {
               const details = await window.go.main.App.LoadSubagentDetails(wsPath || '', sid);
@@ -314,15 +395,53 @@ export async function populateSessionSubagentChildCalls(session: Session, wsPath
                     startTime: c.startTime,
                     endTime: c.endTime
                   }));
+                  changed = true;
                 }
                 if (details.status === 'completed' || details.status === 'failed') {
                   tc.status = details.status === 'failed' ? 'error' : 'completed';
                   if (details.output && (!tc.result || isSubagentBackgroundAck(tc.result))) {
                     tc.result = details.output;
                   }
-                  if (details.durationMs && details.durationMs > 0 && tc.startTime) {
+                  if (details.startTime && !tc.startTime) {
+                    tc.startTime = details.startTime;
+                  }
+                  if (details.endTime && !tc.endTime) {
+                    tc.endTime = details.endTime;
+                  } else if (details.durationMs && details.durationMs > 0 && tc.startTime) {
                     tc.endTime = tc.startTime + details.durationMs;
                   }
+                  changed = true;
+                }
+                if (typeof tc.params === 'string') {
+                  try {
+                    tc.params = JSON.parse(tc.params);
+                  } catch {
+                    tc.params = { raw: tc.params };
+                  }
+                }
+                if (!tc.params || typeof tc.params !== 'object') {
+                  tc.params = {};
+                }
+                const tcP = tc.params as Record<string, any>;
+                if (details.description && !tcP.description) {
+                  tcP.description = details.description;
+                  changed = true;
+                }
+                if (details.prompt && !tcP.prompt) {
+                  tcP.prompt = details.prompt;
+                  changed = true;
+                }
+                if (details.subagentType && !tcP.subagent_type) {
+                  tcP.subagent_type = details.subagentType;
+                  changed = true;
+                }
+                if (details.model && !tcP.model) {
+                  tcP.model = details.model;
+                  changed = true;
+                }
+                if (details.subagentId && !tc.childSessionId) {
+                  tc.childSessionId = details.subagentId;
+                  changed = true;
                 }
               }
             } else if (window.go?.main?.App?.LoadSubagentToolCalls) {
@@ -337,6 +456,7 @@ export async function populateSessionSubagentChildCalls(session: Session, wsPath
                   startTime: c.startTime,
                   endTime: c.endTime
                 }));
+                changed = true;
               }
             }
           } catch {
@@ -344,6 +464,15 @@ export async function populateSessionSubagentChildCalls(session: Session, wsPath
           }
         }
       }
+    }
+    syncMessageToolCallParts(msg);
+  }
+
+  if (changed && typeof sessionStore !== 'undefined' && sessionStore?.saveSessionsToStorage) {
+    try {
+      sessionStore.saveSessionsToStorage();
+    } catch {
+      // ignore
     }
   }
 }
@@ -354,7 +483,7 @@ const OPEN_TABS_STORAGE_KEY = 'aethergrok_open_tabs_v1';
 const ACTIVE_SESSION_STORAGE_KEY = 'aethergrok_active_session_id_v1';
 const ACTIVE_WS_STORAGE_KEY = 'aethergrok_active_workspace_id_v1';
 
-class SessionStore {
+export class SessionStore {
   workspaces = $state<WorkspaceFolder[]>([]);
   activeWorkspaceId = $state<string>('');
   sessions = $state<Session[]>([]);
@@ -403,10 +532,25 @@ class SessionStore {
           const activeSess = this.sessions.find((s) => s.id === this.activeSessionId);
           if (activeSess) {
             logger.info('SESSION', `Auto-hydrating active session on launch: ${activeSess.id}`, { title: activeSess.title });
+            const ws = this.workspaces.find((w) => w.id === activeSess.workspaceId);
             if (activeSess.messages.length === 0 && activeSess.status !== 'working') {
               await this.loadSessionHistoryFromDisk(activeSess);
+            } else if (ws?.path) {
+              await populateSessionSubagentChildCalls(activeSess, ws.path);
             }
             await this.loadSessionUsage(activeSess);
+          }
+        }
+
+        // Also hydrate subagents for any open tabs
+        for (const tabId of this.openTabSessionIds) {
+          if (tabId === this.activeSessionId) continue;
+          const tabSess = this.sessions.find((s) => s.id === tabId);
+          if (tabSess) {
+            const ws = this.workspaces.find((w) => w.id === tabSess.workspaceId);
+            if (ws?.path) {
+              populateSessionSubagentChildCalls(tabSess, ws.path).catch(() => {});
+            }
           }
         }
       }, 50);
@@ -531,10 +675,25 @@ class SessionStore {
                 if (Array.isArray(m.toolCalls)) {
                   for (const tc of m.toolCalls) {
                     if (tc.status === 'running') {
-                      tc.status = 'error';
+                      const isSub = isSubagentToolCall(tc.tool, tc.params);
+                      if (!isSub) {
+                        tc.status = 'error';
+                      } else if (tc.childToolCalls && tc.childToolCalls.length > 0) {
+                        tc.status = 'completed';
+                      } else if (tc.result && !isSubagentBackgroundAck(tc.result)) {
+                        tc.status = 'completed';
+                      }
+                    }
+                    if (tc.childToolCalls && Array.isArray(tc.childToolCalls)) {
+                      for (const c of tc.childToolCalls) {
+                        if (c.status === 'running' && tc.status === 'completed') {
+                          c.status = 'completed';
+                        }
+                      }
                     }
                   }
                 }
+                syncMessageToolCallParts(m);
               }
               reconcileSessionSubagents(s);
             }
@@ -558,6 +717,21 @@ class SessionStore {
       }
 
       this.deduplicateSessions();
+
+      // Automatically re-hydrate subagents from disk for any session containing subagents
+      if (typeof window !== 'undefined') {
+        setTimeout(() => {
+          for (const s of this.sessions) {
+            const ws = this.workspaces.find((w) => w.id === s.workspaceId);
+            if (ws?.path && Array.isArray(s.messages)) {
+              const hasSub = s.messages.some((m) => m.toolCalls?.some((tc) => isSubagentToolCall(tc.tool, tc.params)));
+              if (hasSub) {
+                populateSessionSubagentChildCalls(s, ws.path).catch(() => {});
+              }
+            }
+          }
+        }, 100);
+      }
     } catch (e) {
       console.warn('Failed to load sessions from storage:', e);
     }
@@ -653,6 +827,44 @@ class SessionStore {
         activeSessionId: this.activeSessionId || '',
         openTabSessionIds: this.openTabSessionIds
       }).catch(() => {});
+    }
+  }
+
+  // Synchronizes changes from a ToolCall (e.g. subagent child tool calls or completed status)
+  // across in-memory session messages (both toolCalls and parts) and persists immediately to storage.
+  syncToolCallUpdate(toolCall: ToolCall): void {
+    if (!toolCall || !toolCall.id) return;
+    let updated = false;
+    for (const session of this.sessions) {
+      if (!Array.isArray(session.messages)) continue;
+      for (const msg of session.messages) {
+        let found = false;
+        if (Array.isArray(msg.toolCalls)) {
+          for (const tc of msg.toolCalls) {
+            if (tc.id === toolCall.id) {
+              tc.childToolCalls = toolCall.childToolCalls;
+              tc.childSessionId = toolCall.childSessionId || tc.childSessionId;
+              tc.status = toolCall.status;
+              tc.result = toolCall.result;
+              tc.startTime = toolCall.startTime || tc.startTime;
+              tc.endTime = toolCall.endTime || tc.endTime;
+              if (toolCall.params) {
+                const currentP = typeof tc.params === 'object' && tc.params !== null ? (tc.params as Record<string, any>) : {};
+                const newP = typeof toolCall.params === 'object' && toolCall.params !== null ? (toolCall.params as Record<string, any>) : {};
+                tc.params = { ...currentP, ...newP };
+              }
+              found = true;
+            }
+          }
+        }
+        if (found) {
+          syncMessageToolCallParts(msg);
+          updated = true;
+        }
+      }
+    }
+    if (updated) {
+      this.saveSessionsToStorage();
     }
   }
 
@@ -856,22 +1068,35 @@ class SessionStore {
   }
 
   /**
+   * Helper to check if a session is currently executing tasks (status, queues, or running tool calls).
+   */
+  isSessionActive(s: Session): boolean {
+    if (s.status === 'working' || s.status === 'waiting_permission' || (s.queuedPrompts && s.queuedPrompts.length > 0)) {
+      return true;
+    }
+    if (s.messages && s.messages.length > 0) {
+      for (const msg of s.messages) {
+        if (msg.toolCalls && msg.toolCalls.some((tc) => tc.status === 'running' || (isSubagentToolCall(tc.tool, tc.params) && (!tc.result || isSubagentBackgroundAck(tc.result))))) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
    * Returns true if any session (foreground or background tab) is actively working,
    * waiting for permission, or has queued prompts waiting to execute.
    */
   hasActiveRunningSessions(): boolean {
-    return this.sessions.some(
-      (s) => s.status === 'working' || s.status === 'waiting_permission' || (s.queuedPrompts && s.queuedPrompts.length > 0)
-    );
+    return this.sessions.some((s) => this.isSessionActive(s));
   }
 
   /**
    * Returns total count of sessions with active or queued work across all tabs.
    */
   getActiveRunningSessionCount(): number {
-    return this.sessions.filter(
-      (s) => s.status === 'working' || s.status === 'waiting_permission' || (s.queuedPrompts && s.queuedPrompts.length > 0)
-    ).length;
+    return this.sessions.filter((s) => this.isSessionActive(s)).length;
   }
 
   /**
@@ -879,7 +1104,7 @@ class SessionStore {
    */
   getActiveRunningSessionTitles(): string[] {
     return this.sessions
-      .filter((s) => s.status === 'working' || s.status === 'waiting_permission' || (s.queuedPrompts && s.queuedPrompts.length > 0))
+      .filter((s) => this.isSessionActive(s))
       .map((s) => s.title || 'Untitled Session');
   }
 
@@ -1130,8 +1355,11 @@ class SessionStore {
 
     // Lazy load real chat history from disk only if the session is NOT actively working
     // and currently has 0 in-memory messages. Never overwrite an in-flight prompt!
+    const ws = this.workspaces.find((w) => w.id === target.workspaceId);
     if (target.messages.length === 0 && target.status !== 'working') {
       await this.loadSessionHistoryFromDisk(target);
+    } else if (ws?.path) {
+      populateSessionSubagentChildCalls(target, ws.path).catch(() => {});
     }
 
     // Load or update token usage stats for this session
@@ -1324,6 +1552,7 @@ class SessionStore {
             timestamp: m.timestamp || (session.createdAt + idx * 1000),
             reasoningContent: m.reasoningContent,
             toolCalls: m.toolCalls,
+            parts: m.parts,
             tokens: m.tokens,
             status: m.status || 'done'
           }));
@@ -1349,7 +1578,8 @@ class SessionStore {
             }
           }
           reconcileSessionSubagents(session);
-          populateSessionSubagentChildCalls(session, ws.path).catch(() => {});
+          await populateSessionSubagentChildCalls(session, ws.path);
+          this.saveSessionsToStorage();
         }
       } catch (err) {
         console.error('Failed to load session history for', session.id, err);
@@ -1360,8 +1590,15 @@ class SessionStore {
   async switchSession(id: string): Promise<void> {
     if (this.activeSessionId === id) {
       const target = this.sessions.find((s) => s.id === id);
-      if (target && target.messages.length === 0 && target.status !== 'working') {
-        await this.loadSessionHistoryFromDisk(target);
+      if (target) {
+        if (target.messages.length === 0 && target.status !== 'working') {
+          await this.loadSessionHistoryFromDisk(target);
+        } else {
+          const ws = this.workspaces.find((w) => w.id === target.workspaceId);
+          if (ws?.path) {
+            populateSessionSubagentChildCalls(target, ws.path).catch(() => {});
+          }
+        }
         await this.loadSessionUsage(target);
       }
       return;
@@ -1673,6 +1910,32 @@ class SessionStore {
     const session = this.sessions.find((s) => s.id === sessionId);
     if (!session) throw new Error(`Session ${sessionId} not found`);
 
+    let parts = message.parts ? JSON.parse(JSON.stringify(message.parts)) : undefined;
+    if (!parts) {
+      const hasContent = Boolean(message.content && message.content.trim().length > 0);
+      const hasTools = Boolean(message.toolCalls && message.toolCalls.length > 0);
+      if (hasContent && hasTools) {
+        const firstTime = message.toolCalls![0]?.startTime;
+        const msgTime = message.timestamp;
+        if (firstTime && msgTime && firstTime < msgTime) {
+          parts = [
+            { type: 'tool_calls', toolCalls: [...message.toolCalls!] },
+            { type: 'text', text: message.content }
+          ];
+        } else {
+          // Default: Text came first, activity list is below text
+          parts = [
+            { type: 'text', text: message.content },
+            { type: 'tool_calls', toolCalls: [...message.toolCalls!] }
+          ];
+        }
+      } else if (hasContent) {
+        parts = [{ type: 'text', text: message.content }];
+      } else if (hasTools) {
+        parts = [{ type: 'tool_calls', toolCalls: [...message.toolCalls!] }];
+      }
+    }
+
     const msg: ChatMessage = {
       id: message.id || 'msg_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36),
       timestamp: message.timestamp || Date.now(),
@@ -1680,10 +1943,14 @@ class SessionStore {
       content: message.content,
       tokens: message.tokens,
       toolCalls: message.toolCalls ? [...message.toolCalls] : undefined,
+      parts,
       images: message.images ? [...message.images] : undefined,
       attachments: message.attachments ? [...message.attachments] : undefined,
+      reasoningContent: message.reasoningContent,
       status: message.status,
-      isSteer: message.isSteer
+      isSteer: message.isSteer,
+      errorKind: message.errorKind,
+      errorDetails: message.errorDetails
     };
 
     session.messages.push(msg);
@@ -1696,6 +1963,44 @@ class SessionStore {
     return msg;
   }
 
+  addToolCall(sessionId: string, toolCall: ToolCall): ToolCall | null {
+    const session = this.sessions.find((s) => s.id === sessionId);
+    if (!session) return null;
+
+    const lastMsg = session.messages[session.messages.length - 1];
+    if (lastMsg && lastMsg.role === 'assistant') {
+      if (!lastMsg.toolCalls) lastMsg.toolCalls = [];
+      lastMsg.toolCalls.push(toolCall);
+
+      if (!lastMsg.parts) {
+        lastMsg.parts = [];
+        if (lastMsg.content && lastMsg.content.trim().length > 0) {
+          lastMsg.parts.push({ type: 'text', text: lastMsg.content });
+        }
+      }
+
+      const lastPart = lastMsg.parts[lastMsg.parts.length - 1];
+      if (lastPart && lastPart.type === 'tool_calls') {
+        lastPart.toolCalls.push(toolCall);
+      } else {
+        lastMsg.parts.push({ type: 'tool_calls', toolCalls: [toolCall] });
+      }
+
+      lastMsg.parts = [...lastMsg.parts];
+      session.updatedAt = Date.now();
+      return toolCall;
+    } else {
+      this.addMessage(sessionId, {
+        role: 'assistant',
+        content: '',
+        status: 'streaming',
+        toolCalls: [toolCall],
+        parts: [{ type: 'tool_calls', toolCalls: [toolCall] }]
+      });
+      return toolCall;
+    }
+  }
+
   updateToolCall(sessionId: string, toolId: string, updater: (tool: ToolCall) => void): void {
     const session = this.sessions.find((s) => s.id === sessionId);
     if (!session) return;
@@ -1704,6 +2009,9 @@ class SessionStore {
         const target = msg.toolCalls.find((t) => t.id === toolId);
         if (target) {
           updater(target);
+          if (msg.parts) {
+            msg.parts = [...msg.parts];
+          }
           session.updatedAt = Date.now();
           return;
         }
@@ -1729,13 +2037,35 @@ class SessionStore {
       this.addMessage(sessionId, {
         role,
         content: delta,
-        status: 'streaming'
+        status: 'streaming',
+        parts: [{ type: 'text', text: delta }]
       });
     } else {
       const lastMsg = session.messages[session.messages.length - 1];
       lastMsg.content += delta;
       lastMsg.status = 'streaming';
       session.updatedAt = Date.now();
+
+      if (!lastMsg.parts) {
+        lastMsg.parts = [];
+        if (lastMsg.toolCalls && lastMsg.toolCalls.length > 0) {
+          const prevContent = lastMsg.content.slice(0, Math.max(0, lastMsg.content.length - delta.length));
+          if (prevContent && prevContent.trim().length > 0) {
+            lastMsg.parts.push({ type: 'text', text: prevContent });
+            lastMsg.parts.push({ type: 'tool_calls', toolCalls: [...lastMsg.toolCalls] });
+          } else {
+            lastMsg.parts.push({ type: 'tool_calls', toolCalls: [...lastMsg.toolCalls] });
+          }
+        }
+      }
+
+      const lastPart = lastMsg.parts[lastMsg.parts.length - 1];
+      if (lastPart && lastPart.type === 'text') {
+        lastPart.text += delta;
+      } else {
+        lastMsg.parts.push({ type: 'text', text: delta });
+      }
+      lastMsg.parts = [...lastMsg.parts];
     }
 
     // Refresh live context token consumption during active streaming

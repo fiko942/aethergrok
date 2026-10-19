@@ -148,6 +148,74 @@ func TestLoadGrokSessionMessages_CompleteSequence(t *testing.T) {
 	}
 }
 
+func TestLoadGrokSessionMessages_InterleavedChronology(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testWs := "/tmp/test-workspace-interleaved"
+	encodedWs := url.PathEscape(testWs)
+	testDir := filepath.Join(home, ".grok", "sessions", encodedWs, "session-test-interleave")
+	defer os.RemoveAll(filepath.Join(home, ".grok", "sessions", encodedWs))
+
+	if err := os.MkdirAll(testDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	lines := []string{
+		`{"type":"user","content":"<user_query>Investigate and fix the issue</user_query>"}`,
+		`{"type":"assistant","content":"I will inspect the workspace files first.","tool_calls":[{"id":"tc-read","name":"read_file","arguments":"{\"target_file\":\"app.go\"}"}]}`,
+		`{"type":"tool_result","tool_call_id":"tc-read","content":"func main() {}"}`,
+		`{"type":"assistant","content":"I found the bug. Now updating the implementation.","tool_calls":[{"id":"tc-write","name":"write_file","arguments":"{\"path\":\"app.go\"}"}]}`,
+		`{"type":"tool_result","tool_call_id":"tc-write","content":"Success"}`,
+		`{"type":"assistant","content":"All changes completed and verified."}`,
+	}
+
+	f, err := os.Create(filepath.Join(testDir, "chat_history.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, l := range lines {
+		f.WriteString(l + "\n")
+	}
+	f.Close()
+
+	msgs, err := LoadGrokSessionMessages(testWs, "session-test-interleave")
+	if err != nil {
+		t.Fatalf("LoadGrokSessionMessages failed: %v", err)
+	}
+
+	if len(msgs) != 2 {
+		t.Fatalf("Expected 2 messages (1 user, 1 consolidated assistant), got %d", len(msgs))
+	}
+
+	asst := msgs[1]
+	if asst.Role != "assistant" {
+		t.Fatalf("Expected assistant message, got role %s", asst.Role)
+	}
+
+	if len(asst.Parts) != 5 {
+		t.Fatalf("Expected 5 interleaved parts (text -> tool -> text -> tool -> text), got %d", len(asst.Parts))
+	}
+
+	if asst.Parts[0].Type != "text" || !strings.Contains(asst.Parts[0].Text, "I will inspect") {
+		t.Errorf("Part 0 should be introductory text, got %+v", asst.Parts[0])
+	}
+	if asst.Parts[1].Type != "tool_calls" || len(asst.Parts[1].ToolCalls) != 1 || asst.Parts[1].ToolCalls[0].Tool != "read_file" {
+		t.Errorf("Part 1 should be read_file tool call, got %+v", asst.Parts[1])
+	}
+	if asst.Parts[2].Type != "text" || !strings.Contains(asst.Parts[2].Text, "I found the bug") {
+		t.Errorf("Part 2 should be middle text, got %+v", asst.Parts[2])
+	}
+	if asst.Parts[3].Type != "tool_calls" || len(asst.Parts[3].ToolCalls) != 1 || asst.Parts[3].ToolCalls[0].Tool != "write_file" {
+		t.Errorf("Part 3 should be write_file tool call, got %+v", asst.Parts[3])
+	}
+	if asst.Parts[4].Type != "text" || !strings.Contains(asst.Parts[4].Text, "All changes completed") {
+		t.Errorf("Part 4 should be final text, got %+v", asst.Parts[4])
+	}
+}
+
 func TestEncodeGrokWorkspacePath(t *testing.T) {
 	cases := []struct {
 		input    string
@@ -537,6 +605,42 @@ func TestLoadSubagentToolCalls_RealSession(t *testing.T) {
 	}
 }
 
+func TestLoadGrokSessionMessages_RealSession(t *testing.T) {
+	wsPath := "/Users/fiko942/Desktop/Rekayasa Interaksi"
+	sessionID := "01a0f8ba-2c45-7572-b164-abae6d172e3f"
+	msgs, err := LoadGrokSessionMessages(wsPath, sessionID)
+	if err != nil {
+		t.Fatalf("LoadGrokSessionMessages returned error: %v", err)
+	}
+	if len(msgs) == 0 {
+		t.Skip("Session not found")
+	}
+
+	foundSubagent := false
+	for _, m := range msgs {
+		for _, tc := range m.ToolCalls {
+			if tc.Tool == "spawn_subagent" {
+				foundSubagent = true
+				if tc.ChildSessionID == "" {
+					t.Errorf("Expected ChildSessionID to be populated for spawn_subagent, got empty")
+				}
+				if len(tc.ChildToolCalls) == 0 {
+					t.Errorf("Expected ChildToolCalls to be populated from disk for subagent %s, got 0", tc.ChildSessionID)
+				}
+				if tc.Status != "completed" {
+					t.Errorf("Expected subagent Status to be 'completed', got %s", tc.Status)
+				}
+				if tc.Result == "" || strings.Contains(strings.ToLower(tc.Result), "subagent started in background") {
+					t.Errorf("Expected subagent Result to be replaced with final output, got: %s", tc.Result)
+				}
+			}
+		}
+	}
+	if !foundSubagent {
+		t.Errorf("Expected to find spawn_subagent tool call in messages")
+	}
+}
+
 func TestSessionFolderExists_Validation(t *testing.T) {
 	tempBase, err := os.MkdirTemp("", "grok_sessions_test_*")
 	if err != nil {
@@ -597,6 +701,126 @@ func TestSessionFolderExists_Validation(t *testing.T) {
 	}
 	if fPath2 != ws2SessionDir {
 		t.Errorf("Expected fPath '%s', got '%s'", ws2SessionDir, fPath2)
+	}
+}
+
+func TestLoadGrokSessionMessages_SubagentHydration(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testWs := "/tmp/test-workspace-subagent-hydrate"
+	encodedWs := EncodeGrokWorkspacePath(testWs)
+	testDir := filepath.Join(home, ".grok", "sessions", encodedWs)
+	defer os.RemoveAll(testDir)
+
+	parentSessDir := filepath.Join(testDir, "parent-sess-sub1")
+	subID := "sub-uuid-4321-abcd"
+	subInParentDir := filepath.Join(parentSessDir, "subagents", subID)
+	subTopDir := filepath.Join(testDir, subID)
+
+	if err := os.MkdirAll(subInParentDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(subTopDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// 1. Write parent chat_history.jsonl
+	parentLines := []string{
+		`{"type":"user","content":"<user_query>Run a subagent to inspect repository</user_query>"}`,
+		`{"type":"assistant","content":"Launching subagent...","tool_calls":[{"id":"tc-sub","name":"spawn_subagent","arguments":"{\"description\":\"Inspect repo\",\"prompt\":\"Inspect files\"}"}]}`,
+		`{"type":"tool_result","tool_call_id":"tc-sub","content":"Subagent started in background.\nsubagent_id: ` + subID + `\ndescription: Inspect repo"}`,
+	}
+	_ = os.WriteFile(filepath.Join(parentSessDir, "chat_history.jsonl"), []byte(strings.Join(parentLines, "\n")+"\n"), 0644)
+
+	// 2. Write subagent meta.json and output.json in parent subagents/
+	metaContent := `{"status":"completed","duration_ms":7500,"tool_calls":2,"started_at":"2026-10-19T10:00:00Z","completed_at":"2026-10-19T10:00:07.500Z","description":"Inspect repo","prompt":"Inspect files","subagent_type":"explore"}`
+	_ = os.WriteFile(filepath.Join(subInParentDir, "meta.json"), []byte(metaContent), 0644)
+	outContent := `{"output":"All repository files have been analyzed successfully."}`
+	_ = os.WriteFile(filepath.Join(subInParentDir, "output.json"), []byte(outContent), 0644)
+
+	// 3. Write child updates.jsonl in top-level subagent dir
+	subUpdates := []string{
+		`{"params":{"update":{"sessionUpdate":"tool_call","tool_call_id":"child_1","tool_name":"read_file","args":"{\"path\":\"README.md\"}"}}}`,
+		`{"params":{"update":{"sessionUpdate":"tool_result","tool_call_id":"child_1","content":"# Project Readme"}}}`,
+		`{"params":{"update":{"sessionUpdate":"turn_completed","stop_reason":"end_turn"}}}`,
+	}
+	_ = os.WriteFile(filepath.Join(subTopDir, "updates.jsonl"), []byte(strings.Join(subUpdates, "\n")+"\n"), 0644)
+
+	msgs, err := LoadGrokSessionMessages(testWs, "parent-sess-sub1")
+	if err != nil {
+		t.Fatalf("LoadGrokSessionMessages failed: %v", err)
+	}
+
+	if len(msgs) != 2 {
+		t.Fatalf("Expected 2 messages (user, assistant), got %d", len(msgs))
+	}
+
+	asst := msgs[1]
+	if len(asst.ToolCalls) != 1 {
+		t.Fatalf("Expected 1 tool call in assistant message, got %d", len(asst.ToolCalls))
+	}
+
+	tc := asst.ToolCalls[0]
+	if tc.ChildSessionID != subID {
+		t.Errorf("Expected ChildSessionID=%s, got %s", subID, tc.ChildSessionID)
+	}
+	if tc.Status != "completed" {
+		t.Errorf("Expected Status='completed', got %s", tc.Status)
+	}
+	if tc.Result != "All repository files have been analyzed successfully." {
+		t.Errorf("Expected Result='All repository files have been analyzed successfully.', got '%s'", tc.Result)
+	}
+	if len(tc.ChildToolCalls) != 1 {
+		t.Fatalf("Expected 1 child tool call, got %d", len(tc.ChildToolCalls))
+	}
+	if tc.ChildToolCalls[0].Tool != "read_file" || tc.ChildToolCalls[0].Result != "# Project Readme" {
+		t.Errorf("Unexpected child tool call: %+v", tc.ChildToolCalls[0])
+	}
+
+	if tc.StartTime <= 0 {
+		t.Errorf("Expected positive StartTime, got %d", tc.StartTime)
+	}
+	if tc.EndTime <= 0 {
+		t.Errorf("Expected positive EndTime, got %d", tc.EndTime)
+	}
+	if tc.Params["description"] != "Inspect repo" {
+		t.Errorf("Expected description='Inspect repo', got %v", tc.Params["description"])
+	}
+	if tc.Params["prompt"] != "Inspect files" {
+		t.Errorf("Expected prompt='Inspect files', got %v", tc.Params["prompt"])
+	}
+	if tc.Params["subagent_type"] != "explore" {
+		t.Errorf("Expected subagent_type='explore', got %v", tc.Params["subagent_type"])
+	}
+
+	// Verify synchronization into asst.Parts
+	if len(asst.Parts) == 0 {
+		t.Fatalf("Expected asst.Parts to be populated")
+	}
+	var foundPartTool bool
+	for _, p := range asst.Parts {
+		if p.Type == "tool_calls" {
+			for _, ptc := range p.ToolCalls {
+				if ptc.ID == "tc-sub" {
+					foundPartTool = true
+					if len(ptc.ChildToolCalls) != 1 {
+						t.Errorf("Part tool call ChildToolCalls count mismatch: got %d", len(ptc.ChildToolCalls))
+					}
+					if ptc.Result != "All repository files have been analyzed successfully." {
+						t.Errorf("Part tool call Result mismatch: '%s'", ptc.Result)
+					}
+					if ptc.Status != "completed" {
+						t.Errorf("Part tool call Status mismatch: '%s'", ptc.Status)
+					}
+				}
+			}
+		}
+	}
+	if !foundPartTool {
+		t.Errorf("Did not find tc-sub in asst.Parts")
 	}
 }
 

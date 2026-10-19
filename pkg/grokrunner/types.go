@@ -77,36 +77,52 @@ type PermissionResponse struct {
 	Decision  string `json:"decision"` // "allow_once", "allow_always", "reject"
 }
 
+// DiscoveredMessagePart represents an interleaved message block (text or tool_calls)
+type DiscoveredMessagePart struct {
+	Type      string                 `json:"type"` // "text" or "tool_calls"
+	Text      string                 `json:"text,omitempty"`
+	ToolCalls []DiscoveredToolCall   `json:"toolCalls,omitempty"`
+}
+
 // DiscoveredChatMessage represents a reconstructed message for the frontend
 type DiscoveredChatMessage struct {
-	ID               string                 `json:"id"`
-	Role             string                 `json:"role"` // "user", "assistant", "system"
-	Content          string                 `json:"content"`
-	Timestamp        int64                  `json:"timestamp"`
-	ReasoningContent string                 `json:"reasoningContent,omitempty"`
-	ToolCalls        []DiscoveredToolCall   `json:"toolCalls,omitempty"`
-	Tokens           map[string]interface{} `json:"tokens,omitempty"`
-	Status           string                 `json:"status,omitempty"`
+	ID               string                  `json:"id"`
+	Role             string                  `json:"role"` // "user", "assistant", "system"
+	Content          string                  `json:"content"`
+	Timestamp        int64                   `json:"timestamp"`
+	ReasoningContent string                  `json:"reasoningContent,omitempty"`
+	ToolCalls        []DiscoveredToolCall    `json:"toolCalls,omitempty"`
+	Parts            []DiscoveredMessagePart `json:"parts,omitempty"`
+	Tokens           map[string]interface{}  `json:"tokens,omitempty"`
+	Status           string                  `json:"status,omitempty"`
 }
 
 // DiscoveredToolCall represents an executed tool reconstructed from history
 type DiscoveredToolCall struct {
-	ID        string                 `json:"id"`
-	Tool      string                 `json:"tool"`
-	Params    map[string]interface{} `json:"params,omitempty"`
-	Result    string                 `json:"result,omitempty"`
-	Status    string                 `json:"status"` // "completed", "failed", "running"
-	StartTime int64                  `json:"startTime,omitempty"`
-	EndTime   int64                  `json:"endTime,omitempty"`
+	ID             string                 `json:"id"`
+	Tool           string                 `json:"tool"`
+	Params         map[string]interface{} `json:"params,omitempty"`
+	Result         string                 `json:"result,omitempty"`
+	Status         string                 `json:"status"` // "completed", "failed", "running"
+	StartTime      int64                  `json:"startTime,omitempty"`
+	EndTime        int64                  `json:"endTime,omitempty"`
+	ChildToolCalls []DiscoveredToolCall   `json:"childToolCalls,omitempty"`
+	ChildSessionID string                 `json:"childSessionId,omitempty"`
 }
 
 // SubagentExecutionDetails holds complete execution context for a subagent
 type SubagentExecutionDetails struct {
-	SubagentID string               `json:"subagentId"`
-	Status     string               `json:"status"` // "completed", "failed", "running"
-	Output     string               `json:"output"`
-	DurationMs int64                `json:"durationMs,omitempty"`
-	Calls      []DiscoveredToolCall `json:"calls"`
+	SubagentID   string               `json:"subagentId"`
+	Status       string               `json:"status"` // "completed", "failed", "running"
+	Output       string               `json:"output"`
+	DurationMs   int64                `json:"durationMs,omitempty"`
+	Calls        []DiscoveredToolCall `json:"calls"`
+	Description  string               `json:"description,omitempty"`
+	Prompt       string               `json:"prompt,omitempty"`
+	SubagentType string               `json:"subagentType,omitempty"`
+	Model        string               `json:"model,omitempty"`
+	StartTime    int64                `json:"startTime,omitempty"`
+	EndTime      int64                `json:"endTime,omitempty"`
 }
 
 // SessionUsageStats holds comprehensive token breakdown for a session

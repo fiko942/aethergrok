@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { ChatMessage } from '$lib/stores/session.svelte';
+  import type { ChatMessage, MessagePart, ToolCall } from '$lib/stores/session.svelte';
   import ToolCallCard from './ToolCallCard.svelte';
   import TurnDiffSummary from './TurnDiffSummary.svelte';
   import PlanReviewCard from './PlanReviewCard.svelte';
@@ -117,6 +117,54 @@
     if (!message.toolCalls) return [];
     return message.toolCalls.filter((tc) => !isRedundantSubagentPoller(tc, message.toolCalls));
   });
+
+  let expandedParts = $state<Record<number, boolean>>({});
+
+  const messageParts = $derived.by((): MessagePart[] => {
+    // 1. If explicit parts array exists, use it
+    if (message.parts && message.parts.length > 0) {
+      return message.parts;
+    }
+
+    // 2. Fallback: reconstruct chronological order from message.content and visibleToolCalls
+    const hasContent = Boolean(message.content && message.content.trim().length > 0);
+    const hasTools = visibleToolCalls.length > 0;
+
+    if (!hasContent && !hasTools) return [];
+    if (hasContent && !hasTools) return [{ type: 'text', text: message.content }];
+    if (!hasContent && hasTools) return [{ type: 'tool_calls', toolCalls: visibleToolCalls }];
+
+    // If first tool strictly started before message timestamp:
+    const firstToolStartTime = visibleToolCalls[0]?.startTime;
+    if (firstToolStartTime && message.timestamp && firstToolStartTime < message.timestamp) {
+      return [
+        { type: 'tool_calls', toolCalls: visibleToolCalls },
+        { type: 'text', text: message.content }
+      ];
+    }
+
+    // Default when text and tools coexist: Text came first, tool calls are below text
+    return [
+      { type: 'text', text: message.content },
+      { type: 'tool_calls', toolCalls: visibleToolCalls }
+    ];
+  });
+
+  function isPartExpanded(idx: number, partTools: ToolCall[]): boolean {
+    if (expandedParts[idx] !== undefined) {
+      return expandedParts[idx];
+    }
+    // Auto-expand if any tool call in this block is actively running
+    if (partTools.some((tc) => tc.status === 'running')) {
+      return true;
+    }
+    return showToolDetails;
+  }
+
+  function togglePart(idx: number, partTools: ToolCall[]) {
+    const cur = isPartExpanded(idx, partTools);
+    expandedParts[idx] = !cur;
+  }
 
   function formatTime(timestamp: number): string {
     const d = new Date(timestamp);
@@ -434,52 +482,55 @@
               </div>
             {/if}
 
-            <!-- Tool Calls Card Section -->
-            {#if visibleToolCalls.length > 0}
-              <div class="mb-2 space-y-1">
-                <div class="flex items-center justify-between text-[11px] text-ant-text-muted font-mono select-none px-1">
-                  <span class="flex items-center space-x-1 font-semibold text-ant-text-secondary">
-                    <Terminal size={11} class="text-ant-primary" />
-                    <span>Executed {visibleToolCalls.length} {visibleToolCalls.length === 1 ? 'action' : 'actions'}</span>
-                  </span>
-                  <button
-                    type="button"
-                    onclick={() => showToolDetails = !showToolDetails}
-                    class="hover:text-ant-text transition text-[10px]"
-                  >
-                    {showToolDetails ? 'Hide details' : 'Show details'}
-                  </button>
-                </div>
+            <!-- Interleaved Turn Sequence (Chronological Text and Activity Lists) -->
+            {#each messageParts as part, partIdx (partIdx)}
+              {#if part.type === 'tool_calls'}
+                {@const partTools = part.toolCalls.filter(tc => !isRedundantSubagentPoller(tc, message.toolCalls))}
+                {#if partTools.length > 0}
+                  {@const expanded = isPartExpanded(partIdx, partTools)}
+                  <div class="mb-3 space-y-1">
+                    <div class="flex items-center justify-between text-[11px] text-ant-text-muted font-mono select-none px-1">
+                      <span class="flex items-center space-x-1 font-semibold text-ant-text-secondary">
+                        <Terminal size={11} class="text-ant-primary" />
+                        <span>Executed {partTools.length} {partTools.length === 1 ? 'action' : 'actions'}</span>
+                      </span>
+                      <button
+                        type="button"
+                        onclick={() => togglePart(partIdx, partTools)}
+                        class="hover:text-ant-text transition text-[10px]"
+                      >
+                        {expanded ? 'Hide details' : 'Show details'}
+                      </button>
+                    </div>
 
-                {#if showToolDetails}
-                  <div class="space-y-1">
-                    {#each visibleToolCalls as toolCall (toolCall.id)}
-                      <ToolCallCard {toolCall} />
-                    {/each}
+                    {#if expanded}
+                      <div class="space-y-1">
+                        {#each partTools as toolCall (toolCall.id)}
+                          <ToolCallCard {toolCall} />
+                        {/each}
+                      </div>
+                    {/if}
                   </div>
+
+                  <!-- Multi-File Turn Diff Summary Rollup for this activity batch -->
+                  {#if partTools.some(tc => {
+                    const stat = calculateDiffStat(tc);
+                    return stat.added > 0 || stat.removed > 0 || !tc.diff;
+                  })}
+                    <TurnDiffSummary toolCalls={partTools} />
+                  {/if}
                 {/if}
-              </div>
-            {/if}
-
-            <!-- Multi-File Turn Diff Summary Rollup -->
-            {#if visibleToolCalls.some(tc => {
-              const stat = calculateDiffStat(tc);
-              return stat.added > 0 || stat.removed > 0 || !!tc.diff;
-            })}
-              <TurnDiffSummary toolCalls={visibleToolCalls} />
-            {/if}
-
-            <!-- Message Markdown Content with Anthropic Serif Editorial Typography -->
-            {#if message.content}
-              <!-- svelte-ignore a11y_click_events_have_key_events -->
-              <!-- svelte-ignore a11y_no_static_element_interactions -->
-              <div
-                onclick={handleMessageClick}
-                class="font-serif text-[14px] text-ant-text leading-[1.7] tracking-normal select-text markdown-chat-body max-w-none"
-              >
-                {@html renderedHtml}
-              </div>
-            {/if}
+              {:else if part.type === 'text' && part.text}
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <div
+                  onclick={handleMessageClick}
+                  class="font-serif text-[14px] text-ant-text leading-[1.7] tracking-normal select-text markdown-chat-body max-w-none mb-3 last:mb-0"
+                >
+                  {@html renderMarkdown(part.text, existingFilesMap)}
+                </div>
+              {/if}
+            {/each}
 
             <!-- Interactive Plan Review Card -->
             {#if isPlanProposal && onPlanAction}

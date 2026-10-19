@@ -184,6 +184,8 @@ export function SearchSkills(arg1:string,arg2:string):Promise<Array<skills.Skill
 
 export function SelectWorkspaceDirectory():Promise<string>;
 
+export function SetFrontendActiveTasksCount(arg1:number):Promise<void>;
+
 export function SetGrokBinaryPath(arg1:string):Promise<void>;
 
 export function TranscribeAudioWithGrok(arg1:string,arg2:string):Promise<string>;

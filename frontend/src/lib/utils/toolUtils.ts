@@ -124,12 +124,15 @@ export function isSubagentBackgroundAck(text?: string): boolean {
 }
 
 /**
- * Extracts subagent_id from background ack text if available
+ * Extracts subagent_id or task_id from text (acknowledgment text, status reports, or UUIDs)
  */
 export function extractSubagentIdFromText(text?: string): string | undefined {
   if (!text || typeof text !== 'string') return undefined;
-  const match = /subagent_id:\s*[`"']?([0-9a-fA-F-]+)[`"']?/i.exec(text);
-  return match ? match[1] : undefined;
+  const labeledMatch = /(?:subagent_id|task_id|child_session_id|session_id)["']?\s*[:=]\s*[`"']?([a-zA-Z0-9_-]{4,})[`"']?/i.exec(text);
+  if (labeledMatch) return labeledMatch[1];
+  const uuidMatch = /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/.exec(text);
+  if (uuidMatch) return uuidMatch[0];
+  return undefined;
 }
 
 /**
@@ -168,7 +171,14 @@ export function extractSubagentMeta(params?: unknown, result?: string): Subagent
   const model = typeof p.model === 'string' ? p.model : undefined;
   const isolation = typeof p.isolation === 'string' ? p.isolation : undefined;
   const isBackground = p.background === true || p.is_background === true;
-  let taskId = typeof p.task_id === 'string' ? p.task_id : (typeof p.subagent_id === 'string' ? p.subagent_id : undefined);
+  let taskId = typeof p.task_id === 'string' ? p.task_id
+    : typeof p.subagent_id === 'string' ? p.subagent_id
+    : typeof p.taskId === 'string' ? p.taskId
+    : typeof p.subagentId === 'string' ? p.subagentId
+    : typeof p.childSessionId === 'string' ? p.childSessionId
+    : typeof p.child_session_id === 'string' ? p.child_session_id
+    : typeof p.id === 'string' && p.id.length > 5 && !p.id.startsWith('call_') ? p.id
+    : undefined;
 
   if (!taskId && result) {
     taskId = extractSubagentIdFromText(result);
@@ -485,13 +495,82 @@ export function isRedundantSubagentPoller(
 export interface ChildActionSummary {
   verb: string;
   target: string;
-  iconType: 'read' | 'write' | 'edit' | 'search' | 'terminal' | 'list' | 'tool';
+  iconType: 'read' | 'write' | 'edit' | 'search' | 'terminal' | 'list' | 'plan' | 'tool';
+}
+
+export interface ActionTodosResult {
+  todos: Array<{
+    id: string;
+    content?: string;
+    status?: string;
+    priority?: string;
+  }>;
+  isMerge: boolean;
+}
+
+/**
+ * Extracts structured todos and merge mode from tool call parameters
+ */
+export function extractActionTodos(params: unknown): ActionTodosResult | null {
+  let p: Record<string, unknown> = {};
+  if (typeof params === 'string') {
+    try {
+      p = JSON.parse(params);
+    } catch {
+      return null;
+    }
+  } else if (params && typeof params === 'object') {
+    p = params as Record<string, unknown>;
+  } else {
+    return null;
+  }
+
+  const rawTodos = p.todos || (p.TodosUpdated as any)?.todos || (p.TodosUpdated as any)?.state?.todos;
+  if (!rawTodos) return null;
+
+  let list: Array<{ id: string; content?: string; status?: string; priority?: string }> = [];
+  if (Array.isArray(rawTodos)) {
+    list = rawTodos.map((item) => {
+      if (typeof item === 'object' && item !== null) {
+        return {
+          id: String(item.id || ''),
+          content: typeof item.content === 'string' ? item.content : undefined,
+          status: typeof item.status === 'string' ? item.status : undefined,
+          priority: typeof item.priority === 'string' ? item.priority : undefined
+        };
+      }
+      return { id: String(item), status: 'pending' };
+    });
+  } else if (typeof rawTodos === 'object' && rawTodos !== null) {
+    list = Object.entries(rawTodos).map(([id, val]) => {
+      if (typeof val === 'object' && val !== null) {
+        const item = val as Record<string, unknown>;
+        return {
+          id,
+          content: typeof item.content === 'string' ? item.content : undefined,
+          status: typeof item.status === 'string' ? item.status : undefined,
+          priority: typeof item.priority === 'string' ? item.priority : undefined
+        };
+      }
+      return { id, content: String(val), status: 'pending' };
+    });
+  }
+
+  if (list.length === 0) return null;
+  return {
+    todos: list,
+    isMerge: p.merge !== false
+  };
 }
 
 /**
  * Extracts a clean, concise single-line label for a subagent's child tool call
  */
-export function formatActionSummary(toolName?: string, params?: unknown): ChildActionSummary {
+export function formatActionSummary(
+  toolName?: string,
+  params?: unknown,
+  knownTodos?: Array<{ id: string; content?: string }>
+): ChildActionSummary {
   const rawTool = (toolName || '').toLowerCase().replace(/[\s-]/g, '_');
   let p: Record<string, unknown> = {};
   if (typeof params === 'string') {
@@ -502,6 +581,69 @@ export function formatActionSummary(toolName?: string, params?: unknown): ChildA
     }
   } else if (params && typeof params === 'object') {
     p = params as Record<string, unknown>;
+  }
+
+  // 0. Plan / Todo Updates (e.g. todo_write, TodosUpdated, update_todos)
+  if (
+    rawTool.includes('todo') ||
+    rawTool.includes('task_write') ||
+    rawTool.includes('plan_update') ||
+    'todos' in p ||
+    'TodosUpdated' in p
+  ) {
+    const todosResult = extractActionTodos(p);
+    const todos = todosResult?.todos || [];
+    const isMerge = todosResult?.isMerge !== false;
+    let target = 'Update execution plan';
+
+    if (todos.length > 0) {
+      const completed = todos.filter((t) => t.status === 'completed');
+      const inProgress = todos.filter((t) => t.status === 'in_progress');
+      const cancelled = todos.filter((t) => t.status === 'cancelled');
+
+      const formatItemName = (item: { id: string; content?: string }): string => {
+        const id = item.id || '';
+        if (item.content && item.content.trim() && item.content !== id) {
+          const txt = item.content.trim();
+          return txt.length > 28 ? txt.slice(0, 27) + '…' : txt;
+        }
+        if (knownTodos && knownTodos.length > 0) {
+          const match = knownTodos.find((t) => t.id === id);
+          if (match && match.content && match.content !== id) {
+            const txt = match.content.trim();
+            return txt.length > 28 ? txt.slice(0, 27) + '…' : txt;
+          }
+        }
+        const clean = id || 'task';
+        return clean.length > 25 ? clean.slice(0, 24) + '…' : clean;
+      };
+
+      if (completed.length === 1 && inProgress.length === 1) {
+        target = `Done "${formatItemName(completed[0])}" → Active "${formatItemName(inProgress[0])}"`;
+      } else if (completed.length === 1 && inProgress.length === 0) {
+        target = `Completed "${formatItemName(completed[0])}"`;
+      } else if (inProgress.length === 1 && completed.length === 0) {
+        target = `Started "${formatItemName(inProgress[0])}"`;
+      } else if (cancelled.length === 1 && todos.length === 1) {
+        target = `Cancelled "${formatItemName(cancelled[0])}"`;
+      } else if (completed.length > 0 && inProgress.length > 0) {
+        target = `${completed.length} completed, ${inProgress.length} active`;
+      } else if (completed.length > 0) {
+        target = `Completed ${completed.length} ${completed.length === 1 ? 'task' : 'tasks'}`;
+      } else if (inProgress.length > 0) {
+        target = `Started ${inProgress.length} ${inProgress.length === 1 ? 'task' : 'tasks'}`;
+      } else if (!isMerge) {
+        target = `Created plan with ${todos.length} ${todos.length === 1 ? 'task' : 'tasks'}`;
+      } else {
+        target = `Updated ${todos.length} ${todos.length === 1 ? 'task' : 'tasks'}`;
+      }
+    }
+
+    return {
+      verb: 'Plan',
+      target,
+      iconType: 'plan'
+    };
   }
 
   // 1. Read

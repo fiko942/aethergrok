@@ -1,5 +1,39 @@
 export namespace grokrunner {
 	
+	export class DiscoveredMessagePart {
+	    type: string;
+	    text?: string;
+	    toolCalls?: DiscoveredToolCall[];
+	
+	    static createFrom(source: any = {}) {
+	        return new DiscoveredMessagePart(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.type = source["type"];
+	        this.text = source["text"];
+	        this.toolCalls = this.convertValues(source["toolCalls"], DiscoveredToolCall);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class DiscoveredToolCall {
 	    id: string;
 	    tool: string;
@@ -8,6 +42,8 @@ export namespace grokrunner {
 	    status: string;
 	    startTime?: number;
 	    endTime?: number;
+	    childToolCalls?: DiscoveredToolCall[];
+	    childSessionId?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new DiscoveredToolCall(source);
@@ -22,6 +58,8 @@ export namespace grokrunner {
 	        this.status = source["status"];
 	        this.startTime = source["startTime"];
 	        this.endTime = source["endTime"];
+	        this.childToolCalls = source["childToolCalls"];
+	        this.childSessionId = source["childSessionId"];
 	    }
 	}
 	export class DiscoveredChatMessage {
@@ -31,6 +69,7 @@ export namespace grokrunner {
 	    timestamp: number;
 	    reasoningContent?: string;
 	    toolCalls?: DiscoveredToolCall[];
+	    parts?: DiscoveredMessagePart[];
 	    tokens?: Record<string, any>;
 	    status?: string;
 	
@@ -46,6 +85,7 @@ export namespace grokrunner {
 	        this.timestamp = source["timestamp"];
 	        this.reasoningContent = source["reasoningContent"];
 	        this.toolCalls = this.convertValues(source["toolCalls"], DiscoveredToolCall);
+	        this.parts = this.convertValues(source["parts"], DiscoveredMessagePart);
 	        this.tokens = source["tokens"];
 	        this.status = source["status"];
 	    }
@@ -68,6 +108,7 @@ export namespace grokrunner {
 		    return a;
 		}
 	}
+	
 	
 	export class GrokInstallStatus {
 	    installed: boolean;
@@ -254,6 +295,12 @@ export namespace grokrunner {
 	    output: string;
 	    durationMs?: number;
 	    calls: DiscoveredToolCall[];
+	    description?: string;
+	    prompt?: string;
+	    subagentType?: string;
+	    model?: string;
+	    startTime?: number;
+	    endTime?: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new SubagentExecutionDetails(source);
@@ -266,6 +313,12 @@ export namespace grokrunner {
 	        this.output = source["output"];
 	        this.durationMs = source["durationMs"];
 	        this.calls = this.convertValues(source["calls"], DiscoveredToolCall);
+	        this.description = source["description"];
+	        this.prompt = source["prompt"];
+	        this.subagentType = source["subagentType"];
+	        this.model = source["model"];
+	        this.startTime = source["startTime"];
+	        this.endTime = source["endTime"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

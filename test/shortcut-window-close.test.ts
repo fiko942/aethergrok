@@ -35,8 +35,12 @@ describe('Cmd+W / Ctrl+W Keyboard Interception & Terminal Passthrough', () => {
 
     // Intercept Cmd/Ctrl + W to close tabs and prevent macOS [NSWindow performClose:] from killing the app
     // Preserve Ctrl+W inside terminal for readline unix-word-rubout
+    // Preserve Ctrl+W inside input and textarea for readline unix-word-rubout
     if (isMetaOrCtrl && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'w') {
       if (inTerminal && e.ctrlKey && !e.metaKey) {
+        return;
+      }
+      if (isEditing && e.ctrlKey && !e.metaKey) {
         return;
       }
       e.preventDefault();
@@ -189,6 +193,56 @@ describe('Cmd+W / Ctrl+W Keyboard Interception & Terminal Passthrough', () => {
     expect(stopPropagation).toHaveBeenCalledTimes(1);
     expect(closeTerminalTab).not.toHaveBeenCalled();
     expect(closeSessionTab).toHaveBeenCalledWith('sess-3');
+  });
+
+  it('passes Ctrl+W through in textarea/input without closing tab (readline unix-word-rubout)', () => {
+    const preventDefault = vi.fn();
+    const stopPropagation = vi.fn();
+    const closeTerminalTab = vi.fn();
+    const closeSessionTab = vi.fn();
+
+    const e = {
+      metaKey: false,
+      ctrlKey: true,
+      altKey: false,
+      shiftKey: false,
+      key: 'w',
+      preventDefault,
+      stopPropagation
+    };
+
+    const sessionStore = { activeSessionId: 'sess-3', closeSessionTab };
+    const terminalStore = {
+      activeTerminalIdPerSession: { 'sess-3': 'term-2' },
+      closeTerminalTab
+    };
+
+    dispatchAppKeydown(e, false, sessionStore, terminalStore, true); // isEditing = true
+
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(stopPropagation).not.toHaveBeenCalled();
+    expect(closeTerminalTab).not.toHaveBeenCalled();
+    expect(closeSessionTab).not.toHaveBeenCalled();
+  });
+
+  it('correctly identifies single modifier shortcut names', () => {
+    function isSingleModifierShortcut(shortcutStr: string): boolean {
+      if (!shortcutStr) return false;
+      const clean = shortcutStr.toLowerCase().replace(/[\s_-]/g, '');
+      return [
+        'shift', 'shiftright', 'shiftleft', 'rightshift', 'leftshift',
+        'alt', 'altright', 'altleft', 'rightalt', 'leftalt', 'option', 'optionright', 'optionleft',
+        'control', 'controlright', 'controlleft', 'rightcontrol', 'leftcontrol', 'ctrl', 'ctrlright', 'ctrlleft',
+        'meta', 'metaright', 'metaleft', 'cmd', 'cmdright', 'cmdleft', 'command'
+      ].includes(clean);
+    }
+
+    expect(isSingleModifierShortcut('ShiftRight')).toBe(true);
+    expect(isSingleModifierShortcut('ShiftLeft')).toBe(true);
+    expect(isSingleModifierShortcut('rightshift')).toBe(true);
+    expect(isSingleModifierShortcut('AltRight')).toBe(true);
+    expect(isSingleModifierShortcut('Cmd+Shift+S')).toBe(false);
+    expect(isSingleModifierShortcut('Ctrl+K')).toBe(false);
   });
 
   it('intercepts Cmd+H outside terminal and prevents macOS [NSApp hide:]', () => {

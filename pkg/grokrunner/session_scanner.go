@@ -27,6 +27,8 @@ type GrokSessionMetadata struct {
 }
 
 var userQueryRegex = regexp.MustCompile(`(?s)<user_query>(.*?)(?:</user_query>|$)`)
+var subagentIDRegex = regexp.MustCompile(`(?i)(?:subagent_id|task_id|session_id)["']?\s*[:=]\s*[`+"`"+`"']?([a-zA-Z0-9_-]{4,})[`+"`"+`"']?`)
+var uuidFallbackRegex = regexp.MustCompile(`[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`)
 
 // EncodeGrokWorkspacePath converts a workspace file system path into the exact URL-encoded
 // directory leaf format used by Grok CLI in ~/.grok/sessions/ (matching JS encodeURIComponent)
@@ -459,8 +461,6 @@ func LoadGrokSessionMessages(workspacePath, sessionID string) ([]DiscoveredChatM
 
 	lines := strings.Split(string(data), "\n")
 	var messages []DiscoveredChatMessage
-	var pendingToolCalls []DiscoveredToolCall
-	toolCallIndexMap := make(map[string]int)
 
 	for lineIdx, line := range lines {
 		line = strings.TrimSpace(line)
@@ -486,12 +486,6 @@ func LoadGrokSessionMessages(workspacePath, sessionID string) ([]DiscoveredChatM
 
 		// 1. Process User Message
 		if role == "user" {
-			// Flush pending tool calls to previous assistant message if any
-			if len(pendingToolCalls) > 0 && len(messages) > 0 && messages[len(messages)-1].Role == "assistant" {
-				messages[len(messages)-1].ToolCalls = append(messages[len(messages)-1].ToolCalls, pendingToolCalls...)
-				pendingToolCalls = nil
-			}
-
 			userText := ""
 			if cStr, ok := raw["content"].(string); ok {
 				userText = cStr
@@ -529,16 +523,50 @@ func LoadGrokSessionMessages(workspacePath, sessionID string) ([]DiscoveredChatM
 				Content:   userText,
 				Timestamp: 0,
 				Status:    "done",
+				Parts: []DiscoveredMessagePart{
+					{
+						Type: "text",
+						Text: userText,
+					},
+				},
 			})
 		} else if role == "assistant" {
-			// Assistant message
+			// Ensure an assistant message exists for this turn
+			if len(messages) == 0 || messages[len(messages)-1].Role != "assistant" {
+				messages = append(messages, DiscoveredChatMessage{
+					ID:        fmt.Sprintf("%s_a_%d", sessionID, lineIdx),
+					Role:      "assistant",
+					Status:    "done",
+				})
+			}
+			asst := &messages[len(messages)-1]
+
 			contentStr := ""
 			if cStr, ok := raw["content"].(string); ok {
-				contentStr = cStr
+				contentStr = strings.TrimSpace(cStr)
 			}
 
-			// Tool calls inside assistant entry
-			if tcList, ok := raw["tool_calls"].([]interface{}); ok {
+			// In assistant turns, any introductory text was generated before tool calls
+			if contentStr != "" {
+				if asst.Content != "" {
+					asst.Content += "\n\n" + contentStr
+				} else {
+					asst.Content = contentStr
+				}
+
+				if len(asst.Parts) > 0 && asst.Parts[len(asst.Parts)-1].Type == "text" {
+					asst.Parts[len(asst.Parts)-1].Text += "\n\n" + contentStr
+				} else {
+					asst.Parts = append(asst.Parts, DiscoveredMessagePart{
+						Type: "text",
+						Text: contentStr,
+					})
+				}
+			}
+
+			// Tool calls in this assistant entry follow the preceding text
+			if tcList, ok := raw["tool_calls"].([]interface{}); ok && len(tcList) > 0 {
+				var lineToolCalls []DiscoveredToolCall
 				for _, tc := range tcList {
 					if tcMap, ok := tc.(map[string]interface{}); ok {
 						tcID, _ := tcMap["id"].(string)
@@ -556,34 +584,20 @@ func LoadGrokSessionMessages(workspacePath, sessionID string) ([]DiscoveredChatM
 							Params: inputMap,
 							Status: "completed",
 						}
-						toolCallIndexMap[tcID] = len(pendingToolCalls)
-						pendingToolCalls = append(pendingToolCalls, newTc)
+						lineToolCalls = append(lineToolCalls, newTc)
 					}
 				}
-			}
 
-			if contentStr != "" {
-				// Check if last message was already assistant, we can append content
-				if len(messages) > 0 && messages[len(messages)-1].Role == "assistant" && len(messages[len(messages)-1].Content) == 0 {
-					messages[len(messages)-1].Content = contentStr
-					if len(pendingToolCalls) > 0 {
-						messages[len(messages)-1].ToolCalls = append(messages[len(messages)-1].ToolCalls, pendingToolCalls...)
-						pendingToolCalls = nil
+				if len(lineToolCalls) > 0 {
+					asst.ToolCalls = append(asst.ToolCalls, lineToolCalls...)
+					if len(asst.Parts) > 0 && asst.Parts[len(asst.Parts)-1].Type == "tool_calls" {
+						asst.Parts[len(asst.Parts)-1].ToolCalls = append(asst.Parts[len(asst.Parts)-1].ToolCalls, lineToolCalls...)
+					} else {
+						asst.Parts = append(asst.Parts, DiscoveredMessagePart{
+							Type:      "tool_calls",
+							ToolCalls: lineToolCalls,
+						})
 					}
-				} else {
-					var currentToolCalls []DiscoveredToolCall
-					if len(pendingToolCalls) > 0 {
-						currentToolCalls = pendingToolCalls
-						pendingToolCalls = nil
-					}
-					messages = append(messages, DiscoveredChatMessage{
-						ID:        fmt.Sprintf("%s_a_%d", sessionID, lineIdx),
-						Role:      "assistant",
-						Content:   contentStr,
-						Timestamp: 0,
-						Status:    "done",
-						ToolCalls: currentToolCalls,
-					})
 				}
 			}
 		} else if role == "tool_result" || msgType == "tool_result" {
@@ -594,24 +608,169 @@ func LoadGrokSessionMessages(workspacePath, sessionID string) ([]DiscoveredChatM
 				resultStr = cStr
 			}
 
-			if idx, ok := toolCallIndexMap[tcID]; ok && idx < len(pendingToolCalls) {
-				pendingToolCalls[idx].Result = resultStr
+			if len(messages) > 0 && messages[len(messages)-1].Role == "assistant" {
+				asst := &messages[len(messages)-1]
+				for i := range asst.ToolCalls {
+					if asst.ToolCalls[i].ID == tcID {
+						asst.ToolCalls[i].Result = resultStr
+						break
+					}
+				}
+				for i := range asst.Parts {
+					if asst.Parts[i].Type == "tool_calls" {
+						for j := range asst.Parts[i].ToolCalls {
+							if asst.Parts[i].ToolCalls[j].ID == tcID {
+								asst.Parts[i].ToolCalls[j].Result = resultStr
+								break
+							}
+						}
+					}
+				}
 			}
 		}
 	}
 
-	// Flush any trailing tool calls
-	if len(pendingToolCalls) > 0 {
-		if len(messages) > 0 && messages[len(messages)-1].Role == "assistant" {
-			messages[len(messages)-1].ToolCalls = append(messages[len(messages)-1].ToolCalls, pendingToolCalls...)
-		} else {
-			messages = append(messages, DiscoveredChatMessage{
-				ID:        sessionID + "_a_tail",
-				Role:      "assistant",
-				Content:   "",
-				Status:    "done",
-				ToolCalls: pendingToolCalls,
-			})
+	// Post-process assistant messages: populate subagent details and child tool calls from disk
+	for msgIdx := range messages {
+		if messages[msgIdx].Role != "assistant" {
+			continue
+		}
+		asst := &messages[msgIdx]
+
+		for tcIdx := range asst.ToolCalls {
+			tc := &asst.ToolCalls[tcIdx]
+			toolLower := strings.ToLower(tc.Tool)
+			isSub := strings.Contains(toolLower, "subagent") || toolLower == "delegatetask" || toolLower == "runagent"
+			if !isSub && tc.Params != nil {
+				if _, ok := tc.Params["subagent_type"]; ok {
+					isSub = true
+				} else if isBg, _ := tc.Params["is_background"].(bool); isBg {
+					if desc, _ := tc.Params["description"].(string); strings.Contains(strings.ToLower(desc), "subagent") {
+						isSub = true
+					}
+				}
+			}
+
+			if isSub {
+				subID := ""
+				if tc.Params != nil {
+					if sid, ok := tc.Params["subagent_id"].(string); ok && sid != "" {
+						subID = sid
+					} else if tid, ok := tc.Params["task_id"].(string); ok && tid != "" {
+						subID = tid
+					} else if tid, ok := tc.Params["id"].(string); ok && tid != "" {
+						subID = tid
+					}
+				}
+				if subID == "" && tc.Result != "" {
+					matches := subagentIDRegex.FindStringSubmatch(tc.Result)
+					if len(matches) > 1 {
+						subID = matches[1]
+					} else {
+						uMatches := uuidFallbackRegex.FindStringSubmatch(tc.Result)
+						if len(uMatches) > 0 {
+							subID = uMatches[0]
+						}
+					}
+				}
+
+				// Disk folder fallback: check <sessionFolderPath>/subagents/ if subID is still not found in text
+				if subID == "" && sessionFolderPath != "" {
+					subagentsParent := filepath.Join(sessionFolderPath, "subagents")
+					if dirExists(subagentsParent) {
+						if subEntries, err := os.ReadDir(subagentsParent); err == nil {
+							var candidateIDs []string
+							for _, se := range subEntries {
+								if se.IsDir() {
+									candidateIDs = append(candidateIDs, se.Name())
+								}
+							}
+							if len(candidateIDs) == 1 {
+								subID = candidateIDs[0]
+							} else if len(candidateIDs) > 1 && tc.Params != nil {
+								desc, _ := tc.Params["description"].(string)
+								prompt, _ := tc.Params["prompt"].(string)
+								for _, cID := range candidateIDs {
+									metaFile := filepath.Join(subagentsParent, cID, "meta.json")
+									if data, err := os.ReadFile(metaFile); err == nil {
+										var m struct {
+											Description string `json:"description"`
+											Prompt      string `json:"prompt"`
+										}
+										if json.Unmarshal(data, &m) == nil {
+											if (desc != "" && strings.Contains(strings.ToLower(m.Description), strings.ToLower(desc))) ||
+												(prompt != "" && strings.Contains(strings.ToLower(m.Prompt), strings.ToLower(prompt))) {
+												subID = cID
+												break
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+
+				if subID != "" {
+					tc.ChildSessionID = subID
+					if subDetails, err := LoadSubagentExecutionDetails(workspacePath, subID); err == nil && subDetails != nil {
+						if len(subDetails.Calls) > 0 {
+							tc.ChildToolCalls = subDetails.Calls
+						}
+						if subDetails.Output != "" && (tc.Result == "" || strings.Contains(strings.ToLower(tc.Result), "subagent started in background")) {
+							tc.Result = subDetails.Output
+						}
+						if subDetails.Status == "completed" || subDetails.Status == "failed" {
+							tc.Status = subDetails.Status
+						}
+						if subDetails.StartTime > 0 && tc.StartTime == 0 {
+							tc.StartTime = subDetails.StartTime
+						}
+						if subDetails.EndTime > 0 && tc.EndTime == 0 {
+							tc.EndTime = subDetails.EndTime
+						}
+						if subDetails.DurationMs > 0 && tc.StartTime > 0 && tc.EndTime == 0 {
+							tc.EndTime = tc.StartTime + subDetails.DurationMs
+						}
+						if tc.Params == nil {
+							tc.Params = make(map[string]interface{})
+						}
+						if _, ok := tc.Params["description"]; !ok && subDetails.Description != "" {
+							tc.Params["description"] = subDetails.Description
+						}
+						if _, ok := tc.Params["prompt"]; !ok && subDetails.Prompt != "" {
+							tc.Params["prompt"] = subDetails.Prompt
+						}
+						if _, ok := tc.Params["subagent_type"]; !ok && subDetails.SubagentType != "" {
+							tc.Params["subagent_type"] = subDetails.SubagentType
+						}
+						if _, ok := tc.Params["model"]; !ok && subDetails.Model != "" {
+							tc.Params["model"] = subDetails.Model
+						}
+					}
+				}
+			}
+		}
+
+		// Synchronize updated tool calls into asst.Parts
+		for partIdx := range asst.Parts {
+			if asst.Parts[partIdx].Type == "tool_calls" {
+				for ptcIdx := range asst.Parts[partIdx].ToolCalls {
+					ptc := &asst.Parts[partIdx].ToolCalls[ptcIdx]
+					for _, tc := range asst.ToolCalls {
+						if tc.ID == ptc.ID {
+							ptc.ChildToolCalls = tc.ChildToolCalls
+							ptc.ChildSessionID = tc.ChildSessionID
+							ptc.Result = tc.Result
+							ptc.Status = tc.Status
+							ptc.StartTime = tc.StartTime
+							ptc.EndTime = tc.EndTime
+							ptc.Params = tc.Params
+							break
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -875,71 +1034,86 @@ func LoadSubagentExecutionDetails(workspacePath, subagentID string) (*SubagentEx
 	}
 
 	sessionsDir := filepath.Join(home, ".grok", "sessions")
-	var sessionFolderPath string
 
-	hasSessionFiles := func(dir string) bool {
-		return fileExists(filepath.Join(dir, "updates.jsonl")) ||
+	hasSubagentFiles := func(dir string) bool {
+		return fileExists(filepath.Join(dir, "meta.json")) ||
+			fileExists(filepath.Join(dir, "output.json")) ||
+			fileExists(filepath.Join(dir, "updates.jsonl")) ||
 			fileExists(filepath.Join(dir, "chat_history.jsonl")) ||
 			fileExists(filepath.Join(dir, "summary.json"))
 	}
 
+	var candidateDirs []string
+	addCandidate := func(dir string) {
+		if dir == "" || !dirExists(dir) || !hasSubagentFiles(dir) {
+			return
+		}
+		for _, c := range candidateDirs {
+			if c == dir {
+				return
+			}
+		}
+		candidateDirs = append(candidateDirs, dir)
+	}
+
+	sLower := strings.ToLower(subagentID)
+
 	// 1. Try finding inside specified workspace
 	if workspacePath != "" {
 		targetDir := ResolveWorkspaceSessionsDir(sessionsDir, workspacePath)
-		folder, _ := ResolveSessionFolder(targetDir, subagentID)
-		if dirExists(folder) && hasSessionFiles(folder) {
-			sessionFolderPath = folder
-		} else if dirExists(targetDir) {
+		if dirExists(targetDir) {
+			folder, candidateID := ResolveSessionFolder(targetDir, subagentID)
+			if strings.EqualFold(candidateID, subagentID) || strings.HasPrefix(strings.ToLower(candidateID), sLower) {
+				addCandidate(folder)
+			}
 			// Check <parent>/subagents/<subagentID>
 			if entries, err := os.ReadDir(targetDir); err == nil {
 				for _, entry := range entries {
 					if entry.IsDir() {
-						subDir := filepath.Join(targetDir, entry.Name(), "subagents", subagentID)
-						if dirExists(subDir) && hasSessionFiles(subDir) {
-							sessionFolderPath = subDir
-							break
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// 2. Fallback: Search all workspace folders under ~/.grok/sessions/ if not found yet
-	if sessionFolderPath == "" {
-		if wsEntries, err := os.ReadDir(sessionsDir); err == nil {
-			sLower := strings.ToLower(subagentID)
-			for _, wsEntry := range wsEntries {
-				if !wsEntry.IsDir() {
-					continue
-				}
-				candidateDir := filepath.Join(sessionsDir, wsEntry.Name())
-				candidateFolder, candidateID := ResolveSessionFolder(candidateDir, subagentID)
-				if dirExists(candidateFolder) && hasSessionFiles(candidateFolder) &&
-					(strings.EqualFold(candidateID, subagentID) || strings.HasPrefix(strings.ToLower(candidateID), sLower)) {
-					sessionFolderPath = candidateFolder
-					break
-				}
-				// Also check subagents/ within this workspace
-				if pEntries, err := os.ReadDir(candidateDir); err == nil {
-					for _, pEntry := range pEntries {
-						if pEntry.IsDir() {
-							subDir := filepath.Join(candidateDir, pEntry.Name(), "subagents", subagentID)
-							if dirExists(subDir) && hasSessionFiles(subDir) {
-								sessionFolderPath = subDir
-								break
+						subagentsParent := filepath.Join(targetDir, entry.Name(), "subagents")
+						if dirExists(subagentsParent) {
+							subFolder, sID := ResolveSessionFolder(subagentsParent, subagentID)
+							if strings.EqualFold(sID, subagentID) || strings.HasPrefix(strings.ToLower(sID), sLower) {
+								addCandidate(subFolder)
 							}
+							addCandidate(filepath.Join(subagentsParent, subagentID))
 						}
 					}
-				}
-				if sessionFolderPath != "" {
-					break
 				}
 			}
 		}
 	}
 
-	if sessionFolderPath == "" || !dirExists(sessionFolderPath) {
+	// 2. Search all workspace folders under ~/.grok/sessions/
+	if wsEntries, err := os.ReadDir(sessionsDir); err == nil {
+		for _, wsEntry := range wsEntries {
+			if !wsEntry.IsDir() {
+				continue
+			}
+			candidateDir := filepath.Join(sessionsDir, wsEntry.Name())
+			candidateFolder, candidateID := ResolveSessionFolder(candidateDir, subagentID)
+			if strings.EqualFold(candidateID, subagentID) || strings.HasPrefix(strings.ToLower(candidateID), sLower) {
+				addCandidate(candidateFolder)
+			}
+			// Also check subagents/ within this workspace
+			if pEntries, err := os.ReadDir(candidateDir); err == nil {
+				for _, pEntry := range pEntries {
+					if pEntry.IsDir() {
+						subagentsParent := filepath.Join(candidateDir, pEntry.Name(), "subagents")
+						if dirExists(subagentsParent) {
+							subFolder, sID := ResolveSessionFolder(subagentsParent, subagentID)
+							if strings.EqualFold(sID, subagentID) || strings.HasPrefix(strings.ToLower(sID), sLower) {
+								addCandidate(subFolder)
+							}
+							addCandidate(filepath.Join(subagentsParent, subagentID))
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if len(candidateDirs) == 0 {
 		return &SubagentExecutionDetails{
 			SubagentID: subagentID,
 			Status:     "running",
@@ -953,133 +1127,221 @@ func LoadSubagentExecutionDetails(workspacePath, subagentID string) (*SubagentEx
 		Calls:      []DiscoveredToolCall{},
 	}
 
-	// Parse tool calls
-	updatesPath := filepath.Join(sessionFolderPath, "updates.jsonl")
-	chatPath := filepath.Join(sessionFolderPath, "chat_history.jsonl")
-	summaryPath := filepath.Join(sessionFolderPath, "summary.json")
-
-	if fileExists(updatesPath) {
-		if calls, err := ParseSubagentUpdatesJsonl(updatesPath); err == nil && len(calls) > 0 {
-			details.Calls = calls
-		}
-	}
-	if len(details.Calls) == 0 && fileExists(chatPath) {
-		if calls, err := ParseSubagentChatHistoryJsonl(chatPath); err == nil && len(calls) > 0 {
-			details.Calls = calls
-		}
-	}
-
-	// Read updates.jsonl for turn_completed status, elapsed duration, and message chunks
 	var lastAssistantChunks []string
-	if fileExists(updatesPath) {
-		if data, err := os.ReadFile(updatesPath); err == nil {
-			lines := strings.Split(string(data), "\n")
-			for _, line := range lines {
-				line = strings.TrimSpace(line)
-				if line == "" {
-					continue
-				}
-				var raw map[string]interface{}
-				if err := json.Unmarshal([]byte(line), &raw); err != nil {
-					continue
-				}
-				params, _ := raw["params"].(map[string]interface{})
-				if params == nil {
-					continue
-				}
-				updateMap, _ := params["update"].(map[string]interface{})
-				if updateMap == nil {
-					continue
-				}
-				uType, _ := updateMap["sessionUpdate"].(string)
-				if uType == "" {
-					uType, _ = updateMap["type"].(string)
-				}
-				uType = strings.ToLower(strings.TrimSpace(uType))
 
-				if uType == "turn_completed" {
-					stopReason, _ := updateMap["stop_reason"].(string)
-					stopReason = strings.ToLower(strings.TrimSpace(stopReason))
-					if stopReason == "end_turn" || stopReason == "stop" || stopReason == "complete" || stopReason == "" {
+	for _, dir := range candidateDirs {
+		// A. Parse meta.json if present
+		metaPath := filepath.Join(dir, "meta.json")
+		if fileExists(metaPath) {
+			if data, err := os.ReadFile(metaPath); err == nil {
+				var meta struct {
+					Status           string `json:"status"`
+					DurationMs       int64  `json:"duration_ms"`
+					StartedAt        string `json:"started_at"`
+					CompletedAt      string `json:"completed_at"`
+					ToolCalls        int    `json:"tool_calls"`
+					Description      string `json:"description"`
+					Prompt           string `json:"prompt"`
+					SubagentType     string `json:"subagent_type"`
+					EffectiveModelID string `json:"effective_model_id"`
+				}
+				if err := json.Unmarshal(data, &meta); err == nil {
+					mStatus := strings.ToLower(strings.TrimSpace(meta.Status))
+					if mStatus == "completed" || mStatus == "success" || mStatus == "done" {
 						details.Status = "completed"
-					} else if stopReason == "error" || stopReason == "failed" {
+					} else if mStatus == "failed" || mStatus == "error" {
 						details.Status = "failed"
 					}
-					if elapsed, ok := updateMap["elapsed_ms"].(float64); ok && elapsed > 0 {
-						details.DurationMs = int64(elapsed)
-					}
-				} else if uType == "agent_message_chunk" || uType == "agent_message" {
-					if contentMap, ok := updateMap["content"].(map[string]interface{}); ok {
-						if text, ok := contentMap["text"].(string); ok && text != "" {
-							lastAssistantChunks = append(lastAssistantChunks, text)
+					var tStart, tEnd time.Time
+					if meta.StartedAt != "" {
+						var err1 error
+						tStart, err1 = time.Parse(time.RFC3339Nano, meta.StartedAt)
+						if err1 != nil {
+							tStart, _ = time.Parse(time.RFC3339, meta.StartedAt)
+						}
+						if !tStart.IsZero() && details.StartTime == 0 {
+							details.StartTime = tStart.UnixMilli()
 						}
 					}
-				} else if uType == "tool_call" {
-					lastAssistantChunks = nil
+					if meta.CompletedAt != "" {
+						var err2 error
+						tEnd, err2 = time.Parse(time.RFC3339Nano, meta.CompletedAt)
+						if err2 != nil {
+							tEnd, _ = time.Parse(time.RFC3339, meta.CompletedAt)
+						}
+						if !tEnd.IsZero() && details.EndTime == 0 {
+							details.EndTime = tEnd.UnixMilli()
+						}
+					}
+					if meta.DurationMs > 0 && details.DurationMs == 0 {
+						details.DurationMs = meta.DurationMs
+					} else if details.DurationMs == 0 && !tStart.IsZero() && !tEnd.IsZero() && tEnd.After(tStart) {
+						details.DurationMs = tEnd.Sub(tStart).Milliseconds()
+					}
+					if details.Description == "" && meta.Description != "" {
+						details.Description = meta.Description
+					}
+					if details.Prompt == "" && meta.Prompt != "" {
+						details.Prompt = meta.Prompt
+					}
+					if details.SubagentType == "" && meta.SubagentType != "" {
+						details.SubagentType = meta.SubagentType
+					}
+					if details.Model == "" && meta.EffectiveModelID != "" {
+						details.Model = meta.EffectiveModelID
+					}
+				}
+			}
+		}
+
+		// B. Parse output.json if present
+		outputPath := filepath.Join(dir, "output.json")
+		if fileExists(outputPath) {
+			if data, err := os.ReadFile(outputPath); err == nil {
+				var outObj struct {
+					Output string `json:"output"`
+				}
+				if err := json.Unmarshal(data, &outObj); err == nil && strings.TrimSpace(outObj.Output) != "" {
+					if details.Output == "" {
+						details.Output = strings.TrimSpace(outObj.Output)
+					}
+					if details.Status != "failed" {
+						details.Status = "completed"
+					}
+				}
+			}
+		}
+
+		// C. Parse child tool calls from updates.jsonl or chat_history.jsonl
+		updatesPath := filepath.Join(dir, "updates.jsonl")
+		chatPath := filepath.Join(dir, "chat_history.jsonl")
+		summaryPath := filepath.Join(dir, "summary.json")
+
+		if fileExists(updatesPath) {
+			if len(details.Calls) == 0 {
+				if calls, err := ParseSubagentUpdatesJsonl(updatesPath); err == nil && len(calls) > 0 {
+					details.Calls = calls
+				}
+			}
+
+			// Read turn_completed and chunks
+			if data, err := os.ReadFile(updatesPath); err == nil {
+				lines := strings.Split(string(data), "\n")
+				for _, line := range lines {
+					line = strings.TrimSpace(line)
+					if line == "" {
+						continue
+					}
+					var raw map[string]interface{}
+					if err := json.Unmarshal([]byte(line), &raw); err != nil {
+						continue
+					}
+					params, _ := raw["params"].(map[string]interface{})
+					if params == nil {
+						continue
+					}
+					updateMap, _ := params["update"].(map[string]interface{})
+					if updateMap == nil {
+						continue
+					}
+					uType, _ := updateMap["sessionUpdate"].(string)
+					if uType == "" {
+						uType, _ = updateMap["type"].(string)
+					}
+					uType = strings.ToLower(strings.TrimSpace(uType))
+
+					if uType == "turn_completed" {
+						stopReason, _ := updateMap["stop_reason"].(string)
+						stopReason = strings.ToLower(strings.TrimSpace(stopReason))
+						if stopReason == "end_turn" || stopReason == "stop" || stopReason == "complete" || stopReason == "" {
+							if details.Status != "failed" {
+								details.Status = "completed"
+							}
+						} else if stopReason == "error" || stopReason == "failed" {
+							details.Status = "failed"
+						}
+						if elapsed, ok := updateMap["elapsed_ms"].(float64); ok && elapsed > 0 && details.DurationMs == 0 {
+							details.DurationMs = int64(elapsed)
+						}
+					} else if uType == "agent_message_chunk" || uType == "agent_message" {
+						if contentMap, ok := updateMap["content"].(map[string]interface{}); ok {
+							if text, ok := contentMap["text"].(string); ok && text != "" {
+								lastAssistantChunks = append(lastAssistantChunks, text)
+							}
+						}
+					} else if uType == "tool_call" {
+						lastAssistantChunks = nil
+					}
+				}
+			}
+		}
+
+		if len(details.Calls) == 0 && fileExists(chatPath) {
+			if calls, err := ParseSubagentChatHistoryJsonl(chatPath); err == nil && len(calls) > 0 {
+				details.Calls = calls
+			}
+		}
+
+		// Read chat_history.jsonl for complete final assistant output
+		if details.Output == "" && fileExists(chatPath) {
+			if data, err := os.ReadFile(chatPath); err == nil {
+				lines := strings.Split(string(data), "\n")
+				for _, line := range lines {
+					line = strings.TrimSpace(line)
+					if line == "" {
+						continue
+					}
+					var raw map[string]interface{}
+					if err := json.Unmarshal([]byte(line), &raw); err != nil {
+						continue
+					}
+					role, _ := raw["role"].(string)
+					if role == "" {
+						role, _ = raw["type"].(string)
+					}
+					if role == "assistant" {
+						if text, ok := raw["content"].(string); ok && strings.TrimSpace(text) != "" {
+							details.Output = strings.TrimSpace(text)
+							if details.Status != "failed" {
+								details.Status = "completed"
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// Read summary.json for duration fallback
+		if details.DurationMs == 0 && fileExists(summaryPath) {
+			if data, err := os.ReadFile(summaryPath); err == nil {
+				var summary map[string]interface{}
+				if err := json.Unmarshal(data, &summary); err == nil {
+					createdAtStr, _ := summary["created_at"].(string)
+					updatedAtStr, _ := summary["updated_at"].(string)
+					if createdAtStr != "" && updatedAtStr != "" {
+						tCreated, err1 := time.Parse(time.RFC3339Nano, createdAtStr)
+						if err1 != nil {
+							tCreated, _ = time.Parse(time.RFC3339, createdAtStr)
+						}
+						tUpdated, err2 := time.Parse(time.RFC3339Nano, updatedAtStr)
+						if err2 != nil {
+							tUpdated, _ = time.Parse(time.RFC3339, updatedAtStr)
+						}
+						if !tCreated.IsZero() && !tUpdated.IsZero() && tUpdated.After(tCreated) {
+							diffMs := tUpdated.Sub(tCreated).Milliseconds()
+							if details.DurationMs == 0 {
+								details.DurationMs = diffMs
+							}
+						}
+					}
 				}
 			}
 		}
 	}
 
-	// Read chat_history.jsonl for complete final assistant output
-	if fileExists(chatPath) {
-		if data, err := os.ReadFile(chatPath); err == nil {
-			lines := strings.Split(string(data), "\n")
-			for _, line := range lines {
-				line = strings.TrimSpace(line)
-				if line == "" {
-					continue
-				}
-				var raw map[string]interface{}
-				if err := json.Unmarshal([]byte(line), &raw); err != nil {
-					continue
-				}
-				role, _ := raw["role"].(string)
-				if role == "" {
-					role, _ = raw["type"].(string)
-				}
-				if role == "assistant" {
-					if text, ok := raw["content"].(string); ok && strings.TrimSpace(text) != "" {
-						details.Output = strings.TrimSpace(text)
-						if details.Status != "failed" {
-							details.Status = "completed"
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// Fallback output from updates.jsonl chunks if chat_history didn't have it
+	// Fallback output from updates.jsonl chunks if chat_history or output.json didn't have it
 	if details.Output == "" && len(lastAssistantChunks) > 0 {
 		details.Output = strings.TrimSpace(strings.Join(lastAssistantChunks, ""))
-	}
-
-	// Read summary.json for duration fallback
-	if fileExists(summaryPath) {
-		if data, err := os.ReadFile(summaryPath); err == nil {
-			var summary map[string]interface{}
-			if err := json.Unmarshal(data, &summary); err == nil {
-				createdAtStr, _ := summary["created_at"].(string)
-				updatedAtStr, _ := summary["updated_at"].(string)
-				if createdAtStr != "" && updatedAtStr != "" {
-					tCreated, err1 := time.Parse(time.RFC3339Nano, createdAtStr)
-					if err1 != nil {
-						tCreated, _ = time.Parse(time.RFC3339, createdAtStr)
-					}
-					tUpdated, err2 := time.Parse(time.RFC3339Nano, updatedAtStr)
-					if err2 != nil {
-						tUpdated, _ = time.Parse(time.RFC3339, updatedAtStr)
-					}
-					if !tCreated.IsZero() && !tUpdated.IsZero() && tUpdated.After(tCreated) {
-						diffMs := tUpdated.Sub(tCreated).Milliseconds()
-						if details.DurationMs == 0 {
-							details.DurationMs = diffMs
-						}
-					}
-				}
-			}
-		}
 	}
 
 	// If all child tool calls are completed, and we have output, ensure status is completed
@@ -1094,6 +1356,16 @@ func LoadSubagentExecutionDetails(workspacePath, subagentID string) (*SubagentEx
 		if allCompleted {
 			details.Status = "completed"
 		}
+	}
+
+	if details.StartTime == 0 && len(details.Calls) > 0 && details.Calls[0].StartTime > 0 {
+		details.StartTime = details.Calls[0].StartTime
+	}
+	if details.EndTime == 0 && len(details.Calls) > 0 && details.Calls[len(details.Calls)-1].EndTime > 0 {
+		details.EndTime = details.Calls[len(details.Calls)-1].EndTime
+	}
+	if details.DurationMs == 0 && details.StartTime > 0 && details.EndTime > details.StartTime {
+		details.DurationMs = details.EndTime - details.StartTime
 	}
 
 	return details, nil
@@ -1181,6 +1453,12 @@ func ParseSubagentUpdatesJsonl(updatesPath string) ([]DiscoveredToolCall, error)
 			if toolName == "" {
 				toolName, _ = updateMap["name"].(string)
 			}
+			if toolName == "" {
+				toolName, _ = updateMap["tool_name"].(string)
+			}
+			if toolName == "" {
+				toolName, _ = updateMap["tool"].(string)
+			}
 
 			inputMap := make(map[string]interface{})
 			if rawInput, ok := updateMap["rawInput"].(map[string]interface{}); ok {
@@ -1211,7 +1489,7 @@ func ParseSubagentUpdatesJsonl(updatesPath string) ([]DiscoveredToolCall, error)
 					tc.StartTime = ts
 				}
 			}
-		} else if sessionUpdate == "tool_call_update" {
+		} else if sessionUpdate == "tool_call_update" || sessionUpdate == "tool_result" {
 			tc, exists := toolCallMap[toolCallID]
 			if !exists {
 				toolName, _ := updateMap["title"].(string)
@@ -1246,6 +1524,13 @@ func ParseSubagentUpdatesJsonl(updatesPath string) ([]DiscoveredToolCall, error)
 			}
 
 			out := extractToolOutput(updateMap["rawOutput"], updateMap["content"])
+			if out == "" {
+				if oStr, ok := updateMap["output"].(string); ok {
+					out = oStr
+				} else if rStr, ok := updateMap["result"].(string); ok {
+					out = rStr
+				}
+			}
 			if out != "" {
 				tc.Result = out
 				if tc.Status == "running" && (statusLower == "" || statusLower == "completed") {

@@ -174,6 +174,45 @@ func TestAppCloseGuard_DirectMethods(t *testing.T) {
 	}
 }
 
+func TestAppFrontendActiveTasksCount(t *testing.T) {
+	app := NewApp()
+
+	if count := app.GetRunningTasksCount(); count != 0 {
+		t.Fatalf("expected 0 running tasks initially, got %d", count)
+	}
+
+	app.SetFrontendActiveTasksCount(3)
+	if count := app.GetRunningTasksCount(); count != 3 {
+		t.Fatalf("expected 3 running tasks after SetFrontendActiveTasksCount(3), got %d", count)
+	}
+
+	app.SetFrontendActiveTasksCount(0)
+	if count := app.GetRunningTasksCount(); count != 0 {
+		t.Fatalf("expected 0 running tasks after SetFrontendActiveTasksCount(0), got %d", count)
+	}
+}
+
+func TestAppCloseGuard_FailClosedOnDialogError(t *testing.T) {
+	app := NewApp()
+
+	// Simulate active task reported from frontend
+	app.SetFrontendActiveTasksCount(1)
+
+	// When active tasks exist and dialog creation fails (nil context),
+	// beforeClose must fail-closed (return true to prevent abrupt termination)
+	prevent := app.beforeClose(nil)
+	if !prevent {
+		t.Fatalf("expected beforeClose to return true (prevent close) when dialog fails with active tasks")
+	}
+
+	// But if user explicitly requests ForceQuitApplication, it must terminate cleanly (prevent == false)
+	app.ForceQuitApplication()
+	preventForced := app.beforeClose(nil)
+	if preventForced {
+		t.Fatalf("expected beforeClose to return false when ForceQuitApplication was executed")
+	}
+}
+
 func (m *mockWindowRuntimeOps) WindowGetPosition() (int, int) {
 	return m.posX, m.posY
 }

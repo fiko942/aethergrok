@@ -298,4 +298,128 @@ Progress: turn 1, 15 tool calls
     // Subagent 2 should still be running
     expect(sub2.status).toBe('running');
   });
+
+  it('synchronizes subagent status, output, and childToolCalls into message parts', async () => {
+    const { syncMessageToolCallParts } = await import('../frontend/src/lib/stores/session.svelte');
+
+    const subTc = {
+      id: 'tc-sub-sync-1',
+      tool: 'spawn_subagent',
+      status: 'completed' as const,
+      result: 'Detailed execution result from subagent',
+      endTime: 12500,
+      childSessionId: 'sub-sess-999',
+      childToolCalls: [
+        { id: 'c1', tool: 'read_file', status: 'completed' as const },
+        { id: 'c2', tool: 'write', status: 'completed' as const }
+      ]
+    };
+
+    const mockMessage: any = {
+      id: 'msg-sync-1',
+      role: 'assistant',
+      toolCalls: [subTc],
+      parts: [
+        {
+          type: 'tool_calls',
+          toolCalls: [
+            {
+              id: 'tc-sub-sync-1',
+              tool: 'spawn_subagent',
+              status: 'running',
+              result: 'Started...'
+            }
+          ]
+        }
+      ]
+    };
+
+    syncMessageToolCallParts(mockMessage);
+
+    const partTool = mockMessage.parts[0].toolCalls[0];
+    expect(partTool.status).toBe('completed');
+    expect(partTool.result).toBe('Detailed execution result from subagent');
+    expect(partTool.endTime).toBe(12500);
+    expect(partTool.childSessionId).toBe('sub-sess-999');
+    expect(partTool.childToolCalls).toHaveLength(2);
+    expect(partTool.childToolCalls[0].tool).toBe('read_file');
+    expect(partTool.childToolCalls[1].tool).toBe('write');
+  });
+
+  it('syncToolCallUpdate propagates subagent updates to store sessions and messages', async () => {
+    const { sessionStore } = await import('../frontend/src/lib/stores/session.svelte');
+
+    const testSessionId = 'sess-sync-update-test';
+    const subToolId = 'tc-sub-store-sync';
+
+    // Inject session into sessionStore
+    const testSession: any = {
+      id: testSessionId,
+      workspaceId: 'ws-test',
+      title: 'Subagent Persistence Test',
+      status: 'idle',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      messages: [
+        {
+          id: 'msg-store-1',
+          role: 'assistant',
+          toolCalls: [
+            {
+              id: subToolId,
+              tool: 'spawn_subagent',
+              status: 'running',
+              params: { description: 'Subagent Background Worker' },
+              result: 'Subagent started in background.\nsubagent_id: 01a99999-sub'
+            }
+          ],
+          parts: [
+            {
+              type: 'tool_calls',
+              toolCalls: [
+                {
+                  id: subToolId,
+                  tool: 'spawn_subagent',
+                  status: 'running',
+                  params: { description: 'Subagent Background Worker' }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+
+    sessionStore.sessions.push(testSession);
+
+    // Update tool call via syncToolCallUpdate
+    const updatedToolCall: any = {
+      id: subToolId,
+      tool: 'spawn_subagent',
+      status: 'completed',
+      result: 'Worker completed all assigned operations successfully.',
+      childSessionId: '01a99999-sub',
+      endTime: 98765,
+      childToolCalls: [
+        { id: 'ch-1', tool: 'run_terminal_command', status: 'completed', result: 'All tests passed' }
+      ]
+    };
+
+    sessionStore.syncToolCallUpdate(updatedToolCall);
+
+    const sessionInStore = sessionStore.sessions.find(s => s.id === testSessionId);
+    expect(sessionInStore).toBeDefined();
+
+    const storedMsg = sessionInStore?.messages[0];
+    expect(storedMsg?.toolCalls?.[0].status).toBe('completed');
+    expect(storedMsg?.toolCalls?.[0].result).toBe('Worker completed all assigned operations successfully.');
+    expect(storedMsg?.toolCalls?.[0].childToolCalls).toHaveLength(1);
+    expect(storedMsg?.toolCalls?.[0].childSessionId).toBe('01a99999-sub');
+
+    // Also verify parts
+    const partTool = (storedMsg?.parts?.[0] as any)?.toolCalls?.[0];
+    expect(partTool.status).toBe('completed');
+    expect(partTool.result).toBe('Worker completed all assigned operations successfully.');
+    expect(partTool.childToolCalls).toHaveLength(1);
+  });
 });

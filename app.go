@@ -35,7 +35,7 @@ import (
 )
 
 // AppVersion defines the current semantic version of AetherGrok Desktop Studio
-const AppVersion = "1.1.16"
+const AppVersion = "1.1.17"
 
 // App struct represents application runtime state
 type App struct {
@@ -49,6 +49,8 @@ type App struct {
 	storageMgr         *storage.StorageManager
 	forceQuit          bool
 	quitMu             sync.Mutex
+	frontendActiveCount int
+	activeMu            sync.RWMutex
 }
 
 // NewApp creates a new App application struct
@@ -116,11 +118,24 @@ func (a *App) startup(ctx context.Context) {
 func (a *App) domReady(ctx context.Context) {
 }
 
+// SetFrontendActiveTasksCount updates the count of active or queued tasks reported by frontend
+func (a *App) SetFrontendActiveTasksCount(count int) {
+	a.activeMu.Lock()
+	a.frontendActiveCount = count
+	a.activeMu.Unlock()
+}
+
 // GetRunningTasksCount returns the total number of running Grok turns across all sessions
 func (a *App) GetRunningTasksCount() int {
 	count := 0
 	if a.runner != nil {
 		count += a.runner.GetRunningSessionCount()
+	}
+	a.activeMu.RLock()
+	frontendCount := a.frontendActiveCount
+	a.activeMu.RUnlock()
+	if frontendCount > count {
+		count = frontendCount
 	}
 	return count
 }
@@ -168,6 +183,14 @@ func (a *App) beforeClose(ctx context.Context) (prevent bool) {
 		if dialogCtx == nil {
 			dialogCtx = a.ctx
 		}
+		if dialogCtx == nil {
+			_ = logger.GetDiskLogger().Append(logger.LogEntry{
+				Level:    "warn",
+				Category: "lifecycle",
+				Message:  "Cannot display quit confirmation dialog: context is nil. Preventing shutdown for safety.",
+			})
+			return true // Prevent close so we never terminate while tasks are active
+		}
 
 		defaultBtn := "Cancel"
 		cancelBtn := "Cancel"
@@ -189,10 +212,9 @@ func (a *App) beforeClose(ctx context.Context) (prevent bool) {
 			_ = logger.GetDiskLogger().Append(logger.LogEntry{
 				Level:    "error",
 				Category: "lifecycle",
-				Message:  fmt.Sprintf("Failed to display quit confirmation dialog: %v. Allowing shutdown.", err),
+				Message:  fmt.Sprintf("Failed to display quit confirmation dialog: %v. Preventing shutdown for safety.", err),
 			})
-			a.cleanupAndShutdown()
-			return false
+			return true // Prevent close on error so the application never abruptly terminates while working
 		}
 
 		// On Windows, QuestionDialog returns "Yes" or "No".

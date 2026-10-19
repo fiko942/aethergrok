@@ -29,13 +29,53 @@
   const mainTodos = $derived(planState?.mainTodos || []);
   const hasMainPlan = $derived(mainTodos.length > 0);
 
-  let selectedTab = $state<string>('all');
+  let selectedTab = $state<string>('main');
+  let prevSessionId = $state<string | null | undefined>(undefined);
+
+  $effect(() => {
+    if (currentSessionId !== prevSessionId) {
+      prevSessionId = currentSessionId;
+      selectedTab = 'main';
+    }
+  });
 
   $effect(() => {
     if (selectedTab !== 'all' && selectedTab !== 'main') {
       const exists = subagentPlans.some(sp => sp.subagentId === selectedTab);
-      if (!exists) selectedTab = 'all';
+      if (!exists) selectedTab = hasMainPlan ? 'main' : 'all';
+    } else if (selectedTab === 'main' && !hasMainPlan && hasSubagentPlans) {
+      selectedTab = 'all';
     }
+  });
+
+  const currentTabMetrics = $derived.by(() => {
+    if (selectedTab === 'main') {
+      const done = mainTodos.filter(t => t.status === 'completed').length;
+      const active = mainTodos.filter(t => t.status === 'in_progress').length;
+      const left = mainTodos.filter(t => t.status === 'pending').length;
+      const total = mainTodos.length;
+      const percent = total > 0 ? Math.round((done / total) * 100) : 0;
+      return { done, active, left, total, percent };
+    }
+    if (selectedTab !== 'all') {
+      const sp = subagentPlans.find(s => s.subagentId === selectedTab);
+      if (sp) {
+        return {
+          done: sp.completedCount,
+          active: sp.inProgressCount,
+          left: sp.pendingCount,
+          total: sp.totalCount,
+          percent: sp.progressPercent
+        };
+      }
+    }
+    return {
+      done: planState?.completedCount || 0,
+      active: planState?.inProgressCount || 0,
+      left: planState?.pendingCount || 0,
+      total: planState?.totalCount || 0,
+      percent: planState?.progressPercent || 0
+    };
   });
 </script>
 
@@ -53,14 +93,14 @@
               Active Plan Tracker
             </h3>
             <p class="text-[10.5px] font-mono text-ant-text-secondary mt-0.5">
-              {planState.completedCount} of {planState.totalCount} completed ({planState.progressPercent}%)
+              {currentTabMetrics.done} of {currentTabMetrics.total} completed ({currentTabMetrics.percent}%)
             </p>
           </div>
         </div>
 
         <div class="flex items-center space-x-1.5">
           <span class="font-mono text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-            {planState.progressPercent}%
+            {currentTabMetrics.percent}%
           </span>
           <button
             type="button"
@@ -77,22 +117,22 @@
       <div class="w-full bg-ant-bg-tertiary rounded-full h-1.5 overflow-hidden">
         <div
           class="h-full bg-indigo-500 transition-all duration-300 ease-out"
-          style="width: {planState.progressPercent}%;"
+          style="width: {currentTabMetrics.percent}%;"
         ></div>
       </div>
 
       <!-- Summary Stat Chips -->
       <div class="grid grid-cols-3 gap-2 font-mono text-[10.5px]">
         <div class="bg-ant-bg p-2 rounded-lg border border-ant-border-secondary dark:border-white/5 text-center">
-          <div class="text-emerald-500 font-bold text-xs">{planState.completedCount}</div>
+          <div class="text-emerald-500 font-bold text-xs">{currentTabMetrics.done}</div>
           <div class="text-[10px] text-ant-text-muted uppercase tracking-wider">Done</div>
         </div>
         <div class="bg-ant-bg p-2 rounded-lg border border-ant-border-secondary dark:border-white/5 text-center">
-          <div class="text-amber-500 font-bold text-xs">{planState.inProgressCount}</div>
+          <div class="text-amber-500 font-bold text-xs">{currentTabMetrics.active}</div>
           <div class="text-[10px] text-ant-text-muted uppercase tracking-wider">Active</div>
         </div>
         <div class="bg-ant-bg p-2 rounded-lg border border-ant-border-secondary dark:border-white/5 text-center">
-          <div class="text-ant-text-secondary font-bold text-xs">{planState.pendingCount}</div>
+          <div class="text-ant-text-secondary font-bold text-xs">{currentTabMetrics.left}</div>
           <div class="text-[10px] text-ant-text-muted uppercase tracking-wider">Pending</div>
         </div>
       </div>
@@ -100,13 +140,6 @@
       <!-- Filter Tabs (shown when subagent plans exist) -->
       {#if hasSubagentPlans}
         <div class="flex items-center space-x-1 pt-1 overflow-x-auto scrollbar-none text-[10.5px] font-mono border-t border-ant-border-secondary/40 dark:border-white/[0.04]">
-          <button
-            type="button"
-            onclick={() => (selectedTab = 'all')}
-            class="px-2 py-0.5 rounded-md transition-colors shrink-0 cursor-pointer {selectedTab === 'all' ? 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-semibold border border-indigo-500/30' : 'text-ant-text-secondary hover:text-ant-text hover:bg-white/5'}"
-          >
-            All ({planState.totalCount})
-          </button>
           {#if hasMainPlan}
             <button
               type="button"
@@ -116,6 +149,13 @@
               Main ({mainTodos.length})
             </button>
           {/if}
+          <button
+            type="button"
+            onclick={() => (selectedTab = 'all')}
+            class="px-2 py-0.5 rounded-md transition-colors shrink-0 cursor-pointer {selectedTab === 'all' ? 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-semibold border border-indigo-500/30' : 'text-ant-text-secondary hover:text-ant-text hover:bg-white/5'}"
+          >
+            All ({planState.totalCount})
+          </button>
           {#each subagentPlans as sp (sp.subagentId)}
             <button
               type="button"

@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { cleanANSI, formatToolResult, formatActionSummary, extractSubagentIdFromText, extractSubagentMeta } from '../frontend/src/lib/utils/toolUtils';
+import {
+  cleanANSI,
+  formatToolResult,
+  formatActionSummary,
+  extractActionTodos,
+  extractSubagentIdFromText,
+  extractSubagentMeta
+} from '../frontend/src/lib/utils/toolUtils';
 
 describe('toolUtils', () => {
   it('cleanANSI removes escape codes', () => {
@@ -134,6 +141,54 @@ describe('toolUtils', () => {
       expect(withoutDesc.verb).toBe('Run');
       expect(withoutDesc.target).toBe('npm run check');
       expect(withoutDesc.iconType).toBe('terminal');
+    });
+
+    it('formats todo_write as Plan action with status transitions', () => {
+      const summary = formatActionSummary('todo_write', {
+        merge: true,
+        todos: [
+          { id: 'step5_commit', status: 'completed' },
+          { id: 'step6_report', status: 'in_progress' }
+        ]
+      });
+      expect(summary.verb).toBe('Plan');
+      expect(summary.target).toBe('Done "step5_commit" → Active "step6_report"');
+      expect(summary.iconType).toBe('plan');
+    });
+
+    it('formats todo_write resolving known todo content when provided', () => {
+      const summary = formatActionSummary(
+        'todo_write',
+        {
+          merge: true,
+          todos: [
+            { id: 'step5_commit', status: 'completed' },
+            { id: 'step6_report', status: 'in_progress' }
+          ]
+        },
+        [
+          { id: 'step5_commit', content: 'Commit changes to dialog.rs' },
+          { id: 'step6_report', content: 'Cross-platform path test' }
+        ]
+      );
+      expect(summary.verb).toBe('Plan');
+      expect(summary.target).toBe('Done "Commit changes to dialog.rs" → Active "Cross-platform path test"');
+      expect(summary.iconType).toBe('plan');
+    });
+
+    it('extractActionTodos correctly parses todos and merge mode', () => {
+      const parsed = extractActionTodos({
+        merge: true,
+        todos: [
+          { id: 'step5_commit', status: 'completed' },
+          { id: 'step6_report', status: 'in_progress' }
+        ]
+      });
+      expect(parsed).not.toBeNull();
+      expect(parsed?.isMerge).toBe(true);
+      expect(parsed?.todos).toHaveLength(2);
+      expect(parsed?.todos[0].id).toBe('step5_commit');
+      expect(parsed?.todos[0].status).toBe('completed');
     });
   });
 

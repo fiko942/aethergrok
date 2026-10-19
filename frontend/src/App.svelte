@@ -35,6 +35,7 @@
   import {
     isSubagentToolCall,
     extractSubagentMeta,
+    extractSubagentIdFromText,
     isSubagentOutputPoller,
     extractTaskIdsFromParams,
     extractTaskPollerResults,
@@ -43,6 +44,7 @@
   } from '$lib/utils/toolUtils';
   import {
     sessionStore,
+    syncMessageToolCallParts,
     parseTokenTruncationDetails,
     type VisionImage,
     type AttachedFile,
@@ -268,6 +270,15 @@
       } else {
         document.documentElement.classList.add('dark');
       }
+    }
+  });
+
+  // Synchronize frontend active running sessions count with backend for lifecycle protection
+  $effect(() => {
+    const count = sessionStore.getActiveRunningSessionCount();
+    const app = (window.go?.main?.App as any);
+    if (app?.SetFrontendActiveTasksCount) {
+      app.SetFrontendActiveTasksCount(count).catch(() => {});
     }
   });
 
@@ -690,9 +701,22 @@
       }
       if (msg.toolCalls && msg.toolCalls.length > 0) {
         for (const tc of msg.toolCalls) {
-          if (tc.status === 'running') {
+          const isSub = isSubagentToolCall(tc.tool, tc.params);
+          const isPendingSubagent = isSub && (!tc.result || isSubagentBackgroundAck(tc.result));
+          if (tc.status === 'running' || isPendingSubagent) {
             tc.status = 'error';
-            if (!tc.endTime) tc.endTime = Date.now();
+            tc.endTime = Date.now();
+            if (isPendingSubagent) {
+              tc.result = 'Subagent execution cancelled.';
+            }
+          }
+          if (tc.childToolCalls) {
+            for (const child of tc.childToolCalls) {
+              if (child.status === 'running') {
+                child.status = 'error';
+                child.endTime = Date.now();
+              }
+            }
           }
         }
       }
@@ -840,7 +864,13 @@
 
       sessionStore.updateLastMessage(sessionId, (msg) => {
         msg.toolCalls = [toolCall];
-        msg.content = `### Execution Plan Complete\n\nI processed your request using **${selectedModel}** (Effort: *${reasoningEffort}*).\n\n1. Inspected workspace state.\n2. Executed tool \`${toolCall.tool}\`.\n3. Verified output and diff integrity.\n\nAll operations succeeded with 0 errors.`;
+        const finalContent = `### Execution Plan Complete\n\nI processed your request using **${selectedModel}** (Effort: *${reasoningEffort}*).\n\n1. Inspected workspace state.\n2. Executed tool \`${toolCall.tool}\`.\n3. Verified output and diff integrity.\n\nAll operations succeeded with 0 errors.`;
+        msg.content = finalContent;
+        msg.parts = [
+          { type: 'text', text: msg.content.startsWith('Analyzing') ? msg.content : (images.length > 0 ? `Analyzing ${images.length} vision frame(s)...` : `Analyzing prompt and preparing environment...`) },
+          { type: 'tool_calls', toolCalls: [toolCall] },
+          { type: 'text', text: finalContent }
+        ];
         msg.status = 'done';
         msg.tokens = { input: 240, output: 145, total: 385 };
       });
@@ -850,7 +880,18 @@
     }, 600);
   }
 
-  function isEditingElement(e: KeyboardEvent): boolean {
+  function isEditingElement(e?: KeyboardEvent | Element | null): boolean {
+    if (!e || !(e instanceof KeyboardEvent)) {
+      const active = (e as HTMLElement | null) || (typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null);
+      return Boolean(
+        active && (
+          active.tagName === 'INPUT' ||
+          active.tagName === 'TEXTAREA' ||
+          active.isContentEditable ||
+          Boolean(active.closest?.('.xterm, .xterm-helper-textarea, input, textarea, [contenteditable="true"]'))
+        )
+      );
+    }
     const target = e.target as HTMLElement | null;
     const active = typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null;
     return Boolean(
@@ -867,6 +908,17 @@
         Boolean(active.closest?.('.xterm, .xterm-helper-textarea, input, textarea, [contenteditable="true"]'))
       ))
     );
+  }
+
+  function isSingleModifierShortcut(shortcutStr: string): boolean {
+    if (!shortcutStr) return false;
+    const clean = shortcutStr.toLowerCase().replace(/[\s_-]/g, '');
+    return [
+      'shift', 'shiftright', 'shiftleft', 'rightshift', 'leftshift',
+      'alt', 'altright', 'altleft', 'rightalt', 'leftalt', 'option', 'optionright', 'optionleft',
+      'control', 'controlright', 'controlleft', 'rightcontrol', 'leftcontrol', 'ctrl', 'ctrlright', 'ctrlleft',
+      'meta', 'metaright', 'metaleft', 'cmd', 'cmdright', 'cmdleft', 'command'
+    ].includes(clean);
   }
 
   function isInsideTerminal(e: KeyboardEvent): boolean {
@@ -900,6 +952,9 @@
 
     const isEditing = isEditingElement(e);
     if (isEditing && !isSpecialOrModifier) {
+      return false;
+    }
+    if (isEditing && isSingleModifierShortcut(shortcutStr)) {
       return false;
     }
 
@@ -1074,6 +1129,9 @@
 
     // Smart Screen Snapshot (Customizable via settingsStore.snapshotShortcut)
     if (matchesShortcut(e, settingsStore.snapshotShortcut) || (isMetaOrCtrl && e.shiftKey && e.key.toLowerCase() === 's')) {
+      if (isEditing && isSingleModifierShortcut(settingsStore.snapshotShortcut)) {
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
       inputShieldStore.acquireLock('snapshot_key_hold', 5000);
@@ -1123,8 +1181,12 @@
 
     // Intercept Cmd/Ctrl + W to close tabs and prevent macOS [NSWindow performClose:] from killing the app
     // Preserve Ctrl+W inside terminal for readline unix-word-rubout
+    // Preserve Ctrl+W inside input and textarea for readline unix-word-rubout
     if (isMetaOrCtrl && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'w') {
       if (inTerminal && e.ctrlKey && !e.metaKey) {
+        return;
+      }
+      if (isEditing && e.ctrlKey && !e.metaKey) {
         return;
       }
       e.preventDefault();
@@ -1355,6 +1417,9 @@
     // Hook Wails native runtime events if available
     if (window.runtime?.EventsOn) {
       unsubGlobalSnapshot = window.runtime.EventsOn('snapshot:trigger_global', () => {
+        if (isEditingElement(document.activeElement) && isSingleModifierShortcut(settingsStore.snapshotShortcut)) {
+          return;
+        }
         performGlobalSnapshot();
       });
       unsubGlobalDictation = window.runtime.EventsOn('dictation:trigger_global', (data: { type?: string; timestamp?: number }) => {
@@ -1521,6 +1586,14 @@
               if (msg.toolCalls) {
                 msg.toolCalls = msg.toolCalls.filter((t) => t.id !== event.toolId || t.id === targetSubagent!.id);
               }
+              if (msg.parts) {
+                for (const part of msg.parts) {
+                  if (part.type === 'tool_calls') {
+                    part.toolCalls = part.toolCalls.filter((t) => t.id !== event.toolId || t.id === targetSubagent!.id);
+                  }
+                }
+                msg.parts = msg.parts.filter((p) => p.type !== 'tool_calls' || p.toolCalls.length > 0);
+              }
             }
 
             const existingChild = targetSubagent.childToolCalls.find((t) => t.id === event.toolId);
@@ -1563,6 +1636,15 @@
               };
             }
 
+            // Synchronize updated child calls into parent message parts and persist to storage
+            for (const msg of session.messages) {
+              if (msg.toolCalls?.some((t) => t.id === targetSubagent!.id)) {
+                syncMessageToolCallParts(msg);
+                break;
+              }
+            }
+            sessionStore.saveSessionsToStorage();
+
             // Suppress child tool calls from being added to the main session transcript
             return;
           }
@@ -1586,8 +1668,9 @@
                   for (const tc of msg.toolCalls) {
                     if (!isSubagentToolCall(tc.tool, tc.params)) continue;
                     const meta = extractSubagentMeta(tc.params, tc.result);
-                    if (meta.taskId === res.taskId || tc.id === res.taskId) {
+                    if (meta.taskId === res.taskId || tc.id === res.taskId || tc.childSessionId === res.taskId) {
                       subagentName = meta.description;
+                      if (!tc.childSessionId) tc.childSessionId = res.taskId;
                       if (res.status === 'completed') {
                         tc.status = 'completed';
                         if (res.output) tc.result = res.output;
@@ -1597,6 +1680,7 @@
                         if (res.output) tc.result = res.output;
                         tc.endTime = Date.now();
                       }
+                      syncMessageToolCallParts(msg);
                       if (dialogStore.subagentModalState.open && dialogStore.subagentModalState.toolCall?.id === tc.id) {
                         dialogStore.subagentModalState.toolCall = tc;
                         dialogStore.subagentModalState.meta = extractSubagentMeta(tc.params, tc.result);
@@ -1617,12 +1701,21 @@
                   );
                 }
               }
+              sessionStore.saveSessionsToStorage();
             }
 
             // Remove any legacy/premature poller card if it was previously inserted
             for (const msg of session.messages) {
               if (msg.toolCalls) {
                 msg.toolCalls = msg.toolCalls.filter((t) => t.id !== event.toolId);
+              }
+              if (msg.parts) {
+                for (const part of msg.parts) {
+                  if (part.type === 'tool_calls') {
+                    part.toolCalls = part.toolCalls.filter((t) => t.id !== event.toolId);
+                  }
+                }
+                msg.parts = msg.parts.filter((p) => p.type !== 'tool_calls' || p.toolCalls.length > 0);
               }
             }
 
@@ -1637,6 +1730,14 @@
               tool.status = event.status === 'completed' ? 'completed' : event.status === 'failed' ? 'error' : 'running';
               tool.result = event.output;
               tool.endTime = Date.now();
+              if (isSubagentToolCall(tool.tool, tool.params)) {
+                const subId = extractSubagentIdFromText(event.output);
+                if (subId && !tool.childSessionId) {
+                  tool.childSessionId = subId;
+                }
+              }
+              syncMessageToolCallParts(msg);
+              sessionStore.saveSessionsToStorage();
               found = true;
               break;
             }
@@ -1652,34 +1753,21 @@
           );
 
           if (!found) {
-            // Ensure tool calls attach to an assistant message in the active turn
-            const lastMsg = session.messages[session.messages.length - 1];
-            if (lastMsg && lastMsg.role === 'assistant') {
-              if (!lastMsg.toolCalls) lastMsg.toolCalls = [];
-              lastMsg.toolCalls.push({
-                id: event.toolId,
-                tool: event.toolName,
-                params: event.input,
-                result: event.output,
-                status: event.status === 'completed' ? 'completed' : event.status === 'failed' ? 'error' : 'running',
-                startTime: Date.now()
-              });
-            } else {
-              // Create an assistant container message for tool calls
-              sessionStore.addMessage(event.sessionId, {
-                role: 'assistant',
-                content: '',
-                status: 'streaming',
-                toolCalls: [{
-                  id: event.toolId,
-                  tool: event.toolName,
-                  params: event.input,
-                  result: event.output,
-                  status: event.status === 'completed' ? 'completed' : event.status === 'failed' ? 'error' : 'running',
-                  startTime: Date.now()
-                }]
-              });
+            let childSessionId: string | undefined = undefined;
+            if (isSpawnSubagent) {
+              childSessionId = extractSubagentIdFromText(event.output);
             }
+            // Ensure tool calls attach to an assistant message in the active turn
+            sessionStore.addToolCall(event.sessionId, {
+              id: event.toolId,
+              tool: event.toolName,
+              params: event.input,
+              result: event.output,
+              status: event.status === 'completed' ? 'completed' : event.status === 'failed' ? 'error' : 'running',
+              startTime: Date.now(),
+              childSessionId
+            });
+            sessionStore.saveSessionsToStorage();
           }
         }
       });
@@ -1752,14 +1840,30 @@
             for (const msg of sessionObj.messages) {
               if (msg.toolCalls && msg.toolCalls.length > 0) {
                 for (const tc of msg.toolCalls) {
-                  if (tc.status === 'running') {
+                  const isSub = isSubagentToolCall(tc.tool, tc.params);
+                  const isPendingSub = isSub && (!tc.result || isSubagentBackgroundAck(tc.result));
+                  if (tc.status === 'running' || (event.status !== 'success' && isPendingSub)) {
                     tc.status = event.status === 'success' ? 'completed' : 'error';
-                    if (!tc.endTime) tc.endTime = Date.now();
+                    if (!tc.endTime || (event.status !== 'success' && isPendingSub)) {
+                      tc.endTime = Date.now();
+                    }
+                    if (event.status !== 'success' && isPendingSub) {
+                      tc.result = 'Subagent execution interrupted.';
+                    }
+                  }
+                  if (tc.childToolCalls) {
+                    for (const child of tc.childToolCalls) {
+                      if (child.status === 'running') {
+                        child.status = event.status === 'success' ? 'completed' : 'error';
+                        if (!child.endTime) child.endTime = Date.now();
+                      }
+                    }
                   }
                 }
+                syncMessageToolCallParts(msg);
               }
             }
-            // Persist grokSessionId immediately to storage so continuation never loses it
+            // Persist session and subagent states immediately to storage so continuation never loses it
             sessionStore.saveSessionsToStorage();
           }
 
@@ -1844,13 +1948,28 @@
             for (const msg of sessionObj.messages) {
               if (msg.toolCalls && msg.toolCalls.length > 0) {
                 for (const tc of msg.toolCalls) {
-                  if (tc.status === 'running') {
+                  const isSub = isSubagentToolCall(tc.tool, tc.params);
+                  const isPendingSub = isSub && (!tc.result || isSubagentBackgroundAck(tc.result));
+                  if (tc.status === 'running' || isPendingSub) {
                     tc.status = 'error';
-                    if (!tc.endTime) tc.endTime = Date.now();
+                    tc.endTime = Date.now();
+                    if (isPendingSub) {
+                      tc.result = 'Subagent execution interrupted.';
+                    }
+                  }
+                  if (tc.childToolCalls) {
+                    for (const child of tc.childToolCalls) {
+                      if (child.status === 'running') {
+                        child.status = 'error';
+                        child.endTime = Date.now();
+                      }
+                    }
                   }
                 }
+                syncMessageToolCallParts(msg);
               }
             }
+            sessionStore.saveSessionsToStorage();
           }
 
           // Do NOT call checkAndDispatchNextQueue here!

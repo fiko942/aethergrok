@@ -2,8 +2,30 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "AetherGrok Release Changelog",
   "description": "Central single source of truth for all AetherGrok releases, commit ranges, and download artifacts.",
-  "latest": "1.1.16",
+  "latest": "1.1.17",
   "releases": [
+    {
+      "version": "1.1.17",
+      "tag": "v1.1.17",
+      "date": "2026-10-19T10:30:00.000Z",
+      "title": "AetherGrok 1.1.17 - Input Shield Protection, Fail-Closed Lifecycle Guard & Task Sync",
+      "targetCommit": "HEAD",
+      "previousCommit": "4b2ce23",
+      "highlights": [
+        "Frontend input shield protection: preserve standard readline unix-word-rubout for Ctrl+W in input and textarea fields, preventing unintended session tab closures while typing",
+        "Modifier shortcut protection: prevent single-modifier shortcuts (ShiftRight, ShiftLeft) from capturing screen snapshots and hiding the application window while actively typing in Composer",
+        "Global snapshot listener guard: suppress background CGEventTap snapshot triggers when any text input or textarea element is currently focused",
+        "Fail-closed beforeClose lifecycle guard: prevent sudden process termination and dialog failures when active tasks or agent executions are running in the background",
+        "Real-time task synchronization: automatically synchronize frontend working states, waiting permissions, queued prompts, and background subagents to GetRunningTasksCount()",
+        "Persistent subagent execution details: preserve and rehydrate all subagent child tool calls, metadata, and task poller outputs across application restarts"
+      ],
+      "downloads": {
+        "macos_arm64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.17/AetherGrok-1.1.17-macOS-arm64.dmg",
+        "macos_x64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.17/AetherGrok-1.1.17-macOS-amd64.dmg",
+        "windows_x64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.17/AetherGrok-1.1.17-windows-amd64-setup.exe",
+        "windows_arm64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.17/AetherGrok-1.1.17-windows-arm64-setup.exe"
+      }
+    },
     {
       "version": "1.1.16",
       "tag": "v1.1.16",

@@ -350,6 +350,10 @@ export function SelectWorkspaceDirectory() {
   return window['go']['main']['App']['SelectWorkspaceDirectory']();
 }
 
+export function SetFrontendActiveTasksCount(arg1) {
+  return window['go']['main']['App']['SetFrontendActiveTasksCount'](arg1);
+}
+
 export function SetGrokBinaryPath(arg1) {
   return window['go']['main']['App']['SetGrokBinaryPath'](arg1);
 }

@@ -5,6 +5,7 @@
     formatToolResult,
     isSubagentToolCall,
     extractSubagentMeta,
+    extractSubagentIdFromText,
     formatSubagentDuration,
     isSubagentBackgroundAck,
     cleanSubagentOutput,
@@ -75,6 +76,16 @@
   let dirShowAll = $state(false);
   let copiedSubagentId = $state(false);
   let now = $state(Date.now());
+  let actionsContainerEl = $state<HTMLElement | null>(null);
+  let userHasScrolledActions = $state(false);
+  let prevChildCount = $state(0);
+
+  function handleActionsScroll() {
+    if (!actionsContainerEl) return;
+    const { scrollTop, scrollHeight, clientHeight } = actionsContainerEl;
+    const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
+    userHasScrolledActions = distanceFromBottom > 35;
+  }
 
   function getChildDuration(child: ToolCall): string | null {
     if (!child.startTime) return null;
@@ -88,21 +99,43 @@
     return `${mins}m ${rem}s`;
   }
 
-  // Active ticking timer for running subagents and tool calls
+  // Auto-scroll task actions list to bottom when expanded or when new actions arrive
   $effect(() => {
-    const isRunning = toolCall.status === 'running' || (isSubagentBackgroundAck(toolCall.result) && !cleanSubagentOutput(toolCall.result));
-    if (!isRunning) return;
-    const interval = setInterval(() => {
-      now = Date.now();
-    }, 1000);
-    return () => clearInterval(interval);
+    const isSubagent = toolParsed.type === 'subagent';
+    const currentCount = toolCall.childToolCalls?.length || 0;
+
+    if (!isExpanded || !isSubagent) {
+      userHasScrolledActions = false;
+      prevChildCount = 0;
+      return;
+    }
+
+    if (currentCount > 0) {
+      const isNewItem = currentCount !== prevChildCount;
+      prevChildCount = currentCount;
+
+      if (!userHasScrolledActions || subagentIsActuallyRunning) {
+        setTimeout(() => {
+          if (actionsContainerEl) {
+            actionsContainerEl.scrollTo({
+              top: actionsContainerEl.scrollHeight,
+              behavior: isNewItem && prevChildCount > 1 ? 'smooth' : 'auto'
+            });
+          }
+        }, 30);
+      }
+    }
   });
 
   // Automatically load child tool calls and subagent execution details for subagent cards
   $effect(() => {
     if (toolParsed.type !== 'subagent') return;
-    const sid = toolParsed.meta?.taskId || toolCall.childSessionId;
+    const sid = toolCall.childSessionId || toolParsed.meta?.taskId || extractSubagentIdFromText(toolCall.result);
     if (!sid || typeof window === 'undefined') return;
+
+    if (!toolCall.childSessionId) {
+      toolCall.childSessionId = sid;
+    }
 
     // If subagent is already completed and has full output and child calls, skip
     const isCompletedWithOutput = toolCall.status === 'completed' &&
@@ -141,10 +174,42 @@
               if (details.output && (!toolCall.result || isSubagentBackgroundAck(toolCall.result))) {
                 toolCall.result = details.output;
               }
-              if (details.durationMs && details.durationMs > 0 && toolCall.startTime) {
+              if (details.startTime && !toolCall.startTime) {
+                toolCall.startTime = details.startTime;
+              }
+              if (details.endTime && !toolCall.endTime) {
+                toolCall.endTime = details.endTime;
+              } else if (details.durationMs && details.durationMs > 0 && toolCall.startTime) {
                 toolCall.endTime = toolCall.startTime + details.durationMs;
               }
             }
+            if (typeof toolCall.params === 'string') {
+              try {
+                toolCall.params = JSON.parse(toolCall.params);
+              } catch {
+                toolCall.params = { raw: toolCall.params };
+              }
+            }
+            if (!toolCall.params || typeof toolCall.params !== 'object') {
+              toolCall.params = {};
+            }
+            const tcP = toolCall.params as Record<string, any>;
+            if (details.description && !tcP.description) {
+              tcP.description = details.description;
+            }
+            if (details.prompt && !tcP.prompt) {
+              tcP.prompt = details.prompt;
+            }
+            if (details.subagentType && !tcP.subagent_type) {
+              tcP.subagent_type = details.subagentType;
+            }
+            if (details.model && !tcP.model) {
+              tcP.model = details.model;
+            }
+            if (details.subagentId && !toolCall.childSessionId) {
+              toolCall.childSessionId = details.subagentId;
+            }
+            sessionStore.syncToolCallUpdate(toolCall);
           }
         })
         .catch(() => {});
@@ -161,6 +226,7 @@
               startTime: c.startTime,
               endTime: c.endTime
             }));
+            sessionStore.syncToolCallUpdate(toolCall);
           }
         })
         .catch(() => {});
@@ -230,17 +296,37 @@
 
   const subagentIsActuallyRunning = $derived.by(() => {
     if (toolParsed.type !== 'subagent') return false;
-    return toolCall.status === 'running' || (isSubagentBackgroundAck(toolCall.result) && !subagentCleanOutput);
+    if (toolCall.status === 'error') return false;
+    if (subagentCleanOutput) return false;
+    return toolCall.status === 'running' || isSubagentBackgroundAck(toolCall.result) || (toolCall.childToolCalls?.some(c => c.status === 'running') ?? false);
+  });
+
+  // Active ticking timer for running subagents and tool calls
+  $effect(() => {
+    const isRunning = subagentIsActuallyRunning || toolCall.status === 'running' || (toolCall.childToolCalls?.some(c => c.status === 'running') ?? false);
+    if (!isRunning) return;
+    const interval = setInterval(() => {
+      now = Date.now();
+    }, 1000);
+    return () => clearInterval(interval);
   });
 
   // Derive formatted execution duration
   const formattedDuration = $derived.by(() => {
     if (!toolCall.startTime) return null;
     if (toolParsed.type === 'subagent') {
-      const end = toolCall.endTime || (subagentIsActuallyRunning ? now : toolCall.startTime);
+      let end: number;
+      if (subagentIsActuallyRunning) {
+        end = now;
+      } else {
+        const lastChildEnd = (toolCall.childToolCalls && toolCall.childToolCalls.length > 0)
+          ? Math.max(0, ...toolCall.childToolCalls.map(c => c.endTime || c.startTime || 0))
+          : 0;
+        end = Math.max(toolCall.endTime || 0, lastChildEnd) || now;
+      }
       return formatSubagentDuration(Math.max(0, end - toolCall.startTime));
     }
-    const end = toolCall.endTime || Date.now();
+    const end = (toolCall.status === 'running' ? now : toolCall.endTime) || Date.now();
     const ms = Math.max(0, end - toolCall.startTime);
 
     if (ms < 1000) {
@@ -687,6 +773,9 @@
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       isExpanded = !isExpanded;
+      if (isExpanded) {
+        userHasScrolledActions = false;
+      }
       return;
     }
 
@@ -711,6 +800,9 @@
     const target = e.target as HTMLElement;
     if (target.closest('button') || target.closest('a')) return;
     isExpanded = !isExpanded;
+    if (isExpanded) {
+      userHasScrolledActions = false;
+    }
   }
 </script>
 
@@ -907,10 +999,15 @@
               </button>
             </div>
 
-            <div class="p-2 space-y-1 max-h-72 overflow-y-auto scrollbar-thin">
+            <div
+              bind:this={actionsContainerEl}
+              onscroll={handleActionsScroll}
+              class="p-2 space-y-1 max-h-72 overflow-y-auto scrollbar-thin"
+            >
               {#if toolCall.childToolCalls && toolCall.childToolCalls.length > 0}
                 {#each toolCall.childToolCalls as child, idx (child.id || idx)}
-                  {@const summary = formatActionSummary(child.tool, child.params)}
+                  {@const knownPlanTodos = planStore.getSubagentPlan(sessionStore.activeSessionId, toolParsed.meta?.taskId || toolCall.childSessionId || toolCall.id)?.todos || planStore.getPlan(sessionStore.activeSessionId)?.todos}
+                  {@const summary = formatActionSummary(child.tool, child.params, knownPlanTodos)}
                   {@const childDur = getChildDuration(child)}
                   <div
                     class="flex items-center space-x-2 px-2.5 py-1.5 rounded bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.04] text-[11px] font-mono transition group cursor-pointer"
@@ -940,6 +1037,7 @@
                       summary.iconType === 'search' ? 'bg-purple-500/15 text-purple-400 border border-purple-500/20' :
                       summary.iconType === 'list' ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/20' :
                       summary.iconType === 'terminal' ? 'bg-orange-500/15 text-orange-400 border border-orange-500/20' :
+                      summary.iconType === 'plan' ? 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/20' :
                       'bg-zinc-500/15 text-zinc-300 border border-zinc-500/20'
                     }">
                       {summary.verb}
