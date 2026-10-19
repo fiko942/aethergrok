@@ -426,7 +426,7 @@
         if (start) {
           elapsedMs = Math.max(0, Date.now() - start);
         }
-      }, 100);
+      }, 500); // Throttled from 100ms to 500ms (cuts timer reactivity events by 80%)
     } else {
       if (timerInterval) {
         clearInterval(timerInterval);
