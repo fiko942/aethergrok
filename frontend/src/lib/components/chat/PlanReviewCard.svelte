@@ -40,7 +40,7 @@
   }
 </script>
 
-<div class="my-3 rounded-xl border border-ant-border-secondary dark:border-white/[0.08] bg-ant-bg-secondary dark:bg-[#18181b]/95 p-4 shadow-xl backdrop-blur-md space-y-3 font-serif">
+<div class="my-3 rounded-xl border border-ant-border-secondary dark:border-white/[0.08] bg-ant-bg-secondary dark:bg-[#18181b] p-4 shadow-xl space-y-3 font-serif">
   <!-- Card Header -->
   <div class="flex items-center justify-between pb-2 border-b border-ant-border-secondary dark:border-white/5">
     <div class="flex items-center space-x-2.5">

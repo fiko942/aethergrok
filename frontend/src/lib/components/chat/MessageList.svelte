@@ -404,7 +404,7 @@
 
       <!-- Live In-Transcript Compaction Indicator Banner -->
       {#if sessionStore.isCompacting}
-        <div class="my-2.5 p-3 rounded-xl border border-zinc-800 bg-zinc-900/90 backdrop-blur-md shadow-lg flex items-center justify-between font-sans select-none animate-in fade-in duration-200">
+        <div class="my-2.5 p-3 rounded-xl border border-zinc-800 bg-zinc-900/98 shadow-lg flex items-center justify-between font-sans select-none animate-in fade-in duration-200">
           <div class="flex items-center space-x-3 min-w-0">
             <div class="w-7 h-7 rounded-lg bg-indigo-500/15 flex items-center justify-center text-indigo-400 flex-shrink-0 animate-spin">
               <Loader2 size={14} />
@@ -445,7 +445,7 @@
 
       <!-- Live In-Transcript Activity & Thinking Indicator -->
       {#if isWorking}
-        <div class="my-2 p-3 rounded-lg border border-white/5 bg-ant-bg-secondary/70 backdrop-blur-md shadow-sm flex items-center justify-between font-mono select-none">
+        <div class="my-2 p-3 rounded-lg border border-white/5 bg-ant-bg-secondary/95 shadow-sm flex items-center justify-between font-mono select-none">
           <div class="flex items-center space-x-2.5 min-w-0">
             <div class="w-6 h-6 rounded-md bg-ant-primary/10 text-ant-primary flex items-center justify-center flex-shrink-0 animate-pulse">
               <Brain size={14} />
@@ -481,7 +481,7 @@
       <button
         type="button"
         onclick={scrollToBottom}
-        class="pointer-events-auto flex items-center space-x-2 px-3 py-1.5 rounded-full bg-ant-bg-secondary/95 hover:bg-ant-bg-tertiary text-ant-text border border-ant-border-secondary dark:border-white/5 shadow-xl backdrop-blur-md transition-all duration-200 hover:scale-105 active:scale-95 group"
+        class="pointer-events-auto flex items-center space-x-2 px-3 py-1.5 rounded-full bg-ant-bg-secondary/98 hover:bg-ant-bg-tertiary text-ant-text border border-ant-border-secondary dark:border-white/5 shadow-xl transition-all duration-200 hover:scale-105 active:scale-95 group"
         title="Scroll to bottom"
       >
         {#if unreadActivityBelow}

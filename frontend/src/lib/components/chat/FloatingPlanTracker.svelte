@@ -142,7 +142,7 @@
       <button
         type="button"
         onclick={handleToggleCompact}
-        class="group flex items-center space-x-2.5 px-3 py-1.5 rounded-full bg-ant-bg-secondary/95 dark:bg-[#16161a]/90 hover:bg-ant-bg-tertiary dark:hover:bg-[#1f1f26]/95 border border-indigo-500/30 hover:border-indigo-500/50 shadow-lg shadow-black/10 dark:shadow-black/40 backdrop-blur-md transition-all text-left cursor-pointer"
+        class="group flex items-center space-x-2.5 px-3 py-1.5 rounded-full bg-ant-bg-secondary/98 dark:bg-[#16161a]/98 hover:bg-ant-bg-tertiary dark:hover:bg-[#1f1f26]/95 border border-indigo-500/30 hover:border-indigo-500/50 shadow-lg shadow-black/10 dark:shadow-black/40 transition-all text-left cursor-pointer"
         title="Click to expand full execution plan tracker"
       >
         <!-- Pulse Indicator / Icon -->
@@ -168,7 +168,7 @@
       </button>
     {:else}
       <!-- Expanded Floating Plan Card -->
-      <div class="rounded-xl bg-ant-bg border border-indigo-500/25 shadow-2xl shadow-black/15 dark:shadow-black/60 backdrop-blur-xl overflow-hidden font-sans animate-in fade-in zoom-in-95 duration-150">
+      <div class="rounded-xl bg-ant-bg/98 border border-indigo-500/25 shadow-2xl shadow-black/15 dark:shadow-black/60 overflow-hidden font-sans animate-in fade-in zoom-in-95 duration-150">
         <!-- Card Header -->
         <div class="flex items-center justify-between px-3.5 py-2.5 bg-indigo-500/[0.06] dark:bg-gradient-to-r dark:from-indigo-950/40 dark:to-transparent border-b border-ant-border-secondary dark:border-white/[0.06]">
           <div class="flex items-center space-x-2 min-w-0">

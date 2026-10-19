@@ -455,7 +455,7 @@
       fontFamily: 'SF Mono, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
       theme: getXtermTheme(settingsStore.theme),
       allowTransparency: true,
-      scrollback: 5000,
+      scrollback: 2000,
       disableStdin: inputShieldStore.isReadOnly
     });
 
