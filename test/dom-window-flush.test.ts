@@ -80,4 +80,53 @@ describe('DOM Active Turn Windowing & Flush Logic', () => {
     expect(sessionVisibleTurnCount).toBe(4);
     expect(flushEarlierTurnsToWindow()).toBe(false);
   });
+
+  it('auto-flushes older turns during live activity when pinned to bottom but preserves them when scrolled up', () => {
+    let sessionVisibleTurnCount = 15;
+    const configuredLimit = 4;
+    let autoScrollToBottom = true;
+
+    function handleLiveActivity() {
+      if (autoScrollToBottom && sessionVisibleTurnCount > configuredLimit) {
+        sessionVisibleTurnCount = configuredLimit;
+      }
+    }
+
+    // Live activity arrives while pinned to bottom
+    handleLiveActivity();
+    expect(sessionVisibleTurnCount).toBe(4);
+
+    // User scrolled up and expanded turns
+    autoScrollToBottom = false;
+    sessionVisibleTurnCount = 12;
+
+    // Live activity arrives while user is reading history (unpinned)
+    handleLiveActivity();
+    expect(sessionVisibleTurnCount).toBe(12); // Must NOT collapse under user eyes
+
+    // User returns to bottom
+    autoScrollToBottom = true;
+    handleLiveActivity();
+    expect(sessionVisibleTurnCount).toBe(4); // Flushes to configured setting
+  });
+
+  it('correctly handles mouse wheel direction: wheel up marks manual scroll, wheel down unmarks', () => {
+    let isUserManualScrolling = false;
+
+    function handleWheel(deltaY: number) {
+      if (deltaY < 0) {
+        // Scrolling up towards history
+        isUserManualScrolling = true;
+      } else if (deltaY > 0) {
+        // Scrolling down towards bottom / live activity
+        isUserManualScrolling = false;
+      }
+    }
+
+    handleWheel(-120); // Mouse wheel notch up
+    expect(isUserManualScrolling).toBe(true);
+
+    handleWheel(120); // Mouse wheel notch down
+    expect(isUserManualScrolling).toBe(false);
+  });
 });

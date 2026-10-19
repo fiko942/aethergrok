@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import { sessionStore, type ChatMessage } from '$lib/stores/session.svelte';
+  import { sessionStore, getActiveWindowTurns, type ChatMessage } from '$lib/stores/session.svelte';
   import MessageItem from './MessageItem.svelte';
   import ImageLightboxModal from './ImageLightboxModal.svelte';
   import { ArrowUp, ArrowDown, Loader2, Sparkles, Brain, Cpu, Compass, CheckCircle2, AlertCircle } from 'lucide-svelte';
@@ -16,6 +16,7 @@
   export function forceScrollBottom() {
     autoScrollToBottom = true;
     unreadActivityBelow = false;
+    sessionStore.flushEarlierTurnsToWindow();
     tick().then(() => {
       if (containerEl) {
         containerEl.scrollTop = containerEl.scrollHeight;
@@ -25,7 +26,6 @@
 
   let containerEl = $state<HTMLDivElement | null>(null);
   let contentWrapperEl = $state<HTMLDivElement | null>(null);
-  let topSentinelEl = $state<HTMLDivElement | null>(null);
   let isHydrating = $state(false);
   let autoScrollToBottom = $state(true);
   let showScrollToBottom = $state(false);
@@ -175,6 +175,8 @@
     if (isHydrating || sessionStore.remainingHiddenTurns === 0 || !containerEl) return;
 
     isHydrating = true;
+    autoScrollToBottom = false;
+    showScrollToBottom = true;
     const previousScrollHeight = containerEl.scrollHeight;
     const previousScrollTop = containerEl.scrollTop;
 
@@ -198,6 +200,24 @@
   let isUserManualScrolling = false;
   let userScrollTimeout: ReturnType<typeof setTimeout> | null = null;
 
+  function handleWheel(e: WheelEvent) {
+    if (e.deltaY < 0) {
+      // User is scrolling UP towards history
+      isUserManualScrolling = true;
+      if (userScrollTimeout) clearTimeout(userScrollTimeout);
+      userScrollTimeout = setTimeout(() => {
+        isUserManualScrolling = false;
+      }, 1200);
+    } else if (e.deltaY > 0) {
+      // User is scrolling DOWN towards bottom / live activity
+      isUserManualScrolling = false;
+      if (userScrollTimeout) {
+        clearTimeout(userScrollTimeout);
+        userScrollTimeout = null;
+      }
+    }
+  }
+
   function markUserScrolling() {
     isUserManualScrolling = true;
     if (userScrollTimeout) clearTimeout(userScrollTimeout);
@@ -220,9 +240,7 @@
     if (autoScrollToBottom) {
       unreadActivityBelow = false;
       // If user navigated all the way to the bottom, park/flush earlier turns beyond active window
-      if (sessionStore.activeSession && sessionStore.activeSession.visibleTurnCount > 10) {
-        sessionStore.flushEarlierTurnsToWindow();
-      }
+      sessionStore.flushEarlierTurnsToWindow();
     }
 
     // Acknowledge finished turn when viewing the bottom of conversation (only reset from 'finished' to 'idle', never interrupt 'working')
@@ -245,6 +263,7 @@
     if (!containerEl) return;
     autoScrollToBottom = true;
     unreadActivityBelow = false;
+    sessionStore.flushEarlierTurnsToWindow();
     containerEl.scrollTo({
       top: containerEl.scrollHeight,
       behavior: 'smooth'
@@ -262,6 +281,8 @@
 
     if (msgs.length > 0) {
       if (autoScrollToBottom) {
+        // Auto-flush older turns when new live activity arrives based on active window setting
+        sessionStore.flushEarlierTurnsToWindow();
         tick().then(() => {
           if (containerEl && autoScrollToBottom) {
             containerEl.scrollTop = containerEl.scrollHeight;
@@ -286,6 +307,7 @@
     if (typeof ResizeObserver !== 'undefined' && contentWrapperEl) {
       resizeObserver = new ResizeObserver(() => {
         if (autoScrollToBottom && containerEl) {
+          sessionStore.flushEarlierTurnsToWindow();
           if (rAFId !== null) cancelAnimationFrame(rAFId);
           rAFId = requestAnimationFrame(() => {
             rAFId = null;
@@ -298,29 +320,9 @@
       resizeObserver.observe(contentWrapperEl);
     }
 
-    // Set up IntersectionObserver on top sentinel for smooth upward infinite hydration
-    let intersectionObserver: IntersectionObserver | null = null;
-    if ('IntersectionObserver' in window && topSentinelEl && containerEl) {
-      intersectionObserver = new IntersectionObserver(
-        (entries) => {
-          if (entries[0].isIntersecting && sessionStore.remainingHiddenTurns > 0 && !isHydrating) {
-            loadEarlier();
-          }
-        },
-        {
-          root: containerEl,
-          rootMargin: '300px 0px 0px 0px',
-          threshold: 0.1
-        }
-      );
-
-      intersectionObserver.observe(topSentinelEl);
-    }
-
     return () => {
       if (rAFId !== null) cancelAnimationFrame(rAFId);
       if (resizeObserver) resizeObserver.disconnect();
-      if (intersectionObserver) intersectionObserver.disconnect();
     };
   });
 </script>
@@ -328,15 +330,15 @@
 <div
   bind:this={containerEl}
   onscroll={handleScroll}
-  onwheel={markUserScrolling}
+  onwheel={handleWheel}
   ontouchmove={markUserScrolling}
   style="overflow-anchor: none;"
   class="flex-1 w-full h-full overflow-y-auto px-4 py-3 space-y-3 relative bg-ant-bg select-text flex flex-col"
 >
   <div bind:this={contentWrapperEl} class="w-full space-y-3 flex-1 flex flex-col">
-    <!-- Top Sentinel & Prepend History Header -->
+    <!-- Top Prepend History Header -->
     {#if sessionStore.visibleMessages.length > 0}
-      <div bind:this={topSentinelEl} class="w-full flex justify-center py-2">
+      <div class="w-full flex justify-center py-2">
         {#if sessionStore.remainingHiddenTurns > 0}
           <button
             type="button"

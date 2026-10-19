@@ -661,6 +661,7 @@ export class SessionStore {
           // If the app was closed while a turn was running or stalled, reset 'working' or 'waiting_permission'
           // to 'idle' so the UI never starts up locked in an infinite loading spinner.
           for (const s of parsed) {
+            s.visibleTurnCount = getActiveWindowTurns();
             if (s.status === 'working' || s.status === 'waiting_permission') {
               s.status = 'idle';
             }
@@ -1966,6 +1967,8 @@ export class SessionStore {
   addToolCall(sessionId: string, toolCall: ToolCall): ToolCall | null {
     const session = this.sessions.find((s) => s.id === sessionId);
     if (!session) return null;
+
+    this.flushEarlierTurnsToWindow(sessionId);
 
     const lastMsg = session.messages[session.messages.length - 1];
     if (lastMsg && lastMsg.role === 'assistant') {
