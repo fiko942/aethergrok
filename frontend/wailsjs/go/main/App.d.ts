@@ -118,6 +118,10 @@ export function LoadGrokSessionHistory(arg1:string,arg2:string):Promise<Array<gr
 
 export function LoadPersistedLogs(arg1:number):Promise<Array<logger.LogEntry>>;
 
+export function LoadSubagentDetails(arg1:string,arg2:string):Promise<grokrunner.SubagentExecutionDetails>;
+
+export function LoadSubagentToolCalls(arg1:string,arg2:string):Promise<Array<grokrunner.DiscoveredToolCall>>;
+
 export function MuteSystemVolume():Promise<main.VolumeMuteResult>;
 
 export function OpenAccessibilitySettings():Promise<void>;

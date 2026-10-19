@@ -28,7 +28,7 @@ func killProcessGroup(cmd *exec.Cmd) error {
 	myPgid, _ := syscall.Getpgid(os.Getpid())
 	pgid, err := syscall.Getpgid(cmd.Process.Pid)
 	if err == nil && pgid > 1 && pgid != myPgid {
-		return syscall.Kill(-pgid, syscall.SIGKILL)
+		_ = syscall.Kill(-pgid, syscall.SIGKILL)
 	}
 
 	if cmd.Process.Pid != os.Getpid() {

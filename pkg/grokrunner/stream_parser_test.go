@@ -253,3 +253,106 @@ func TestStreamParser_MaxTokensTruncationError(t *testing.T) {
 		t.Fatalf("expected normalized error message, got: %v", errReceived)
 	}
 }
+
+func TestACPStreamParser_SubagentRouting(t *testing.T) {
+	inputLines := []string{
+		// 1. Parent initial message
+		`{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"parent-uuid-001","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"Spawning subagent..."}}}}`,
+		// 2. Parent calls spawn_subagent
+		`{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"parent-uuid-001","update":{"sessionUpdate":"tool_call","toolCallId":"call-spawn-1","title":"spawn_subagent","rawInput":{"subagent_type":"general-purpose","prompt":"Analyze files"}}}}`,
+		// 3. Subagent spawned notification
+		`{"jsonrpc":"2.0","method":"_x.ai/session_notification","params":{"sessionId":"parent-uuid-001","update":{"sessionUpdate":"subagent_spawned","subagent_id":"child-uuid-999","child_session_id":"child-uuid-999","parent_session_id":"parent-uuid-001"}}}`,
+		// 4. Subagent spawn completion
+		`{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"parent-uuid-001","update":{"sessionUpdate":"tool_call_update","toolCallId":"call-spawn-1","status":"completed","rawOutput":{"text":"Subagent started in background.\nsubagent_id: child-uuid-999"}}}}`,
+		// 5. Child emits inner thoughts/text
+		`{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"child-uuid-999","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"Child thinking..."}}}}`,
+		// 6. Child calls tool read_file
+		`{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"child-uuid-999","update":{"sessionUpdate":"tool_call","toolCallId":"call-child-read","title":"read_file","rawInput":{"target_file":"/tmp/test.txt"}}}}`,
+		// 7. Child tool update
+		`{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"child-uuid-999","update":{"sessionUpdate":"tool_call_update","toolCallId":"call-child-read","status":"completed","rawOutput":{"output":"file contents"}}}}`,
+		// 8. Parent concludes message and completes turn
+		`{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"parent-uuid-001","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"Subagent is running."}}}}`,
+		`{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"parent-uuid-001","update":{"sessionUpdate":"turn_completed","status":"completed"}}}`,
+	}
+	input := strings.Join(inputLines, "\n") + "\n"
+
+	var mu sync.Mutex
+	var deltas []string
+	var toolCalls []ToolCallEvent
+	var completed bool
+
+	callbacks := StreamCallbacks{
+		OnDelta: func(e DeltaEvent) {
+			mu.Lock()
+			defer mu.Unlock()
+			deltas = append(deltas, e.Delta)
+		},
+		OnToolCall: func(e ToolCallEvent) {
+			mu.Lock()
+			defer mu.Unlock()
+			toolCalls = append(toolCalls, e)
+		},
+		OnComplete: func(e TurnCompleteEvent) {
+			mu.Lock()
+			defer mu.Unlock()
+			completed = true
+		},
+	}
+
+	parser := NewStreamParser("frontend-sess-1", callbacks)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err := parser.Parse(ctx, strings.NewReader(input))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	time.Sleep(50 * time.Millisecond)
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	if !completed {
+		t.Errorf("expected parent turn completion")
+	}
+
+	// Verify deltas: should contain parent text but NOT child text
+	joinedDeltas := strings.Join(deltas, "")
+	if !strings.Contains(joinedDeltas, "Spawning subagent...") {
+		t.Errorf("expected parent delta 'Spawning subagent...', got %s", joinedDeltas)
+	}
+	if strings.Contains(joinedDeltas, "Child thinking...") {
+		t.Errorf("child delta leaked into parent session stream! Got: %s", joinedDeltas)
+	}
+
+	// Verify tool calls:
+	// toolCalls[0] -> spawn_subagent (running, ChildSessionID == "")
+	// toolCalls[1] -> spawn_subagent (completed, ChildSessionID == "")
+	// toolCalls[2] -> read_file (running, ChildSessionID == "child-uuid-999")
+	// toolCalls[3] -> read_file (completed, ChildSessionID == "child-uuid-999")
+	if len(toolCalls) < 4 {
+		t.Fatalf("expected 4 tool calls, got %d", len(toolCalls))
+	}
+
+	if toolCalls[0].ToolName != "spawn_subagent" || toolCalls[0].ChildSessionID != "" {
+		t.Errorf("expected spawn_subagent without child session ID, got: %+v", toolCalls[0])
+	}
+
+	childCall := toolCalls[2]
+	if childCall.ToolName != "read_file" {
+		t.Errorf("expected child tool name 'read_file', got '%s'", childCall.ToolName)
+	}
+	if childCall.ChildSessionID != "child-uuid-999" {
+		t.Errorf("expected child session ID 'child-uuid-999', got '%s'", childCall.ChildSessionID)
+	}
+
+	childCallDone := toolCalls[3]
+	if childCallDone.ToolName != "read_file" || childCallDone.Status != "completed" {
+		t.Errorf("expected child tool completed, got: %+v", childCallDone)
+	}
+	if childCallDone.ChildSessionID != "child-uuid-999" {
+		t.Errorf("expected child session ID 'child-uuid-999', got '%s'", childCallDone.ChildSessionID)
+	}
+}
+

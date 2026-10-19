@@ -5,22 +5,26 @@
     formatToolResult,
     isSubagentToolCall,
     extractSubagentMeta,
-    formatSubagentDuration
+    formatSubagentDuration,
+    isSubagentBackgroundAck,
+    cleanSubagentOutput,
+    formatActionSummary
   } from '$lib/utils/toolUtils';
-  import SubagentDetailModal from './SubagentDetailModal.svelte';
   import { highlightCode } from '$lib/utils/codeHighlighter';
   import DiffCard from './DiffCard.svelte';
   import { renderMarkdown } from '$lib/utils/markdownRenderer';
   import { inputShieldStore } from '$lib/stores/inputShield.svelte';
   import { planStore } from '$lib/stores/plan.svelte';
   import { sessionStore } from '$lib/stores/session.svelte';
+  import { dialogStore } from '$lib/stores/dialog.svelte';
   import {
     parseTodosUpdated,
     type TodoItem,
     extractPlanFilePath,
     extractPlanMarkdownFromResult,
     formatPlanUpdateSummary,
-    resolveTodoContent
+    resolveTodoContent,
+    renderTodoContent
   } from '$lib/utils/planParser';
   import {
     Terminal,
@@ -44,7 +48,11 @@
     CheckSquare,
     BookOpen,
     ListTodo,
-    RotateCw
+    RotateCw,
+    Cpu,
+    Shield,
+    Maximize2,
+    Activity
   } from 'lucide-svelte';
 
   interface Props {
@@ -65,16 +73,98 @@
   let dirSearchQuery = $state('');
   let dirFilterTab = $state<'all' | 'folders' | 'files'>('all');
   let dirShowAll = $state(false);
-  let showSubagentModal = $state(false);
+  let copiedSubagentId = $state(false);
   let now = $state(Date.now());
+
+  function getChildDuration(child: ToolCall): string | null {
+    if (!child.startTime) return null;
+    const end = child.endTime || (child.status === 'running' ? now : child.startTime);
+    const ms = Math.max(0, end - child.startTime);
+    if (ms < 1000) return `${ms}ms`;
+    const secs = ms / 1000;
+    if (secs < 60) return `${secs.toFixed(1)}s`;
+    const mins = Math.floor(secs / 60);
+    const rem = Math.round(secs % 60);
+    return `${mins}m ${rem}s`;
+  }
 
   // Active ticking timer for running subagents and tool calls
   $effect(() => {
-    if (toolCall.status !== 'running') return;
+    const isRunning = toolCall.status === 'running' || (isSubagentBackgroundAck(toolCall.result) && !cleanSubagentOutput(toolCall.result));
+    if (!isRunning) return;
     const interval = setInterval(() => {
       now = Date.now();
     }, 1000);
     return () => clearInterval(interval);
+  });
+
+  // Automatically load child tool calls and subagent execution details for subagent cards
+  $effect(() => {
+    if (toolParsed.type !== 'subagent') return;
+    const sid = toolParsed.meta?.taskId || toolCall.childSessionId;
+    if (!sid || typeof window === 'undefined') return;
+
+    // If subagent is already completed and has full output and child calls, skip
+    const isCompletedWithOutput = toolCall.status === 'completed' &&
+      !isSubagentBackgroundAck(toolCall.result) &&
+      cleanSubagentOutput(toolCall.result) !== '' &&
+      toolCall.childToolCalls && toolCall.childToolCalls.length > 0;
+    if (isCompletedWithOutput) return;
+
+    const activeSession = sessionStore.sessions.find((s) => s.id === sessionStore.activeSessionId);
+    let wsPath = '';
+    if (activeSession?.workspaceId) {
+      const ws = sessionStore.workspaces.find((w) => w.id === activeSession.workspaceId);
+      if (ws?.path) wsPath = ws.path;
+    }
+    if (!wsPath && sessionStore.activeWorkspace?.path) {
+      wsPath = sessionStore.activeWorkspace.path;
+    }
+
+    if (window.go?.main?.App?.LoadSubagentDetails) {
+      window.go.main.App.LoadSubagentDetails(wsPath, sid)
+        .then((details) => {
+          if (details) {
+            if (details.calls && Array.isArray(details.calls) && details.calls.length > 0) {
+              toolCall.childToolCalls = details.calls.map((c: any) => ({
+                id: c.id,
+                tool: c.tool,
+                params: c.params,
+                result: c.result,
+                status: c.status === 'failed' ? 'error' : c.status === 'completed' ? 'completed' : 'running',
+                startTime: c.startTime,
+                endTime: c.endTime
+              }));
+            }
+            if (details.status === 'completed' || details.status === 'failed') {
+              toolCall.status = details.status === 'failed' ? 'error' : 'completed';
+              if (details.output && (!toolCall.result || isSubagentBackgroundAck(toolCall.result))) {
+                toolCall.result = details.output;
+              }
+              if (details.durationMs && details.durationMs > 0 && toolCall.startTime) {
+                toolCall.endTime = toolCall.startTime + details.durationMs;
+              }
+            }
+          }
+        })
+        .catch(() => {});
+    } else if (window.go?.main?.App?.LoadSubagentToolCalls) {
+      window.go.main.App.LoadSubagentToolCalls(wsPath, sid)
+        .then((calls) => {
+          if (calls && Array.isArray(calls) && calls.length > 0) {
+            toolCall.childToolCalls = calls.map((c: any) => ({
+              id: c.id,
+              tool: c.tool,
+              params: c.params,
+              result: c.result,
+              status: c.status === 'failed' ? 'error' : c.status === 'completed' ? 'completed' : 'running',
+              startTime: c.startTime,
+              endTime: c.endTime
+            }));
+          }
+        })
+        .catch(() => {});
+    }
   });
 
   // Load plan content from disk via Go backend
@@ -132,11 +222,22 @@
     }
   });
 
+  // Clean output and running state for subagent
+  const subagentCleanOutput = $derived.by(() => {
+    if (toolParsed.type !== 'subagent') return '';
+    return cleanSubagentOutput(toolCall.result);
+  });
+
+  const subagentIsActuallyRunning = $derived.by(() => {
+    if (toolParsed.type !== 'subagent') return false;
+    return toolCall.status === 'running' || (isSubagentBackgroundAck(toolCall.result) && !subagentCleanOutput);
+  });
+
   // Derive formatted execution duration
   const formattedDuration = $derived.by(() => {
     if (!toolCall.startTime) return null;
     if (toolParsed.type === 'subagent') {
-      const end = toolCall.endTime || (toolCall.status === 'running' ? now : toolCall.startTime);
+      const end = toolCall.endTime || (subagentIsActuallyRunning ? now : toolCall.startTime);
       return formatSubagentDuration(Math.max(0, end - toolCall.startTime));
     }
     const end = toolCall.endTime || Date.now();
@@ -193,7 +294,7 @@
 
     // Subagent Autonomous Delegation
     if (isSubagentToolCall(rawTool, toolCall.params || p)) {
-      const subagentMeta = extractSubagentMeta(toolCall.params || p);
+      const subagentMeta = extractSubagentMeta(toolCall.params || p, toolCall.result);
       return {
         verb: 'Subagent',
         type: 'subagent' as const,
@@ -585,10 +686,6 @@
 
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      if (toolParsed.type === 'subagent') {
-        showSubagentModal = true;
-        return;
-      }
       isExpanded = !isExpanded;
       return;
     }
@@ -613,10 +710,6 @@
   function toggleExpand(e: MouseEvent) {
     const target = e.target as HTMLElement;
     if (target.closest('button') || target.closest('a')) return;
-    if (toolParsed.type === 'subagent') {
-      showSubagentModal = true;
-      return;
-    }
     isExpanded = !isExpanded;
   }
 </script>
@@ -696,12 +789,19 @@
         </span>
       {/if}
 
+      {#if toolParsed.type === 'subagent' && toolCall.childToolCalls && toolCall.childToolCalls.length > 0}
+        <span class="inline-flex items-center text-[10px] font-mono px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-300 border border-violet-500/30">
+          <Activity size={10} class="mr-1 text-violet-400" />
+          {toolCall.childToolCalls.length}
+        </span>
+      {/if}
+
       {#if toolParsed.type === 'subagent'}
         <button
           type="button"
           onclick={(e) => {
             e.stopPropagation();
-            showSubagentModal = true;
+            dialogStore.openSubagentModal(toolCall, toolParsed.meta);
           }}
           class="flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium text-violet-300 bg-violet-500/15 border border-violet-500/30 hover:bg-violet-500/25 hover:text-white transition cursor-pointer"
           title="Inspect Subagent Details"
@@ -711,8 +811,12 @@
         </button>
       {/if}
 
-      {#if toolCall.status === 'running'}
-        <span class="flex items-center text-[10px] font-medium {toolParsed.type === 'subagent' ? 'text-violet-400' : 'text-ant-primary'} animate-pulse">
+      {#if toolParsed.type === 'subagent' && subagentIsActuallyRunning}
+        <span class="flex items-center text-[10px] font-medium text-violet-400 animate-pulse">
+          <Loader2 size={11} class="animate-spin mr-1" />
+        </span>
+      {:else if toolCall.status === 'running'}
+        <span class="flex items-center text-[10px] font-medium text-ant-primary animate-pulse">
           <Loader2 size={11} class="animate-spin mr-1" />
         </span>
       {:else if toolCall.status === 'completed'}
@@ -726,8 +830,178 @@
   <!-- Collapsible Details Container (Zero Redundancy) -->
   {#if isExpanded}
     <div class="px-2.5 pb-2 pt-1 bg-ant-bg border-t border-white/5 space-y-1.5 select-text font-mono">
-      <!-- 1. Dedicated Diff Card for Edit -->
-      {#if toolCall.diff}
+      {#if toolParsed.type === 'subagent'}
+        <!-- Dedicated Inline Subagent Delegation Card -->
+        <div class="rounded-lg border border-violet-500/30 bg-violet-950/20 overflow-hidden font-sans space-y-2 p-3 my-1">
+          <!-- Top Badges & Actions -->
+          <div class="flex items-center justify-between flex-wrap gap-2 text-xs font-mono select-none">
+            <div class="flex items-center flex-wrap gap-1.5">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-violet-500/20 text-violet-300 font-semibold border border-violet-500/30 text-[11px]">
+                <Bot size={12} class="text-violet-400" />
+                <span>Role: {toolParsed.meta.subagentType}</span>
+              </span>
+              {#if toolParsed.meta.model}
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/5 text-ant-text-secondary border border-white/5 text-[11px]">
+                  <Cpu size={11} class="text-indigo-400" />
+                  <span>{toolParsed.meta.model}</span>
+                </span>
+              {/if}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/5 text-ant-text-secondary border border-white/5 text-[11px]">
+                <span>{toolParsed.meta.isBackground ? 'Background' : 'Foreground'}</span>
+              </span>
+              {#if toolParsed.meta.taskId}
+                <button
+                  type="button"
+                  onclick={() => {
+                    navigator.clipboard.writeText(toolParsed.meta.taskId!);
+                    copiedSubagentId = true;
+                    setTimeout(() => (copiedSubagentId = false), 2000);
+                  }}
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/5 text-ant-text-secondary hover:text-white border border-white/5 text-[11px] hover:bg-white/10 transition cursor-pointer"
+                  title="Copy Task ID: {toolParsed.meta.taskId}"
+                >
+                  <span>ID: {toolParsed.meta.taskId.slice(0, 8)}...</span>
+                  {#if copiedSubagentId}
+                    <Check size={10} class="text-emerald-400" />
+                  {:else}
+                    <Copy size={10} />
+                  {/if}
+                </button>
+              {/if}
+            </div>
+
+            <!-- Inspect Modal Button -->
+            <button
+              type="button"
+              onclick={(e) => {
+                e.stopPropagation();
+                dialogStore.openSubagentModal(toolCall, toolParsed.meta);
+              }}
+              class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-violet-500/20 hover:bg-violet-500/30 text-violet-200 border border-violet-500/40 text-[11px] font-medium transition cursor-pointer"
+            >
+              <Maximize2 size={11} />
+              <span>Full Details</span>
+            </button>
+          </div>
+
+          <!-- Task Actions List (Prioritized Hero View) -->
+          <div class="rounded-md border border-violet-500/20 bg-black/40 overflow-hidden text-xs font-sans">
+            <div class="flex items-center justify-between px-3 py-2 bg-violet-500/10 border-b border-white/5 text-[11px]">
+              <div class="flex items-center space-x-1.5 text-violet-300 font-medium">
+                <Activity size={12} class="text-violet-400" />
+                <span>Task Actions ({toolCall.childToolCalls?.length || 0})</span>
+                {#if subagentIsActuallyRunning}
+                  <Loader2 size={11} class="animate-spin text-violet-400 ml-1" />
+                {/if}
+              </div>
+              <button
+                type="button"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  dialogStore.openSubagentModal(toolCall, toolParsed.meta);
+                }}
+                class="text-[10.5px] font-sans text-violet-400 hover:text-violet-300 hover:underline cursor-pointer flex items-center gap-1"
+              >
+                <span>Full Details</span>
+                <ChevronRight size={11} />
+              </button>
+            </div>
+
+            <div class="p-2 space-y-1 max-h-72 overflow-y-auto scrollbar-thin">
+              {#if toolCall.childToolCalls && toolCall.childToolCalls.length > 0}
+                {#each toolCall.childToolCalls as child, idx (child.id || idx)}
+                  {@const summary = formatActionSummary(child.tool, child.params)}
+                  {@const childDur = getChildDuration(child)}
+                  <div
+                    class="flex items-center space-x-2 px-2.5 py-1.5 rounded bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.04] text-[11px] font-mono transition group cursor-pointer"
+                    onclick={(e) => {
+                      e.stopPropagation();
+                      dialogStore.openSubagentModal(toolCall, toolParsed.meta);
+                    }}
+                    role="button"
+                    tabindex="0"
+                    onkeydown={(e) => {
+                      if (e.key === 'Enter') dialogStore.openSubagentModal(toolCall, toolParsed.meta);
+                    }}
+                  >
+                    <span class="shrink-0 flex items-center justify-center">
+                      {#if child.status === 'running'}
+                        <Loader2 size={11} class="animate-spin text-violet-400" />
+                      {:else if child.status === 'completed'}
+                        <CheckCircle2 size={11} class="text-emerald-400" />
+                      {:else}
+                        <XCircle size={11} class="text-rose-400" />
+                      {/if}
+                    </span>
+                    <span class="px-1.5 py-0.5 rounded text-[9.5px] font-semibold uppercase tracking-wider shrink-0 {
+                      summary.iconType === 'read' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/20' :
+                      summary.iconType === 'edit' ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20' :
+                      summary.iconType === 'write' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' :
+                      summary.iconType === 'search' ? 'bg-purple-500/15 text-purple-400 border border-purple-500/20' :
+                      summary.iconType === 'list' ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/20' :
+                      summary.iconType === 'terminal' ? 'bg-orange-500/15 text-orange-400 border border-orange-500/20' :
+                      'bg-zinc-500/15 text-zinc-300 border border-zinc-500/20'
+                    }">
+                      {summary.verb}
+                    </span>
+                    <span class="truncate flex-1 min-w-0 text-ant-text" title={summary.target}>
+                      {summary.target}
+                    </span>
+                    {#if childDur}
+                      <span class="text-[10px] text-ant-text-muted shrink-0 font-mono">{childDur}</span>
+                    {/if}
+                  </div>
+                {/each}
+              {:else if subagentIsActuallyRunning}
+                <div class="flex items-center space-x-2 text-[11px] text-violet-300/70 py-2.5 px-2">
+                  <Loader2 size={12} class="animate-spin text-violet-400 shrink-0" />
+                  <span>Waiting for subagent actions...</span>
+                </div>
+              {:else}
+                <div class="text-[11px] text-ant-text-muted py-2 px-2">
+                  No recorded subagent actions.
+                </div>
+              {/if}
+            </div>
+          </div>
+
+          <!-- Compact Completion / Error Status (Detailed view in modal) -->
+          {#if subagentCleanOutput}
+            <div class="flex items-center justify-between px-3 py-2 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-xs">
+              <div class="flex items-center gap-1.5 text-emerald-400">
+                <CheckCircle2 size={12} class="text-emerald-400 shrink-0" />
+                <span class="font-medium text-[11px]">Subagent output ready</span>
+              </div>
+              <button
+                type="button"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  dialogStore.openSubagentModal(toolCall, toolParsed.meta);
+                }}
+                class="text-[11px] text-emerald-400 hover:text-emerald-300 hover:underline cursor-pointer flex items-center gap-1 font-sans"
+              >
+                <span>View Full Report</span>
+                <ChevronRight size={10} />
+              </button>
+            </div>
+          {:else if toolCall.status === 'error'}
+            <div class="flex items-center justify-between px-3 py-2 rounded-md bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300">
+              <span class="text-[11px]">Subagent execution encountered an error</span>
+              <button
+                type="button"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  dialogStore.openSubagentModal(toolCall, toolParsed.meta);
+                }}
+                class="text-[11px] text-rose-300 hover:text-rose-200 hover:underline cursor-pointer flex items-center gap-1 font-sans"
+              >
+                <span>View Details</span>
+                <ChevronRight size={10} />
+              </button>
+            </div>
+          {/if}
+        </div>
+      {:else if toolCall.diff}
         <div class="pt-0.5">
           <DiffCard diff={toolCall.diff} />
         </div>
@@ -990,10 +1264,10 @@
                   {/if}
                 </div>
 
-                <div class="flex-1 min-w-0 font-serif leading-relaxed">
-                  <p class="text-xs {todo.status === 'completed' ? 'line-through text-ant-text-muted' : 'text-ant-text'}">
-                    {content}
-                  </p>
+                <div class="flex-1 min-w-0 font-sans leading-relaxed">
+                  <div class="text-xs select-text {todo.status === 'completed' ? 'line-through opacity-60 text-ant-text-muted' : 'text-ant-text'}">
+                    {@html renderTodoContent(content)}
+                  </div>
                 </div>
 
                 {#if todo.priority}
@@ -1230,12 +1504,3 @@
     </div>
   {/if}
 </div>
-
-{#if toolParsed.type === 'subagent'}
-  <SubagentDetailModal
-    visible={showSubagentModal}
-    {toolCall}
-    meta={toolParsed.meta}
-    onClose={() => (showSubagentModal = false)}
-  />
-{/if}

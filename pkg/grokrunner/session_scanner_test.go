@@ -432,6 +432,111 @@ func TestResolveWorkspaceSessionsDir_CrossPlatformDecoded(t *testing.T) {
 	}
 }
 
+func TestParseSubagentUpdatesJsonl_RealLifecycle(t *testing.T) {
+	tempFile := filepath.Join(t.TempDir(), "updates.jsonl")
+	content := strings.Join([]string{
+		`{"timestamp":1792379656,"method":"session/update","params":{"sessionId":"sub-1","update":{"sessionUpdate":"tool_call","toolCallId":"call_1","title":"read_file","rawInput":{"target_file":"README.md"},"_meta":{"x.ai/tool":{"name":"read_file"}}}}}`,
+		`{"timestamp":1792379657,"method":"session/update","params":{"sessionId":"sub-1","update":{"sessionUpdate":"tool_call_update","toolCallId":"call_1","status":"completed","content":[{"type":"content","content":{"type":"text","text":"# AsistenQ"}}]}}}`,
+		`{"timestamp":1792379658,"method":"session/update","params":{"sessionId":"sub-1","update":{"sessionUpdate":"tool_call","toolCallId":"call_2","title":"run_terminal_command","rawInput":{"command":"ls -la"}}}}`,
+		`{"timestamp":1792379659,"method":"session/update","params":{"sessionId":"sub-1","update":{"sessionUpdate":"tool_call_update","toolCallId":"call_2","status":"completed","rawOutput":{"output_for_prompt":"file1\nfile2"}}}}`,
+	}, "\n")
+
+	if err := os.WriteFile(tempFile, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	calls, err := ParseSubagentUpdatesJsonl(tempFile)
+	if err != nil {
+		t.Fatalf("ParseSubagentUpdatesJsonl failed: %v", err)
+	}
+
+	if len(calls) != 2 {
+		t.Fatalf("Expected 2 tool calls, got %d", len(calls))
+	}
+
+	if calls[0].ID != "call_1" || calls[0].Tool != "read_file" || calls[0].Status != "completed" || calls[0].Result != "# AsistenQ" {
+		t.Errorf("Unexpected calls[0]: %+v", calls[0])
+	}
+	if calls[1].ID != "call_2" || calls[1].Tool != "run_terminal_command" || calls[1].Status != "completed" || calls[1].Result != "file1\nfile2" {
+		t.Errorf("Unexpected calls[1]: %+v", calls[1])
+	}
+}
+
+func TestParseSubagentChatHistoryJsonl_Fallback(t *testing.T) {
+	tempFile := filepath.Join(t.TempDir(), "chat_history.jsonl")
+	content := strings.Join([]string{
+		`{"type":"system","content":"System prompt"}`,
+		`{"type":"user","content":[{"type":"text","text":"Analyze files"}]}`,
+		`{"type":"assistant","content":"","tool_calls":[{"id":"call_c1","name":"read_file","arguments":"{\"target_file\":\"test.txt\"}"}]}`,
+		`{"type":"tool_result","tool_call_id":"call_c1","content":"file contents"}`,
+	}, "\n")
+
+	if err := os.WriteFile(tempFile, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	calls, err := ParseSubagentChatHistoryJsonl(tempFile)
+	if err != nil {
+		t.Fatalf("ParseSubagentChatHistoryJsonl failed: %v", err)
+	}
+
+	if len(calls) != 1 {
+		t.Fatalf("Expected 1 tool call, got %d", len(calls))
+	}
+
+	if calls[0].ID != "call_c1" || calls[0].Tool != "read_file" || calls[0].Result != "file contents" || calls[0].Status != "completed" {
+		t.Errorf("Unexpected call: %+v", calls[0])
+	}
+}
+
+func TestLoadSubagentExecutionDetails_RealSession(t *testing.T) {
+	subagentID := "01a15062-c047-7d91-a7e1-10e862e35c64"
+	wsPath := "/Users/fiko942/Desktop/Rekayasa Interaksi"
+	details, err := LoadSubagentExecutionDetails(wsPath, subagentID)
+	if err != nil {
+		t.Fatalf("LoadSubagentExecutionDetails returned error: %v", err)
+	}
+	if details == nil || len(details.Calls) == 0 {
+		t.Skip("Real subagent directory not present on this machine, skipping live check")
+	}
+	if details.Status != "completed" {
+		t.Errorf("Expected status='completed', got %s", details.Status)
+	}
+	if len(details.Calls) != 13 {
+		t.Errorf("Expected 13 tool calls, got %d", len(details.Calls))
+	}
+	if details.Output == "" {
+		t.Errorf("Expected non-empty output for completed subagent")
+	}
+	if details.DurationMs <= 0 {
+		t.Errorf("Expected positive durationMs, got %d", details.DurationMs)
+	}
+}
+
+func TestLoadSubagentToolCalls_RealSession(t *testing.T) {
+	// Query the verified real subagent session
+	subagentID := "01a15226-fcb4-7973-a534-2dc31fbb1a8b"
+	wsPath := "/Users/fiko942/Desktop/asistenq-youtube"
+	calls, err := LoadSubagentToolCalls(wsPath, subagentID)
+	if err != nil {
+		t.Fatalf("LoadSubagentToolCalls returned error: %v", err)
+	}
+	if len(calls) == 0 {
+		t.Skip("Real subagent directory not present on this machine, skipping live check")
+	}
+	if len(calls) != 34 {
+		t.Errorf("Expected 34 tool calls for verified subagent, got %d", len(calls))
+	}
+	// Verify first call is read_file
+	if calls[0].Tool != "read_file" {
+		t.Errorf("Expected first tool to be read_file, got %s", calls[0].Tool)
+	}
+	// Verify last call is completed
+	if calls[len(calls)-1].Status != "completed" {
+		t.Errorf("Expected last tool to be completed, got %s", calls[len(calls)-1].Status)
+	}
+}
+
 func TestSessionFolderExists_Validation(t *testing.T) {
 	tempBase, err := os.MkdirTemp("", "grok_sessions_test_*")
 	if err != nil {

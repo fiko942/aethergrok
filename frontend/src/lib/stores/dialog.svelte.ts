@@ -1,4 +1,5 @@
-import { type WorkspaceFolder, type Session } from './session.svelte';
+import { type WorkspaceFolder, type Session, type ToolCall } from './session.svelte';
+import { type SubagentParsedMeta, extractSubagentMeta } from '../utils/toolUtils';
 
 export interface ConfirmDialogOptions {
   title: string;
@@ -74,6 +75,33 @@ export class DialogStore {
 
   closeConfirm(): void {
     this.confirmState.open = false;
+  }
+
+  subagentModalState = $state<{
+    open: boolean;
+    toolCall: ToolCall | null;
+    meta: SubagentParsedMeta | null;
+  }>({
+    open: false,
+    toolCall: null,
+    meta: null
+  });
+
+  openSubagentModal(toolCall: ToolCall, meta?: SubagentParsedMeta): void {
+    const safeMeta = meta || extractSubagentMeta(toolCall.params, toolCall.result);
+    this.subagentModalState = {
+      open: true,
+      toolCall,
+      meta: safeMeta
+    };
+  }
+
+  closeSubagentModal(): void {
+    this.subagentModalState = {
+      open: false,
+      toolCall: null,
+      meta: null
+    };
   }
 }
 

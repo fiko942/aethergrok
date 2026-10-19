@@ -13,6 +13,7 @@ import (
 )
 
 var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
+var subagentIdRegex = regexp.MustCompile(`(?i)subagent_id:\s*([0-9a-zA-Z_-]+)`)
 
 func cleanANSI(s string) string {
 	return ansiRegex.ReplaceAllString(s, "")
@@ -190,18 +191,24 @@ type StreamCallbacks struct {
 	OnPermissionRequest func(event PermissionRequestEvent)
 	OnComplete          func(event TurnCompleteEvent)
 	OnError             func(err error)
+	OnSubagentSpawned   func(subagentID string)
 }
 
 // StreamParser reads NDJSON lines from grok stdout and batches delta tokens with a 16ms ticker
 type StreamParser struct {
-	sessionID     string
-	grokSessionID string
-	callbacks     StreamCallbacks
-	flushChan     chan struct{}
-	firstLineChan chan struct{}
-	firstLineOnce sync.Once
-	mu            sync.Mutex
-	hasCompleted  bool
+	sessionID           string
+	grokSessionID       string
+	parentGrokSessionID string
+	subagents           map[string]bool
+	subagentsMu         sync.RWMutex
+	toolNames           map[string]string
+	toolInputs          map[string]map[string]interface{}
+	callbacks           StreamCallbacks
+	flushChan           chan struct{}
+	firstLineChan       chan struct{}
+	firstLineOnce       sync.Once
+	mu                  sync.Mutex
+	hasCompleted        bool
 }
 
 // NewStreamParser creates a new stream parser for a session
@@ -209,6 +216,9 @@ func NewStreamParser(sessionID string, callbacks StreamCallbacks) *StreamParser 
 	return &StreamParser{
 		sessionID:     sessionID,
 		callbacks:     callbacks,
+		subagents:     make(map[string]bool),
+		toolNames:     make(map[string]string),
+		toolInputs:    make(map[string]map[string]interface{}),
 		flushChan:     make(chan struct{}, 1),
 		firstLineChan: make(chan struct{}),
 	}
@@ -218,8 +228,13 @@ func NewStreamParser(sessionID string, callbacks StreamCallbacks) *StreamParser 
 func (p *StreamParser) SetInitialGrokSessionID(id string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.grokSessionID == "" && id != "" {
-		p.grokSessionID = id
+	if id != "" {
+		if p.grokSessionID == "" {
+			p.grokSessionID = id
+		}
+		if p.parentGrokSessionID == "" {
+			p.parentGrokSessionID = id
+		}
 	}
 }
 
@@ -345,15 +360,126 @@ func (p *StreamParser) Parse(ctx context.Context, r io.Reader) error {
 			}
 		}
 
-		// Capture underlying real Grok Session ID if present
+		// Line-level session ID
+		lineSessionID := ""
 		if raw.SessionID != "" {
-			p.grokSessionID = raw.SessionID
+			lineSessionID = raw.SessionID
 		} else if raw.SessionIDAlt != "" {
-			p.grokSessionID = raw.SessionIDAlt
+			lineSessionID = raw.SessionIDAlt
 		} else if raw.Params != nil {
 			if sID, ok := raw.Params["sessionId"].(string); ok && sID != "" {
-				p.grokSessionID = sID
+				lineSessionID = sID
 			}
+		}
+
+		// Track parent Grok session ID
+		p.mu.Lock()
+		if p.parentGrokSessionID == "" && lineSessionID != "" {
+			p.parentGrokSessionID = lineSessionID
+			p.grokSessionID = lineSessionID
+		}
+		parentID := p.parentGrokSessionID
+		p.mu.Unlock()
+
+		// Register subagents from subagent_spawned notifications or parameters
+		if payload.SubagentID != "" {
+			p.subagentsMu.Lock()
+			p.subagents[payload.SubagentID] = true
+			p.subagentsMu.Unlock()
+		}
+		if payload.ChildSessionID != "" {
+			p.subagentsMu.Lock()
+			p.subagents[payload.ChildSessionID] = true
+			p.subagentsMu.Unlock()
+		}
+		if raw.Params != nil {
+			if updateRaw, exists := raw.Params["update"]; exists {
+				if updateMap, ok := updateRaw.(map[string]interface{}); ok {
+					if subID, ok := updateMap["subagent_id"].(string); ok && subID != "" {
+						p.subagentsMu.Lock()
+						p.subagents[subID] = true
+						p.subagentsMu.Unlock()
+						if p.callbacks.OnSubagentSpawned != nil {
+							p.callbacks.OnSubagentSpawned(subID)
+						}
+					}
+					if childID, ok := updateMap["child_session_id"].(string); ok && childID != "" {
+						p.subagentsMu.Lock()
+						p.subagents[childID] = true
+						p.subagentsMu.Unlock()
+						if p.callbacks.OnSubagentSpawned != nil {
+							p.callbacks.OnSubagentSpawned(childID)
+						}
+					}
+				}
+			}
+		}
+
+		// Determine if this event belongs to a child subagent
+		isChildSession := false
+		childSessionID := ""
+
+		// Check explicit subagent / child session fields first
+		if payload.SubagentID != "" && payload.SubagentID != parentID {
+			childSessionID = payload.SubagentID
+			isChildSession = true
+		} else if payload.ChildSessionID != "" && payload.ChildSessionID != parentID {
+			childSessionID = payload.ChildSessionID
+			isChildSession = true
+		} else if raw.Params != nil {
+			for _, k := range []string{"subagent_id", "subagentId", "child_session_id", "childSessionId"} {
+				if v, ok := raw.Params[k].(string); ok && v != "" && v != parentID {
+					childSessionID = v
+					isChildSession = true
+					break
+				}
+			}
+		}
+
+		// Also check metadata for subagent markers
+		if childSessionID == "" {
+			if payload.Meta != nil {
+				if sId, ok := payload.Meta["subagent_id"].(string); ok && sId != "" && sId != parentID {
+					childSessionID = sId
+					isChildSession = true
+				} else if sId, ok := payload.Meta["subagentId"].(string); ok && sId != "" && sId != parentID {
+					childSessionID = sId
+					isChildSession = true
+				}
+			}
+			if !isChildSession && raw.Meta != nil {
+				if sId, ok := raw.Meta["subagent_id"].(string); ok && sId != "" && sId != parentID {
+					childSessionID = sId
+					isChildSession = true
+				} else if sId, ok := raw.Meta["subagentId"].(string); ok && sId != "" && sId != parentID {
+					childSessionID = sId
+					isChildSession = true
+				}
+			}
+		}
+
+		// Check line-level session ID
+		if !isChildSession && lineSessionID != "" {
+			p.subagentsMu.RLock()
+			isKnownSubagent := p.subagents[lineSessionID]
+			p.subagentsMu.RUnlock()
+
+			if parentID != "" && lineSessionID != parentID {
+				isChildSession = true
+				childSessionID = lineSessionID
+				p.subagentsMu.Lock()
+				p.subagents[lineSessionID] = true
+				p.subagentsMu.Unlock()
+			} else if isKnownSubagent {
+				isChildSession = true
+				childSessionID = lineSessionID
+			}
+		}
+
+		if isChildSession && childSessionID != "" {
+			p.subagentsMu.Lock()
+			p.subagents[childSessionID] = true
+			p.subagentsMu.Unlock()
 		}
 
 		// Determine normalized action type across ACP and flat NDJSON
@@ -393,6 +519,10 @@ func (p *StreamParser) Parse(ctx context.Context, r io.Reader) error {
 
 		switch actionType {
 		case "agent_message_chunk", "user_message_chunk", "message_chunk", "text_chunk", "delta", "content", "token", "message", "text":
+			if isChildSession {
+				// Suppress child subagent text/thought tokens from leaking into the parent chat turn
+				continue
+			}
 			content := payload.Delta
 			if content == "" {
 				content = payload.Text
@@ -433,7 +563,9 @@ func (p *StreamParser) Parse(ctx context.Context, r io.Reader) error {
 			}
 
 		case "tool_call", "tool_call_update", "tool_use", "tool":
-			flushDelta()
+			if !isChildSession {
+				flushDelta()
+			}
 			if p.callbacks.OnToolCall != nil {
 				toolID := payload.ToolCallID
 				if toolID == "" {
@@ -474,6 +606,15 @@ func (p *StreamParser) Parse(ctx context.Context, r io.Reader) error {
 				if toolName == "" {
 					toolName = raw.Title
 				}
+				if toolName != "" && toolID != "" {
+					p.mu.Lock()
+					p.toolNames[toolID] = toolName
+					p.mu.Unlock()
+				} else if toolName == "" && toolID != "" {
+					p.mu.Lock()
+					toolName = p.toolNames[toolID]
+					p.mu.Unlock()
+				}
 
 				input := payload.RawInput
 				if input == nil {
@@ -484,6 +625,15 @@ func (p *StreamParser) Parse(ctx context.Context, r io.Reader) error {
 				}
 				if input == nil {
 					input = raw.ToolInput
+				}
+				if input != nil && toolID != "" {
+					p.mu.Lock()
+					p.toolInputs[toolID] = input
+					p.mu.Unlock()
+				} else if input == nil && toolID != "" {
+					p.mu.Lock()
+					input = p.toolInputs[toolID]
+					p.mu.Unlock()
 				}
 
 				output := payload.ToolOutput
@@ -526,15 +676,29 @@ func (p *StreamParser) Parse(ctx context.Context, r io.Reader) error {
 					status = "running"
 				}
 
+				// Also check if tool output contains subagent_id (e.g. from spawn_subagent ack)
+				if strings.Contains(output, "subagent_id:") {
+					matches := subagentIdRegex.FindStringSubmatch(output)
+					if len(matches) > 1 {
+						p.subagentsMu.Lock()
+						p.subagents[matches[1]] = true
+						p.subagentsMu.Unlock()
+						if p.callbacks.OnSubagentSpawned != nil {
+							p.callbacks.OnSubagentSpawned(matches[1])
+						}
+					}
+				}
+
 				p.callbacks.OnToolCall(ToolCallEvent{
-					SessionID:     p.sessionID,
-					GrokSessionID: p.grokSessionID,
-					ToolID:        toolID,
-					ToolName:      toolName,
-					Input:         input,
-					Output:        output,
-					Status:        status,
-					Error:         payload.Error,
+					SessionID:      p.sessionID,
+					GrokSessionID:  parentID,
+					ChildSessionID: childSessionID,
+					ToolID:         toolID,
+					ToolName:       toolName,
+					Input:          input,
+					Output:         output,
+					Status:         status,
+					Error:          payload.Error,
 				})
 			}
 
@@ -585,6 +749,10 @@ func (p *StreamParser) Parse(ctx context.Context, r io.Reader) error {
 			}
 
 		case "turn_completed", "turn_complete", "task_completed", "complete", "completed", "done", "end", "finish", "finished", "message_stop", "turn_finish":
+			if isChildSession {
+				// Child subagent completing its inner turn should not finish the main parent turn
+				continue
+			}
 			flushDelta()
 			p.mu.Lock()
 			p.hasCompleted = true

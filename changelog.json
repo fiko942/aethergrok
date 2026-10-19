@@ -2,8 +2,30 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "AetherGrok Release Changelog",
   "description": "Central single source of truth for all AetherGrok releases, commit ranges, and download artifacts.",
-  "latest": "1.1.15",
+  "latest": "1.1.16",
   "releases": [
+    {
+      "version": "1.1.16",
+      "tag": "v1.1.16",
+      "date": "2026-10-19T06:00:00.000Z",
+      "title": "AetherGrok 1.1.16 - Math/LaTeX Rendering, Subagent Activity Scoping & Stop Cancellation Fix",
+      "targetCommit": "HEAD",
+      "previousCommit": "73d7494",
+      "highlights": [
+        "Full KaTeX-powered LaTeX mathematical equation rendering for primary chat responses and subagent modal outputs ($$, \\[, \\(, $, and environments like matrix, pmatrix, align, cases)",
+        "Robust protection for currency amounts ($100, $5m) and fenced/inline code blocks against LaTeX delimiter collisions",
+        "Horizontal scrolling container for large math formulas and responsive styling in dark/light themes",
+        "Subagent action list isolation: internal child subagent tool executions are scoped cleanly to the subagent card and modal instead of leaking into the main session timeline",
+        "Streamlined subagent card UI prioritizing concise action items and moving raw instructions and plans to the interactive inspector modal",
+        "Session stop cancellation fix: reliably kill running grok runner processes and active subagents upon clicking the Stop button"
+      ],
+      "downloads": {
+        "macos_arm64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.16/AetherGrok-1.1.16-macOS-arm64.dmg",
+        "macos_x64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.16/AetherGrok-1.1.16-macOS-amd64.dmg",
+        "windows_x64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.16/AetherGrok-1.1.16-windows-amd64-setup.exe",
+        "windows_arm64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.16/AetherGrok-1.1.16-windows-arm64-setup.exe"
+      }
+    },
     {
       "version": "1.1.15",
       "tag": "v1.1.15",

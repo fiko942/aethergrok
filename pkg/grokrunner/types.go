@@ -43,14 +43,15 @@ type DeltaEvent struct {
 
 // ToolCallEvent represents a tool invocation or completion
 type ToolCallEvent struct {
-	SessionID     string                 `json:"sessionId"`
-	GrokSessionID string                 `json:"grokSessionId,omitempty"`
-	ToolID        string                 `json:"toolId"`
-	ToolName      string                 `json:"toolName"`
-	Input         map[string]interface{} `json:"input,omitempty"`
-	Output        string                 `json:"output,omitempty"`
-	Status        string                 `json:"status"` // "running", "completed", "failed"
-	Error         string                 `json:"error,omitempty"`
+	SessionID      string                 `json:"sessionId"`
+	GrokSessionID  string                 `json:"grokSessionId,omitempty"`
+	ChildSessionID string                 `json:"childSessionId,omitempty"`
+	ToolID         string                 `json:"toolId"`
+	ToolName       string                 `json:"toolName"`
+	Input          map[string]interface{} `json:"input,omitempty"`
+	Output         string                 `json:"output,omitempty"`
+	Status         string                 `json:"status"` // "running", "completed", "failed"
+	Error          string                 `json:"error,omitempty"`
 }
 
 // PermissionOption represents an approval option
@@ -97,6 +98,15 @@ type DiscoveredToolCall struct {
 	Status    string                 `json:"status"` // "completed", "failed", "running"
 	StartTime int64                  `json:"startTime,omitempty"`
 	EndTime   int64                  `json:"endTime,omitempty"`
+}
+
+// SubagentExecutionDetails holds complete execution context for a subagent
+type SubagentExecutionDetails struct {
+	SubagentID string               `json:"subagentId"`
+	Status     string               `json:"status"` // "completed", "failed", "running"
+	Output     string               `json:"output"`
+	DurationMs int64                `json:"durationMs,omitempty"`
+	Calls      []DiscoveredToolCall `json:"calls"`
 }
 
 // SessionUsageStats holds comprehensive token breakdown for a session
@@ -165,8 +175,10 @@ type RawNDJSONEvent struct {
 
 // ACPUpdatePayload models update payloads nested within ACP JSON-RPC params.update
 type ACPUpdatePayload struct {
-	SessionUpdate string                 `json:"sessionUpdate,omitempty"`
-	ToolCallID    string                 `json:"toolCallId,omitempty"`
+	SessionUpdate  string                 `json:"sessionUpdate,omitempty"`
+	SubagentID     string                 `json:"subagent_id,omitempty"`
+	ChildSessionID string                 `json:"child_session_id,omitempty"`
+	ToolCallID     string                 `json:"toolCallId,omitempty"`
 	ToolID        string                 `json:"toolId,omitempty"`
 	Kind          string                 `json:"kind,omitempty"`
 	Title         string                 `json:"title,omitempty"`

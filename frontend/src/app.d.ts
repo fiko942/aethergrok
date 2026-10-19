@@ -217,6 +217,8 @@ declare global {
 
           DiscoverGrokSessions: (workspacePath: string) => Promise<Array<{ id: string; title: string; createdAt: number; updatedAt: number }>>;
           LoadGrokSessionHistory: (workspacePath: string, sessionID: string) => Promise<Array<any>>;
+          LoadSubagentDetails: (workspacePath: string, subagentID: string) => Promise<any>;
+          LoadSubagentToolCalls: (workspacePath: string, subagentID: string) => Promise<Array<{ id: string; tool: string; params: any; result?: string; status: string; startTime?: number; endTime?: number }>>;
           DeleteGrokSession: (workspacePath: string, sessionId: string) => Promise<void>;
           GetSessionUsage: (workspacePath: string, sessionID: string) => Promise<any>;
           CompactSession: (workspacePath: string, sessionID: string) => Promise<any>;

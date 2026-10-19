@@ -15,6 +15,7 @@
   import SkillCatalog from '$lib/components/skills/SkillCatalog.svelte';
   import SettingsModal from '$lib/components/layout/SettingsModal.svelte';
   import FileViewerModal from '$lib/components/workspace/FileViewerModal.svelte';
+  import SubagentDetailModal from '$lib/components/chat/SubagentDetailModal.svelte';
   import WorkspaceSidebar from '$lib/components/layout/WorkspaceSidebar.svelte';
   import RightSidebar from '$lib/components/layout/RightSidebar.svelte';
   import FloatingPlanTracker from '$lib/components/chat/FloatingPlanTracker.svelte';
@@ -31,6 +32,15 @@
   import { updaterStore } from '$lib/stores/updater.svelte';
   import { ShortcutDetector, type DictationTriggerEvent } from '$lib/utils/shortcutDetector';
   import type { SkillItem, SnapshotResult } from './app.d';
+  import {
+    isSubagentToolCall,
+    extractSubagentMeta,
+    isSubagentOutputPoller,
+    extractTaskIdsFromParams,
+    extractTaskPollerResults,
+    type SubagentParsedMeta,
+    isSubagentBackgroundAck
+  } from '$lib/utils/toolUtils';
   import {
     sessionStore,
     parseTokenTruncationDetails,
@@ -657,8 +667,11 @@
   }
 
   // Cancel running session
-  async function handleCancelSession(targetSessionId?: string, pauseQueue = true) {
-    const sessionId = targetSessionId || sessionStore.activeSession?.id;
+  async function handleCancelSession(targetSessionId?: unknown, pauseQueue = true) {
+    const validTargetId = typeof targetSessionId === 'string' && targetSessionId.trim()
+      ? targetSessionId.trim()
+      : null;
+    const sessionId = validTargetId || sessionStore.activeSession?.id;
     if (!sessionId) return;
 
     if (window.go?.main?.App?.CancelSession) {
@@ -674,6 +687,14 @@
       if (msg.status === 'streaming') {
         msg.status = 'done';
         msg.content += '\n\n*(Turn cancelled by user)*';
+      }
+      if (msg.toolCalls && msg.toolCalls.length > 0) {
+        for (const tc of msg.toolCalls) {
+          if (tc.status === 'running') {
+            tc.status = 'error';
+            if (!tc.endTime) tc.endTime = Date.now();
+          }
+        }
       }
     });
 
@@ -1385,6 +1406,7 @@
         output?: string;
         status: string;
         grokSessionId?: string;
+        childSessionId?: string;
       }) => {
         if (event.sessionId) {
           const session = sessionStore.sessions.find((s) => s.id === event.sessionId);
@@ -1396,12 +1418,216 @@
           }
           if (!session) return;
 
-          // Dynamically sync agentMode per session on enter_plan_mode / exit_plan_mode events
+          const isSpawnSubagent = isSubagentToolCall(event.toolName, event.input);
+          const isPoller = isSubagentOutputPoller(event.toolName, event.input);
           const toolLower = (event.toolName || '').toLowerCase();
+          const isPlanModeSwitch = toolLower.includes('enter_plan_mode') || toolLower.includes('exit_plan_mode');
+
+          // Check if this tool call was executed by a child subagent
+          let isChild = Boolean(
+            event.childSessionId ||
+            (session.grokSessionId && event.grokSessionId && event.grokSessionId !== session.grokSessionId && !event.grokSessionId.startsWith('sess_'))
+          );
+          let effectiveChildId = event.childSessionId || (isChild ? event.grokSessionId : undefined);
+
+          let targetSubagent: ToolCall | null = null;
+
+          // 1. Check if toolId is already registered in a subagent's childToolCalls
+          if (!isSpawnSubagent && !isPoller) {
+            for (const msg of session.messages) {
+              if (!msg.toolCalls) continue;
+              for (const tc of msg.toolCalls) {
+                if (tc.childToolCalls?.some((c) => c.id === event.toolId)) {
+                  targetSubagent = tc;
+                  isChild = true;
+                  break;
+                }
+              }
+              if (targetSubagent) break;
+            }
+          }
+
+          // 2. If explicit child session, match subagent by taskId or childSessionId
+          if (isChild && !targetSubagent) {
+            for (const msg of session.messages) {
+              if (!msg.toolCalls) continue;
+              for (const tc of msg.toolCalls) {
+                if (isSubagentToolCall(tc.tool, tc.params)) {
+                  const meta = extractSubagentMeta(tc.params, tc.result);
+                  if (
+                    (effectiveChildId && meta.taskId && (meta.taskId === effectiveChildId || effectiveChildId.startsWith(meta.taskId) || meta.taskId.startsWith(effectiveChildId))) ||
+                    (effectiveChildId && tc.childSessionId === effectiveChildId)
+                  ) {
+                    targetSubagent = tc;
+                    break;
+                  }
+                }
+              }
+              if (targetSubagent) break;
+            }
+          }
+
+          // 3. Fallback: If not explicitly tagged, but subagent(s) are actively running in background,
+          // associate child tool actions (read_file, list_dir, run_terminal_command, etc.) with the running subagent
+          if (!isSpawnSubagent && !isPoller && !isPlanModeSwitch && !targetSubagent) {
+            const runningSubagents: { tc: ToolCall; meta: SubagentParsedMeta }[] = [];
+            for (let i = session.messages.length - 1; i >= 0; i--) {
+              const msg = session.messages[i];
+              if (!msg.toolCalls) continue;
+              for (let j = msg.toolCalls.length - 1; j >= 0; j--) {
+                const tc = msg.toolCalls[j];
+                if (isSubagentToolCall(tc.tool, tc.params) && (tc.status === 'running' || isSubagentBackgroundAck(tc.result))) {
+                  runningSubagents.push({ tc, meta: extractSubagentMeta(tc.params, tc.result) });
+                }
+              }
+            }
+
+            if (runningSubagents.length > 0) {
+              isChild = true;
+              // Try matching by input keywords/filenames against subagent prompts/descriptions
+              let matched = runningSubagents.find((sub) => {
+                const prompt = (sub.meta.prompt || '').toLowerCase();
+                const desc = (sub.meta.description || '').toLowerCase();
+                if (event.toolName && typeof event.input === 'object' && event.input) {
+                  const p = event.input as Record<string, any>;
+                  const target = p.target_file || p.file_path || p.path || p.command || p.directory || p.target_directory;
+                  if (typeof target === 'string' && target.length > 3) {
+                    const base = target.split('/').pop()?.toLowerCase();
+                    if (base && (prompt.includes(base) || desc.includes(base))) {
+                      return true;
+                    }
+                  }
+                }
+                return false;
+              });
+
+              targetSubagent = matched ? matched.tc : runningSubagents[0].tc;
+              if (effectiveChildId && !targetSubagent.childSessionId) {
+                targetSubagent.childSessionId = effectiveChildId;
+              }
+            }
+          }
+
+          if (isChild && targetSubagent) {
+            if (!targetSubagent.childToolCalls) {
+              targetSubagent.childToolCalls = [];
+            }
+            if (effectiveChildId && !targetSubagent.childSessionId) {
+              targetSubagent.childSessionId = effectiveChildId;
+            }
+
+            // Remove from any top-level message toolCalls in the main transcript if previously placed
+            for (const msg of session.messages) {
+              if (msg.toolCalls) {
+                msg.toolCalls = msg.toolCalls.filter((t) => t.id !== event.toolId || t.id === targetSubagent!.id);
+              }
+            }
+
+            const existingChild = targetSubagent.childToolCalls.find((t) => t.id === event.toolId);
+            if (existingChild) {
+              existingChild.status = event.status === 'completed' ? 'completed' : event.status === 'failed' ? 'error' : 'running';
+              if (event.output !== undefined) existingChild.result = event.output;
+              existingChild.endTime = Date.now();
+            } else {
+              targetSubagent.childToolCalls.push({
+                id: event.toolId,
+                tool: event.toolName,
+                params: event.input,
+                result: event.output,
+                status: event.status === 'completed' ? 'completed' : event.status === 'failed' ? 'error' : 'running',
+                startTime: Date.now()
+              });
+            }
+
+            // Ingest plan updates if this child tool contained todo updates
+            planStore.inspectToolForPlan(
+              event.sessionId,
+              event.toolId,
+              event.toolName,
+              event.input,
+              event.output,
+              { id: targetSubagent.id, name: extractSubagentMeta(targetSubagent.params, targetSubagent.result).description }
+            );
+
+            targetSubagent.childToolCalls = [...targetSubagent.childToolCalls];
+
+            // Update subagent modal reactively if currently open for this subagent
+            if (dialogStore.subagentModalState.open && (
+              dialogStore.subagentModalState.toolCall?.id === targetSubagent.id ||
+              (effectiveChildId && dialogStore.subagentModalState.meta?.taskId === effectiveChildId)
+            )) {
+              dialogStore.subagentModalState = {
+                ...dialogStore.subagentModalState,
+                toolCall: { ...targetSubagent },
+                meta: extractSubagentMeta(targetSubagent.params, targetSubagent.result)
+              };
+            }
+
+            // Suppress child tool calls from being added to the main session transcript
+            return;
+          }
+
+          // Dynamically sync agentMode per session on enter_plan_mode / exit_plan_mode events
           if (toolLower.includes('enter_plan_mode')) {
             session.agentMode = 'plan';
           } else if (toolLower.includes('exit_plan_mode')) {
             session.agentMode = 'agent';
+          }
+
+          // Handle subagent output poller (e.g. get_command_or_subagent_output)
+          // Route completed outputs directly into matching subagent cards and suppress poller card
+          if (isSubagentOutputPoller(event.toolName, event.input)) {
+            if (event.output) {
+              const taskResults = extractTaskPollerResults(event.toolName, event.input, event.output);
+              for (const res of taskResults) {
+                let subagentName = '';
+                for (const msg of session.messages) {
+                  if (!msg.toolCalls) continue;
+                  for (const tc of msg.toolCalls) {
+                    if (!isSubagentToolCall(tc.tool, tc.params)) continue;
+                    const meta = extractSubagentMeta(tc.params, tc.result);
+                    if (meta.taskId === res.taskId || tc.id === res.taskId) {
+                      subagentName = meta.description;
+                      if (res.status === 'completed') {
+                        tc.status = 'completed';
+                        if (res.output) tc.result = res.output;
+                        tc.endTime = res.durationMs ? (tc.startTime ? tc.startTime + res.durationMs : Date.now()) : Date.now();
+                      } else if (res.status === 'failed') {
+                        tc.status = 'error';
+                        if (res.output) tc.result = res.output;
+                        tc.endTime = Date.now();
+                      }
+                      if (dialogStore.subagentModalState.open && dialogStore.subagentModalState.toolCall?.id === tc.id) {
+                        dialogStore.subagentModalState.toolCall = tc;
+                        dialogStore.subagentModalState.meta = extractSubagentMeta(tc.params, tc.result);
+                      }
+                    }
+                  }
+                }
+
+                // Ingest subagent-attributed plan steps from this subagent's output
+                if (res.output) {
+                  planStore.inspectToolForPlan(
+                    event.sessionId,
+                    res.taskId,
+                    'subagent_output',
+                    null,
+                    res.output,
+                    { id: res.taskId, name: subagentName || 'Subagent' }
+                  );
+                }
+              }
+            }
+
+            // Remove any legacy/premature poller card if it was previously inserted
+            for (const msg of session.messages) {
+              if (msg.toolCalls) {
+                msg.toolCalls = msg.toolCalls.filter((t) => t.id !== event.toolId);
+              }
+            }
+
+            // Suppress poller from being added as a card in the main action list
+            return;
           }
 
           let found = false;
@@ -2045,6 +2271,16 @@
       filePath={dialogStore.fileViewerState.filePath}
       workspacePath={dialogStore.fileViewerState.workspacePath || currentSessionWorkspace?.path || ''}
       onClose={() => dialogStore.closeFileViewer()}
+    />
+  {/if}
+
+  <!-- Global Subagent Process Inspector Modal (Mounted at root to avoid stacking context & containment clipping) -->
+  {#if dialogStore.subagentModalState.open && dialogStore.subagentModalState.toolCall}
+    <SubagentDetailModal
+      visible={true}
+      toolCall={dialogStore.subagentModalState.toolCall}
+      meta={dialogStore.subagentModalState.meta || extractSubagentMeta(dialogStore.subagentModalState.toolCall.params, dialogStore.subagentModalState.toolCall.result)}
+      onClose={() => dialogStore.closeSubagentModal()}
     />
   {/if}
 

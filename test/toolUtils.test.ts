@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cleanANSI, formatToolResult } from '../frontend/src/lib/utils/toolUtils';
+import { cleanANSI, formatToolResult, formatActionSummary, extractSubagentIdFromText, extractSubagentMeta } from '../frontend/src/lib/utils/toolUtils';
 
 describe('toolUtils', () => {
   it('cleanANSI removes escape codes', () => {
@@ -68,5 +68,97 @@ describe('toolUtils', () => {
     expect(withoutDesc.target).toBe('$ git status');
     expect(withoutDesc.cmd).toBe('git status');
     expect(withoutDesc.description).toBe('');
+  });
+
+  describe('formatActionSummary', () => {
+    it('formats read_file actions with target and line range', () => {
+      const summary = formatActionSummary('read_file', {
+        target_file: 'src/main.ts',
+        offset: 10,
+        limit: 50
+      });
+      expect(summary.verb).toBe('Read');
+      expect(summary.target).toBe('src/main.ts (10-59)');
+      expect(summary.iconType).toBe('read');
+    });
+
+    it('formats search_replace as Edit action', () => {
+      const summary = formatActionSummary('search_replace', {
+        file_path: 'pkg/runner.go'
+      });
+      expect(summary.verb).toBe('Edit');
+      expect(summary.target).toBe('pkg/runner.go');
+      expect(summary.iconType).toBe('edit');
+    });
+
+    it('formats write as Write action', () => {
+      const summary = formatActionSummary('write', {
+        file_path: 'README.md'
+      });
+      expect(summary.verb).toBe('Write');
+      expect(summary.target).toBe('README.md');
+      expect(summary.iconType).toBe('write');
+    });
+
+    it('formats grep and search actions', () => {
+      const summary = formatActionSummary('grep', {
+        pattern: 'func Start',
+        path: 'pkg'
+      });
+      expect(summary.verb).toBe('Search');
+      expect(summary.target).toBe('"func Start" in pkg');
+      expect(summary.iconType).toBe('search');
+    });
+
+    it('formats list_dir as List action', () => {
+      const summary = formatActionSummary('list_dir', {
+        target_directory: 'frontend/src'
+      });
+      expect(summary.verb).toBe('List');
+      expect(summary.target).toBe('frontend/src');
+      expect(summary.iconType).toBe('list');
+    });
+
+    it('formats run_terminal_command with description or command', () => {
+      const withDesc = formatActionSummary('run_terminal_command', {
+        command: 'go build -o app',
+        description: 'Compile application binary'
+      });
+      expect(withDesc.verb).toBe('Run');
+      expect(withDesc.target).toBe('Compile application binary');
+      expect(withDesc.iconType).toBe('terminal');
+
+      const withoutDesc = formatActionSummary('run_terminal_command', {
+        command: 'npm run check'
+      });
+      expect(withoutDesc.verb).toBe('Run');
+      expect(withoutDesc.target).toBe('npm run check');
+      expect(withoutDesc.iconType).toBe('terminal');
+    });
+  });
+
+  describe('extractSubagentIdFromText', () => {
+    it('extracts bare subagent_id from acknowledgment text', () => {
+      const text = 'Subagent started in background.\nsubagent_id: 01a15226-fcb4-7973-a534-2dc31fbb1a8b\ndescription: Analyze docs';
+      expect(extractSubagentIdFromText(text)).toBe('01a15226-fcb4-7973-a534-2dc31fbb1a8b');
+    });
+
+    it('extracts backtick quoted subagent_id', () => {
+      const text = 'Subagent started in background.\nsubagent_id: `01a15226-fcb4-7973-a534-2dc31fbb1a8b`';
+      expect(extractSubagentIdFromText(text)).toBe('01a15226-fcb4-7973-a534-2dc31fbb1a8b');
+    });
+
+    it('extracts double and single quoted subagent_id', () => {
+      expect(extractSubagentIdFromText('subagent_id: "01a15226-fcb4-7973"')).toBe('01a15226-fcb4-7973');
+      expect(extractSubagentIdFromText("subagent_id: '01a15226-fcb4-7973'")).toBe('01a15226-fcb4-7973');
+    });
+
+    it('extracts case-insensitively and with varying spaces', () => {
+      expect(extractSubagentIdFromText('Subagent_ID:   01a15226-fcb4')).toBe('01a15226-fcb4');
+    });
+
+    it('returns undefined when no subagent_id is present', () => {
+      expect(extractSubagentIdFromText('Some random output without id')).toBeUndefined();
+    });
   });
 });

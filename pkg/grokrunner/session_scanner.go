@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 )
 
 // GrokSessionMetadata represents metadata of a discovered Grok session from disk
@@ -848,4 +849,508 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func dirExists(p string) bool {
+	fi, err := os.Stat(p)
+	return err == nil && fi.IsDir()
+}
+
+func fileExists(p string) bool {
+	fi, err := os.Stat(p)
+	return err == nil && !fi.IsDir()
+}
+
+// LoadSubagentExecutionDetails loads and parses the complete execution state,
+// status, final output, duration, and child tool calls for a subagent from its session directory.
+func LoadSubagentExecutionDetails(workspacePath, subagentID string) (*SubagentExecutionDetails, error) {
+	subagentID = strings.TrimSpace(subagentID)
+	if subagentID == "" {
+		return &SubagentExecutionDetails{SubagentID: subagentID, Status: "running", Calls: []DiscoveredToolCall{}}, nil
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+
+	sessionsDir := filepath.Join(home, ".grok", "sessions")
+	var sessionFolderPath string
+
+	hasSessionFiles := func(dir string) bool {
+		return fileExists(filepath.Join(dir, "updates.jsonl")) ||
+			fileExists(filepath.Join(dir, "chat_history.jsonl")) ||
+			fileExists(filepath.Join(dir, "summary.json"))
+	}
+
+	// 1. Try finding inside specified workspace
+	if workspacePath != "" {
+		targetDir := ResolveWorkspaceSessionsDir(sessionsDir, workspacePath)
+		folder, _ := ResolveSessionFolder(targetDir, subagentID)
+		if dirExists(folder) && hasSessionFiles(folder) {
+			sessionFolderPath = folder
+		} else if dirExists(targetDir) {
+			// Check <parent>/subagents/<subagentID>
+			if entries, err := os.ReadDir(targetDir); err == nil {
+				for _, entry := range entries {
+					if entry.IsDir() {
+						subDir := filepath.Join(targetDir, entry.Name(), "subagents", subagentID)
+						if dirExists(subDir) && hasSessionFiles(subDir) {
+							sessionFolderPath = subDir
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// 2. Fallback: Search all workspace folders under ~/.grok/sessions/ if not found yet
+	if sessionFolderPath == "" {
+		if wsEntries, err := os.ReadDir(sessionsDir); err == nil {
+			sLower := strings.ToLower(subagentID)
+			for _, wsEntry := range wsEntries {
+				if !wsEntry.IsDir() {
+					continue
+				}
+				candidateDir := filepath.Join(sessionsDir, wsEntry.Name())
+				candidateFolder, candidateID := ResolveSessionFolder(candidateDir, subagentID)
+				if dirExists(candidateFolder) && hasSessionFiles(candidateFolder) &&
+					(strings.EqualFold(candidateID, subagentID) || strings.HasPrefix(strings.ToLower(candidateID), sLower)) {
+					sessionFolderPath = candidateFolder
+					break
+				}
+				// Also check subagents/ within this workspace
+				if pEntries, err := os.ReadDir(candidateDir); err == nil {
+					for _, pEntry := range pEntries {
+						if pEntry.IsDir() {
+							subDir := filepath.Join(candidateDir, pEntry.Name(), "subagents", subagentID)
+							if dirExists(subDir) && hasSessionFiles(subDir) {
+								sessionFolderPath = subDir
+								break
+							}
+						}
+					}
+				}
+				if sessionFolderPath != "" {
+					break
+				}
+			}
+		}
+	}
+
+	if sessionFolderPath == "" || !dirExists(sessionFolderPath) {
+		return &SubagentExecutionDetails{
+			SubagentID: subagentID,
+			Status:     "running",
+			Calls:      []DiscoveredToolCall{},
+		}, nil
+	}
+
+	details := &SubagentExecutionDetails{
+		SubagentID: subagentID,
+		Status:     "running",
+		Calls:      []DiscoveredToolCall{},
+	}
+
+	// Parse tool calls
+	updatesPath := filepath.Join(sessionFolderPath, "updates.jsonl")
+	chatPath := filepath.Join(sessionFolderPath, "chat_history.jsonl")
+	summaryPath := filepath.Join(sessionFolderPath, "summary.json")
+
+	if fileExists(updatesPath) {
+		if calls, err := ParseSubagentUpdatesJsonl(updatesPath); err == nil && len(calls) > 0 {
+			details.Calls = calls
+		}
+	}
+	if len(details.Calls) == 0 && fileExists(chatPath) {
+		if calls, err := ParseSubagentChatHistoryJsonl(chatPath); err == nil && len(calls) > 0 {
+			details.Calls = calls
+		}
+	}
+
+	// Read updates.jsonl for turn_completed status, elapsed duration, and message chunks
+	var lastAssistantChunks []string
+	if fileExists(updatesPath) {
+		if data, err := os.ReadFile(updatesPath); err == nil {
+			lines := strings.Split(string(data), "\n")
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if line == "" {
+					continue
+				}
+				var raw map[string]interface{}
+				if err := json.Unmarshal([]byte(line), &raw); err != nil {
+					continue
+				}
+				params, _ := raw["params"].(map[string]interface{})
+				if params == nil {
+					continue
+				}
+				updateMap, _ := params["update"].(map[string]interface{})
+				if updateMap == nil {
+					continue
+				}
+				uType, _ := updateMap["sessionUpdate"].(string)
+				if uType == "" {
+					uType, _ = updateMap["type"].(string)
+				}
+				uType = strings.ToLower(strings.TrimSpace(uType))
+
+				if uType == "turn_completed" {
+					stopReason, _ := updateMap["stop_reason"].(string)
+					stopReason = strings.ToLower(strings.TrimSpace(stopReason))
+					if stopReason == "end_turn" || stopReason == "stop" || stopReason == "complete" || stopReason == "" {
+						details.Status = "completed"
+					} else if stopReason == "error" || stopReason == "failed" {
+						details.Status = "failed"
+					}
+					if elapsed, ok := updateMap["elapsed_ms"].(float64); ok && elapsed > 0 {
+						details.DurationMs = int64(elapsed)
+					}
+				} else if uType == "agent_message_chunk" || uType == "agent_message" {
+					if contentMap, ok := updateMap["content"].(map[string]interface{}); ok {
+						if text, ok := contentMap["text"].(string); ok && text != "" {
+							lastAssistantChunks = append(lastAssistantChunks, text)
+						}
+					}
+				} else if uType == "tool_call" {
+					lastAssistantChunks = nil
+				}
+			}
+		}
+	}
+
+	// Read chat_history.jsonl for complete final assistant output
+	if fileExists(chatPath) {
+		if data, err := os.ReadFile(chatPath); err == nil {
+			lines := strings.Split(string(data), "\n")
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if line == "" {
+					continue
+				}
+				var raw map[string]interface{}
+				if err := json.Unmarshal([]byte(line), &raw); err != nil {
+					continue
+				}
+				role, _ := raw["role"].(string)
+				if role == "" {
+					role, _ = raw["type"].(string)
+				}
+				if role == "assistant" {
+					if text, ok := raw["content"].(string); ok && strings.TrimSpace(text) != "" {
+						details.Output = strings.TrimSpace(text)
+						if details.Status != "failed" {
+							details.Status = "completed"
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Fallback output from updates.jsonl chunks if chat_history didn't have it
+	if details.Output == "" && len(lastAssistantChunks) > 0 {
+		details.Output = strings.TrimSpace(strings.Join(lastAssistantChunks, ""))
+	}
+
+	// Read summary.json for duration fallback
+	if fileExists(summaryPath) {
+		if data, err := os.ReadFile(summaryPath); err == nil {
+			var summary map[string]interface{}
+			if err := json.Unmarshal(data, &summary); err == nil {
+				createdAtStr, _ := summary["created_at"].(string)
+				updatedAtStr, _ := summary["updated_at"].(string)
+				if createdAtStr != "" && updatedAtStr != "" {
+					tCreated, err1 := time.Parse(time.RFC3339Nano, createdAtStr)
+					if err1 != nil {
+						tCreated, _ = time.Parse(time.RFC3339, createdAtStr)
+					}
+					tUpdated, err2 := time.Parse(time.RFC3339Nano, updatedAtStr)
+					if err2 != nil {
+						tUpdated, _ = time.Parse(time.RFC3339, updatedAtStr)
+					}
+					if !tCreated.IsZero() && !tUpdated.IsZero() && tUpdated.After(tCreated) {
+						diffMs := tUpdated.Sub(tCreated).Milliseconds()
+						if details.DurationMs == 0 {
+							details.DurationMs = diffMs
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// If all child tool calls are completed, and we have output, ensure status is completed
+	if details.Status == "running" && details.Output != "" && len(details.Calls) > 0 {
+		allCompleted := true
+		for _, c := range details.Calls {
+			if c.Status == "running" {
+				allCompleted = false
+				break
+			}
+		}
+		if allCompleted {
+			details.Status = "completed"
+		}
+	}
+
+	return details, nil
+}
+
+// LoadSubagentToolCalls loads and parses all tool calls executed by a child subagent from its session directory on disk.
+func LoadSubagentToolCalls(workspacePath, subagentID string) ([]DiscoveredToolCall, error) {
+	details, err := LoadSubagentExecutionDetails(workspacePath, subagentID)
+	if err != nil {
+		return nil, err
+	}
+	return details.Calls, nil
+}
+
+// ParseSubagentUpdatesJsonl parses tool calls from an updates.jsonl file
+func ParseSubagentUpdatesJsonl(updatesPath string) ([]DiscoveredToolCall, error) {
+	data, err := os.ReadFile(updatesPath)
+	if err != nil {
+		return nil, err
+	}
+
+	lines := strings.Split(string(data), "\n")
+	toolCallMap := make(map[string]*DiscoveredToolCall)
+	var order []string
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		var raw map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &raw); err != nil {
+			continue
+		}
+
+		params, _ := raw["params"].(map[string]interface{})
+		if params == nil {
+			continue
+		}
+
+		updateMap, _ := params["update"].(map[string]interface{})
+		if updateMap == nil {
+			continue
+		}
+
+		sessionUpdate, _ := updateMap["sessionUpdate"].(string)
+		if sessionUpdate == "" {
+			sessionUpdate, _ = updateMap["type"].(string)
+		}
+		sessionUpdate = strings.ToLower(strings.TrimSpace(sessionUpdate))
+
+		toolCallID, _ := updateMap["toolCallId"].(string)
+		if toolCallID == "" {
+			toolCallID, _ = updateMap["tool_call_id"].(string)
+		}
+		if toolCallID == "" {
+			continue
+		}
+
+		var ts int64
+		if tNum, ok := raw["timestamp"].(float64); ok && tNum > 0 {
+			ts = int64(tNum)
+			if ts < 10000000000 {
+				ts *= 1000
+			}
+		} else if meta, ok := raw["_meta"].(map[string]interface{}); ok {
+			if agMs, ok := meta["agentTimestampMs"].(float64); ok && agMs > 0 {
+				ts = int64(agMs)
+			}
+		}
+
+		if sessionUpdate == "tool_call" {
+			toolName := ""
+			if meta, ok := updateMap["_meta"].(map[string]interface{}); ok {
+				if xTool, ok := meta["x.ai/tool"].(map[string]interface{}); ok {
+					if n, ok := xTool["name"].(string); ok && n != "" {
+						toolName = n
+					}
+				}
+			}
+			if toolName == "" {
+				toolName, _ = updateMap["title"].(string)
+			}
+			if toolName == "" {
+				toolName, _ = updateMap["name"].(string)
+			}
+
+			inputMap := make(map[string]interface{})
+			if rawInput, ok := updateMap["rawInput"].(map[string]interface{}); ok {
+				inputMap = rawInput
+			} else if toolInput, ok := updateMap["toolInput"].(map[string]interface{}); ok {
+				inputMap = toolInput
+			}
+
+			tc, exists := toolCallMap[toolCallID]
+			if !exists {
+				tc = &DiscoveredToolCall{
+					ID:        toolCallID,
+					Tool:      toolName,
+					Params:    inputMap,
+					Status:    "running",
+					StartTime: ts,
+				}
+				toolCallMap[toolCallID] = tc
+				order = append(order, toolCallID)
+			} else {
+				if tc.Tool == "" {
+					tc.Tool = toolName
+				}
+				if len(tc.Params) == 0 && len(inputMap) > 0 {
+					tc.Params = inputMap
+				}
+				if tc.StartTime == 0 {
+					tc.StartTime = ts
+				}
+			}
+		} else if sessionUpdate == "tool_call_update" {
+			tc, exists := toolCallMap[toolCallID]
+			if !exists {
+				toolName, _ := updateMap["title"].(string)
+				if meta, ok := updateMap["_meta"].(map[string]interface{}); ok {
+					if xTool, ok := meta["x.ai/tool"].(map[string]interface{}); ok {
+						if n, ok := xTool["name"].(string); ok && n != "" {
+							toolName = n
+						}
+					}
+				}
+				inputMap := make(map[string]interface{})
+				if rawInput, ok := updateMap["rawInput"].(map[string]interface{}); ok {
+					inputMap = rawInput
+				}
+				tc = &DiscoveredToolCall{
+					ID:        toolCallID,
+					Tool:      toolName,
+					Params:    inputMap,
+					Status:    "running",
+					StartTime: ts,
+				}
+				toolCallMap[toolCallID] = tc
+				order = append(order, toolCallID)
+			}
+
+			rawStatus, _ := updateMap["status"].(string)
+			statusLower := strings.ToLower(strings.TrimSpace(rawStatus))
+			if statusLower == "completed" || statusLower == "success" || statusLower == "done" {
+				tc.Status = "completed"
+			} else if statusLower == "failed" || statusLower == "error" || statusLower == "rejected" {
+				tc.Status = "failed"
+			}
+
+			out := extractToolOutput(updateMap["rawOutput"], updateMap["content"])
+			if out != "" {
+				tc.Result = out
+				if tc.Status == "running" && (statusLower == "" || statusLower == "completed") {
+					tc.Status = "completed"
+				}
+			}
+
+			if ts > 0 {
+				tc.EndTime = ts
+			}
+
+			if tc.Tool == "" {
+				if title, ok := updateMap["title"].(string); ok && title != "" {
+					tc.Tool = title
+				}
+			}
+			if len(tc.Params) == 0 {
+				if rawInput, ok := updateMap["rawInput"].(map[string]interface{}); ok {
+					tc.Params = rawInput
+				}
+			}
+		}
+	}
+
+	result := make([]DiscoveredToolCall, 0, len(order))
+	for _, id := range order {
+		if tc, ok := toolCallMap[id]; ok {
+			result = append(result, *tc)
+		}
+	}
+	return result, nil
+}
+
+// ParseSubagentChatHistoryJsonl parses tool calls from a subagent chat_history.jsonl file
+func ParseSubagentChatHistoryJsonl(chatPath string) ([]DiscoveredToolCall, error) {
+	data, err := os.ReadFile(chatPath)
+	if err != nil {
+		return nil, err
+	}
+
+	lines := strings.Split(string(data), "\n")
+	toolCallMap := make(map[string]*DiscoveredToolCall)
+	var order []string
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		var raw map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &raw); err != nil {
+			continue
+		}
+
+		role, _ := raw["role"].(string)
+		if role == "" {
+			role, _ = raw["type"].(string)
+		}
+
+		if role == "assistant" {
+			if tcList, ok := raw["tool_calls"].([]interface{}); ok {
+				for _, tcItem := range tcList {
+					if tcMap, ok := tcItem.(map[string]interface{}); ok {
+						id, _ := tcMap["id"].(string)
+						name, _ := tcMap["name"].(string)
+						var params map[string]interface{}
+						if argsStr, ok := tcMap["arguments"].(string); ok {
+							_ = json.Unmarshal([]byte(argsStr), &params)
+						} else if argsObj, ok := tcMap["arguments"].(map[string]interface{}); ok {
+							params = argsObj
+						}
+						if id != "" {
+							if _, exists := toolCallMap[id]; !exists {
+								newTc := &DiscoveredToolCall{
+									ID:     id,
+									Tool:   name,
+									Params: params,
+									Status: "completed",
+								}
+								toolCallMap[id] = newTc
+								order = append(order, id)
+							}
+						}
+					}
+				}
+			}
+		} else if role == "tool_result" {
+			id, _ := raw["tool_call_id"].(string)
+			resultStr := ""
+			if cStr, ok := raw["content"].(string); ok {
+				resultStr = cStr
+			}
+			if tc, exists := toolCallMap[id]; exists {
+				tc.Result = resultStr
+				tc.Status = "completed"
+			}
+		}
+	}
+
+	result := make([]DiscoveredToolCall, 0, len(order))
+	for _, id := range order {
+		if tc, ok := toolCallMap[id]; ok {
+			result = append(result, *tc)
+		}
+	}
+	return result, nil
 }

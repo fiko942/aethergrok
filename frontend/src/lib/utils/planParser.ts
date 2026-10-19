@@ -1,3 +1,5 @@
+import { marked } from 'marked';
+
 /**
  * Utility functions for parsing TodosUpdated payloads, plan updates,
  * and structured task execution plans from tool outputs or file writes.
@@ -8,12 +10,28 @@ export interface TodoItem {
   content: string;
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   priority?: 'low' | 'medium' | 'high' | string;
+  subagentId?: string;
+  subagentName?: string;
   createdAt?: number;
   updatedAt?: number;
 }
 
+export interface SubagentPlanState {
+  subagentId: string;
+  subagentName: string;
+  todos: TodoItem[];
+  completedCount: number;
+  inProgressCount: number;
+  pendingCount: number;
+  totalCount: number;
+  progressPercent: number;
+  lastUpdated: number;
+}
+
 export interface SessionPlanState {
   todos: TodoItem[];
+  mainTodos: TodoItem[];
+  subagentPlans: Record<string, SubagentPlanState>;
   lastUpdated: number;
   completedCount: number;
   inProgressCount: number;
@@ -43,6 +61,84 @@ export function normalizeTodoStatus(status: unknown): 'pending' | 'in_progress' 
 }
 
 /**
+ * Cleans markdown noise and wrapping markers from todo content strings:
+ * - Strips outer bold/italic wrappers like `**Step 1: Write test**`
+ * - Strips leading markdown list bullets if accidentally preserved
+ */
+export function cleanTodoContent(raw: string): string {
+  if (!raw) return '';
+  let text = String(raw).trim();
+
+  // Strip leading list markers if present (e.g. "- [ ] " or "* ") without stripping bold asterisks
+  text = text.replace(/^[-*•](?:\s*\[[ xX/_\-a-zA-Z]*\]|\s+)\s*/, '').trim();
+
+  // Strip outer bold/italic wrappers if they enclose the entire text
+  if (text.startsWith('**') && text.endsWith('**') && text.length >= 4) {
+    const inner = text.slice(2, -2).trim();
+    if (!inner.includes('**')) {
+      text = inner;
+    }
+  } else if (text.startsWith('__') && text.endsWith('__') && text.length >= 4) {
+    const inner = text.slice(2, -2).trim();
+    if (!inner.includes('__')) {
+      text = inner;
+    }
+  } else if (text.startsWith('*') && text.endsWith('*') && text.length >= 2) {
+    const inner = text.slice(1, -1).trim();
+    if (!inner.includes('*')) {
+      text = inner;
+    }
+  }
+
+  return text;
+}
+
+/**
+ * Formats and renders a todo item's content with clean typography:
+ * - Unwraps outer markdown bold/italic tags
+ * - Highlights "Step N:" or "Task N:" prefixes elegantly
+ * - Parses inline markdown (code blocks, bold, italic, links) safely
+ */
+export function renderTodoContent(raw: string): string {
+  if (!raw) return '';
+  let text = cleanTodoContent(String(raw));
+
+  // Handle case where bold was on step label only: **Step 1**: ...
+  const boldPrefixMatch = text.match(/^\*\*((?:Step|Task)\s+\d+)\*\*(?:\s*[:\-]\s*|\s+)(.*)$/i);
+  if (boldPrefixMatch) {
+    const label = boldPrefixMatch[1];
+    const rest = boldPrefixMatch[2];
+    let parsedRest = '';
+    try {
+      parsedRest = rest ? (marked.parseInline(rest) as string) : '';
+    } catch {
+      parsedRest = rest;
+    }
+    return `<span class="font-semibold text-ant-text shrink-0">${label}:</span> ${parsedRest ? `<span class="text-ant-text/90">${parsedRest}</span>` : ''}`;
+  }
+
+  // Handle plain Step N: or Task N: prefix
+  const stepMatch = text.match(/^((?:Step|Task)\s+\d+)(?:\s*[:\-]\s*|\s+)(.*)$/i);
+  if (stepMatch) {
+    const label = stepMatch[1];
+    const rest = stepMatch[2];
+    let parsedRest = '';
+    try {
+      parsedRest = rest ? (marked.parseInline(rest) as string) : '';
+    } catch {
+      parsedRest = rest;
+    }
+    return `<span class="font-semibold text-ant-text shrink-0">${label}:</span> ${parsedRest ? `<span class="text-ant-text/90">${parsedRest}</span>` : ''}`;
+  }
+
+  try {
+    return (marked.parseInline(text) as string) || text;
+  } catch {
+    return text;
+  }
+}
+
+/**
  * Extracts and parses TodosUpdated or plan todos from a raw string or object.
  * Supports:
  * 1. { "TodosUpdated": { "state": { "todos": { "id": { "content": "...", "status": "..." } } } } }
@@ -65,11 +161,41 @@ export function parseTodosUpdated(raw: unknown): TodoItem[] | null {
       const markdownTodos: TodoItem[] = [];
       const mdRegex = /^[-*]\s*\[([ xX/_\-a-zA-Z]+)\]\s*(?:([a-zA-Z0-9_\-]+):\s*)?(.*)$/;
 
+      let currentGroupTitle: string | undefined = undefined;
+      let currentGroupId: string | undefined = undefined;
+
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
+
+        // Detect section headings like "### Task 1: Component Name" or "## Subagent: Name"
+        const headingMatch = line.match(/^#{1,4}\s+(?:Task\s*(\d+)[:\-]?\s*)?(.*)$/i);
+        if (headingMatch && !line.includes('- [')) {
+          const taskNum = headingMatch[1];
+          const taskTitle = headingMatch[2]?.trim();
+          if (
+            taskTitle &&
+            !taskTitle.toLowerCase().includes('global constraints') &&
+            !taskTitle.toLowerCase().includes('implementation plan') &&
+            !taskTitle.toLowerCase().includes('overview')
+          ) {
+            currentGroupTitle = taskNum ? `Task ${taskNum}: ${taskTitle}` : taskTitle;
+            currentGroupId = taskNum ? `task-${taskNum}` : taskTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30);
+          }
+        }
+
         const match = line.match(mdRegex);
         if (match) {
           const rawStatus = match[1].trim().toLowerCase();
+          const validStatuses = new Set([
+            '', ' ', 'x', '/', '-', 'completed', 'done', 'finished', 'complete', 'success',
+            'in_progress', 'in-progress', 'running', 'doing', 'active',
+            'cancelled', 'canceled', 'skipped', 'abort', 'failed',
+            'pending', 'todo', 'open'
+          ]);
+          if (!validStatuses.has(rawStatus)) {
+            continue;
+          }
+
           const namedId = match[2]?.trim();
           const content = (match[3] || '').trim();
           let status: 'pending' | 'in_progress' | 'completed' | 'cancelled' = 'pending';
@@ -83,11 +209,14 @@ export function parseTodosUpdated(raw: unknown): TodoItem[] | null {
           }
 
           if (content || namedId) {
+            const cleaned = cleanTodoContent(content || namedId || `Task ${i + 1}`);
             markdownTodos.push({
-              id: namedId || `task-${i + 1}`,
-              content: content || namedId || `Task ${i + 1}`,
+              id: namedId || (currentGroupId ? `${currentGroupId}-step-${i + 1}` : `task-${i + 1}`),
+              content: cleaned,
               status,
-              priority: 'medium',
+              priority: undefined,
+              subagentId: currentGroupId,
+              subagentName: currentGroupTitle,
               updatedAt: Date.now()
             });
           }
@@ -135,22 +264,34 @@ export function parseTodosUpdated(raw: unknown): TodoItem[] | null {
   } else if (obj.result) {
     // Nested result property
     return parseTodosUpdated(obj.result);
+  } else if (typeof obj.prompt === 'string') {
+    return parseTodosUpdated(obj.prompt);
+  } else if (typeof obj.content === 'string') {
+    return parseTodosUpdated(obj.content);
   }
 
   if (!todosSource) return null;
 
   const result: TodoItem[] = [];
 
+  // Check if root has subagent context
+  const rootSubagentId = typeof obj.subagentId === 'string' ? obj.subagentId : (typeof obj.subagent_id === 'string' ? obj.subagent_id : undefined);
+  const rootSubagentName = typeof obj.subagentName === 'string' ? obj.subagentName : (typeof obj.subagent_name === 'string' ? obj.subagent_name : undefined);
+
   // If todosSource is an Object dictionary (e.g., { "task-1": { content: "...", status: "..." } })
   if (typeof todosSource === 'object' && !Array.isArray(todosSource)) {
     for (const [key, val] of Object.entries(todosSource)) {
       if (val && typeof val === 'object') {
         const item = val as Record<string, any>;
+        const sId = typeof item.subagentId === 'string' ? item.subagentId : (typeof item.subagent_id === 'string' ? item.subagent_id : rootSubagentId);
+        const sName = typeof item.subagentName === 'string' ? item.subagentName : (typeof item.subagent_name === 'string' ? item.subagent_name : rootSubagentName);
         result.push({
           id: String(item.id || key),
-          content: String(item.content || item.title || item.description || key),
+          content: cleanTodoContent(String(item.content || item.title || item.description || key)),
           status: normalizeTodoStatus(item.status),
-          priority: typeof item.priority === 'string' ? item.priority : 'medium',
+          priority: typeof item.priority === 'string' && item.priority.trim() ? item.priority.trim() : undefined,
+          subagentId: sId,
+          subagentName: sName,
           updatedAt: Date.now()
         });
       }
@@ -161,18 +302,24 @@ export function parseTodosUpdated(raw: unknown): TodoItem[] | null {
       if (typeof item === 'string') {
         result.push({
           id: `task-${idx + 1}`,
-          content: item,
+          content: cleanTodoContent(item),
           status: 'pending',
-          priority: 'medium',
+          priority: undefined,
+          subagentId: rootSubagentId,
+          subagentName: rootSubagentName,
           updatedAt: Date.now()
         });
       } else if (item && typeof item === 'object') {
         const id = String(item.id || `task-${idx + 1}`);
+        const sId = typeof item.subagentId === 'string' ? item.subagentId : (typeof item.subagent_id === 'string' ? item.subagent_id : rootSubagentId);
+        const sName = typeof item.subagentName === 'string' ? item.subagentName : (typeof item.subagent_name === 'string' ? item.subagent_name : rootSubagentName);
         result.push({
           id,
-          content: String(item.content || item.title || item.description || id),
+          content: cleanTodoContent(String(item.content || item.title || item.description || id)),
           status: normalizeTodoStatus(item.status),
-          priority: typeof item.priority === 'string' ? item.priority : 'medium',
+          priority: typeof item.priority === 'string' && item.priority.trim() ? item.priority.trim() : undefined,
+          subagentId: sId,
+          subagentName: sName,
           updatedAt: Date.now()
         });
       }
@@ -188,7 +335,7 @@ export function parseTodosUpdated(raw: unknown): TodoItem[] | null {
 export function deduplicateTodos(todos: TodoItem[]): TodoItem[] {
   const map = new Map<string, TodoItem>();
   for (const item of todos) {
-    const key = item.id.trim() || item.content.trim();
+    const key = (item.subagentId ? `${item.subagentId}:${item.id}` : item.id.trim()) || item.content.trim();
     if (!key) continue;
     map.set(key, item);
   }
@@ -205,8 +352,43 @@ export function calculatePlanMetrics(todos: TodoItem[], sourceToolId?: string, s
   const pending = todos.filter((t) => t.status === 'pending').length;
   const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
+  const mainTodos: TodoItem[] = [];
+  const subagentPlans: Record<string, SubagentPlanState> = {};
+
+  for (const item of todos) {
+    if (item.subagentId) {
+      const sId = item.subagentId;
+      if (!subagentPlans[sId]) {
+        subagentPlans[sId] = {
+          subagentId: sId,
+          subagentName: item.subagentName || `Subagent ${sId.slice(0, 8)}`,
+          todos: [],
+          completedCount: 0,
+          inProgressCount: 0,
+          pendingCount: 0,
+          totalCount: 0,
+          progressPercent: 0,
+          lastUpdated: item.updatedAt || Date.now()
+        };
+      }
+      subagentPlans[sId].todos.push(item);
+    } else {
+      mainTodos.push(item);
+    }
+  }
+
+  for (const sp of Object.values(subagentPlans)) {
+    sp.totalCount = sp.todos.length;
+    sp.completedCount = sp.todos.filter((t) => t.status === 'completed').length;
+    sp.inProgressCount = sp.todos.filter((t) => t.status === 'in_progress').length;
+    sp.pendingCount = sp.todos.filter((t) => t.status === 'pending').length;
+    sp.progressPercent = sp.totalCount > 0 ? Math.round((sp.completedCount / sp.totalCount) * 100) : 0;
+  }
+
   return {
     todos,
+    mainTodos,
+    subagentPlans,
     lastUpdated: Date.now(),
     completedCount: completed,
     inProgressCount: inProgress,

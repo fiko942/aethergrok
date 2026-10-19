@@ -48,7 +48,7 @@
       agentMode?: AgentModeType;
     }) => void;
     onSteer?: (prompt: QueuedPrompt) => void;
-    onCancel?: () => void;
+    onCancel?: (sessionId?: string) => void;
     onOpenSkillsCatalog?: () => void;
     onResumeQueue?: () => void;
     onClearQueue?: () => void;
@@ -1526,8 +1526,11 @@
             <!-- Stop/Cancel Execution Button -->
             <button
               type="button"
-              class="w-7 h-7 rounded-lg flex items-center justify-center bg-rose-600/90 text-white hover:bg-rose-500 transition shadow-sm"
-              onclick={onCancel}
+              class="w-7 h-7 rounded-lg flex items-center justify-center bg-rose-600/90 text-white hover:bg-rose-500 transition shadow-sm cursor-pointer"
+              onclick={(e) => {
+                e.stopPropagation();
+                onCancel?.(activeSessionId || undefined);
+              }}
               title="Stop turn execution"
             >
               <Square size={11} class="fill-current" />

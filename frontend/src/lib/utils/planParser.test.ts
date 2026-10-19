@@ -14,6 +14,8 @@ import {
   deduplicateTodos,
   formatPlanUpdateSummary,
   resolveTodoContent,
+  cleanTodoContent,
+  renderTodoContent,
   type TodoItem
 } from './planParser';
 const { PlanStore } = await import('../stores/plan.svelte');
@@ -51,6 +53,55 @@ describe('planParser', () => {
     expect(parsed?.[1].status).toBe('in_progress');
     expect(parsed?.[2].id).toBe('git_commit_push');
     expect(parsed?.[2].status).toBe('pending');
+  });
+
+  it('cleans wrapping markdown bold/italic and noise from todo content', () => {
+    expect(cleanTodoContent('**Step 1: Write the failing test**')).toBe('Step 1: Write the failing test');
+    expect(cleanTodoContent('*Step 2: Run test to verify it fails*')).toBe('Step 2: Run test to verify it fails');
+    expect(cleanTodoContent('__Step 3: Write minimal implementation__')).toBe('Step 3: Write minimal implementation');
+    expect(cleanTodoContent('- [ ] **Step 4: Run test to verify it passes**')).toBe('Step 4: Run test to verify it passes');
+    expect(cleanTodoContent('**Step 1** and **Step 2**')).toBe('**Step 1** and **Step 2**');
+  });
+
+  it('renders todo content with highlighted step label and clean inline markdown', () => {
+    const rendered1 = renderTodoContent('**Step 1: Write the failing test**');
+    expect(rendered1).toContain('font-semibold text-ant-text shrink-0');
+    expect(rendered1).toContain('Step 1:');
+    expect(rendered1).toContain('Write the failing test');
+    expect(rendered1).not.toContain('**');
+
+    const renderedCode = renderTodoContent('Step 2: Run `npm test` to verify');
+    expect(renderedCode).toContain('<code>npm test</code>');
+
+    const plain = renderTodoContent('Investigate bug in authentication pipeline');
+    expect(plain).toBe('Investigate bug in authentication pipeline');
+  });
+
+  it('parses markdown plan checklists with section headings and attributes tasks', () => {
+    const planMarkdown = `
+# Realtime Channel Database Plan
+
+### Task 1: Fix Database Query Semantics in Account.ts
+- [x] **Step 1: Write the failing test for query semantics**
+- [ ] **Step 2: Run test to verify it fails**
+
+### Task 2: Browser Enforcement
+- [ ] **Step 1: Write the failing test for browser**
+- [ ] **Step 2: Run test to verify it passes**
+`;
+
+    const parsed = parseTodosUpdated(planMarkdown);
+    expect(parsed).toHaveLength(4);
+
+    expect(parsed?.[0].subagentId).toBe('task-1');
+    expect(parsed?.[0].subagentName).toBe('Task 1: Fix Database Query Semantics in Account.ts');
+    expect(parsed?.[0].content).toBe('Step 1: Write the failing test for query semantics');
+    expect(parsed?.[0].status).toBe('completed');
+    expect(parsed?.[0].priority).toBeUndefined();
+
+    expect(parsed?.[2].subagentId).toBe('task-2');
+    expect(parsed?.[2].subagentName).toBe('Task 2: Browser Enforcement');
+    expect(parsed?.[2].content).toBe('Step 1: Write the failing test for browser');
   });
 
   it('deduplicates todos by id', () => {

@@ -1,10 +1,21 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import type { ToolCall } from '$lib/stores/session.svelte';
+  import { planStore } from '$lib/stores/plan.svelte';
+  import { sessionStore } from '$lib/stores/session.svelte';
+  import {
+    parseTodosUpdated,
+    calculatePlanMetrics,
+    type SubagentPlanState,
+    renderTodoContent
+  } from '$lib/utils/planParser';
   import {
     type SubagentParsedMeta,
+    extractSubagentMeta,
     cleanSubagentOutput,
-    formatSubagentDuration
+    isSubagentBackgroundAck,
+    formatSubagentDuration,
+    formatActionSummary
   } from '$lib/utils/toolUtils';
   import { renderMarkdown } from '$lib/utils/markdownRenderer';
   import {
@@ -19,13 +30,17 @@
     Cpu,
     Shield,
     Code,
-    FileText
+    FileText,
+    ListTodo,
+    Activity,
+    ChevronDown,
+    ChevronRight
   } from 'lucide-svelte';
 
   interface Props {
     visible: boolean;
     toolCall: ToolCall;
-    meta: SubagentParsedMeta;
+    meta?: SubagentParsedMeta;
     onClose: () => void;
   }
 
@@ -35,6 +50,166 @@
   let copiedOutput = $state(false);
   let now = $state(Date.now());
   let showRawPayload = $state(false);
+  let expandedChildIds = $state<Record<string, boolean>>({});
+  let copiedChildId = $state<string | null>(null);
+  let localChildCalls = $state<ToolCall[]>([]);
+  let localSubagentStatus = $state<'running' | 'completed' | 'error' | null>(null);
+  let localSubagentOutput = $state<string>('');
+  let localSubagentDurationMs = $state<number | null>(null);
+
+  const displayChildCalls = $derived(
+    localChildCalls.length > 0 ? localChildCalls : (toolCall.childToolCalls || [])
+  );
+
+  const effectiveMeta = $derived.by(() => {
+    const extracted = extractSubagentMeta(toolCall.params, toolCall.result);
+    return {
+      description: extracted.description || meta?.description || 'Subagent Task',
+      prompt: extracted.prompt || meta?.prompt || '',
+      subagentType: extracted.subagentType || meta?.subagentType || 'general-purpose',
+      model: extracted.model || meta?.model,
+      isolation: extracted.isolation || meta?.isolation,
+      isBackground: extracted.isBackground ?? meta?.isBackground ?? true,
+      taskId: extracted.taskId || meta?.taskId || toolCall.childSessionId
+    };
+  });
+
+  function toggleChildExpand(id: string) {
+    expandedChildIds[id] = !expandedChildIds[id];
+  }
+
+  async function loadChildToolCalls() {
+    const sid = effectiveMeta.taskId || toolCall.childSessionId || toolCall.id;
+    if (!sid) return;
+
+    // Resolve workspace path from sessionStore
+    const activeSession = sessionStore.sessions.find((s) => s.id === sessionStore.activeSessionId);
+    let wsPath = '';
+    if (activeSession?.workspaceId) {
+      const ws = sessionStore.workspaces.find((w) => w.id === activeSession.workspaceId);
+      if (ws?.path) wsPath = ws.path;
+    }
+    if (!wsPath && sessionStore.activeWorkspace?.path) {
+      wsPath = sessionStore.activeWorkspace.path;
+    }
+
+    if (window.go?.main?.App?.LoadSubagentDetails) {
+      try {
+        const details = await window.go.main.App.LoadSubagentDetails(wsPath, sid);
+        if (details) {
+          if (details.calls && Array.isArray(details.calls) && details.calls.length > 0) {
+            const mapped: ToolCall[] = details.calls.map((c: any) => ({
+              id: c.id,
+              tool: c.tool,
+              params: c.params,
+              result: c.result,
+              status: c.status === 'failed' ? 'error' : c.status === 'completed' ? 'completed' : 'running',
+              startTime: c.startTime,
+              endTime: c.endTime
+            }));
+            toolCall.childToolCalls = mapped;
+            localChildCalls = mapped;
+
+            // Inspect child tool calls for any subagent plan updates (e.g. todo_write)
+            for (const c of details.calls) {
+              planStore.inspectToolForPlan(
+                sessionStore.activeSessionId || '',
+                c.id,
+                c.tool,
+                c.params,
+                c.result,
+                { id: sid, name: effectiveMeta.description }
+              );
+            }
+          }
+
+          if (details.status === 'completed' || details.status === 'failed') {
+            localSubagentStatus = details.status === 'failed' ? 'error' : 'completed';
+            toolCall.status = localSubagentStatus;
+            if (details.output) {
+              localSubagentOutput = details.output;
+              if (!toolCall.result || isSubagentBackgroundAck(toolCall.result)) {
+                toolCall.result = details.output;
+              }
+            }
+            if (details.durationMs && details.durationMs > 0) {
+              localSubagentDurationMs = details.durationMs;
+              if (toolCall.startTime) {
+                toolCall.endTime = toolCall.startTime + details.durationMs;
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load subagent execution details:', err);
+      }
+    } else if (window.go?.main?.App?.LoadSubagentToolCalls) {
+      try {
+        const calls = await window.go.main.App.LoadSubagentToolCalls(wsPath, sid);
+        if (calls && Array.isArray(calls) && calls.length > 0) {
+          const mapped: ToolCall[] = calls.map((c: any) => ({
+            id: c.id,
+            tool: c.tool,
+            params: c.params,
+            result: c.result,
+            status: c.status === 'failed' ? 'error' : c.status === 'completed' ? 'completed' : 'running',
+            startTime: c.startTime,
+            endTime: c.endTime
+          }));
+          toolCall.childToolCalls = mapped;
+          localChildCalls = mapped;
+
+          // Inspect child tool calls for any subagent plan updates (e.g. todo_write)
+          for (const c of calls) {
+            planStore.inspectToolForPlan(
+              sessionStore.activeSessionId || '',
+              c.id,
+              c.tool,
+              c.params,
+              c.result,
+              { id: sid, name: effectiveMeta.description }
+            );
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load subagent tool calls:', err);
+      }
+    }
+  }
+
+  $effect(() => {
+    if (!visible) return;
+    loadChildToolCalls();
+    if (isActuallyRunning) {
+      const interval = setInterval(loadChildToolCalls, 1500);
+      return () => clearInterval(interval);
+    }
+  });
+
+  async function copyText(text: string, id: string) {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      copiedChildId = id;
+      setTimeout(() => {
+        if (copiedChildId === id) copiedChildId = null;
+      }, 2000);
+    } catch {
+      // ignore
+    }
+  }
+
+  function getChildDuration(child: ToolCall): string | null {
+    if (!child.startTime) return null;
+    const end = child.endTime || (child.status === 'running' ? now : child.startTime);
+    const ms = Math.max(0, end - child.startTime);
+    if (ms < 1000) return `${ms}ms`;
+    const secs = ms / 1000;
+    if (secs < 60) return `${secs.toFixed(1)}s`;
+    const mins = Math.floor(secs / 60);
+    const rem = Math.round(secs % 60);
+    return `${mins}m ${rem}s`;
+  }
 
   // Active ticking timer for running subagents
   $effect(() => {
@@ -45,20 +220,75 @@
     return () => clearInterval(interval);
   });
 
-  const elapsedDuration = $derived.by(() => {
-    if (!toolCall.startTime) return null;
-    const end = toolCall.endTime || (toolCall.status === 'running' ? now : toolCall.startTime);
-    return formatSubagentDuration(Math.max(0, end - toolCall.startTime));
+  const isBackgroundAck = $derived.by(() => {
+    return isSubagentBackgroundAck(toolCall.result);
   });
 
   const cleanedOutput = $derived.by(() => {
-    return cleanSubagentOutput(toolCall.result);
+    const fromCall = cleanSubagentOutput(toolCall.result);
+    if (fromCall) return fromCall;
+    if (localSubagentOutput) return cleanSubagentOutput(localSubagentOutput);
+    return '';
+  });
+
+  const effectiveStatus = $derived.by(() => {
+    if (localSubagentStatus) return localSubagentStatus;
+    if (cleanedOutput && toolCall.status !== 'error') return 'completed';
+    return toolCall.status;
+  });
+
+  const isActuallyRunning = $derived.by(() => {
+    if (effectiveStatus === 'completed' || effectiveStatus === 'error') {
+      return false;
+    }
+    return toolCall.status === 'running' || (isBackgroundAck && !cleanedOutput);
+  });
+
+  const elapsedDuration = $derived.by(() => {
+    if (localSubagentDurationMs && localSubagentDurationMs > 0) {
+      return formatSubagentDuration(localSubagentDurationMs);
+    }
+    if (toolCall.startTime) {
+      const end = toolCall.endTime || (isActuallyRunning ? now : toolCall.startTime);
+      return formatSubagentDuration(Math.max(0, end - toolCall.startTime));
+    }
+    return null;
+  });
+
+  const subagentPlan = $derived.by<SubagentPlanState | null>(() => {
+    const sid = effectiveMeta.taskId || toolCall.childSessionId || toolCall.id;
+    const currentSessionId = sessionStore.activeSessionId;
+    if (sid && currentSessionId) {
+      const p = planStore.getSubagentPlan(currentSessionId, sid);
+      if (p && p.todos && p.todos.length > 0) {
+        return p;
+      }
+    }
+
+    // Fallback: If not in planStore yet, inspect toolCall.result or effectiveMeta.prompt
+    const fallbackTodos = parseTodosUpdated(toolCall.result) || parseTodosUpdated(effectiveMeta.prompt);
+    if (fallbackTodos && fallbackTodos.length > 0) {
+      const metrics = calculatePlanMetrics(fallbackTodos);
+      return {
+        subagentId: sid || 'subagent',
+        subagentName: effectiveMeta.description,
+        todos: fallbackTodos,
+        completedCount: metrics.completedCount,
+        inProgressCount: metrics.inProgressCount,
+        pendingCount: metrics.pendingCount,
+        totalCount: metrics.totalCount,
+        progressPercent: metrics.progressPercent,
+        lastUpdated: Date.now()
+      };
+    }
+
+    return null;
   });
 
   async function copyPrompt() {
-    if (!meta.prompt) return;
+    if (!effectiveMeta.prompt) return;
     try {
-      await navigator.clipboard.writeText(meta.prompt);
+      await navigator.clipboard.writeText(effectiveMeta.prompt);
       copiedPrompt = true;
       setTimeout(() => (copiedPrompt = false), 2000);
     } catch {
@@ -97,7 +327,7 @@
 {#if visible}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150 select-text font-sans"
+    class="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150 select-text font-sans"
     onclick={(e) => {
       if (e.target === e.currentTarget) onClose();
     }}
@@ -105,16 +335,18 @@
   >
     <!-- Modal Card Container -->
     <div
-      class="w-full max-w-3xl max-h-[85vh] flex flex-col bg-ant-bg border border-violet-500/30 rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
+      class="w-full max-w-4xl max-h-[90vh] flex flex-col bg-ant-bg border border-violet-500/40 rounded-xl shadow-2xl shadow-violet-950/40 overflow-hidden animate-in zoom-in-95 duration-150"
     >
       <!-- Header -->
-      <div class="flex items-center justify-between px-5 py-3.5 bg-ant-bg-secondary/70 border-b border-white/5 select-none">
+      <div class="flex items-center justify-between px-5 py-3.5 bg-ant-bg-secondary/80 border-b border-white/5 select-none">
         <div class="flex items-center space-x-3 min-w-0">
           <div class="w-8 h-8 rounded-lg bg-violet-500/15 border border-violet-500/30 flex items-center justify-center flex-shrink-0 text-violet-400">
-            {#if toolCall.status === 'running'}
+            {#if isActuallyRunning}
               <Loader2 size={18} class="animate-spin text-violet-400" />
+            {:else if effectiveStatus === 'completed'}
+              <Bot size={18} class="text-violet-400" />
             {:else}
-              <Bot size={18} />
+              <Bot size={18} class="text-rose-400" />
             {/if}
           </div>
           <div class="min-w-0">
@@ -128,24 +360,24 @@
               {/if}
             </div>
             <h2 class="text-sm font-semibold text-ant-text truncate mt-0.5">
-              {meta.description}
+              {effectiveMeta.description}
             </h2>
           </div>
         </div>
 
         <!-- Right: Status Badge & Close Button -->
         <div class="flex items-center space-x-3 flex-shrink-0">
-          {#if toolCall.status === 'running'}
+          {#if isActuallyRunning}
             <span class="inline-flex items-center text-xs font-medium text-violet-400 animate-pulse bg-violet-500/10 px-2.5 py-1 rounded-md border border-violet-500/20">
               <Loader2 size={12} class="animate-spin mr-1.5" />
               Running
             </span>
-          {:else if toolCall.status === 'completed'}
+          {:else if effectiveStatus === 'completed'}
             <span class="inline-flex items-center text-xs font-medium text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20">
               <CheckCircle2 size={12} class="mr-1.5" />
               Completed
             </span>
-          {:else if toolCall.status === 'error'}
+          {:else if effectiveStatus === 'error'}
             <span class="inline-flex items-center text-xs font-medium text-rose-400 bg-rose-500/10 px-2.5 py-1 rounded-md border border-rose-500/20">
               <XCircle size={12} class="mr-1.5" />
               Failed
@@ -167,23 +399,28 @@
       <div class="flex items-center flex-wrap gap-2 px-5 py-2.5 bg-ant-bg-tertiary/40 border-b border-white/5 text-xs text-ant-text-secondary font-mono select-none">
         <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-white/5 text-ant-text">
           <Bot size={12} class="text-violet-400" />
-          <span>Role: {meta.subagentType}</span>
+          <span>Role: {effectiveMeta.subagentType}</span>
         </span>
-        {#if meta.model}
+        {#if effectiveMeta.model}
           <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-white/5 text-ant-text">
             <Cpu size={12} class="text-indigo-400" />
-            <span>Model: {meta.model}</span>
+            <span>Model: {effectiveMeta.model}</span>
           </span>
         {/if}
-        {#if meta.isolation}
+        {#if effectiveMeta.isolation}
           <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-white/5 text-ant-text">
             <Shield size={12} class="text-amber-400" />
-            <span>Isolation: {meta.isolation}</span>
+            <span>Isolation: {effectiveMeta.isolation}</span>
           </span>
         {/if}
         <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-white/5 text-ant-text">
-          <span>Execution: {meta.isBackground ? 'Background' : 'Foreground'}</span>
+          <span>Execution: {effectiveMeta.isBackground ? 'Background' : 'Foreground'}</span>
         </span>
+        {#if effectiveMeta.taskId || toolCall.childSessionId}
+          <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-violet-500/10 border border-violet-500/20 text-violet-300">
+            <span>ID: {(effectiveMeta.taskId || toolCall.childSessionId || '').slice(0, 8)}...</span>
+          </span>
+        {/if}
       </div>
 
       <!-- Modal Body (Scrollable) -->
@@ -198,7 +435,7 @@
             <button
               type="button"
               onclick={copyPrompt}
-              class="flex items-center space-x-1 text-xs text-ant-text-secondary hover:text-ant-text px-1.5 py-0.5 rounded hover:bg-white/5 transition-colors"
+              class="flex items-center space-x-1 text-xs text-ant-text-secondary hover:text-ant-text px-1.5 py-0.5 rounded hover:bg-white/5 transition-colors cursor-pointer"
             >
               {#if copiedPrompt}
                 <Check size={12} class="text-emerald-400" />
@@ -209,23 +446,218 @@
               {/if}
             </button>
           </div>
-          <div class="p-3.5 text-xs font-mono text-ant-text leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto scrollbar-thin select-text">
-            {meta.prompt || 'No prompt instructions recorded.'}
+          <div class="p-3.5 text-xs text-ant-text leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto scrollbar-thin select-text">
+            {effectiveMeta.prompt || 'No prompt instructions recorded.'}
           </div>
         </div>
 
+        <!-- 1.5 Subagent Execution Plan (Tasks) -->
+        {#if subagentPlan && subagentPlan.todos && subagentPlan.todos.length > 0}
+          <div class="rounded-lg border border-violet-500/30 bg-violet-500/[0.04] overflow-hidden">
+            <div class="flex items-center justify-between px-3.5 py-2.5 bg-violet-500/[0.08] border-b border-violet-500/20 text-xs select-none">
+              <div class="flex items-center space-x-2">
+                <ListTodo size={14} class="text-violet-400" />
+                <span class="font-semibold text-ant-text">Subagent Execution Plan</span>
+                <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 font-semibold border border-violet-500/30">
+                  {subagentPlan.completedCount}/{subagentPlan.totalCount} completed ({subagentPlan.progressPercent}%)
+                </span>
+              </div>
+              {#if subagentPlan.inProgressCount > 0}
+                <span class="inline-flex items-center text-[11px] font-mono text-amber-400">
+                  <Loader2 size={11} class="animate-spin mr-1" />
+                  {subagentPlan.inProgressCount} active
+                </span>
+              {/if}
+            </div>
+
+            <!-- Progress bar line -->
+            <div class="w-full bg-ant-bg-tertiary h-1 overflow-hidden">
+              <div
+                class="h-full bg-gradient-to-r from-violet-500 to-indigo-400 transition-all duration-300 ease-out"
+                style="width: {subagentPlan.progressPercent}%;"
+              ></div>
+            </div>
+
+            <!-- Step items -->
+            <div class="p-3 space-y-1.5 max-h-56 overflow-y-auto scrollbar-thin">
+              {#each subagentPlan.todos as todo (todo.id)}
+                <div class="flex items-start space-x-2.5 p-2 rounded-lg bg-ant-bg/60 border border-white/[0.04]">
+                  <div class="mt-0.5 shrink-0">
+                    {#if todo.status === 'completed'}
+                      <div class="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/40">
+                        <Check size={10} class="stroke-[3]" />
+                      </div>
+                    {:else if todo.status === 'in_progress'}
+                      <div class="w-4 h-4 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/40 animate-pulse">
+                        <Loader2 size={10} class="animate-spin" />
+                      </div>
+                    {:else if todo.status === 'cancelled'}
+                      <div class="w-4 h-4 rounded-full bg-zinc-800 text-zinc-500 flex items-center justify-center border border-zinc-700">
+                        <X size={10} />
+                      </div>
+                    {:else}
+                      <div class="w-4 h-4 rounded-full border border-zinc-600 bg-zinc-800/40 flex items-center justify-center">
+                      </div>
+                    {/if}
+                  </div>
+                  <div class="flex-1 min-w-0 font-sans">
+                    <div class="text-xs leading-relaxed select-text {todo.status === 'completed' ? 'line-through opacity-60 text-ant-text-muted' : 'text-ant-text'}">
+                      {@html renderTodoContent(todo.content)}
+                    </div>
+                  </div>
+                  {#if todo.priority}
+                    <span class="text-[8.5px] uppercase tracking-wider font-mono px-1.5 py-0.2 rounded border shrink-0 text-violet-300 bg-violet-500/10 border-violet-500/20">
+                      {todo.priority}
+                    </span>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
+        <!-- 1.8 Subagent Activity Stream (Tool Calls) -->
+        {#if displayChildCalls && displayChildCalls.length > 0}
+          <div class="rounded-lg border border-violet-500/30 bg-violet-500/[0.04] overflow-hidden">
+            <div class="flex items-center justify-between px-3.5 py-2.5 bg-violet-500/[0.08] border-b border-violet-500/20 text-xs select-none">
+              <div class="flex items-center space-x-2">
+                <Activity size={14} class="text-violet-400" />
+                <span class="font-semibold text-ant-text">Subagent Activity Stream</span>
+                <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 font-semibold border border-violet-500/30">
+                  {displayChildCalls.length} {displayChildCalls.length === 1 ? 'action' : 'actions'}
+                </span>
+              </div>
+              {#if displayChildCalls.some(c => c.status === 'running')}
+                <span class="inline-flex items-center text-[11px] font-mono text-violet-400 animate-pulse">
+                  <Loader2 size={11} class="animate-spin mr-1" />
+                  Running action...
+                </span>
+              {/if}
+            </div>
+
+            <!-- List of Child Actions -->
+            <div class="p-2 space-y-1.5 max-h-72 overflow-y-auto scrollbar-thin">
+              {#each displayChildCalls as child, idx (child.id || idx)}
+                {@const summary = formatActionSummary(child.tool, child.params)}
+                {@const dur = getChildDuration(child)}
+                {@const isChildExpanded = Boolean(expandedChildIds[child.id || String(idx)])}
+                <div class="rounded-md border border-white/[0.06] bg-ant-bg/70 overflow-hidden text-xs">
+                  <!-- Row Header -->
+                  <button
+                    type="button"
+                    onclick={() => toggleChildExpand(child.id || String(idx))}
+                    class="w-full flex items-center justify-between px-2.5 py-1.5 hover:bg-white/[0.04] text-left transition-colors cursor-pointer select-none"
+                  >
+                    <div class="flex items-center space-x-2 min-w-0 flex-1">
+                      <!-- Status Icon -->
+                      <div class="shrink-0 flex items-center justify-center">
+                        {#if child.status === 'running'}
+                          <Loader2 size={12} class="animate-spin text-violet-400" />
+                        {:else if child.status === 'completed'}
+                          <CheckCircle2 size={12} class="text-emerald-400" />
+                        {:else}
+                          <XCircle size={12} class="text-rose-400" />
+                        {/if}
+                      </div>
+
+                      <!-- Verb Badge -->
+                      <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold uppercase tracking-wider shrink-0 {
+                        summary.iconType === 'read' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30' :
+                        summary.iconType === 'edit' ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' :
+                        summary.iconType === 'write' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' :
+                        summary.iconType === 'search' ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30' :
+                        summary.iconType === 'list' ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30' :
+                        summary.iconType === 'terminal' ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30' :
+                        'bg-zinc-500/15 text-zinc-300 border border-zinc-500/30'
+                      }">
+                        {summary.verb}
+                      </span>
+
+                      <!-- Target -->
+                      <span class="font-mono text-[11px] text-ant-text truncate flex-1 min-w-0" title={summary.target}>
+                        {summary.target}
+                      </span>
+                    </div>
+
+                    <!-- Right Duration & Chevron -->
+                    <div class="flex items-center space-x-2 shrink-0 ml-2 font-mono text-[10px] text-ant-text-muted">
+                      {#if dur}
+                        <span>{dur}</span>
+                      {/if}
+                      {#if isChildExpanded}
+                        <ChevronDown size={12} class="text-ant-text-secondary" />
+                      {:else}
+                        <ChevronRight size={12} class="text-ant-text-secondary" />
+                      {/if}
+                    </div>
+                  </button>
+
+                  <!-- Expandable In/Out Details -->
+                  {#if isChildExpanded}
+                    <div class="p-2.5 border-t border-white/[0.04] bg-black/40 space-y-2 font-mono text-[11px]">
+                      <!-- In: Parameters / Command -->
+                      <div>
+                        <div class="flex items-center justify-between text-[10px] text-ant-text-muted mb-1 select-none">
+                          <span class="font-semibold text-violet-300">Input / Parameters</span>
+                          <button
+                            type="button"
+                            onclick={() => copyText(typeof child.params === 'string' ? child.params : JSON.stringify(child.params, null, 2), `in-${child.id || idx}`)}
+                            class="hover:text-white flex items-center space-x-1 cursor-pointer"
+                          >
+                            {#if copiedChildId === `in-${child.id || idx}`}
+                              <Check size={10} class="text-emerald-400" />
+                              <span class="text-emerald-400">Copied</span>
+                            {:else}
+                              <Copy size={10} />
+                              <span>Copy</span>
+                            {/if}
+                          </button>
+                        </div>
+                        <pre class="p-2 rounded bg-ant-bg-secondary/60 text-ant-text max-h-36 overflow-y-auto scrollbar-thin whitespace-pre-wrap break-all">{typeof child.params === 'string' ? child.params : JSON.stringify(child.params, null, 2)}</pre>
+                      </div>
+
+                      <!-- Out: Result -->
+                      {#if child.result}
+                        <div>
+                          <div class="flex items-center justify-between text-[10px] text-ant-text-muted mb-1 select-none">
+                            <span class="font-semibold text-emerald-400">Output</span>
+                            <button
+                              type="button"
+                              onclick={() => copyText(child.result || '', `out-${child.id || idx}`)}
+                              class="hover:text-white flex items-center space-x-1 cursor-pointer"
+                            >
+                              {#if copiedChildId === `out-${child.id || idx}`}
+                                <Check size={10} class="text-emerald-400" />
+                                <span class="text-emerald-400">Copied</span>
+                              {:else}
+                                <Copy size={10} />
+                                <span>Copy</span>
+                              {/if}
+                            </button>
+                          </div>
+                          <pre class="p-2 rounded bg-ant-bg-secondary/60 text-ant-text max-h-48 overflow-y-auto scrollbar-thin whitespace-pre-wrap break-all">{child.result}</pre>
+                        </div>
+                      {/if}
+                    </div>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
         <!-- 2. Subagent Result / Live Activity -->
         <div class="rounded-lg border border-white/10 bg-ant-bg-secondary/40 overflow-hidden">
-          <div class="flex items-center justify-between px-3.5 py-2 bg-ant-bg-tertiary/60 border-b border-white/5 text-xs select-none">
-            <span class="font-semibold text-ant-text flex items-center gap-1.5">
+          <div class="flex items-center justify-between px-4 py-2.5 bg-ant-bg-tertiary/60 border-b border-white/5 text-xs select-none">
+            <span class="font-semibold text-ant-text flex items-center gap-1.5 font-sans">
               <Code size={13} class="text-emerald-400" />
-              Output of Subagent
+              Subagent Output
             </span>
             {#if cleanedOutput}
               <button
                 type="button"
                 onclick={copyOutput}
-                class="flex items-center space-x-1 text-xs text-ant-text-secondary hover:text-ant-text px-1.5 py-0.5 rounded hover:bg-white/5 transition-colors"
+                class="flex items-center space-x-1 text-xs text-ant-text-secondary hover:text-ant-text px-2 py-1 rounded hover:bg-white/5 transition-colors cursor-pointer font-sans"
               >
                 {#if copiedOutput}
                   <Check size={12} class="text-emerald-400" />
@@ -238,18 +670,49 @@
             {/if}
           </div>
 
-          <div class="p-4 text-xs leading-relaxed max-h-80 overflow-y-auto scrollbar-thin select-text">
-            {#if toolCall.status === 'running' && !cleanedOutput}
-              <div class="flex items-center justify-center py-8 space-x-3 text-ant-text-muted font-mono">
-                <Loader2 size={16} class="animate-spin text-violet-400" />
-                <span>Subagent is actively executing tasks in the background...</span>
+          <div class="p-5 select-text overflow-y-auto max-h-[38rem] scrollbar-thin">
+            {#if isActuallyRunning && !cleanedOutput}
+              <div class="flex flex-col items-center justify-center py-8 space-y-3 text-center">
+                <div class="w-10 h-10 rounded-full bg-violet-500/10 border border-violet-500/30 flex items-center justify-center text-violet-400">
+                  <Loader2 size={20} class="animate-spin text-violet-400" />
+                </div>
+                <div class="space-y-1 font-sans">
+                  <p class="font-medium text-xs text-white">Subagent is actively working in background</p>
+                  <p class="text-[11px] text-ant-text-muted">Elapsed time: {elapsedDuration || 'In progress...'} · Results will appear once completed.</p>
+                </div>
+
+                {#if displayChildCalls && displayChildCalls.length > 0}
+                  {@const latestChild = displayChildCalls[displayChildCalls.length - 1]}
+                  {@const latestSummary = formatActionSummary(latestChild.tool, latestChild.params)}
+                  <div class="w-full max-w-md p-2.5 rounded-lg bg-black/40 border border-violet-500/30 text-left font-mono space-y-1 mt-2">
+                    <div class="flex items-center justify-between text-[10.5px]">
+                      <span class="text-violet-300 font-semibold flex items-center gap-1.5">
+                        <Activity size={12} class="text-violet-400" />
+                        Live Activity ({displayChildCalls.length} {displayChildCalls.length === 1 ? 'action' : 'actions'})
+                      </span>
+                      {#if latestChild.status === 'running'}
+                        <span class="text-amber-400 text-[10px] flex items-center gap-1">
+                          <Loader2 size={10} class="animate-spin" /> Running
+                        </span>
+                      {:else}
+                        <span class="text-emerald-400 text-[10px]">Latest completed</span>
+                      {/if}
+                    </div>
+                    <div class="text-[11px] text-ant-text flex items-center gap-1.5 truncate">
+                      <span class="px-1 py-0.2 rounded text-[9px] font-semibold uppercase bg-violet-500/20 text-violet-300 border border-violet-500/30 shrink-0">
+                        {latestSummary.verb}
+                      </span>
+                      <span class="truncate flex-1" title={latestSummary.target}>{latestSummary.target}</span>
+                    </div>
+                  </div>
+                {/if}
               </div>
             {:else if cleanedOutput}
-              <div class="prose prose-invert prose-xs max-w-none">
+              <div class="font-serif text-[14px] text-ant-text leading-[1.75] tracking-normal select-text markdown-chat-body max-w-none">
                 {@html renderMarkdown(cleanedOutput)}
               </div>
             {:else}
-              <div class="py-4 text-center text-ant-text-muted font-mono">
+              <div class="py-6 text-center text-ant-text-muted font-mono text-xs">
                 No output returned from subagent.
               </div>
             {/if}

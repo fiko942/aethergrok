@@ -35,7 +35,7 @@ import (
 )
 
 // AppVersion defines the current semantic version of AetherGrok Desktop Studio
-const AppVersion = "1.1.15"
+const AppVersion = "1.1.16"
 
 // App struct represents application runtime state
 type App struct {
@@ -691,6 +691,16 @@ func (a *App) DiscoverGrokSessions(workspacePath string) ([]grokrunner.GrokSessi
 // LoadGrokSessionHistory reads and parses chat history messages for a specific session from disk
 func (a *App) LoadGrokSessionHistory(workspacePath, sessionID string) ([]grokrunner.DiscoveredChatMessage, error) {
 	return grokrunner.LoadGrokSessionMessages(workspacePath, sessionID)
+}
+
+// LoadSubagentToolCalls loads and parses all tool calls executed by a child subagent from its session directory on disk
+func (a *App) LoadSubagentToolCalls(workspacePath, subagentID string) ([]grokrunner.DiscoveredToolCall, error) {
+	return grokrunner.LoadSubagentToolCalls(workspacePath, subagentID)
+}
+
+// LoadSubagentDetails loads and parses full execution state, status, output, duration and calls for a child subagent
+func (a *App) LoadSubagentDetails(workspacePath, subagentID string) (*grokrunner.SubagentExecutionDetails, error) {
+	return grokrunner.LoadSubagentExecutionDetails(workspacePath, subagentID)
 }
 
 // DeleteGrokSession removes a session folder from ~/.grok/sessions/

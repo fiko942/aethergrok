@@ -1,4 +1,5 @@
 @import '@xterm/xterm/css/xterm.css';
+@import 'katex/dist/katex.min.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -687,6 +688,51 @@ pre[class*="language-"] {
 
 .markdown-chat-body tbody tr:hover {
   background: rgba(255, 255, 255, 0.04);
+}
+
+/* ========================================================================= */
+/* KaTeX Mathematical Formula Styling                                      */
+/* ========================================================================= */
+
+.katex-display-container {
+  display: block;
+  margin: 1rem 0;
+  padding: 0.5rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  text-align: center;
+  scrollbar-width: thin;
+}
+
+.katex {
+  text-rendering: auto;
+  font-size: 1.06em;
+}
+
+.markdown-chat-body .katex-display {
+  margin: 0;
+  text-align: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  max-width: 100%;
+}
+
+.katex-display-container::-webkit-scrollbar,
+.markdown-chat-body .katex-display::-webkit-scrollbar {
+  height: 4px;
+}
+
+.katex-display-container::-webkit-scrollbar-thumb,
+.markdown-chat-body .katex-display::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 9999px;
+}
+
+[data-theme='light-antd'] .katex-display-container::-webkit-scrollbar-thumb,
+[data-theme='light-antd'] .markdown-chat-body .katex-display::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
 }
 
 /* Explicit hairline markdown divider for dark mode */

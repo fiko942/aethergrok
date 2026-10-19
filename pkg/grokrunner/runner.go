@@ -22,12 +22,13 @@ import (
 
 // ActiveSession holds running process information for a session
 type ActiveSession struct {
-	SessionID string
-	Cmd       *exec.Cmd
-	Cancel    context.CancelFunc
-	Stdin     io.WriteCloser
-	Stdout    io.ReadCloser
-	Done      chan struct{}
+	SessionID     string
+	GrokSessionID string
+	Cmd           *exec.Cmd
+	Cancel        context.CancelFunc
+	Stdin         io.WriteCloser
+	Stdout        io.ReadCloser
+	Done          chan struct{}
 }
 
 // Runner manages execution of Grok CLI subprocesses
@@ -477,12 +478,13 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 	}
 
 	active := &ActiveSession{
-		SessionID: req.SessionID,
-		Cmd:       cmd,
-		Cancel:    cancel,
-		Stdin:     stdin,
-		Stdout:    stdout,
-		Done:      make(chan struct{}),
+		SessionID:     req.SessionID,
+		GrokSessionID: resolvedSessionUUID,
+		Cmd:           cmd,
+		Cancel:        cancel,
+		Stdin:         stdin,
+		Stdout:        stdout,
+		Done:          make(chan struct{}),
 	}
 	r.sessions[req.SessionID] = active
 	r.mu.Unlock()
@@ -520,7 +522,28 @@ func (r *Runner) StartSession(ctx context.Context, req PromptRequest, callbacks 
 		}
 	}()
 
-	parser := NewStreamParser(req.SessionID, callbacks)
+	var subagentWatchersMu sync.Mutex
+	watchedSubagents := make(map[string]bool)
+
+	subCallbacks := callbacks
+	originalOnSpawned := callbacks.OnSubagentSpawned
+	subCallbacks.OnSubagentSpawned = func(subagentID string) {
+		if originalOnSpawned != nil {
+			originalOnSpawned(subagentID)
+		}
+		subagentWatchersMu.Lock()
+		if watchedSubagents[subagentID] {
+			subagentWatchersMu.Unlock()
+			return
+		}
+		watchedSubagents[subagentID] = true
+		subagentWatchersMu.Unlock()
+
+		// Start background watcher for subagent's updates.jsonl
+		go r.watchSubagentSession(sessionCtx, req.SessionID, wsPath, subagentID, callbacks.OnToolCall)
+	}
+
+	parser := NewStreamParser(req.SessionID, subCallbacks)
 	parser.SetInitialGrokSessionID(resolvedSessionUUID)
 
 	// Startup watchdog: if Grok CLI produces zero stdout lines within startupTimeout (e.g. startup deadlock / corrupted history),
@@ -626,10 +649,28 @@ func (r *Runner) RespondPermission(resp PermissionResponse) error {
 // Cancel terminates the process group of the active session
 func (r *Runner) Cancel(sessionID string) error {
 	r.mu.Lock()
-	active, exists := r.sessions[sessionID]
+	trimmedID := strings.TrimSpace(sessionID)
+	active, exists := r.sessions[trimmedID]
+	if !exists && trimmedID != "" {
+		for _, s := range r.sessions {
+			if s.SessionID == trimmedID || (s.GrokSessionID != "" && s.GrokSessionID == trimmedID) {
+				active = s
+				exists = true
+				break
+			}
+		}
+	}
+	// Fallback: If not found and exactly one session is actively running, cancel it
+	if !exists && len(r.sessions) == 1 {
+		for _, s := range r.sessions {
+			active = s
+			exists = true
+			break
+		}
+	}
 	r.mu.Unlock()
 
-	if !exists {
+	if !exists || active == nil {
 		return nil
 	}
 
@@ -640,7 +681,11 @@ func (r *Runner) Cancel(sessionID string) error {
 	if active.Stdin != nil {
 		_ = active.Stdin.Close()
 	}
-	return killProcessGroup(active.Cmd)
+	_ = killProcessGroup(active.Cmd)
+	if active.Cmd != nil && active.Cmd.Process != nil {
+		_ = active.Cmd.Process.Kill()
+	}
+	return nil
 }
 
 // CancelAll terminates all active sessions
@@ -682,4 +727,179 @@ func (r *Runner) cleanupSession(sessionID string) error {
 	defer r.mu.Unlock()
 	delete(r.sessions, sessionID)
 	return nil
+}
+
+// watchSubagentSession polls updates.jsonl for an active subagent in the background and emits OnToolCall
+func (r *Runner) watchSubagentSession(ctx context.Context, parentSessionID, wsPath, subagentID string, onToolCall func(ToolCallEvent)) {
+	if onToolCall == nil || subagentID == "" {
+		return
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return
+	}
+	sessionsDir := filepath.Join(homeDir, ".grok", "sessions")
+	targetWsDir := ResolveWorkspaceSessionsDir(sessionsDir, wsPath)
+
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	var subagentFolder string
+	var updatesFile *os.File
+	var lastOffset int64
+	seenStatus := make(map[string]string)
+
+	defer func() {
+		if updatesFile != nil {
+			_ = updatesFile.Close()
+		}
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			// Locate subagent folder if not found yet
+			if subagentFolder == "" {
+				folder, _ := ResolveSessionFolder(targetWsDir, subagentID)
+				if dirExists(folder) {
+					subagentFolder = folder
+				} else {
+					// Check other workspace directories
+					if wsEntries, err := os.ReadDir(sessionsDir); err == nil {
+						sLower := strings.ToLower(subagentID)
+						for _, wsEntry := range wsEntries {
+							if !wsEntry.IsDir() {
+								continue
+							}
+							candDir := filepath.Join(sessionsDir, wsEntry.Name())
+							candFolder, candID := ResolveSessionFolder(candDir, subagentID)
+							if dirExists(candFolder) && (strings.EqualFold(candID, subagentID) || strings.HasPrefix(strings.ToLower(candID), sLower)) {
+								subagentFolder = candFolder
+								break
+							}
+						}
+					}
+				}
+			}
+
+			if subagentFolder == "" {
+				continue
+			}
+
+			updatesPath := filepath.Join(subagentFolder, "updates.jsonl")
+			if updatesFile == nil {
+				f, err := os.Open(updatesPath)
+				if err != nil {
+					continue
+				}
+				updatesFile = f
+			}
+
+			fi, err := updatesFile.Stat()
+			if err != nil {
+				continue
+			}
+
+			if fi.Size() > lastOffset {
+				buf := make([]byte, fi.Size()-lastOffset)
+				n, _ := updatesFile.ReadAt(buf, lastOffset)
+				if n > 0 {
+					lastOffset += int64(n)
+					lines := strings.Split(string(buf[:n]), "\n")
+					for _, line := range lines {
+						line = strings.TrimSpace(line)
+						if line == "" {
+							continue
+						}
+						var raw map[string]interface{}
+						if err := json.Unmarshal([]byte(line), &raw); err != nil {
+							continue
+						}
+						params, _ := raw["params"].(map[string]interface{})
+						if params == nil {
+							continue
+						}
+						updateMap, _ := params["update"].(map[string]interface{})
+						if updateMap == nil {
+							continue
+						}
+						sessionUpdate, _ := updateMap["sessionUpdate"].(string)
+						if sessionUpdate == "" {
+							sessionUpdate, _ = updateMap["type"].(string)
+						}
+						sessionUpdate = strings.ToLower(strings.TrimSpace(sessionUpdate))
+
+						if sessionUpdate != "tool_call" && sessionUpdate != "tool_call_update" {
+							continue
+						}
+
+						toolCallID, _ := updateMap["toolCallId"].(string)
+						if toolCallID == "" {
+							toolCallID, _ = updateMap["tool_call_id"].(string)
+						}
+						if toolCallID == "" {
+							continue
+						}
+
+						toolName := ""
+						if meta, ok := updateMap["_meta"].(map[string]interface{}); ok {
+							if xTool, ok := meta["x.ai/tool"].(map[string]interface{}); ok {
+								if n, ok := xTool["name"].(string); ok && n != "" {
+									toolName = n
+								}
+							}
+						}
+						if toolName == "" {
+							toolName, _ = updateMap["title"].(string)
+						}
+						if toolName == "" {
+							toolName, _ = updateMap["name"].(string)
+						}
+
+						var inputMap map[string]interface{}
+						if rawInput, ok := updateMap["rawInput"].(map[string]interface{}); ok {
+							inputMap = rawInput
+						} else if toolInput, ok := updateMap["toolInput"].(map[string]interface{}); ok {
+							inputMap = toolInput
+						}
+
+						rawStatus, _ := updateMap["status"].(string)
+						statusLower := strings.ToLower(strings.TrimSpace(rawStatus))
+						status := "running"
+						if statusLower == "completed" || statusLower == "success" || statusLower == "done" {
+							status = "completed"
+						} else if statusLower == "failed" || statusLower == "error" || statusLower == "rejected" {
+							status = "failed"
+						}
+
+						output := extractToolOutput(updateMap["rawOutput"], updateMap["content"])
+						if output != "" && status == "running" && (statusLower == "" || statusLower == "completed") {
+							status = "completed"
+						}
+
+						// Avoid duplicate spam if status and output haven't changed
+						key := toolCallID + ":" + status
+						if seenStatus[key] == output && output != "" {
+							continue
+						}
+						seenStatus[key] = output
+
+						onToolCall(ToolCallEvent{
+							SessionID:      parentSessionID,
+							GrokSessionID:  parentSessionID,
+							ChildSessionID: subagentID,
+							ToolID:         toolCallID,
+							ToolName:       toolName,
+							Input:          inputMap,
+							Output:         output,
+							Status:         status,
+						})
+					}
+				}
+			}
+		}
+	}
 }

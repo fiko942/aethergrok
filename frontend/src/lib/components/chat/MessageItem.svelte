@@ -5,6 +5,7 @@
   import TurnDiffSummary from './TurnDiffSummary.svelte';
   import PlanReviewCard from './PlanReviewCard.svelte';
   import { calculateDiffStat } from '$lib/utils/diffUtils';
+  import { isRedundantSubagentPoller } from '$lib/utils/toolUtils';
   import { sessionStore } from '$lib/stores/session.svelte';
   import { dialogStore } from '$lib/stores/dialog.svelte';
   import {
@@ -110,6 +111,12 @@
     sessionStore.activeSession?.status === 'working' ||
     (autoRetriesCount > 0 && autoRetriesCount < 3 && sessionStore.activeSession?.status !== 'error')
   );
+
+  // Filter out redundant task pollers so the main action list only shows the original subagents
+  const visibleToolCalls = $derived.by(() => {
+    if (!message.toolCalls) return [];
+    return message.toolCalls.filter((tc) => !isRedundantSubagentPoller(tc, message.toolCalls));
+  });
 
   function formatTime(timestamp: number): string {
     const d = new Date(timestamp);
@@ -428,12 +435,12 @@
             {/if}
 
             <!-- Tool Calls Card Section -->
-            {#if message.toolCalls && message.toolCalls.length > 0}
+            {#if visibleToolCalls.length > 0}
               <div class="mb-2 space-y-1">
                 <div class="flex items-center justify-between text-[11px] text-ant-text-muted font-mono select-none px-1">
                   <span class="flex items-center space-x-1 font-semibold text-ant-text-secondary">
                     <Terminal size={11} class="text-ant-primary" />
-                    <span>Executed {message.toolCalls.length} {message.toolCalls.length === 1 ? 'action' : 'actions'}</span>
+                    <span>Executed {visibleToolCalls.length} {visibleToolCalls.length === 1 ? 'action' : 'actions'}</span>
                   </span>
                   <button
                     type="button"
@@ -446,7 +453,7 @@
 
                 {#if showToolDetails}
                   <div class="space-y-1">
-                    {#each message.toolCalls as toolCall (toolCall.id)}
+                    {#each visibleToolCalls as toolCall (toolCall.id)}
                       <ToolCallCard {toolCall} />
                     {/each}
                   </div>
@@ -455,11 +462,11 @@
             {/if}
 
             <!-- Multi-File Turn Diff Summary Rollup -->
-            {#if message.toolCalls && message.toolCalls.some(tc => {
+            {#if visibleToolCalls.some(tc => {
               const stat = calculateDiffStat(tc);
               return stat.added > 0 || stat.removed > 0 || !!tc.diff;
             })}
-              <TurnDiffSummary toolCalls={message.toolCalls} />
+              <TurnDiffSummary toolCalls={visibleToolCalls} />
             {/if}
 
             <!-- Message Markdown Content with Anthropic Serif Editorial Typography -->

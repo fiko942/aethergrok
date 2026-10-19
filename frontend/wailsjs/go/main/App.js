@@ -218,6 +218,14 @@ export function LoadPersistedLogs(arg1) {
   return window['go']['main']['App']['LoadPersistedLogs'](arg1);
 }
 
+export function LoadSubagentDetails(arg1, arg2) {
+  return window['go']['main']['App']['LoadSubagentDetails'](arg1, arg2);
+}
+
+export function LoadSubagentToolCalls(arg1, arg2) {
+  return window['go']['main']['App']['LoadSubagentToolCalls'](arg1, arg2);
+}
+
 export function MuteSystemVolume() {
   return window['go']['main']['App']['MuteSystemVolume']();
 }

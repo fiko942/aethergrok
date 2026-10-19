@@ -1,4 +1,5 @@
 import { marked } from 'marked';
+import katex from 'katex';
 import { highlightCode } from './codeHighlighter';
 
 /**
@@ -311,17 +312,134 @@ export function createMarkdownRenderer(existingFilesMap: Record<string, FilePath
   return customRenderer;
 }
 
+/**
+ * Strips unsupported TeX commands (like \label{...}) that Grok often emits
+ * inside equations or align blocks for cross-referencing, but which KaTeX
+ * has no ref system for and would otherwise render as red error tokens.
+ */
+export function stripUnsupportedTex(tex: string): string {
+  if (!tex) return '';
+  return tex.replace(/\\label\s*\{[^}]*\}/g, '');
+}
+
+/**
+ * Checks whether an inline $...$ match looks like plain currency (e.g. $5, $10.50, $100k, $5 - $10)
+ * rather than a mathematical formula.
+ */
+export function isLikelyCurrency(text: string): boolean {
+  const trimmed = text.trim();
+  // Pure numbers or quantities like 5, 10.50, 100k, 2.5m, 50 million
+  if (/^\d+([.,]\d+)?\s*(k|m|b|million|billion)?$/i.test(trimmed)) {
+    return true;
+  }
+  // Price ranges like 5-10, 5 - 10, 10 - 20
+  if (/^\d+\s*[-–—]\s*\d+$/.test(trimmed)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Renders a LaTeX string into KaTeX HTML.
+ * Uses throwOnError: false so malformed math renders gracefully without crashing the UI.
+ */
+export function renderKatex(tex: string, displayMode: boolean): string {
+  const cleaned = stripUnsupportedTex(tex.trim());
+  try {
+    return katex.renderToString(cleaned, {
+      displayMode,
+      throwOnError: false
+    });
+  } catch (err: any) {
+    const escaped = cleaned.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return `<span class="katex-error text-red-400 font-mono text-xs" title="${err?.message || 'Math rendering error'}">${escaped}</span>`;
+  }
+}
+
 export function renderMarkdown(content: string, existingFilesMap: Record<string, FilePathInfo> = {}): string {
   if (!content) return '';
   try {
     const repaired = repairMarkdownFences(content);
     const preprocessed = preprocessMarkdownDiagrams(repaired);
+
+    // 1. Temporarily protect fenced code blocks and inline codespans from math regex processing
+    const codeBlocks: string[] = [];
+    let text = preprocessed.replace(/(`{3,}|~{3,})[\s\S]*?\1/g, (match) => {
+      codeBlocks.push(match);
+      return `PREFENCEDCODEBLOCK${codeBlocks.length - 1}TOKEN`;
+    });
+
+    const inlineCodes: string[] = [];
+    text = text.replace(/`+[^`\n]+`+/g, (match) => {
+      inlineCodes.push(match);
+      return `PREINLINECODESPAN${inlineCodes.length - 1}TOKEN`;
+    });
+
+    // 2. Extract and pre-render mathematical expressions
+    interface MathPlaceholder {
+      id: string;
+      rendered: string;
+      display: boolean;
+    }
+    const mathItems: MathPlaceholder[] = [];
+
+    const addMath = (rawTex: string, display: boolean): string => {
+      const rendered = renderKatex(rawTex, display);
+      const id = display ? `KATEXDISP${mathItems.length}TOKEN` : `KATEXINL${mathItems.length}TOKEN`;
+      mathItems.push({ id, rendered, display });
+      return id;
+    };
+
+    // A. Display Math: $$ ... $$
+    text = text.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex) => addMath(tex, true));
+
+    // B. Display Math: \[ ... \]
+    text = text.replace(/\\\[([\s\S]+?)\\\]/g, (_, tex) => addMath(tex, true));
+
+    // C. Display Math: Standalone LaTeX environments
+    const envRegex = /\\begin\{(equation|align|gather|alignat|multline|matrix|pmatrix|bmatrix|vmatrix|Vmatrix|cases|array|split)\*?\}[\s\S]+?\\end\{\1\*?\}/g;
+    text = text.replace(envRegex, (match) => addMath(match, true));
+
+    // D. Inline Math: \( ... \)
+    text = text.replace(/\\\(([\s\S]+?)\\\)/g, (_, tex) => addMath(tex, false));
+
+    // E. Inline Math: $ ... $ (safe single dollar detection)
+    text = text.replace(/(?<!\$)\$(?!\s)([^\$\n]+?)(?<!\s)\$(?!\$)/g, (match, tex) => {
+      if (isLikelyCurrency(tex)) {
+        return match;
+      }
+      return addMath(tex, false);
+    });
+
+    // 3. Restore protected code blocks and inline code spans before passing to marked
+    text = text.replace(/PREINLINECODESPAN(\d+)TOKEN/g, (_, idx) => inlineCodes[Number(idx)]);
+    text = text.replace(/PREFENCEDCODEBLOCK(\d+)TOKEN/g, (_, idx) => codeBlocks[Number(idx)]);
+
+    // 4. Parse markdown with marked
     const renderer = createMarkdownRenderer(existingFilesMap);
-    return marked.parse(preprocessed, {
+    let html = marked.parse(text, {
       gfm: true,
       breaks: true,
       renderer
     }) as string;
+
+    // 5. Replace math placeholders with rendered KaTeX HTML
+    for (const item of mathItems) {
+      if (item.display) {
+        // If marked wrapped the placeholder inside a <p>...</p>, replace the whole paragraph to avoid invalid nesting
+        const pRegex = new RegExp(`<p>\\s*${item.id}\\s*<\\/p>`, 'g');
+        const displayWrapper = `<div class="katex-display-container my-3 overflow-x-auto text-center select-text">${item.rendered}</div>`;
+        if (pRegex.test(html)) {
+          html = html.replace(pRegex, displayWrapper);
+        } else {
+          html = html.replaceAll(item.id, displayWrapper);
+        }
+      } else {
+        html = html.replaceAll(item.id, item.rendered);
+      }
+    }
+
+    return html;
   } catch {
     return content;
   }

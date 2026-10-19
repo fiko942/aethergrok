@@ -1,6 +1,13 @@
 import { logger } from './logger.svelte';
 import { terminalStore } from './terminal.svelte';
 import { settingsStore } from './settings.svelte';
+import {
+  isSubagentToolCall,
+  extractSubagentMeta,
+  isSubagentOutputPoller,
+  extractTaskPollerResults,
+  isSubagentBackgroundAck
+} from '../utils/toolUtils';
 
 export type SessionStatus = 'working' | 'waiting_permission' | 'finished' | 'error' | 'idle';
 
@@ -23,6 +30,8 @@ export interface ToolCall {
   startTime?: number;
   endTime?: number;
   diff?: DiffData;
+  childToolCalls?: ToolCall[];
+  childSessionId?: string;
 }
 
 export interface PermissionRequest {
@@ -238,6 +247,107 @@ export function getActiveWindowTurns(): number {
   return DEFAULT_WINDOW_TURNS;
 }
 
+/**
+ * Reconciles subagent outputs from task pollers across all messages in a session.
+ * Folds poller outputs into their corresponding subagent ToolCalls.
+ */
+export function reconcileSessionSubagents(session: Session): void {
+  if (!session || !Array.isArray(session.messages)) return;
+  for (const msg of session.messages) {
+    if (!Array.isArray(msg.toolCalls) || msg.toolCalls.length === 0) continue;
+
+    for (const tc of msg.toolCalls) {
+      if (isSubagentOutputPoller(tc.tool, tc.params) && tc.result) {
+        const results = extractTaskPollerResults(tc.tool, tc.params, tc.result);
+        for (const res of results) {
+          for (const m of session.messages) {
+            if (!Array.isArray(m.toolCalls)) continue;
+            for (const subTc of m.toolCalls) {
+              if (!isSubagentToolCall(subTc.tool, subTc.params)) continue;
+              const meta = extractSubagentMeta(subTc.params, subTc.result);
+              const sid = meta.taskId || subTc.childSessionId || subTc.id;
+              if (sid === res.taskId || meta.taskId === res.taskId || subTc.childSessionId === res.taskId || subTc.id === res.taskId) {
+                if (res.status === 'completed') {
+                  subTc.status = 'completed';
+                  if (res.output) subTc.result = res.output;
+                  if (res.durationMs && subTc.startTime) {
+                    subTc.endTime = subTc.startTime + res.durationMs;
+                  }
+                } else if (res.status === 'failed') {
+                  subTc.status = 'error';
+                  if (res.output) subTc.result = res.output;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Loads child tool calls and subagent execution state for all subagents present in a session
+ */
+export async function populateSessionSubagentChildCalls(session: Session, wsPath?: string): Promise<void> {
+  if (!session || !Array.isArray(session.messages)) return;
+  if (typeof window === 'undefined') return;
+
+  for (const msg of session.messages) {
+    if (!Array.isArray(msg.toolCalls)) continue;
+    for (const tc of msg.toolCalls) {
+      if (isSubagentToolCall(tc.tool, tc.params)) {
+        const meta = extractSubagentMeta(tc.params, tc.result);
+        const sid = meta.taskId || tc.childSessionId;
+        if (sid) {
+          try {
+            if (window.go?.main?.App?.LoadSubagentDetails) {
+              const details = await window.go.main.App.LoadSubagentDetails(wsPath || '', sid);
+              if (details) {
+                if (details.calls && Array.isArray(details.calls) && details.calls.length > 0) {
+                  tc.childToolCalls = details.calls.map((c: any) => ({
+                    id: c.id,
+                    tool: c.tool,
+                    params: c.params,
+                    result: c.result,
+                    status: c.status === 'failed' ? 'error' : c.status === 'completed' ? 'completed' : 'running',
+                    startTime: c.startTime,
+                    endTime: c.endTime
+                  }));
+                }
+                if (details.status === 'completed' || details.status === 'failed') {
+                  tc.status = details.status === 'failed' ? 'error' : 'completed';
+                  if (details.output && (!tc.result || isSubagentBackgroundAck(tc.result))) {
+                    tc.result = details.output;
+                  }
+                  if (details.durationMs && details.durationMs > 0 && tc.startTime) {
+                    tc.endTime = tc.startTime + details.durationMs;
+                  }
+                }
+              }
+            } else if (window.go?.main?.App?.LoadSubagentToolCalls) {
+              const calls = await window.go.main.App.LoadSubagentToolCalls(wsPath || '', sid);
+              if (calls && Array.isArray(calls) && calls.length > 0) {
+                tc.childToolCalls = calls.map((c: any) => ({
+                  id: c.id,
+                  tool: c.tool,
+                  params: c.params,
+                  result: c.result,
+                  status: c.status === 'failed' ? 'error' : c.status === 'completed' ? 'completed' : 'running',
+                  startTime: c.startTime,
+                  endTime: c.endTime
+                }));
+              }
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+    }
+  }
+}
+
 const WORKSPACES_STORAGE_KEY = 'aethergrok_workspaces_v1';
 const SESSIONS_STORAGE_KEY = 'aethergrok_sessions_v1';
 const OPEN_TABS_STORAGE_KEY = 'aethergrok_open_tabs_v1';
@@ -426,6 +536,7 @@ class SessionStore {
                   }
                 }
               }
+              reconcileSessionSubagents(s);
             }
           }
           this.sessions = parsed;
@@ -1237,6 +1348,8 @@ class SessionStore {
               session.agentMode = lastPlanMode;
             }
           }
+          reconcileSessionSubagents(session);
+          populateSessionSubagentChildCalls(session, ws.path).catch(() => {});
         }
       } catch (err) {
         console.error('Failed to load session history for', session.id, err);
