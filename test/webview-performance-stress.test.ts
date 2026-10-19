@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 // Svelte 5 Runes mock for node testing environment
 if (typeof (globalThis as any).$state === 'undefined') {

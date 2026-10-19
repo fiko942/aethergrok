@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 
 // Svelte 5 Runes mock for node testing environment
 if (typeof (globalThis as any).$state === 'undefined') {
@@ -16,6 +16,11 @@ const {
 } = await import('../frontend/src/lib/stores/session.svelte');
 
 describe('Session Memory & Storage Optimization', () => {
+  const originalWindow = (globalThis as any).window;
+
+  afterEach(() => {
+    (globalThis as any).window = originalWindow;
+  });
   it('strips heavy messages and tool outputs when serializing session metadata for localStorage', () => {
     const heavySession = {
       id: 'sess-123',

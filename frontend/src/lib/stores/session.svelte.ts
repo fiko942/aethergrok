@@ -2108,10 +2108,13 @@ export class SessionStore {
         if (lastMsg.role === role) {
           lastMsg.content += delta;
           lastMsg.status = 'streaming';
-          const lastPart = lastMsg.parts ? lastMsg.parts[lastMsg.parts.length - 1] : null;
+          if (!lastMsg.parts) {
+            lastMsg.parts = [];
+          }
+          const lastPart = lastMsg.parts.length > 0 ? lastMsg.parts[lastMsg.parts.length - 1] : null;
           if (lastPart && lastPart.type === 'text') {
             lastPart.text += delta;
-          } else if (lastMsg.parts) {
+          } else {
             lastMsg.parts.push({ type: 'text', text: delta });
           }
           return;
