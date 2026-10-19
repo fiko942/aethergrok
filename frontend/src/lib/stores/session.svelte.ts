@@ -163,6 +163,56 @@ export interface Session {
   lastTurnDurationMs?: number;
 }
 
+export interface SessionMetadata {
+  id: string;
+  title: string;
+  workspaceId: string;
+  createdAt: number;
+  updatedAt: number;
+  status: SessionStatus;
+  agentMode?: 'agent' | 'plan' | 'yolo';
+  grokSessionId?: string;
+  visibleTurnCount?: number;
+  turnStartTime?: number;
+  lastTurnDurationMs?: number;
+  isCustomTitle?: boolean;
+  isPinned?: boolean;
+  pinnedAt?: number;
+}
+
+export function sanitizeSessionForStorage(session: Session): SessionMetadata {
+  return {
+    id: session.id,
+    title: session.title,
+    workspaceId: session.workspaceId,
+    createdAt: session.createdAt,
+    updatedAt: session.updatedAt,
+    status: session.status,
+    agentMode: session.agentMode,
+    grokSessionId: session.grokSessionId,
+    visibleTurnCount: session.visibleTurnCount,
+    turnStartTime: session.turnStartTime,
+    lastTurnDurationMs: session.lastTurnDurationMs,
+    isCustomTitle: session.isCustomTitle,
+    isPinned: session.isPinned,
+    pinnedAt: session.pinnedAt
+  };
+}
+
+export function shouldEvictSessionMessages(sessionId: string, activeSessionId: string | null, status: SessionStatus): boolean {
+  if (sessionId === activeSessionId) return false;
+  if (status === 'working' || status === 'waiting_permission') return false;
+  return true;
+}
+
+export function evictInactiveSessionMessages(sessions: Session[], activeSessionId: string | null): void {
+  for (const session of sessions) {
+    if (shouldEvictSessionMessages(session.id, activeSessionId, session.status)) {
+      session.messages = [];
+    }
+  }
+}
+
 export interface TokenTruncationDetails {
   numTurns?: number;
   totalTokens?: number;
@@ -668,6 +718,7 @@ export class SessionStore {
             if (s.pendingPermission) {
               s.pendingPermission = null;
             }
+            s.messages = s.messages || [];
             if (Array.isArray(s.messages)) {
               for (const m of s.messages) {
                 if (m.status === 'streaming') {
@@ -804,11 +855,16 @@ export class SessionStore {
     this.openTabSessionIds = dedupedTabs;
   }
 
+  evictInactiveSessionMessages(activeSessionId: string | null = this.activeSessionId): void {
+    evictInactiveSessionMessages(this.sessions, activeSessionId);
+  }
+
   saveSessionsToStorage() {
-    // 1. LocalStorage fallback
+    // 1. LocalStorage metadata fallback (strip heavy message payloads to prevent quota errors & V8 heap bloat)
     if (typeof window !== 'undefined' && window.localStorage) {
       try {
-        window.localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(this.sessions));
+        const metadataOnly = this.sessions.map((s) => sanitizeSessionForStorage(s));
+        window.localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(metadataOnly));
         window.localStorage.setItem(OPEN_TABS_STORAGE_KEY, JSON.stringify(this.openTabSessionIds));
         if (this.activeSessionId) {
           window.localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, this.activeSessionId);
@@ -1339,6 +1395,9 @@ export class SessionStore {
 
     logger.info('UI', `Opening session in tab: ${target.title} (${id})`);
 
+    // Evict inactive completed/idle sessions to save RAM
+    this.evictInactiveSessionMessages(id);
+
     if (!this.openTabSessionIds.includes(id)) {
       // Limit open tabs to 12 max to prevent visual overflow
       if (this.openTabSessionIds.length >= 12) {
@@ -1589,16 +1648,20 @@ export class SessionStore {
   }
 
   async switchSession(id: string): Promise<void> {
+    // Evict inactive completed/idle sessions to save RAM
+    this.evictInactiveSessionMessages(id);
+
+    // When switching sessions, if the target session has empty messages, reload on demand from disk
+    const target = this.sessions.find((s) => s.id === id);
+    if (target && target.messages.length === 0 && target.status !== 'working') {
+      await this.loadSessionHistoryFromDisk(target);
+    }
+
     if (this.activeSessionId === id) {
-      const target = this.sessions.find((s) => s.id === id);
       if (target) {
-        if (target.messages.length === 0 && target.status !== 'working') {
-          await this.loadSessionHistoryFromDisk(target);
-        } else {
-          const ws = this.workspaces.find((w) => w.id === target.workspaceId);
-          if (ws?.path) {
-            populateSessionSubagentChildCalls(target, ws.path).catch(() => {});
-          }
+        const ws = this.workspaces.find((w) => w.id === target.workspaceId);
+        if (ws?.path) {
+          populateSessionSubagentChildCalls(target, ws.path).catch(() => {});
         }
         await this.loadSessionUsage(target);
       }
