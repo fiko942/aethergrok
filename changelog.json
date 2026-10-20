@@ -2,8 +2,30 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "AetherGrok Release Changelog",
   "description": "Central single source of truth for all AetherGrok releases, commit ranges, and download artifacts.",
-  "latest": "1.1.17",
+  "latest": "1.1.18",
   "releases": [
+    {
+      "version": "1.1.18",
+      "tag": "v1.1.18",
+      "date": "2026-10-20T06:00:00.000Z",
+      "title": "AetherGrok 1.1.18 - WebView2 Memory & CPU Optimization and Windows Auto-Flush Fix",
+      "targetCommit": "HEAD",
+      "previousCommit": "c344698",
+      "highlights": [
+        "Lightweight session metadata persistence: strip heavy conversation transcripts and tool payloads from localStorage, reducing storage footprint from megabytes to under 15 KB",
+        "Inactive session message eviction & lazy rehydration: free JavaScript heap memory for inactive background sessions while seamlessly restoring full transcripts on demand from disk",
+        "Elapsed turn timer throttling: reduce thinking and turn duration interval loops from 100ms to 500ms, eliminating 80% of unnecessary V8 timer wakeups and continuous CPU churn",
+        "IPC stream delta coalescing: batch streaming token events in 40ms intervals (~25 FPS) and buffer background session updates in-place without triggering reactive array allocations",
+        "GPU composition optimization: remove continuous backdrop-blur shaders from message feeds and plan trackers, switching to opaque alpha composites and bounding terminal scrollback to 2000 lines",
+        "Windows auto-flush live activity fix: ensure earlier conversation turns are reliably trimmed on Windows during active runs according to history window settings"
+      ],
+      "downloads": {
+        "macos_arm64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.18/AetherGrok-1.1.18-macOS-arm64.dmg",
+        "macos_x64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.18/AetherGrok-1.1.18-macOS-amd64.dmg",
+        "windows_x64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.18/AetherGrok-1.1.18-windows-amd64-setup.exe",
+        "windows_arm64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.18/AetherGrok-1.1.18-windows-arm64-setup.exe"
+      }
+    },
     {
       "version": "1.1.17",
       "tag": "v1.1.17",
