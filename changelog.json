@@ -2,8 +2,28 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "AetherGrok Release Changelog",
   "description": "Central single source of truth for all AetherGrok releases, commit ranges, and download artifacts.",
-  "latest": "1.1.19",
+  "latest": "1.1.20",
   "releases": [
+    {
+      "version": "1.1.20",
+      "tag": "v1.1.20",
+      "date": "2026-10-21T06:30:00.000Z",
+      "title": "AetherGrok 1.1.20 - Context Token Limit Persistence & Synchronization Fix",
+      "targetCommit": "HEAD",
+      "previousCommit": "f8c5a63",
+      "highlights": [
+        "Strict user token limit enforcement: prevent Grok CLI telemetry signals.json (1,048,576 tokens) from overriding the user-configured maxContextTokens (e.g. 128k, 200k)",
+        "Instant cross-session token synchronization: immediately apply modified context limits from Settings to all open and in-memory sessions",
+        "High context usage pre-flight warning: warn users proactively when token usage approaches the configured cap to allow prompt compaction before network latency increases",
+        "Composer & Popover token consistency: ensure token usage percentage, short limit display, and donut chart strictly calculate against the user-configured token window"
+      ],
+      "downloads": {
+        "macos_arm64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.20/AetherGrok-1.1.20-macOS-arm64.dmg",
+        "macos_x64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.20/AetherGrok-1.1.20-macOS-amd64.dmg",
+        "windows_x64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.20/AetherGrok-1.1.20-windows-amd64-setup.exe",
+        "windows_arm64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.20/AetherGrok-1.1.20-windows-arm64-setup.exe"
+      }
+    },
     {
       "version": "1.1.19",
       "tag": "v1.1.19",
