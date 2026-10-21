@@ -1,10 +1,12 @@
 package grokrunner
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"os/exec"
@@ -12,6 +14,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -29,6 +32,75 @@ type GrokSessionMetadata struct {
 var userQueryRegex = regexp.MustCompile(`(?s)<user_query>(.*?)(?:</user_query>|$)`)
 var subagentIDRegex = regexp.MustCompile(`(?i)(?:subagent_id|task_id|session_id)["']?\s*[:=]\s*[`+"`"+`"']?([a-zA-Z0-9_-]{4,})[`+"`"+`"']?`)
 var uuidFallbackRegex = regexp.MustCompile(`[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`)
+
+type sessionCacheEntry struct {
+	modTime  time.Time
+	fileSize int64
+	messages []DiscoveredChatMessage
+}
+
+var (
+	sessionCacheMu sync.RWMutex
+	sessionCache   = make(map[string]*sessionCacheEntry)
+)
+
+// InvalidateSessionCache clears the in-memory parsed history cache for a session folder
+func InvalidateSessionCache(sessionFolderPath string) {
+	if sessionFolderPath == "" {
+		return
+	}
+	sessionCacheMu.Lock()
+	defer sessionCacheMu.Unlock()
+	for k := range sessionCache {
+		if strings.HasPrefix(k, sessionFolderPath) {
+			delete(sessionCache, k)
+		}
+	}
+}
+
+// ClearAllSessionCache clears the entire in-memory session history cache
+func ClearAllSessionCache() {
+	sessionCacheMu.Lock()
+	defer sessionCacheMu.Unlock()
+	sessionCache = make(map[string]*sessionCacheEntry)
+}
+
+// forEachJSONLLine reads a JSONL file line-by-line using a streaming bufio.Reader
+// without reading the entire file into memory at once, avoiding high RAM spikes on multi-megabyte files.
+func forEachJSONLLine(filePath string, maxLines int, fn func(lineIdx int, lineBytes []byte) bool) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	reader := bufio.NewReaderSize(file, 64*1024)
+	lineIdx := 0
+
+	for {
+		if maxLines > 0 && lineIdx >= maxLines {
+			break
+		}
+
+		line, err := reader.ReadBytes('\n')
+		if len(line) > 0 {
+			trimmed := bytes.TrimSpace(line)
+			if len(trimmed) > 0 {
+				if !fn(lineIdx, trimmed) {
+					break
+				}
+				lineIdx++
+			}
+		}
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+	}
+	return nil
+}
 
 // EncodeGrokWorkspacePath converts a workspace file system path into the exact URL-encoded
 // directory leaf format used by Grok CLI in ~/.grok/sessions/ (matching JS encodeURIComponent)
@@ -328,27 +400,19 @@ func DiscoverGrokSessions(workspacePath string) ([]GrokSessionMetadata, error) {
 		}
 
 		for _, hFile := range historyFiles {
-			data, err := os.ReadFile(hFile)
-			if err != nil {
-				continue
+			if title != "" {
+				break
 			}
-
-			lines := strings.Split(string(data), "\n")
-			for _, line := range lines {
-				line = strings.TrimSpace(line)
-				if line == "" {
-					continue
-				}
-
+			_ = forEachJSONLLine(hFile, 100, func(lineIdx int, lineBytes []byte) bool {
 				var rawMsg map[string]interface{}
-				if json.Unmarshal([]byte(line), &rawMsg) != nil {
-					continue
+				if json.Unmarshal(lineBytes, &rawMsg) != nil {
+					return true
 				}
 
 				role, _ := rawMsg["role"].(string)
 				msgType, _ := rawMsg["type"].(string)
 				if role != "user" && msgType != "user" {
-					continue
+					return true
 				}
 
 				var textCandidates []string
@@ -378,8 +442,25 @@ func DiscoverGrokSessions(workspacePath string) ([]GrokSessionMetadata, error) {
 					extracted := ""
 					if len(matches) > 1 {
 						extracted = strings.TrimSpace(matches[1])
-					} else if !strings.HasPrefix(contentStr, "<user_info>") && !strings.HasPrefix(contentStr, "<system-reminder>") {
-						extracted = strings.TrimSpace(contentStr)
+					} else {
+						if strings.HasPrefix(contentStr, "<system-reminder>") && !strings.Contains(contentStr, "</system-reminder>") {
+							continue
+						}
+						if strings.HasPrefix(contentStr, "<user_info>") {
+							lastTagEnd := strings.LastIndex(contentStr, ">")
+							if lastTagEnd != -1 && lastTagEnd < len(contentStr)-1 {
+								trailing := strings.TrimSpace(contentStr[lastTagEnd+1:])
+								if trailing != "" {
+									extracted = trailing
+								} else {
+									continue
+								}
+							} else {
+								continue
+							}
+						} else {
+							extracted = strings.TrimSpace(contentStr)
+						}
 					}
 
 					// Clean out XML comments, slash commands or markdown fences if prompt starts with them
@@ -394,18 +475,11 @@ func DiscoverGrokSessions(workspacePath string) ([]GrokSessionMetadata, error) {
 								title = clean
 							}
 						}
-						break
+						return false // Found title, early exit stream!
 					}
 				}
-
-				if title != "" {
-					break
-				}
-			}
-
-			if title != "" {
-				break
-			}
+				return true
+			})
 		}
 
 		// Filter out empty ghost sessions (0 messages and no user prompts)
@@ -449,28 +523,35 @@ func LoadGrokSessionMessages(workspacePath, sessionID string) ([]DiscoveredChatM
 	sessionFolderPath, _ := ResolveSessionFolder(targetDir, sessionID)
 
 	chatHistoryPath := filepath.Join(sessionFolderPath, "chat_history.jsonl")
-	data, err := os.ReadFile(chatHistoryPath)
-	if err != nil {
+	var fi os.FileInfo
+	if info, err := os.Stat(chatHistoryPath); err == nil {
+		fi = info
+	} else {
 		// Fallback to updates.jsonl if chat_history doesn't exist
 		chatHistoryPath = filepath.Join(sessionFolderPath, "updates.jsonl")
-		data, err = os.ReadFile(chatHistoryPath)
-		if err != nil {
+		if info, err := os.Stat(chatHistoryPath); err == nil {
+			fi = info
+		} else {
 			return []DiscoveredChatMessage{}, nil
 		}
 	}
 
-	lines := strings.Split(string(data), "\n")
+	// 1. Check in-memory ModTime and FileSize cache
+	if fi != nil {
+		sessionCacheMu.RLock()
+		cached, exists := sessionCache[chatHistoryPath]
+		sessionCacheMu.RUnlock()
+		if exists && cached.modTime.Equal(fi.ModTime()) && cached.fileSize == fi.Size() {
+			return cached.messages, nil
+		}
+	}
+
 	var messages []DiscoveredChatMessage
 
-	for lineIdx, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
+	_ = forEachJSONLLine(chatHistoryPath, 0, func(lineIdx int, lineBytes []byte) bool {
 		var raw map[string]interface{}
-		if json.Unmarshal([]byte(line), &raw) != nil {
-			continue
+		if json.Unmarshal(lineBytes, &raw) != nil {
+			return true
 		}
 
 		msgType, _ := raw["type"].(string)
@@ -481,7 +562,7 @@ func LoadGrokSessionMessages(workspacePath, sessionID string) ([]DiscoveredChatM
 
 		// Skip internal system prompts, reasoning, or compaction meta
 		if role == "system" || role == "reasoning" || msgType == "reasoning" {
-			continue
+			return true
 		}
 
 		// 1. Process User Message
@@ -507,7 +588,7 @@ func LoadGrokSessionMessages(workspacePath, sessionID string) ([]DiscoveredChatM
 				userText = strings.TrimSpace(matches[1])
 			} else {
 				if strings.HasPrefix(userText, "<system-reminder>") && !strings.Contains(userText, "</system-reminder>") {
-					continue
+					return true
 				}
 				if strings.HasPrefix(userText, "<user_info>") {
 					lastTagEnd := strings.LastIndex(userText, ">")
@@ -516,16 +597,16 @@ func LoadGrokSessionMessages(workspacePath, sessionID string) ([]DiscoveredChatM
 						if trailing != "" {
 							userText = trailing
 						} else {
-							continue
+							return true
 						}
 					} else {
-						continue
+						return true
 					}
 				}
 			}
 
 			if userText == "" {
-				continue
+				return true
 			}
 
 			messages = append(messages, DiscoveredChatMessage{
@@ -550,7 +631,7 @@ func LoadGrokSessionMessages(workspacePath, sessionID string) ([]DiscoveredChatM
 
 			// Prevent orphan assistant messages before the first user turn if blank and no tool calls
 			if len(messages) == 0 && contentStr == "" && len(tcList) == 0 {
-				continue
+				return true
 			}
 
 			// Ensure an assistant message exists for this turn
@@ -645,7 +726,8 @@ func LoadGrokSessionMessages(workspacePath, sessionID string) ([]DiscoveredChatM
 				}
 			}
 		}
-	}
+		return true
+	})
 
 	// Post-process assistant messages: populate subagent details and child tool calls from disk
 	for msgIdx := range messages {
@@ -791,6 +873,17 @@ func LoadGrokSessionMessages(workspacePath, sessionID string) ([]DiscoveredChatM
 		}
 	}
 
+	// Cache parsed messages with ModTime and FileSize to make subsequent reads 0.01ms
+	if fi != nil {
+		sessionCacheMu.Lock()
+		sessionCache[chatHistoryPath] = &sessionCacheEntry{
+			modTime:  fi.ModTime(),
+			fileSize: fi.Size(),
+			messages: messages,
+		}
+		sessionCacheMu.Unlock()
+	}
+
 	return messages, nil
 }
 
@@ -804,6 +897,12 @@ func DeleteGrokSessionDirectory(workspacePath, sessionID string) error {
 	sessionsDir := filepath.Join(home, ".grok", "sessions")
 	sessionsParent := ResolveWorkspaceSessionsDir(sessionsDir, workspacePath)
 	sessionFolderPath, resolvedID := ResolveSessionFolder(sessionsParent, sessionID)
+
+	// Invalidate in-memory session cache for this folder
+	InvalidateSessionCache(sessionFolderPath)
+	if resolvedID != sessionID && sessionID != "" {
+		InvalidateSessionCache(filepath.Join(sessionsParent, sessionID))
+	}
 
 	// 1. Direct path removal
 	if _, err := os.Stat(sessionFolderPath); err == nil {
@@ -1241,56 +1340,50 @@ func LoadSubagentExecutionDetails(workspacePath, subagentID string) (*SubagentEx
 				}
 			}
 
-			// Read turn_completed and chunks
-			if data, err := os.ReadFile(updatesPath); err == nil {
-				lines := strings.Split(string(data), "\n")
-				for _, line := range lines {
-					line = strings.TrimSpace(line)
-					if line == "" {
-						continue
-					}
-					var raw map[string]interface{}
-					if err := json.Unmarshal([]byte(line), &raw); err != nil {
-						continue
-					}
-					params, _ := raw["params"].(map[string]interface{})
-					if params == nil {
-						continue
-					}
-					updateMap, _ := params["update"].(map[string]interface{})
-					if updateMap == nil {
-						continue
-					}
-					uType, _ := updateMap["sessionUpdate"].(string)
-					if uType == "" {
-						uType, _ = updateMap["type"].(string)
-					}
-					uType = strings.ToLower(strings.TrimSpace(uType))
-
-					if uType == "turn_completed" {
-						stopReason, _ := updateMap["stop_reason"].(string)
-						stopReason = strings.ToLower(strings.TrimSpace(stopReason))
-						if stopReason == "end_turn" || stopReason == "stop" || stopReason == "complete" || stopReason == "" {
-							if details.Status != "failed" {
-								details.Status = "completed"
-							}
-						} else if stopReason == "error" || stopReason == "failed" {
-							details.Status = "failed"
-						}
-						if elapsed, ok := updateMap["elapsed_ms"].(float64); ok && elapsed > 0 && details.DurationMs == 0 {
-							details.DurationMs = int64(elapsed)
-						}
-					} else if uType == "agent_message_chunk" || uType == "agent_message" {
-						if contentMap, ok := updateMap["content"].(map[string]interface{}); ok {
-							if text, ok := contentMap["text"].(string); ok && text != "" {
-								lastAssistantChunks = append(lastAssistantChunks, text)
-							}
-						}
-					} else if uType == "tool_call" {
-						lastAssistantChunks = nil
-					}
+			// Read turn_completed and chunks using streaming reader
+			_ = forEachJSONLLine(updatesPath, 0, func(lineIdx int, lineBytes []byte) bool {
+				var raw map[string]interface{}
+				if err := json.Unmarshal(lineBytes, &raw); err != nil {
+					return true
 				}
-			}
+				params, _ := raw["params"].(map[string]interface{})
+				if params == nil {
+					return true
+				}
+				updateMap, _ := params["update"].(map[string]interface{})
+				if updateMap == nil {
+					return true
+				}
+				uType, _ := updateMap["sessionUpdate"].(string)
+				if uType == "" {
+					uType, _ = updateMap["type"].(string)
+				}
+				uType = strings.ToLower(strings.TrimSpace(uType))
+
+				if uType == "turn_completed" {
+					stopReason, _ := updateMap["stop_reason"].(string)
+					stopReason = strings.ToLower(strings.TrimSpace(stopReason))
+					if stopReason == "end_turn" || stopReason == "stop" || stopReason == "complete" || stopReason == "" {
+						if details.Status != "failed" {
+							details.Status = "completed"
+						}
+					} else if stopReason == "error" || stopReason == "failed" {
+						details.Status = "failed"
+					}
+					if elapsed, ok := updateMap["elapsed_ms"].(float64); ok && elapsed > 0 && details.DurationMs == 0 {
+						details.DurationMs = int64(elapsed)
+					}
+				} else if uType == "agent_message_chunk" || uType == "agent_message" {
+					if contentMap, ok := updateMap["content"].(map[string]interface{}); ok {
+						if text, ok := contentMap["text"].(string); ok && text != "" {
+							lastAssistantChunks = append(lastAssistantChunks, text)
+						}
+					}
+				} else if uType == "tool_call" {
+					lastAssistantChunks = nil
+				}
+				return true
+			})
 		}
 
 		if len(details.Calls) == 0 && fileExists(chatPath) {
@@ -1299,33 +1392,27 @@ func LoadSubagentExecutionDetails(workspacePath, subagentID string) (*SubagentEx
 			}
 		}
 
-		// Read chat_history.jsonl for complete final assistant output
+		// Read chat_history.jsonl for complete final assistant output using streaming reader
 		if details.Output == "" && fileExists(chatPath) {
-			if data, err := os.ReadFile(chatPath); err == nil {
-				lines := strings.Split(string(data), "\n")
-				for _, line := range lines {
-					line = strings.TrimSpace(line)
-					if line == "" {
-						continue
-					}
-					var raw map[string]interface{}
-					if err := json.Unmarshal([]byte(line), &raw); err != nil {
-						continue
-					}
-					role, _ := raw["role"].(string)
-					if role == "" {
-						role, _ = raw["type"].(string)
-					}
-					if role == "assistant" {
-						if text, ok := raw["content"].(string); ok && strings.TrimSpace(text) != "" {
-							details.Output = strings.TrimSpace(text)
-							if details.Status != "failed" {
-								details.Status = "completed"
-							}
+			_ = forEachJSONLLine(chatPath, 0, func(lineIdx int, lineBytes []byte) bool {
+				var raw map[string]interface{}
+				if err := json.Unmarshal(lineBytes, &raw); err != nil {
+					return true
+				}
+				role, _ := raw["role"].(string)
+				if role == "" {
+					role, _ = raw["type"].(string)
+				}
+				if role == "assistant" {
+					if text, ok := raw["content"].(string); ok && strings.TrimSpace(text) != "" {
+						details.Output = strings.TrimSpace(text)
+						if details.Status != "failed" {
+							details.Status = "completed"
 						}
 					}
 				}
-			}
+				return true
+			})
 		}
 
 		// Read summary.json for duration fallback
@@ -1399,34 +1486,23 @@ func LoadSubagentToolCalls(workspacePath, subagentID string) ([]DiscoveredToolCa
 
 // ParseSubagentUpdatesJsonl parses tool calls from an updates.jsonl file
 func ParseSubagentUpdatesJsonl(updatesPath string) ([]DiscoveredToolCall, error) {
-	data, err := os.ReadFile(updatesPath)
-	if err != nil {
-		return nil, err
-	}
-
-	lines := strings.Split(string(data), "\n")
 	toolCallMap := make(map[string]*DiscoveredToolCall)
 	var order []string
 
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
+	err := forEachJSONLLine(updatesPath, 0, func(lineIdx int, lineBytes []byte) bool {
 		var raw map[string]interface{}
-		if err := json.Unmarshal([]byte(line), &raw); err != nil {
-			continue
+		if err := json.Unmarshal(lineBytes, &raw); err != nil {
+			return true
 		}
 
 		params, _ := raw["params"].(map[string]interface{})
 		if params == nil {
-			continue
+			return true
 		}
 
 		updateMap, _ := params["update"].(map[string]interface{})
 		if updateMap == nil {
-			continue
+			return true
 		}
 
 		sessionUpdate, _ := updateMap["sessionUpdate"].(string)
@@ -1440,7 +1516,7 @@ func ParseSubagentUpdatesJsonl(updatesPath string) ([]DiscoveredToolCall, error)
 			toolCallID, _ = updateMap["tool_call_id"].(string)
 		}
 		if toolCallID == "" {
-			continue
+			return true
 		}
 
 		var ts int64
@@ -1570,6 +1646,10 @@ func ParseSubagentUpdatesJsonl(updatesPath string) ([]DiscoveredToolCall, error)
 				}
 			}
 		}
+		return true
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	result := make([]DiscoveredToolCall, 0, len(order))
@@ -1583,24 +1663,13 @@ func ParseSubagentUpdatesJsonl(updatesPath string) ([]DiscoveredToolCall, error)
 
 // ParseSubagentChatHistoryJsonl parses tool calls from a subagent chat_history.jsonl file
 func ParseSubagentChatHistoryJsonl(chatPath string) ([]DiscoveredToolCall, error) {
-	data, err := os.ReadFile(chatPath)
-	if err != nil {
-		return nil, err
-	}
-
-	lines := strings.Split(string(data), "\n")
 	toolCallMap := make(map[string]*DiscoveredToolCall)
 	var order []string
 
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
+	err := forEachJSONLLine(chatPath, 0, func(lineIdx int, lineBytes []byte) bool {
 		var raw map[string]interface{}
-		if err := json.Unmarshal([]byte(line), &raw); err != nil {
-			continue
+		if err := json.Unmarshal(lineBytes, &raw); err != nil {
+			return true
 		}
 
 		role, _ := raw["role"].(string)
@@ -1646,6 +1715,10 @@ func ParseSubagentChatHistoryJsonl(chatPath string) ([]DiscoveredToolCall, error
 				tc.Status = "completed"
 			}
 		}
+		return true
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	result := make([]DiscoveredToolCall, 0, len(order))

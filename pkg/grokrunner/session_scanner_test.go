@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestDiscoverGrokSessions_ExtractionAndFiltering(t *testing.T) {
@@ -882,5 +883,114 @@ func TestLoadGrokSessionMessages_PromptTagVariations(t *testing.T) {
 		t.Errorf("Message 3 mismatch: %+v", msgs[3])
 	}
 }
+
+func TestForEachJSONLLine_StreamingAndEarlyExit(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "stream_test.jsonl")
+
+	var contentBuilder strings.Builder
+	for i := 0; i < 20; i++ {
+		contentBuilder.WriteString(fmt.Sprintf(`{"index":%d,"data":"sample line %d"}`+"\n", i, i))
+	}
+	if err := os.WriteFile(filePath, []byte(contentBuilder.String()), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	// 1. Early exit when returning false at index 3
+	var linesRead []int
+	err := forEachJSONLLine(filePath, 0, func(idx int, lineBytes []byte) bool {
+		linesRead = append(linesRead, idx)
+		return idx < 3 // stop when idx reaches 3
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(linesRead) != 4 {
+		t.Errorf("expected 4 lines read before early exit, got %d: %v", len(linesRead), linesRead)
+	}
+
+	// 2. Bound by maxLines
+	var maxLinesRead []int
+	err = forEachJSONLLine(filePath, 5, func(idx int, lineBytes []byte) bool {
+		maxLinesRead = append(maxLinesRead, idx)
+		return true
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(maxLinesRead) != 5 {
+		t.Errorf("expected exactly 5 lines read with maxLines=5, got %d", len(maxLinesRead))
+	}
+}
+
+func TestLoadGrokSessionMessages_ModTimeCaching(t *testing.T) {
+	ClearAllSessionCache()
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testWs := "/tmp/test-workspace-caching"
+	encodedWs := EncodeGrokWorkspacePath(testWs)
+	sessDir := filepath.Join(home, ".grok", "sessions", encodedWs, "sess-cache-test")
+	defer os.RemoveAll(filepath.Join(home, ".grok", "sessions", encodedWs))
+
+	if err := os.MkdirAll(sessDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	chatFile := filepath.Join(sessDir, "chat_history.jsonl")
+	initialContent := `{"type":"user","content":"First prompt"}
+{"type":"assistant","content":"First answer"}` + "\n"
+	if err := os.WriteFile(chatFile, []byte(initialContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// 1. First read parses from disk and populates cache
+	msgs1, err := LoadGrokSessionMessages(testWs, "sess-cache-test")
+	if err != nil {
+		t.Fatalf("LoadGrokSessionMessages failed: %v", err)
+	}
+	if len(msgs1) != 2 {
+		t.Fatalf("expected 2 messages, got %d", len(msgs1))
+	}
+
+	// 2. Second read should hit in-memory cache directly
+	msgs2, err := LoadGrokSessionMessages(testWs, "sess-cache-test")
+	if err != nil {
+		t.Fatalf("LoadGrokSessionMessages failed on cache hit: %v", err)
+	}
+	if len(msgs2) != 2 || msgs2[0].Content != "First prompt" {
+		t.Errorf("cached messages mismatch: %+v", msgs2)
+	}
+
+	// 3. Update file with new turn (change ModTime and size)
+	time.Sleep(20 * time.Millisecond) // ensure timestamp ticks
+	updatedContent := initialContent + `{"type":"user","content":"Second prompt"}
+{"type":"assistant","content":"Second answer"}` + "\n"
+	if err := os.WriteFile(chatFile, []byte(updatedContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// 4. Third read detects ModTime/size change and re-parses
+	msgs3, err := LoadGrokSessionMessages(testWs, "sess-cache-test")
+	if err != nil {
+		t.Fatalf("LoadGrokSessionMessages failed on updated file: %v", err)
+	}
+	if len(msgs3) != 4 {
+		t.Fatalf("expected 4 messages after file update, got %d", len(msgs3))
+	}
+
+	// 5. Invalidate cache
+	InvalidateSessionCache(sessDir)
+	sessionCacheMu.RLock()
+	cached := sessionCache[chatFile]
+	sessionCacheMu.RUnlock()
+	if cached != nil {
+		t.Errorf("expected cache to be invalidated for %s, but found entry", chatFile)
+	}
+}
+
 
 

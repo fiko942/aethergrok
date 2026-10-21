@@ -91,11 +91,12 @@ static int startEventTap() {
 
     CGEventMask mask = (1 << kCGEventKeyDown) | (1 << kCGEventKeyUp) | (1 << kCGEventFlagsChanged);
     
-    // Attempt kCGSessionEventTap with kCGEventTapOptionDefault to intercept global keyboard events reliably
+    // Use kCGEventTapOptionListenOnly since AetherGrok monitors hotkeys without modifying system event stream.
+    // ListenOnly event taps are immune to watchdog termination timeouts by the macOS window server.
     g_event_tap = CGEventTapCreate(
         kCGSessionEventTap,
         kCGHeadInsertEventTap,
-        kCGEventTapOptionDefault,
+        kCGEventTapOptionListenOnly,
         mask,
         eventTapCallback,
         NULL
@@ -106,19 +107,19 @@ static int startEventTap() {
         g_event_tap = CGEventTapCreate(
             kCGHIDEventTap,
             kCGHeadInsertEventTap,
-            kCGEventTapOptionDefault,
+            kCGEventTapOptionListenOnly,
             mask,
             eventTapCallback,
             NULL
         );
     }
 
-    // Fall back to kCGEventTapOptionListenOnly
+    // Secondary fallback to default tap option if listen-only is restricted
     if (!g_event_tap) {
         g_event_tap = CGEventTapCreate(
             kCGSessionEventTap,
             kCGHeadInsertEventTap,
-            kCGEventTapOptionListenOnly,
+            kCGEventTapOptionDefault,
             mask,
             eventTapCallback,
             NULL
@@ -132,12 +133,6 @@ static int startEventTap() {
     g_run_loop_source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, g_event_tap, 0);
     g_run_loop = CFRunLoopGetCurrent();
     CFRunLoopAddSource(g_run_loop, g_run_loop_source, kCFRunLoopCommonModes);
-
-    // Also attach to main run loop for comprehensive background event dispatch
-    CFRunLoopRef mainRL = CFRunLoopGetMain();
-    if (mainRL && mainRL != g_run_loop) {
-        CFRunLoopAddSource(mainRL, g_run_loop_source, kCFRunLoopCommonModes);
-    }
 
     CGEventTapEnable(g_event_tap, true);
     g_is_running = 1;
@@ -159,10 +154,6 @@ static void stopEventTap() {
     }
     if (g_run_loop_source && g_run_loop) {
         CFRunLoopRemoveSource(g_run_loop, g_run_loop_source, kCFRunLoopCommonModes);
-    }
-    CFRunLoopRef mainRL = CFRunLoopGetMain();
-    if (g_run_loop_source && mainRL && mainRL != g_run_loop) {
-        CFRunLoopRemoveSource(mainRL, g_run_loop_source, kCFRunLoopCommonModes);
     }
     if (g_event_tap) {
         CFRelease(g_event_tap);
