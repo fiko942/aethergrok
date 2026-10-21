@@ -1450,8 +1450,12 @@ export class SessionStore {
       this.openTabSessionIds.push(id);
     }
 
-    if (!target.visibleTurnCount || target.visibleTurnCount <= 0) {
-      target.visibleTurnCount = getActiveWindowTurns();
+    target.visibleTurnCount = target.visibleTurnCount && target.visibleTurnCount > 0 ? target.visibleTurnCount : getActiveWindowTurns();
+    if (target.messages.length > 0) {
+      const lastMsg = target.messages[target.messages.length - 1];
+      if (lastMsg && lastMsg.parts) {
+        lastMsg.parts = [...lastMsg.parts];
+      }
     }
     this.activeSessionId = id;
     if (target.workspaceId && target.workspaceId !== this.activeWorkspaceId) {
@@ -1708,6 +1712,12 @@ export class SessionStore {
 
     if (this.activeSessionId === id) {
       if (target) {
+        if (target.messages.length > 0) {
+          const lastMsg = target.messages[target.messages.length - 1];
+          if (lastMsg && lastMsg.parts) {
+            lastMsg.parts = [...lastMsg.parts];
+          }
+        }
         const ws = this.workspaces.find((w) => w.id === target.workspaceId);
         if (ws?.path) {
           populateSessionSubagentChildCalls(target, ws.path).catch(() => {});
@@ -2150,7 +2160,7 @@ export class SessionStore {
 
     const isTargetActive = this.activeSessionId === sessionId;
 
-    // For background sessions, update content and clone parts to preserve Svelte 5 reactivity
+    // For background sessions, update content without cloning parts array on every single delta
     if (!isTargetActive) {
       if (session.messages.length > 0) {
         const lastMsg = session.messages[session.messages.length - 1];
@@ -2166,7 +2176,6 @@ export class SessionStore {
           } else {
             lastMsg.parts.push({ type: 'text', text: delta });
           }
-          lastMsg.parts = [...lastMsg.parts];
           session.updatedAt = Date.now();
           return;
         }
