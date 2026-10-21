@@ -410,6 +410,15 @@
       selectedMicrophoneDeviceId: editSelectedMicrophoneDeviceId
     });
 
+    // Immediately synchronize the updated maxContextTokens to all open and loaded sessions
+    const updatedLimit = Math.max(16000, Number(editMaxContextTokens) || 200000);
+    for (const session of sessionStore.sessions) {
+      if (session.usage) {
+        session.usage.maxTokens = updatedLimit;
+      }
+    }
+    sessionStore.saveSessionsToStorage();
+
     saveSuccessNotice = true;
     setTimeout(() => {
       saveSuccessNotice = false;

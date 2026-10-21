@@ -109,7 +109,7 @@
     const sess = sessionStore.activeSession;
     if (!sess || !sess.usage) return null;
     const used = sess.usage.usedTokens || 0;
-    const max = sess.usage.maxTokens || 200000;
+    const max = settingsStore.maxContextTokens || sess.usage.maxTokens || 200000;
     if (max <= 0) return null;
     const ratio = used / max;
     return {
@@ -470,10 +470,11 @@
   // Calculate session tokens from active session
   const activeSessionTokens = $derived.by(() => {
     const session = sessionStore.activeSession;
+    const targetMax = settingsStore.maxContextTokens || session?.usage?.maxTokens || 200000;
     if (session?.usage && session.usage.usedTokens > 0) {
       return {
         used: session.usage.usedTokens,
-        max: session.usage.maxTokens,
+        max: targetMax,
         lastTurnInput: session.usage.lastTurnInput,
         lastTurnOutput: session.usage.lastTurnOutput,
         lastTurnCacheRead: session.usage.lastTurnCacheRead,
@@ -488,7 +489,7 @@
     if (!session || !session.messages || session.messages.length === 0) {
       return {
         used: 0,
-        max: session?.usage?.maxTokens || settingsStore.maxContextTokens || 200000,
+        max: targetMax,
         lastTurnInput: 0,
         lastTurnOutput: 0,
         lastTurnCacheRead: 0,
@@ -522,7 +523,7 @@
 
     return {
       used,
-      max: session?.usage?.maxTokens || settingsStore.maxContextTokens || 200000,
+      max: targetMax,
       lastTurnInput: session?.usage?.lastTurnInput || 0,
       lastTurnOutput: session?.usage?.lastTurnOutput || 0,
       lastTurnCacheRead: session?.usage?.lastTurnCacheRead || 0,

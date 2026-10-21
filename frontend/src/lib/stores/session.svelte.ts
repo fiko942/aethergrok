@@ -350,12 +350,20 @@ export const STATUS_META: Record<SessionStatus, { label: string; dotClass: strin
 
 export const DEFAULT_WINDOW_TURNS = 4;
 export const PREPEND_CHUNK_TURNS = 4;
+export const DEFAULT_MAX_CONTEXT_TOKENS = 200000;
 
 export function getActiveWindowTurns(): number {
   if (typeof settingsStore !== 'undefined' && typeof settingsStore.activeWindowTurnCount === 'number') {
     return Math.max(2, Math.min(50, settingsStore.activeWindowTurnCount));
   }
   return DEFAULT_WINDOW_TURNS;
+}
+
+export function getActiveMaxContextTokens(): number {
+  if (typeof settingsStore !== 'undefined' && typeof settingsStore.maxContextTokens === 'number' && settingsStore.maxContextTokens > 0) {
+    return settingsStore.maxContextTokens;
+  }
+  return DEFAULT_MAX_CONTEXT_TOKENS;
 }
 
 /**
@@ -1065,7 +1073,7 @@ export class SessionStore {
       pendingPermission: null,
       usage: {
         usedTokens: 2500, // Accurate baseline token calculation (system prompt, tools & harness overhead)
-        maxTokens: 200000,
+        maxTokens: getActiveMaxContextTokens(),
         lastTurnInput: 2500,
         lastTurnOutput: 0,
         lastTurnCacheRead: 0,
@@ -1494,7 +1502,7 @@ export class SessionStore {
           }
           session.usage = {
             usedTokens: stats.usedTokens || 0,
-            maxTokens: stats.maxTokens || 200000,
+            maxTokens: getActiveMaxContextTokens(),
             lastTurnInput: stats.lastTurnInput || 0,
             lastTurnOutput: stats.lastTurnOutput || 0,
             lastTurnCacheRead: stats.lastTurnCacheRead || 0,
@@ -1529,7 +1537,7 @@ export class SessionStore {
       const estimated = Math.max(2500, Math.round(charCount / 4) + 2500);
       session.usage = {
         usedTokens: estimated,
-        maxTokens: session.usage?.maxTokens || 200000,
+        maxTokens: getActiveMaxContextTokens(),
         lastTurnInput: session.usage?.lastTurnInput || 0,
         lastTurnOutput: session.usage?.lastTurnOutput || 0,
         lastTurnCacheRead: session.usage?.lastTurnCacheRead || 0,
@@ -1581,7 +1589,7 @@ export class SessionStore {
           }
           session.usage = {
             usedTokens: stats.usedTokens || Math.round(tokensBefore * 0.4),
-            maxTokens: stats.maxTokens || 200000,
+            maxTokens: getActiveMaxContextTokens(),
             lastTurnInput: stats.lastTurnInput || 0,
             lastTurnOutput: stats.lastTurnOutput || 0,
             lastTurnCacheRead: stats.lastTurnCacheRead || 0,
@@ -2243,7 +2251,7 @@ export class SessionStore {
       if (!session.usage) {
         session.usage = {
           usedTokens: liveTokens,
-          maxTokens: 200000,
+          maxTokens: getActiveMaxContextTokens(),
           lastTurnInput: 0,
           lastTurnOutput: 0,
           lastTurnCacheRead: 0,
@@ -2257,6 +2265,7 @@ export class SessionStore {
         };
       } else {
         session.usage.usedTokens = Math.max(session.usage.usedTokens, liveTokens);
+        session.usage.maxTokens = getActiveMaxContextTokens();
       }
     } else if (delta) {
       // Incremental estimation: ~1 token per 3.8 characters of stream delta
@@ -2264,7 +2273,7 @@ export class SessionStore {
       if (!session.usage) {
         session.usage = {
           usedTokens: 2500 + deltaTokens,
-          maxTokens: 200000,
+          maxTokens: getActiveMaxContextTokens(),
           lastTurnInput: 2500,
           lastTurnOutput: deltaTokens,
           lastTurnCacheRead: 0,
@@ -2278,6 +2287,7 @@ export class SessionStore {
         };
       } else {
         session.usage.usedTokens += deltaTokens;
+        session.usage.maxTokens = getActiveMaxContextTokens();
         session.usage.lastTurnOutput = (session.usage.lastTurnOutput || 0) + deltaTokens;
         session.usage.totalOutput = (session.usage.totalOutput || 0) + deltaTokens;
       }
