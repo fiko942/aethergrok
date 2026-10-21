@@ -16,7 +16,10 @@
   export function forceScrollBottom() {
     autoScrollToBottom = true;
     unreadActivityBelow = false;
-    sessionStore.flushEarlierTurnsToWindow();
+    showScrollToBottom = false;
+    if (containerEl) {
+      containerEl.scrollTop = containerEl.scrollHeight;
+    }
     tick().then(() => {
       if (containerEl) {
         containerEl.scrollTop = containerEl.scrollHeight;
@@ -157,11 +160,26 @@
     const currentId = sessionStore.activeSessionId;
     if (currentId !== lastSessionId) {
       lastSessionId = currentId;
-      // Scroll to bottom on session switch and acknowledge finished state
-      tick().then(() => {
+      autoScrollToBottom = true;
+      unreadActivityBelow = false;
+      showScrollToBottom = false;
+
+      // Scroll immediately and on consecutive frames as DOM layout settles
+      const snapToBottom = () => {
         if (containerEl) {
           containerEl.scrollTop = containerEl.scrollHeight;
         }
+      };
+
+      snapToBottom();
+      tick().then(() => {
+        snapToBottom();
+        requestAnimationFrame(() => {
+          snapToBottom();
+          requestAnimationFrame(() => {
+            snapToBottom();
+          });
+        });
         const activeSession = sessionStore.activeSession;
         if (activeSession && activeSession.status === 'finished') {
           sessionStore.setSessionStatus(activeSession.id, 'idle');
@@ -197,36 +215,7 @@
     }
   }
 
-  let isUserManualScrolling = false;
-  let userScrollTimeout: ReturnType<typeof setTimeout> | null = null;
-
-  function handleWheel(e: WheelEvent) {
-    if (e.deltaY < 0) {
-      // User is scrolling UP towards history
-      isUserManualScrolling = true;
-      if (userScrollTimeout) clearTimeout(userScrollTimeout);
-      userScrollTimeout = setTimeout(() => {
-        isUserManualScrolling = false;
-      }, 1200);
-    } else if (e.deltaY > 0) {
-      // User is scrolling DOWN towards bottom / live activity
-      isUserManualScrolling = false;
-      if (userScrollTimeout) {
-        clearTimeout(userScrollTimeout);
-        userScrollTimeout = null;
-      }
-    }
-  }
-
-  function markUserScrolling() {
-    isUserManualScrolling = true;
-    if (userScrollTimeout) clearTimeout(userScrollTimeout);
-    userScrollTimeout = setTimeout(() => {
-      isUserManualScrolling = false;
-    }, 1200);
-  }
-
-  // Handle scroll events: trigger auto-load near top & detect manual upward scrolling
+  // Handle scroll events: trigger stick-to-bottom & dismiss notifications
   function handleScroll() {
     if (!containerEl) return;
 
@@ -239,8 +228,6 @@
 
     if (autoScrollToBottom) {
       unreadActivityBelow = false;
-      // If user navigated all the way to the bottom, park/flush earlier turns beyond active window
-      sessionStore.flushEarlierTurnsToWindow();
     }
 
     // Acknowledge finished turn when viewing the bottom of conversation (only reset from 'finished' to 'idle', never interrupt 'working')
@@ -250,23 +237,19 @@
         sessionStore.setSessionStatus(activeSession.id, 'idle');
       }
     }
-
-    // Trigger progressive prepend ONLY when user explicitly and manually scrolls upward within 150px of top
-    // (Prevents accidental auto-load cascades when streaming new chunks or resizing DOM)
-    if (isUserManualScrolling && scrollTop < 150 && sessionStore.remainingHiddenTurns > 0 && !isHydrating) {
-      loadEarlier();
-    }
   }
 
-  // Smooth scroll to bottom function
+  // Instant scroll to bottom function
   function scrollToBottom() {
     if (!containerEl) return;
     autoScrollToBottom = true;
     unreadActivityBelow = false;
-    sessionStore.flushEarlierTurnsToWindow();
-    containerEl.scrollTo({
-      top: containerEl.scrollHeight,
-      behavior: 'smooth'
+    showScrollToBottom = false;
+    containerEl.scrollTop = containerEl.scrollHeight;
+    tick().then(() => {
+      if (containerEl) {
+        containerEl.scrollTop = containerEl.scrollHeight;
+      }
     });
   }
 
@@ -307,7 +290,6 @@
     if (typeof ResizeObserver !== 'undefined' && contentWrapperEl) {
       resizeObserver = new ResizeObserver(() => {
         if (autoScrollToBottom && containerEl) {
-          sessionStore.flushEarlierTurnsToWindow();
           if (rAFId !== null) cancelAnimationFrame(rAFId);
           rAFId = requestAnimationFrame(() => {
             rAFId = null;
@@ -330,8 +312,6 @@
 <div
   bind:this={containerEl}
   onscroll={handleScroll}
-  onwheel={handleWheel}
-  ontouchmove={markUserScrolling}
   style="overflow-anchor: none;"
   class="flex-1 w-full h-full overflow-y-auto px-4 py-3 space-y-3 relative bg-ant-bg select-text flex flex-col"
 >

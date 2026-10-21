@@ -1450,15 +1450,23 @@ export class SessionStore {
 
     logger.info('UI', `Opening session in tab: ${target.title} (${id})`);
 
-    // Evict inactive completed/idle sessions to save RAM
-    this.evictInactiveSessionMessages(id);
-
+    // Ensure session is added to openTabSessionIds first so eviction checks protect it
     if (!this.openTabSessionIds.includes(id)) {
-      // Limit open tabs to 12 max to prevent visual overflow
       if (this.openTabSessionIds.length >= 12) {
         this.openTabSessionIds.shift();
       }
       this.openTabSessionIds.push(id);
+    }
+
+    // Evict inactive closed sessions to save RAM
+    this.evictInactiveSessionMessages(id);
+
+    // Lazy load real chat history from disk BEFORE setting activeSessionId so messages are immediately ready
+    const ws = this.workspaces.find((w) => w.id === target.workspaceId);
+    if (target.messages.length === 0 && target.status !== 'working') {
+      await this.loadSessionHistoryFromDisk(target);
+    } else if (ws?.path) {
+      populateSessionSubagentChildCalls(target, ws.path).catch(() => {});
     }
 
     target.visibleTurnCount = target.visibleTurnCount && target.visibleTurnCount > 0 ? target.visibleTurnCount : getActiveWindowTurns();
@@ -1473,15 +1481,6 @@ export class SessionStore {
       this.activeWorkspaceId = target.workspaceId;
     }
     this.saveSessionsToStorage();
-
-    // Lazy load real chat history from disk only if the session is NOT actively working
-    // and currently has 0 in-memory messages. Never overwrite an in-flight prompt!
-    const ws = this.workspaces.find((w) => w.id === target.workspaceId);
-    if (target.messages.length === 0 && target.status !== 'working') {
-      await this.loadSessionHistoryFromDisk(target);
-    } else if (ws?.path) {
-      populateSessionSubagentChildCalls(target, ws.path).catch(() => {});
-    }
 
     // Load or update token usage stats for this session
     await this.loadSessionUsage(target);
@@ -1712,29 +1711,37 @@ export class SessionStore {
   }
 
   async switchSession(id: string): Promise<void> {
-    // Evict inactive completed/idle sessions to save RAM
+    const target = this.sessions.find((s) => s.id === id);
+    if (!target) return;
+
+    // Ensure target session is in open tabs
+    if (!this.openTabSessionIds.includes(id)) {
+      if (this.openTabSessionIds.length >= 12) {
+        this.openTabSessionIds.shift();
+      }
+      this.openTabSessionIds.push(id);
+    }
+
+    // Evict inactive closed sessions to save RAM
     this.evictInactiveSessionMessages(id);
 
-    // When switching sessions, if the target session has empty messages, reload on demand from disk
-    const target = this.sessions.find((s) => s.id === id);
-    if (target && target.messages.length === 0 && target.status !== 'working') {
+    // If target session has empty messages, load from disk first
+    if (target.messages.length === 0 && target.status !== 'working') {
       await this.loadSessionHistoryFromDisk(target);
     }
 
     if (this.activeSessionId === id) {
-      if (target) {
-        if (target.messages.length > 0) {
-          const lastMsg = target.messages[target.messages.length - 1];
-          if (lastMsg && lastMsg.parts) {
-            lastMsg.parts = [...lastMsg.parts];
-          }
+      if (target.messages.length > 0) {
+        const lastMsg = target.messages[target.messages.length - 1];
+        if (lastMsg && lastMsg.parts) {
+          lastMsg.parts = [...lastMsg.parts];
         }
-        const ws = this.workspaces.find((w) => w.id === target.workspaceId);
-        if (ws?.path) {
-          populateSessionSubagentChildCalls(target, ws.path).catch(() => {});
-        }
-        await this.loadSessionUsage(target);
       }
+      const ws = this.workspaces.find((w) => w.id === target.workspaceId);
+      if (ws?.path) {
+        populateSessionSubagentChildCalls(target, ws.path).catch(() => {});
+      }
+      await this.loadSessionUsage(target);
       return;
     }
     await this.openSessionInTab(id);
