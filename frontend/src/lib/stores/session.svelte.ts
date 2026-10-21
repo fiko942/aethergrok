@@ -223,6 +223,40 @@ export function evictInactiveSessionMessages(
   }
 }
 
+export function mergeSessionHistoryWithUncommittedTurns(
+  existingMessages: ChatMessage[],
+  loadedHistory: ChatMessage[]
+): ChatMessage[] {
+  if (!existingMessages || existingMessages.length === 0) {
+    return loadedHistory;
+  }
+  if (!loadedHistory || loadedHistory.length === 0) {
+    return existingMessages;
+  }
+
+  const loadedUserCount = loadedHistory.filter((m) => m.role === 'user').length;
+  const existingUserCount = existingMessages.filter((m) => m.role === 'user').length;
+
+  if (existingUserCount <= loadedUserCount) {
+    return loadedHistory;
+  }
+
+  let seenUserCount = 0;
+  let splitIndex = existingMessages.length;
+  for (let i = 0; i < existingMessages.length; i++) {
+    if (existingMessages[i].role === 'user') {
+      seenUserCount++;
+      if (seenUserCount > loadedUserCount) {
+        splitIndex = i;
+        break;
+      }
+    }
+  }
+
+  const uncommittedTrailing = existingMessages.slice(splitIndex);
+  return [...loadedHistory, ...uncommittedTrailing];
+}
+
 export interface TokenTruncationDetails {
   numTurns?: number;
   totalTokens?: number;
@@ -1615,7 +1649,7 @@ export class SessionStore {
         const targetGrokId = session.grokSessionId || session.id;
         const history = await window.go.main.App.LoadGrokSessionHistory(ws.path, targetGrokId);
         if (history && history.length > 0) {
-          session.messages = history.map((m: any, idx: number) => ({
+          const parsedHistory = history.map((m: any, idx: number) => ({
             id: m.id || `${session.id}_msg_${idx}`,
             role: m.role || 'assistant',
             content: m.content || '',
@@ -1626,7 +1660,10 @@ export class SessionStore {
             tokens: m.tokens,
             status: m.status || 'done'
           }));
-          session.visibleTurnCount = getActiveWindowTurns();
+          session.messages = mergeSessionHistoryWithUncommittedTurns(session.messages, parsedHistory);
+          if (!session.visibleTurnCount || session.visibleTurnCount <= 0) {
+            session.visibleTurnCount = getActiveWindowTurns();
+          }
 
           // Reconcile agentMode from session message tool calls if not explicitly set
           if (!session.agentMode) {
