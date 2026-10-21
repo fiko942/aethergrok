@@ -199,15 +199,25 @@ export function sanitizeSessionForStorage(session: Session): SessionMetadata {
   };
 }
 
-export function shouldEvictSessionMessages(sessionId: string, activeSessionId: string | null, status: SessionStatus): boolean {
+export function shouldEvictSessionMessages(
+  sessionId: string,
+  activeSessionId: string | null,
+  status: SessionStatus,
+  openTabIds?: string[]
+): boolean {
   if (sessionId === activeSessionId) return false;
+  if (openTabIds && openTabIds.includes(sessionId)) return false;
   if (status === 'working' || status === 'waiting_permission') return false;
   return true;
 }
 
-export function evictInactiveSessionMessages(sessions: Session[], activeSessionId: string | null): void {
+export function evictInactiveSessionMessages(
+  sessions: Session[],
+  activeSessionId: string | null,
+  openTabIds?: string[]
+): void {
   for (const session of sessions) {
-    if (shouldEvictSessionMessages(session.id, activeSessionId, session.status)) {
+    if (shouldEvictSessionMessages(session.id, activeSessionId, session.status, openTabIds)) {
       session.messages = [];
     }
   }
@@ -856,7 +866,7 @@ export class SessionStore {
   }
 
   evictInactiveSessionMessages(activeSessionId: string | null = this.activeSessionId): void {
-    evictInactiveSessionMessages(this.sessions, activeSessionId);
+    evictInactiveSessionMessages(this.sessions, activeSessionId, this.openTabSessionIds);
   }
 
   saveSessionsToStorage() {

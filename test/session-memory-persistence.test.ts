@@ -84,6 +84,17 @@ describe('Session Memory & Storage Optimization', () => {
     expect(shouldEvictSessionMessages(inactiveIdleSession.id, 's1', inactiveIdleSession.status)).toBe(true);
   });
 
+  it('never evicts messages from sessions that are currently open in tabs', () => {
+    const openTabIds = ['s1', 's2'];
+    const activeSessionId = 's1';
+
+    // s2 is an open inactive tab with idle status
+    expect(shouldEvictSessionMessages('s2', activeSessionId, 'idle', openTabIds)).toBe(false);
+
+    // s3 is closed and inactive, making it eligible for eviction
+    expect(shouldEvictSessionMessages('s3', activeSessionId, 'idle', openTabIds)).toBe(true);
+  });
+
   it('evicts messages from inactive non-working sessions', () => {
     const sessions = [
       { id: 's1', status: 'working' as const, messages: [{ id: 'm1' }] },
@@ -160,6 +171,16 @@ describe('Session Memory & Storage Optimization', () => {
         createdAt: 200,
         updatedAt: 200,
         visibleTurnCount: 4
+      },
+      {
+        id: 's-closed',
+        title: 'Closed Session',
+        workspaceId: 'ws-1',
+        status: 'idle',
+        messages: [{ id: 'm-closed', content: 'Closed tab text' }] as any,
+        createdAt: 300,
+        updatedAt: 300,
+        visibleTurnCount: 4
       }
     ];
     store.activeSessionId = 's-active';
@@ -171,7 +192,9 @@ describe('Session Memory & Storage Optimization', () => {
     expect(store.activeSessionId).toBe('s-target');
     // s-target should have messages loaded
     expect(store.sessions.find(s => s.id === 's-target')?.messages.length).toBe(1);
-    // s-active was inactive & idle, so its messages should be evicted
-    expect(store.sessions.find(s => s.id === 's-active')?.messages.length).toBe(0);
+    // s-active remains open in tabs, so messages remain in memory
+    expect(store.sessions.find(s => s.id === 's-active')?.messages.length).toBe(1);
+    // s-closed is closed and idle, so messages are evicted to conserve memory
+    expect(store.sessions.find(s => s.id === 's-closed')?.messages.length).toBe(0);
   });
 });
