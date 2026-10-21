@@ -263,90 +263,11 @@
     if (!message.content) return '';
     return renderMarkdown(message.content, existingFilesMap);
   });
-
-  // DOM Virtualization & Viewport Pruning State
-  let itemContainerEl = $state<HTMLDivElement | null>(null);
-  let isInView = $state(true);
-  let lastMeasuredHeight = $state<number | null>(null);
-
-  // Viewport tolerance buffer: 800px margin above and below window
-  const VIEWPORT_TOLERANCE_PX = 800;
-
-  // Streaming or active messages must always stay rendered to preserve live streaming
-  const isStreamingOrActive = $derived(
-    message.status === 'streaming' ||
-    (sessionStore.activeSession?.status === 'working' &&
-      sessionStore.visibleMessages[sessionStore.visibleMessages.length - 1]?.id === message.id) ||
-    sessionStore.visibleMessages[sessionStore.visibleMessages.length - 1]?.id === message.id
-  );
-
-  const shouldRenderChildren = $derived(
-    isInView || isStreamingOrActive || lastMeasuredHeight === null || lastMeasuredHeight <= 0 || turnNumber === undefined || (sessionStore.visibleMessages.length > 0 && sessionStore.visibleMessages[sessionStore.visibleMessages.length - 1]?.id === message.id)
-  );
-
-  onMount(() => {
-    let resizeObserver: ResizeObserver | null = null;
-    let intersectionObserver: IntersectionObserver | null = null;
-    let rAFId: number | null = null;
-
-    if (itemContainerEl) {
-      const h = itemContainerEl.offsetHeight;
-      if (h > 0) {
-        lastMeasuredHeight = h;
-      }
-
-      if (typeof ResizeObserver !== 'undefined') {
-        resizeObserver = new ResizeObserver(() => {
-          if (rAFId !== null) cancelAnimationFrame(rAFId);
-          rAFId = requestAnimationFrame(() => {
-            rAFId = null;
-            if (itemContainerEl) {
-              const currentHeight = itemContainerEl.offsetHeight;
-              if (currentHeight > 0 && (lastMeasuredHeight === null || Math.abs(currentHeight - lastMeasuredHeight) > 1)) {
-                lastMeasuredHeight = currentHeight;
-              }
-            }
-          });
-        });
-        resizeObserver.observe(itemContainerEl);
-      }
-
-      if (typeof IntersectionObserver !== 'undefined') {
-        intersectionObserver = new IntersectionObserver(
-          (entries) => {
-            const entry = entries[0];
-            if (entry) {
-              // Only update when intersecting or if height is already recorded
-              if (entry.isIntersecting || (lastMeasuredHeight !== null && lastMeasuredHeight > 0)) {
-                isInView = entry.isIntersecting;
-              }
-            }
-          },
-          {
-            root: null, // window viewport
-            rootMargin: `${VIEWPORT_TOLERANCE_PX}px 0px ${VIEWPORT_TOLERANCE_PX}px 0px`,
-            threshold: 0
-          }
-        );
-        intersectionObserver.observe(itemContainerEl);
-      }
-    }
-
-    return () => {
-      if (rAFId !== null) cancelAnimationFrame(rAFId);
-      if (resizeObserver) resizeObserver.disconnect();
-      if (intersectionObserver) intersectionObserver.disconnect();
-    };
-  });
 </script>
 
-<div
-  bind:this={itemContainerEl}
-  class="w-full relative"
->
-  {#if shouldRenderChildren}
-    {#if message.role === 'user'}
-      <!-- USER MESSAGE: Right Aligned (Z-Pattern Flow) -->
+<div class="w-full relative">
+  {#if message.role === 'user'}
+    <!-- USER MESSAGE: Right Aligned (Z-Pattern Flow) -->
       <div class="flex justify-end w-full my-2.5 px-2 select-text">
         <div class="max-w-[85%] sm:max-w-[75%] flex flex-col items-end group">
           <!-- User Info Header -->
@@ -685,12 +606,4 @@
         </div>
       </div>
     {/if}
-  {:else}
-    <!-- Offscreen Virtual Spacer: retains exact measured height so scrollbar and scroll position remain completely stable -->
-    <div
-      class="w-full flex items-center justify-center opacity-0 pointer-events-none select-none my-2.5 px-2"
-      style="height: {lastMeasuredHeight}px; min-height: {lastMeasuredHeight}px;"
-      aria-hidden="true"
-    ></div>
-  {/if}
 </div>

@@ -1701,7 +1701,7 @@ export class SessionStore {
             }
           }
           reconcileSessionSubagents(session);
-          await populateSessionSubagentChildCalls(session, ws.path);
+          populateSessionSubagentChildCalls(session, ws.path).catch(() => {});
           this.saveSessionsToStorage();
         }
       } catch (err) {

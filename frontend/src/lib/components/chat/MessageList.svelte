@@ -289,7 +289,8 @@
     let rAFId: number | null = null;
     if (typeof ResizeObserver !== 'undefined' && contentWrapperEl) {
       resizeObserver = new ResizeObserver(() => {
-        if (autoScrollToBottom && containerEl) {
+        const isActivelyStreaming = sessionStore.activeSession?.status === 'working';
+        if (autoScrollToBottom && isActivelyStreaming && containerEl) {
           if (rAFId !== null) cancelAnimationFrame(rAFId);
           rAFId = requestAnimationFrame(() => {
             rAFId = null;
