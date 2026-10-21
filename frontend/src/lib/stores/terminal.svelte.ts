@@ -147,8 +147,8 @@ export class TerminalStore {
   }
 
   isSessionCollapsed(sessionId: string): boolean {
-    if (!sessionId) return false;
-    return this.sessionCollapsed[sessionId] ?? false;
+    if (!sessionId) return true;
+    return this.sessionCollapsed[sessionId] ?? true;
   }
 
   toggleSessionCollapse(sessionId: string, collapsed?: boolean): void {
