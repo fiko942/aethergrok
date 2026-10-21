@@ -76,8 +76,10 @@
   let editSnapshotAutoAttach = $state(settingsStore.snapshotAutoAttach);
   let editActiveWindowTurnCount = $state(settingsStore.activeWindowTurnCount);
   let editMaxContextTokens = $state(settingsStore.maxContextTokens || 200000);
-  let editDefaultModel = $state<DefaultModel>(settingsStore.defaultModel);
+  let editDefaultModel = $state<string>(settingsStore.defaultModel);
   let editCustomModelName = $state('');
+  let editTargetModel = $state('');
+  let discoveredModels = $state<Array<{ id: string; name: string; description?: string; modelTarget?: string }>>([]);
   let editDefaultReasoningEffort = $state<ReasoningEffort>(settingsStore.defaultReasoningEffort);
   let editPermissionMode = $state<PermissionMode>(settingsStore.permissionMode);
   let editPlanGateMode = $state<PlanGateMode>(settingsStore.planGateMode);
@@ -92,6 +94,19 @@
 
   async function loadAudioDevices() {
     await checkMicPermissionAndDevices();
+  }
+
+  async function loadAvailableModels() {
+    try {
+      if (typeof window !== 'undefined' && window.go?.main?.App?.GetAvailableModels) {
+        const fetched = await window.go.main.App.GetAvailableModels();
+        if (fetched && fetched.length > 0) {
+          discoveredModels = fetched;
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to load available models:', err);
+    }
   }
 
   async function checkMicPermissionAndDevices() {
@@ -200,6 +215,7 @@
       editActiveWindowTurnCount = settingsStore.activeWindowTurnCount;
       editMaxContextTokens = settingsStore.maxContextTokens || 200000;
       editDefaultModel = settingsStore.defaultModel;
+      loadAvailableModels();
       if (settingsStore.defaultModel !== 'grok-4.6' && settingsStore.defaultModel !== 'grok-code') {
         editCustomModelName = settingsStore.defaultModel;
       }
@@ -872,85 +888,116 @@
 
               <!-- Model Selector Cards -->
               <div class="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router'
-                    ? 'border-blue-500/40 bg-blue-500/10 shadow-xs'
-                    : 'border-ant-border-secondary bg-ant-bg hover:border-blue-500/40'}"
-                  onclick={() => editDefaultModel = '9router'}
-                >
-                  <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold flex items-center gap-1.5 {editDefaultModel === '9router' ? 'text-blue-400' : 'text-ant-text'}">
-                      <Sparkles size={14} class={editDefaultModel === '9router' ? 'text-blue-400' : 'text-ant-primary'} /> 9router (Default)
-                    </span>
-                    {#if editDefaultModel === '9router'}
-                      <CheckCircle2 size={15} class="text-blue-400" />
-                    {/if}
-                  </div>
-                  <p class="text-[11px] {editDefaultModel === '9router' ? 'text-ant-text' : 'text-ant-text-secondary'} leading-relaxed">
-                    Primary multi-provider gateway supporting ultra-fast streaming, reasoning synthesis, and vision multimodal inputs.
-                  </p>
-                </button>
+                {#if discoveredModels.length > 0}
+                  {#each discoveredModels as m}
+                    {@const isSelected = editDefaultModel === m.id}
+                    <button
+                      type="button"
+                      class="p-4 rounded-xl border text-left transition {isSelected
+                        ? 'border-blue-500/40 bg-blue-500/10 shadow-xs'
+                        : 'border-ant-border-secondary bg-ant-bg hover:border-blue-500/40'}"
+                      onclick={() => editDefaultModel = m.id}
+                    >
+                      <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-bold flex items-center gap-1.5 {isSelected ? 'text-blue-400' : 'text-ant-text'}">
+                          <Cpu size={14} class={isSelected ? 'text-blue-400' : 'text-ant-primary'} />
+                          <span>{m.id}</span>
+                          {#if m.modelTarget}
+                            <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-normal border border-purple-500/30">
+                              {m.modelTarget}
+                            </span>
+                          {/if}
+                        </span>
+                        {#if isSelected}
+                          <CheckCircle2 size={15} class="text-blue-400" />
+                        {/if}
+                      </div>
+                      <p class="text-[11px] {isSelected ? 'text-ant-text' : 'text-ant-text-secondary'} leading-relaxed">
+                        {m.description || 'Configured inference model for Grok tasks'}
+                      </p>
+                    </button>
+                  {/each}
+                {:else}
+                  <button
+                    type="button"
+                    class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router'
+                      ? 'border-blue-500/40 bg-blue-500/10 shadow-xs'
+                      : 'border-ant-border-secondary bg-ant-bg hover:border-blue-500/40'}"
+                    onclick={() => editDefaultModel = '9router'}
+                  >
+                    <div class="flex items-center justify-between mb-1">
+                      <span class="text-xs font-bold flex items-center gap-1.5 {editDefaultModel === '9router' ? 'text-blue-400' : 'text-ant-text'}">
+                        <Sparkles size={14} class={editDefaultModel === '9router' ? 'text-blue-400' : 'text-ant-primary'} /> 9router (Default)
+                      </span>
+                      {#if editDefaultModel === '9router'}
+                        <CheckCircle2 size={15} class="text-blue-400" />
+                      {/if}
+                    </div>
+                    <p class="text-[11px] {editDefaultModel === '9router' ? 'text-ant-text' : 'text-ant-text-secondary'} leading-relaxed">
+                      Primary multi-provider gateway supporting ultra-fast streaming, reasoning synthesis, and vision multimodal inputs.
+                    </p>
+                  </button>
 
-                <button
-                  type="button"
-                  class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router-general-purpose'
-                    ? 'border-blue-500/40 bg-blue-500/10 shadow-xs'
-                    : 'border-ant-border-secondary bg-ant-bg hover:border-blue-500/40'}"
-                  onclick={() => editDefaultModel = '9router-general-purpose'}
-                >
-                  <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold flex items-center gap-1.5 {editDefaultModel === '9router-general-purpose' ? 'text-blue-400' : 'text-ant-text'}">
-                      <Brain size={14} class={editDefaultModel === '9router-general-purpose' ? 'text-blue-400' : 'text-ant-primary'} /> 9router General Purpose
-                    </span>
-                    {#if editDefaultModel === '9router-general-purpose'}
-                      <CheckCircle2 size={15} class="text-blue-400" />
-                    {/if}
-                  </div>
-                  <p class="text-[11px] {editDefaultModel === '9router-general-purpose' ? 'text-ant-text' : 'text-ant-text-secondary'} leading-relaxed">
-                    Balanced configuration for broad tasks, planning, refactoring, and general desktop workflows.
-                  </p>
-                </button>
+                  <button
+                    type="button"
+                    class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router-general-purpose'
+                      ? 'border-blue-500/40 bg-blue-500/10 shadow-xs'
+                      : 'border-ant-border-secondary bg-ant-bg hover:border-blue-500/40'}"
+                    onclick={() => editDefaultModel = '9router-general-purpose'}
+                  >
+                    <div class="flex items-center justify-between mb-1">
+                      <span class="text-xs font-bold flex items-center gap-1.5 {editDefaultModel === '9router-general-purpose' ? 'text-blue-400' : 'text-ant-text'}">
+                        <Brain size={14} class={editDefaultModel === '9router-general-purpose' ? 'text-blue-400' : 'text-ant-primary'} /> 9router General Purpose
+                      </span>
+                      {#if editDefaultModel === '9router-general-purpose'}
+                        <CheckCircle2 size={15} class="text-blue-400" />
+                      {/if}
+                    </div>
+                    <p class="text-[11px] {editDefaultModel === '9router-general-purpose' ? 'text-ant-text' : 'text-ant-text-secondary'} leading-relaxed">
+                      Balanced configuration for broad tasks, planning, refactoring, and general desktop workflows.
+                    </p>
+                  </button>
 
-                <button
-                  type="button"
-                  class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router-explore'
-                    ? 'border-blue-500/40 bg-blue-500/10 shadow-xs'
-                    : 'border-ant-border-secondary bg-ant-bg hover:border-blue-500/40'}"
-                  onclick={() => editDefaultModel = '9router-explore'}
-                >
-                  <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold flex items-center gap-1.5 {editDefaultModel === '9router-explore' ? 'text-blue-400' : 'text-ant-text'}">
-                      <Sparkles size={14} class={editDefaultModel === '9router-explore' ? 'text-blue-400' : 'text-ant-primary'} /> 9router Explore
-                    </span>
-                    {#if editDefaultModel === '9router-explore'}
-                      <CheckCircle2 size={15} class="text-blue-400" />
-                    {/if}
-                  </div>
-                  <p class="text-[11px] {editDefaultModel === '9router-explore' ? 'text-ant-text' : 'text-ant-text-secondary'} leading-relaxed">
-                    Fast exploratory model for rapid codebase search, syntax checks, and file discovery.
-                  </p>
-                </button>
+                  <button
+                    type="button"
+                    class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router-explore'
+                      ? 'border-blue-500/40 bg-blue-500/10 shadow-xs'
+                      : 'border-ant-border-secondary bg-ant-bg hover:border-blue-500/40'}"
+                    onclick={() => editDefaultModel = '9router-explore'}
+                  >
+                    <div class="flex items-center justify-between mb-1">
+                      <span class="text-xs font-bold flex items-center gap-1.5 {editDefaultModel === '9router-explore' ? 'text-blue-400' : 'text-ant-text'}">
+                        <Sparkles size={14} class={editDefaultModel === '9router-explore' ? 'text-blue-400' : 'text-ant-primary'} /> 9router Explore
+                      </span>
+                      {#if editDefaultModel === '9router-explore'}
+                        <CheckCircle2 size={15} class="text-blue-400" />
+                      {/if}
+                    </div>
+                    <p class="text-[11px] {editDefaultModel === '9router-explore' ? 'text-ant-text' : 'text-ant-text-secondary'} leading-relaxed">
+                      Fast exploratory model for rapid codebase search, syntax checks, and file discovery.
+                    </p>
+                  </button>
 
-                <button
-                  type="button"
-                  class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router-plan'
-                    ? 'border-blue-500/40 bg-blue-500/10 shadow-xs'
-                    : 'border-ant-border-secondary bg-ant-bg hover:border-blue-500/40'}"
-                  onclick={() => editDefaultModel = '9router-plan'}
-                >
-                  <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-bold flex items-center gap-1.5 {editDefaultModel === '9router-plan' ? 'text-blue-400' : 'text-ant-text'}">
-                      <Brain size={14} class={editDefaultModel === '9router-plan' ? 'text-blue-400' : 'text-ant-primary'} /> 9router Plan
-                    </span>
-                    {#if editDefaultModel === '9router-plan'}
-                      <CheckCircle2 size={15} class="text-blue-400" />
-                    {/if}
-                  </div>
-                  <p class="text-[11px] {editDefaultModel === '9router-plan' ? 'text-ant-text' : 'text-ant-text-secondary'} leading-relaxed">
-                    Architectural planning model dedicated to breaking down complex engineering requirements.
-                  </p>
-                </button>
+                  <button
+                    type="button"
+                    class="p-4 rounded-xl border text-left transition {editDefaultModel === '9router-plan'
+                      ? 'border-blue-500/40 bg-blue-500/10 shadow-xs'
+                      : 'border-ant-border-secondary bg-ant-bg hover:border-blue-500/40'}"
+                    onclick={() => editDefaultModel = '9router-plan'}
+                  >
+                    <div class="flex items-center justify-between mb-1">
+                      <span class="text-xs font-bold flex items-center gap-1.5 {editDefaultModel === '9router-plan' ? 'text-blue-400' : 'text-ant-text'}">
+                        <Brain size={14} class={editDefaultModel === '9router-plan' ? 'text-blue-400' : 'text-ant-primary'} /> 9router Plan
+                      </span>
+                      {#if editDefaultModel === '9router-plan'}
+                        <CheckCircle2 size={15} class="text-blue-400" />
+                      {/if}
+                    </div>
+                    <p class="text-[11px] {editDefaultModel === '9router-plan' ? 'text-ant-text' : 'text-ant-text-secondary'} leading-relaxed">
+                      Architectural planning model dedicated to breaking down complex engineering requirements.
+                    </p>
+                  </button>
+                {/if}
               </div>
 
               <!-- Reasoning Effort Levels -->

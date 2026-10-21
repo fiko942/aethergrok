@@ -11,14 +11,17 @@ var contextWindowRegex = regexp.MustCompile(`(?m)^\s*context_window\s*=\s*\d+`)
 
 // SyncGrokConfigContextWindow updates context_window values in ~/.grok/config.toml
 // to match the user's configured maxContextTokens so that the Grok CLI process
-// enforces the token budget at the engine level.
+// enforces the token budget at the engine level. Supported across Windows and macOS.
 func SyncGrokConfigContextWindow(tokenLimit int) error {
 	if tokenLimit < 16000 {
 		tokenLimit = 200000
 	}
 
 	homeDir, err := os.UserHomeDir()
-	if err != nil {
+	if envGrokHome := os.Getenv("GROK_HOME"); envGrokHome != "" {
+		homeDir = envGrokHome
+	}
+	if err != nil || homeDir == "" {
 		return err
 	}
 

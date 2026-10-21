@@ -16,6 +16,8 @@
     id: string;
     name: string;
     description?: string;
+    modelTarget?: string;
+    contextWindow?: number;
     isDefault?: boolean;
   }
 
@@ -55,10 +57,12 @@
       if (typeof window !== 'undefined' && app?.GetAvailableModels) {
         const fetched: Array<{ id: string; name?: string; description?: string; isDefault?: boolean }> = await app.GetAvailableModels();
         if (fetched && fetched.length > 0) {
-          internalModels = fetched.map((m) => ({
+          internalModels = fetched.map((m: any) => ({
             id: m.id,
             name: m.name || m.id,
             description: m.description,
+            modelTarget: m.modelTarget,
+            contextWindow: m.contextWindow,
             isDefault: m.isDefault
           }));
           return;
@@ -162,7 +166,7 @@
       <Cpu size={11} />
     </div>
     <span class="font-mono text-[11px] font-semibold text-ant-text tracking-tight truncate max-w-[160px]">
-      {selectedItem.id}
+      {selectedItem.modelTarget ? `${selectedItem.id} (${selectedItem.modelTarget})` : selectedItem.id}
     </span>
     <ChevronDown
       size={12}
@@ -225,10 +229,15 @@
               onclick={() => handleSelect(item.id)}
             >
               <div class="flex flex-col min-w-0 pr-2">
-                <div class="flex items-center gap-1.5">
+                <div class="flex items-center gap-1.5 flex-wrap">
                   <span class="font-mono font-medium text-[11px] {isSelected ? 'text-ant-primary font-bold' : 'text-ant-text'}">
                     {item.id}
                   </span>
+                  {#if item.modelTarget}
+                    <span class="px-1.5 py-0.2 text-[9px] font-mono bg-purple-500/15 text-purple-300 rounded border border-purple-500/30">
+                      {item.modelTarget}
+                    </span>
+                  {/if}
                   {#if item.isDefault}
                     <span class="px-1 py-0.2 text-[9px] font-semibold bg-ant-primary/20 text-ant-primary rounded border border-ant-primary/30">
                       default
