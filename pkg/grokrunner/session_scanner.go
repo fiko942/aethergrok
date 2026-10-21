@@ -443,7 +443,7 @@ func DiscoverGrokSessions(workspacePath string) ([]GrokSessionMetadata, error) {
 					if len(matches) > 1 {
 						extracted = strings.TrimSpace(matches[1])
 					} else {
-						if strings.HasPrefix(contentStr, "<system-reminder>") && !strings.Contains(contentStr, "</system-reminder>") {
+						if strings.Contains(contentStr, "<system-reminder>") {
 							continue
 						}
 						if strings.HasPrefix(contentStr, "<user_info>") {
@@ -587,7 +587,8 @@ func LoadGrokSessionMessages(workspacePath, sessionID string) ([]DiscoveredChatM
 			if len(matches) > 1 {
 				userText = strings.TrimSpace(matches[1])
 			} else {
-				if strings.HasPrefix(userText, "<system-reminder>") && !strings.Contains(userText, "</system-reminder>") {
+				// Pure system reminders (injected by CLI harness without user query) must NOT count as user turns
+				if strings.Contains(userText, "<system-reminder>") {
 					return true
 				}
 				if strings.HasPrefix(userText, "<user_info>") {

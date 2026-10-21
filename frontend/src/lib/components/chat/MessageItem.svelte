@@ -123,7 +123,18 @@
   const messageParts = $derived.by((): MessagePart[] => {
     // 1. If explicit parts array exists, use it
     if (message.parts && message.parts.length > 0) {
-      return message.parts;
+      // Validate that message content isn't lost if parts only has empty text or missing text
+      const partsTextLen = message.parts
+        .filter((p) => p.type === 'text')
+        .reduce((acc, p) => acc + (p.text?.trim().length || 0), 0);
+      const totalContentLen = message.content?.trim().length || 0;
+
+      // If parts array somehow dropped the narrative text, fall back to reconstruction
+      if (totalContentLen > 0 && partsTextLen === 0) {
+        // Fall back below to reconstruct parts
+      } else {
+        return message.parts;
+      }
     }
 
     // 2. Fallback: reconstruct chronological order from message.content and visibleToolCalls
@@ -265,11 +276,12 @@
   const isStreamingOrActive = $derived(
     message.status === 'streaming' ||
     (sessionStore.activeSession?.status === 'working' &&
-      sessionStore.visibleMessages[sessionStore.visibleMessages.length - 1]?.id === message.id)
+      sessionStore.visibleMessages[sessionStore.visibleMessages.length - 1]?.id === message.id) ||
+    sessionStore.visibleMessages[sessionStore.visibleMessages.length - 1]?.id === message.id
   );
 
   const shouldRenderChildren = $derived(
-    isInView || isStreamingOrActive || lastMeasuredHeight === null || lastMeasuredHeight <= 0
+    isInView || isStreamingOrActive || lastMeasuredHeight === null || lastMeasuredHeight <= 0 || turnNumber === undefined || (sessionStore.visibleMessages.length > 0 && sessionStore.visibleMessages[sessionStore.visibleMessages.length - 1]?.id === message.id)
   );
 
   onMount(() => {
@@ -288,7 +300,7 @@
           if (rAFId !== null) cancelAnimationFrame(rAFId);
           rAFId = requestAnimationFrame(() => {
             rAFId = null;
-            if (shouldRenderChildren && itemContainerEl) {
+            if (itemContainerEl) {
               const currentHeight = itemContainerEl.offsetHeight;
               if (currentHeight > 0 && (lastMeasuredHeight === null || Math.abs(currentHeight - lastMeasuredHeight) > 1)) {
                 lastMeasuredHeight = currentHeight;
@@ -304,7 +316,10 @@
           (entries) => {
             const entry = entries[0];
             if (entry) {
-              isInView = entry.isIntersecting;
+              // Only update when intersecting or if height is already recorded
+              if (entry.isIntersecting || (lastMeasuredHeight !== null && lastMeasuredHeight > 0)) {
+                isInView = entry.isIntersecting;
+              }
             }
           },
           {
@@ -328,7 +343,6 @@
 <div
   bind:this={itemContainerEl}
   class="w-full relative"
-  style="content-visibility: auto; contain-intrinsic-size: auto {lastMeasuredHeight ? `${lastMeasuredHeight}px` : (message.role === 'user' ? '60px' : '160px')}; min-height: {lastMeasuredHeight ? `${lastMeasuredHeight}px` : 'auto'};"
 >
   {#if shouldRenderChildren}
     {#if message.role === 'user'}
@@ -479,6 +493,16 @@
                     {message.reasoningContent}
                   </div>
                 {/if}
+              </div>
+            {/if}
+
+            <!-- Fallback text rendering if message has content but no text parts were rendered -->
+            {#if message.content && message.content.trim().length > 0 && !messageParts.some(p => p.type === 'text' && p.text && p.text.trim().length > 0)}
+              <div
+                onclick={handleMessageClick}
+                class="font-serif text-[14px] text-ant-text leading-[1.7] tracking-normal select-text markdown-chat-body max-w-none mb-3 last:mb-0"
+              >
+                {@html renderMarkdown(message.content, existingFilesMap)}
               </div>
             {/if}
 
