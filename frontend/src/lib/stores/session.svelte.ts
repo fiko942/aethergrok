@@ -1450,7 +1450,9 @@ export class SessionStore {
       this.openTabSessionIds.push(id);
     }
 
-    target.visibleTurnCount = getActiveWindowTurns();
+    if (!target.visibleTurnCount || target.visibleTurnCount <= 0) {
+      target.visibleTurnCount = getActiveWindowTurns();
+    }
     this.activeSessionId = id;
     if (target.workspaceId && target.workspaceId !== this.activeWorkspaceId) {
       this.activeWorkspaceId = target.workspaceId;
@@ -2148,7 +2150,7 @@ export class SessionStore {
 
     const isTargetActive = this.activeSessionId === sessionId;
 
-    // For background sessions, update content without cloning parts array on every single delta
+    // For background sessions, update content and clone parts to preserve Svelte 5 reactivity
     if (!isTargetActive) {
       if (session.messages.length > 0) {
         const lastMsg = session.messages[session.messages.length - 1];
@@ -2164,6 +2166,8 @@ export class SessionStore {
           } else {
             lastMsg.parts.push({ type: 'text', text: delta });
           }
+          lastMsg.parts = [...lastMsg.parts];
+          session.updatedAt = Date.now();
           return;
         }
       }
