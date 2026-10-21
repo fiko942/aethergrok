@@ -54,12 +54,12 @@
     const working = isWorking && curSession?.status === 'working';
 
     if (working) {
-      const getStart = () => curSession?.turnStartTime || Date.now();
+      const getStart = () => curSession?.lastWaitStartTime || curSession?.turnStartTime || Date.now();
       elapsedMs = Math.max(0, Date.now() - getStart());
 
       if (thinkingTimer) clearInterval(thinkingTimer);
       thinkingTimer = setInterval(() => {
-        const start = curSession?.turnStartTime;
+        const start = curSession?.lastWaitStartTime || curSession?.turnStartTime;
         if (start) {
           elapsedMs = Math.max(0, Date.now() - start);
         }
@@ -443,7 +443,7 @@
         </div>
       {/if}
 
-      <!-- Live In-Transcript Activity & Thinking Indicator -->
+      <!-- Live In-Transcript Activity & Thinking Indicator (Only shown while session is actively working) -->
       {#if isWorking}
         <div class="my-2 p-3 rounded-lg border border-white/5 bg-ant-bg-secondary/95 shadow-sm flex items-center justify-between font-mono select-none">
           <div class="flex items-center space-x-2.5 min-w-0">
@@ -460,7 +460,7 @@
                 </span>
               </span>
               <span class="text-[10px] text-ant-text-secondary mt-0.5">
-                Processing actions and analyzing workspace files
+                Waiting for response ({formattedElapsed} since last agent message)
               </span>
             </div>
           </div>

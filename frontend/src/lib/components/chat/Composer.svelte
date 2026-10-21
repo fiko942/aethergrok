@@ -417,12 +417,12 @@
     const working = isWorking && curSession?.status === 'working';
 
     if (working) {
-      const getStart = () => curSession?.turnStartTime || Date.now();
+      const getStart = () => curSession?.lastWaitStartTime || curSession?.turnStartTime || Date.now();
       elapsedMs = Math.max(0, Date.now() - getStart());
 
       if (timerInterval) clearInterval(timerInterval);
       timerInterval = setInterval(() => {
-        const start = curSession?.turnStartTime;
+        const start = curSession?.lastWaitStartTime || curSession?.turnStartTime;
         if (start) {
           elapsedMs = Math.max(0, Date.now() - start);
         }

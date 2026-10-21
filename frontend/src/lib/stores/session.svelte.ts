@@ -161,6 +161,7 @@ export interface Session {
   // Per-session live prompt execution timestamps
   turnStartTime?: number;
   lastTurnDurationMs?: number;
+  lastWaitStartTime?: number;
 }
 
 export interface SessionMetadata {
@@ -175,6 +176,7 @@ export interface SessionMetadata {
   visibleTurnCount?: number;
   turnStartTime?: number;
   lastTurnDurationMs?: number;
+  lastWaitStartTime?: number;
   isCustomTitle?: boolean;
   isPinned?: boolean;
   pinnedAt?: number;
@@ -193,6 +195,7 @@ export function sanitizeSessionForStorage(session: Session): SessionMetadata {
     visibleTurnCount: session.visibleTurnCount,
     turnStartTime: session.turnStartTime,
     lastTurnDurationMs: session.lastTurnDurationMs,
+    lastWaitStartTime: session.lastWaitStartTime,
     isCustomTitle: session.isCustomTitle,
     isPinned: session.isPinned,
     pinnedAt: session.pinnedAt
@@ -1918,11 +1921,15 @@ export class SessionStore {
         if (!session.turnStartTime) {
           session.turnStartTime = Date.now();
         }
+        if (!session.lastWaitStartTime) {
+          session.lastWaitStartTime = Date.now();
+        }
       } else {
         if (session.turnStartTime) {
           session.lastTurnDurationMs = Math.max(0, Date.now() - session.turnStartTime);
           session.turnStartTime = undefined;
         }
+        session.lastWaitStartTime = undefined;
       }
       session.updatedAt = Date.now();
     }
@@ -1932,6 +1939,15 @@ export class SessionStore {
     const session = this.sessions.find((s) => s.id === id);
     if (session) {
       session.turnStartTime = startTime;
+      session.lastWaitStartTime = startTime;
+      session.updatedAt = Date.now();
+    }
+  }
+
+  touchWaitStartTime(id: string, time = Date.now()): void {
+    const session = this.sessions.find((s) => s.id === id);
+    if (session && session.status === 'working') {
+      session.lastWaitStartTime = time;
       session.updatedAt = Date.now();
     }
   }
@@ -2113,6 +2129,7 @@ export class SessionStore {
 
       lastMsg.parts = [...lastMsg.parts];
       session.updatedAt = Date.now();
+      session.lastWaitStartTime = Date.now();
       return toolCall;
     } else {
       this.addMessage(sessionId, {
@@ -2138,6 +2155,7 @@ export class SessionStore {
             msg.parts = [...msg.parts];
           }
           session.updatedAt = Date.now();
+          session.lastWaitStartTime = Date.now();
           return;
         }
       }
@@ -2177,6 +2195,7 @@ export class SessionStore {
             lastMsg.parts.push({ type: 'text', text: delta });
           }
           session.updatedAt = Date.now();
+          session.lastWaitStartTime = Date.now();
           return;
         }
       }
@@ -2216,6 +2235,8 @@ export class SessionStore {
       }
       lastMsg.parts = [...lastMsg.parts];
     }
+    // Update lastWaitStartTime on streaming deltas to track live activity
+    session.lastWaitStartTime = Date.now();
 
     // Refresh live context token consumption during active streaming
     if (liveTokens && liveTokens > 0) {
