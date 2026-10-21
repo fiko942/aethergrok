@@ -857,6 +857,20 @@
                             </div>
                             <pre class="p-2 rounded bg-ant-bg-secondary/60 text-ant-text max-h-48 overflow-y-auto scrollbar-thin whitespace-pre-wrap break-all">{child.result}</pre>
                           </div>
+                        {:else if child.status === 'running'}
+                          <div class="p-2.5 rounded bg-violet-500/10 border border-violet-500/20 text-xs text-violet-300 flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                              <Loader2 size={12} class="animate-spin text-violet-400 shrink-0" />
+                              <span>Action in progress... waiting for output</span>
+                            </div>
+                            <span class="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-300 border border-violet-500/25">
+                              running
+                            </span>
+                          </div>
+                        {:else}
+                          <div class="p-2 rounded bg-ant-bg-secondary/40 text-[10.5px] text-ant-text-muted italic">
+                            No output recorded for this action.
+                          </div>
                         {/if}
                       {/if}
                     </div>
@@ -931,6 +945,12 @@
             {:else if cleanedOutput}
               <div class="font-serif text-[14px] text-ant-text leading-[1.75] tracking-normal select-text markdown-chat-body max-w-none">
                 {@html renderMarkdown(cleanedOutput)}
+              </div>
+            {:else if subagentIsActuallyRunning}
+              <div class="py-8 flex flex-col items-center justify-center space-y-2.5 text-center text-violet-300/80 font-mono text-xs">
+                <Loader2 size={20} class="animate-spin text-violet-400" />
+                <span class="font-medium text-[12px] text-violet-200">Subagent is executing tasks...</span>
+                <span class="text-[11px] text-ant-text-muted">Final report will be displayed here once execution completes.</span>
               </div>
             {:else}
               <div class="py-6 text-center text-ant-text-muted font-mono text-xs">

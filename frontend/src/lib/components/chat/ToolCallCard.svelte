@@ -1082,6 +1082,24 @@
                 <ChevronRight size={10} />
               </button>
             </div>
+          {:else if subagentIsActuallyRunning}
+            <div class="flex items-center justify-between px-3 py-2 rounded-md bg-violet-500/10 border border-violet-500/20 text-xs">
+              <div class="flex items-center gap-2 text-violet-300">
+                <Loader2 size={12} class="animate-spin text-violet-400 shrink-0" />
+                <span class="font-medium text-[11px]">Subagent is executing tasks...</span>
+              </div>
+              <button
+                type="button"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  dialogStore.openSubagentModal(toolCall, toolParsed.meta);
+                }}
+                class="text-[11px] text-violet-300 hover:text-violet-200 hover:underline cursor-pointer flex items-center gap-1 font-sans"
+              >
+                <span>Inspect Live</span>
+                <ChevronRight size={10} />
+              </button>
+            </div>
           {:else if toolCall.status === 'error'}
             <div class="flex items-center justify-between px-3 py-2 rounded-md bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300">
               <span class="text-[11px]">Subagent execution encountered an error</span>
@@ -1547,7 +1565,37 @@
                 </div>
               {/if}
             </div>
+          {:else if toolCall.status === 'running'}
+            <div class="rounded border border-indigo-500/20 bg-indigo-500/5 p-2.5 flex items-center justify-between text-[11px] text-indigo-300">
+              <div class="flex items-center space-x-2">
+                <Loader2 size={12} class="animate-spin text-indigo-400 shrink-0" />
+                <span class="font-medium text-ant-text">Executing command...</span>
+              </div>
+              <span class="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/25">
+                running
+              </span>
+            </div>
           {/if}
+        </div>
+      {:else if toolCall.status === 'running'}
+        <!-- Running Tool Execution Loading Indicator -->
+        <div class="rounded-lg border border-ant-primary/20 bg-ant-primary/5 p-3 flex items-center justify-between text-[11px] text-ant-text select-none">
+          <div class="flex items-center space-x-2.5 min-w-0 flex-1 mr-2">
+            <Loader2 size={13} class="animate-spin text-ant-primary shrink-0" />
+            <div class="flex flex-col min-w-0 flex-1">
+              <span class="font-medium text-ant-text">
+                {toolParsed.verb ? `${toolParsed.verb} in progress...` : 'Executing tool...'}
+              </span>
+              {#if toolParsed.target}
+                <span class="text-[10.5px] text-ant-text-muted truncate font-mono mt-0.5" title={toolParsed.target}>
+                  {toolParsed.target}
+                </span>
+              {/if}
+            </div>
+          </div>
+          <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-ant-primary/10 text-ant-primary border border-ant-primary/20 shrink-0 uppercase tracking-wider font-semibold">
+            running
+          </span>
         </div>
       {:else if toolCall.result !== undefined && (!toolCall.diff || !isGenericEditAck || toolCall.status === 'error')}
         <!-- 3. General Output Block (Terminal / TaskOutput / Search / Write) -->
@@ -1597,6 +1645,10 @@
               <span class="font-mono truncate max-w-xs text-ant-text-secondary" title={parsedOutput.outputFile}>{parsedOutput.outputFile}</span>
             </div>
           {/if}
+        </div>
+      {:else if toolCall.status !== 'running'}
+        <div class="p-2.5 text-center text-ant-text-muted italic text-[11px]">
+          No output recorded for this operation.
         </div>
       {/if}
     </div>
