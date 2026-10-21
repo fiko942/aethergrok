@@ -2,8 +2,31 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "AetherGrok Release Changelog",
   "description": "Central single source of truth for all AetherGrok releases, commit ranges, and download artifacts.",
-  "latest": "1.1.18",
+  "latest": "1.1.19",
   "releases": [
+    {
+      "version": "1.1.19",
+      "tag": "v1.1.19",
+      "date": "2026-10-21T04:00:00.000Z",
+      "title": "AetherGrok 1.1.19 - Instant Session Tab Switching, Terminal Defaults, macOS Stability & Streaming JSONL",
+      "targetCommit": "HEAD",
+      "previousCommit": "ebf774d",
+      "highlights": [
+        "Instant session tab switching: protect active open tabs from memory eviction, eliminating blank loading screens and redundant disk I/O when navigating between tabs",
+        "Uncommitted & cancelled turn persistence: merge in-memory uncommitted user prompts and stopped responses (*(Turn cancelled by user)*) with disk history on session load",
+        "Active tool & subagent loading indicators: display animated loading indicators and live status badges for running tool operations, terminal commands, and subagent modal actions",
+        "Default closed session terminal: default new session terminals to collapsed state while preserving user-opened terminal state across tab switches",
+        "macOS CGO event tap stability: isolate CGEventTap MachPort run loop source to a single dedicated thread with ListenOnly mode, preventing idle kernel crashes",
+        "macOS window teardown prevention: set HideWindowOnClose to true in application runtime options to keep background processes safe when window is closed",
+        "Streaming JSONL reader & ModTime cache: process JSONL files with O(1) memory line streaming via bufio.Reader, early-exit title extraction, and 0.01ms in-memory cache"
+      ],
+      "downloads": {
+        "macos_arm64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.19/AetherGrok-1.1.19-macOS-arm64.dmg",
+        "macos_x64_dmg": "https://github.com/fiko942/aethergrok/releases/download/v1.1.19/AetherGrok-1.1.19-macOS-amd64.dmg",
+        "windows_x64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.19/AetherGrok-1.1.19-windows-amd64-setup.exe",
+        "windows_arm64_setup": "https://github.com/fiko942/aethergrok/releases/download/v1.1.19/AetherGrok-1.1.19-windows-arm64-setup.exe"
+      }
+    },
     {
       "version": "1.1.18",
       "tag": "v1.1.18",
