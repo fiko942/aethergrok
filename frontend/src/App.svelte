@@ -433,6 +433,19 @@
 
     // Execute immediately if idle
     activeSession.autoRetryCount = 0;
+
+    // Check if session has exceeded user configured token limit before sending next turn.
+    // If exceeded, automatically perform context compaction first so the model doesn't exceed budget.
+    const tokenCap = settingsStore.maxContextTokens || 200000;
+    const currentUsed = activeSession.usage?.usedTokens || 0;
+    if (currentUsed >= tokenCap && activeSession.messages.length > 0 && !sessionStore.isCompacting) {
+      try {
+        await sessionStore.compactActiveSession();
+      } catch (err) {
+        console.warn('Pre-turn auto-compaction failed, proceeding with prompt:', err);
+      }
+    }
+
     await executeTurn(sessionId, payload);
   }
 
@@ -644,9 +657,20 @@
     const session = sessionStore.sessions.find((s) => s.id === sessionId);
     if (!session || session.status === 'working') return;
 
-    setTimeout(() => {
+    setTimeout(async () => {
       const current = sessionStore.sessions.find((s) => s.id === sessionId);
       if (!current || current.status === 'working') return;
+
+      // Check if session has reached or exceeded token budget before executing next queued prompt
+      const tokenCap = settingsStore.maxContextTokens || 200000;
+      const currentUsed = current.usage?.usedTokens || 0;
+      if (currentUsed >= tokenCap && current.messages.length > 0 && !sessionStore.isCompacting) {
+        try {
+          await sessionStore.compactActiveSession();
+        } catch (err) {
+          console.warn('Queue auto-compaction error:', err);
+        }
+      }
 
       const next = sessionStore.popNextQueuedPrompt(sessionId);
       if (next) {

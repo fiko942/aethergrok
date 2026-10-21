@@ -1024,6 +1024,11 @@ func (a *App) SaveAppSettings(settings storage.AppSettings) error {
 		return err
 	}
 
+	// Synchronize user token limit to ~/.grok/config.toml so the Grok CLI process respects it
+	if settings.MaxContextTokens > 0 {
+		_ = grokrunner.SyncGrokConfigContextWindow(settings.MaxContextTokens)
+	}
+
 	// Dynamically sync global OS hotkeys whenever settings are saved
 	if a.hotkeyMgr != nil && settings.SnapshotShortcut != "" {
 		_ = a.hotkeyMgr.RegisterShortcut(settings.SnapshotShortcut)
