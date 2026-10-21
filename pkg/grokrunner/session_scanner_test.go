@@ -824,3 +824,63 @@ func TestLoadGrokSessionMessages_SubagentHydration(t *testing.T) {
 	}
 }
 
+func TestLoadGrokSessionMessages_PromptTagVariations(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testWs := "/tmp/test-workspace-prompt-variants"
+	encodedWs := EncodeGrokWorkspacePath(testWs)
+	testDir := filepath.Join(home, ".grok", "sessions", encodedWs, "sess-variants")
+	defer os.RemoveAll(filepath.Join(home, ".grok", "sessions", encodedWs))
+
+	if err := os.MkdirAll(testDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	lines := []string{
+		// Initial empty assistant message or reasoning should be skipped and not create orphan assistant message
+		`{"type":"assistant","content":"","tool_calls":[]}`,
+		`{"type":"reasoning","content":"Thinking about user intent..."}`,
+		// Turn 1: user prompt with <user_info> prefix and prompt after tags
+		`{"type":"user","content":"<user_info>\nOS: windows\nShell: powershell\n</user_info>\nInvestigate the database connection issue"}`,
+		`{"type":"assistant","content":"I will inspect the database config.","tool_calls":[]}`,
+		// Turn 2: plain text prompt without XML tags
+		`{"type":"user","content":"Please apply the proposed fix to db.go"}`,
+		`{"type":"assistant","content":"The fix has been applied.","tool_calls":[]}`,
+	}
+
+	f, err := os.Create(filepath.Join(testDir, "chat_history.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, l := range lines {
+		f.WriteString(l + "\n")
+	}
+	f.Close()
+
+	msgs, err := LoadGrokSessionMessages(testWs, "sess-variants")
+	if err != nil {
+		t.Fatalf("LoadGrokSessionMessages failed: %v", err)
+	}
+
+	if len(msgs) != 4 {
+		t.Fatalf("Expected 4 messages (2 user, 2 assistant) properly sequenced without orphan initial messages, got %d", len(msgs))
+	}
+
+	if msgs[0].Role != "user" || msgs[0].Content != "Investigate the database connection issue" {
+		t.Errorf("Message 0 mismatch: %+v", msgs[0])
+	}
+	if msgs[1].Role != "assistant" || msgs[1].Content != "I will inspect the database config." {
+		t.Errorf("Message 1 mismatch: %+v", msgs[1])
+	}
+	if msgs[2].Role != "user" || msgs[2].Content != "Please apply the proposed fix to db.go" {
+		t.Errorf("Message 2 mismatch: %+v", msgs[2])
+	}
+	if msgs[3].Role != "assistant" || msgs[3].Content != "The fix has been applied." {
+		t.Errorf("Message 3 mismatch: %+v", msgs[3])
+	}
+}
+
+

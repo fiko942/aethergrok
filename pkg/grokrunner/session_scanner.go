@@ -479,8 +479,8 @@ func LoadGrokSessionMessages(workspacePath, sessionID string) ([]DiscoveredChatM
 			role = msgType
 		}
 
-		// Skip internal system prompts or compaction meta
-		if role == "system" {
+		// Skip internal system prompts, reasoning, or compaction meta
+		if role == "system" || role == "reasoning" || msgType == "reasoning" {
 			continue
 		}
 
@@ -502,14 +502,25 @@ func LoadGrokSessionMessages(workspacePath, sessionID string) ([]DiscoveredChatM
 			}
 
 			userText = strings.TrimSpace(userText)
-			// Extract real user prompt from <user_query>
 			matches := userQueryRegex.FindStringSubmatch(userText)
 			if len(matches) > 1 {
 				userText = strings.TrimSpace(matches[1])
 			} else {
-				// Filter out non-user prompt payloads like system reminders or compaction headers
-				if strings.HasPrefix(userText, "<user_info>") || strings.HasPrefix(userText, "<system-reminder>") || strings.HasPrefix(userText, "This session is being continued") {
+				if strings.HasPrefix(userText, "<system-reminder>") && !strings.Contains(userText, "</system-reminder>") {
 					continue
+				}
+				if strings.HasPrefix(userText, "<user_info>") {
+					lastTagEnd := strings.LastIndex(userText, ">")
+					if lastTagEnd != -1 && lastTagEnd < len(userText)-1 {
+						trailing := strings.TrimSpace(userText[lastTagEnd+1:])
+						if trailing != "" {
+							userText = trailing
+						} else {
+							continue
+						}
+					} else {
+						continue
+					}
 				}
 			}
 
@@ -531,6 +542,17 @@ func LoadGrokSessionMessages(workspacePath, sessionID string) ([]DiscoveredChatM
 				},
 			})
 		} else if role == "assistant" {
+			contentStr := ""
+			if cStr, ok := raw["content"].(string); ok {
+				contentStr = strings.TrimSpace(cStr)
+			}
+			tcList, _ := raw["tool_calls"].([]interface{})
+
+			// Prevent orphan assistant messages before the first user turn if blank and no tool calls
+			if len(messages) == 0 && contentStr == "" && len(tcList) == 0 {
+				continue
+			}
+
 			// Ensure an assistant message exists for this turn
 			if len(messages) == 0 || messages[len(messages)-1].Role != "assistant" {
 				messages = append(messages, DiscoveredChatMessage{
@@ -540,11 +562,6 @@ func LoadGrokSessionMessages(workspacePath, sessionID string) ([]DiscoveredChatM
 				})
 			}
 			asst := &messages[len(messages)-1]
-
-			contentStr := ""
-			if cStr, ok := raw["content"].(string); ok {
-				contentStr = strings.TrimSpace(cStr)
-			}
 
 			// In assistant turns, any introductory text was generated before tool calls
 			if contentStr != "" {
